@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
@@ -32,18 +33,17 @@ import org.teavm.flavour.templates.Variable;
  *
  * @author Alexey Andreev
  */
-@BindDirective(prefix = "v", name = "foreach")
-public class ForEachComponent<T> implements Component {
+@BindDirective(prefix = "std", name = "foreach")
+public class ForEachComponent<T> extends AbstractComponent {
     private Computation<Iterable<T>> collection;
     private Variable<T> elementVariable;
     private Variable<Integer> indexVariable;
     private Fragment body;
     private List<Component> childComponents = new ArrayList<>();
     private List<T> computedCollection;
-    private Slot slot;
 
     public ForEachComponent(Slot slot) {
-        this.slot = slot;
+        super(slot);
     }
 
     @BindAttribute(name = "in")
@@ -89,7 +89,7 @@ public class ForEachComponent<T> implements Component {
             if (i >= computedCollection.size()) {
                 Component childComponent = body.create();
                 childComponents.add(childComponent);
-                slot.append(childComponent.getSlot());
+                getSlot().append(childComponent.getSlot());
             }
             if (!Objects.equals(computedCollection.get(i), item)) {
                 childComponents.get(i).render();
@@ -104,14 +104,9 @@ public class ForEachComponent<T> implements Component {
 
     @Override
     public void destroy() {
-        slot.delete();
+        super.destroy();
         for (Component renderer : childComponents) {
             renderer.destroy();
         }
-    }
-
-    @Override
-    public Slot getSlot() {
-        return slot;
     }
 }

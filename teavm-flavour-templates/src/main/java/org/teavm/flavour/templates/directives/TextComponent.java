@@ -21,6 +21,7 @@ import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Computation;
+import org.teavm.flavour.templates.NodeHolder;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.JS;
 
@@ -28,11 +29,11 @@ import org.teavm.jso.JS;
  *
  * @author Alexey Andreev
  */
-@BindDirective(prefix = "v", name = "text")
+@BindDirective(prefix = "std", name = "text")
 public class TextComponent<T> extends AbstractComponent {
     private static Window window = (Window)JS.getGlobal();
     private Computation<T> value;
-    private Slot textSlot;
+    private NodeHolder textSlot;
     private T cachedValue;
     private boolean cacheInitialized;
 
@@ -57,7 +58,7 @@ public class TextComponent<T> extends AbstractComponent {
             textSlot.delete();
             textSlot = null;
         }
-        textSlot = Slot.wrap(window.getDocument().createTextNode(String.valueOf(computedValue)));
+        textSlot = new NodeHolder(window.getDocument().createTextNode(String.valueOf(computedValue)));
         getSlot().append(textSlot);
     }
 }

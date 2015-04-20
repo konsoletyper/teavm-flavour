@@ -28,7 +28,7 @@ import org.teavm.flavour.templates.Slot;
  *
  * @author Alexey Andreev
  */
-@BindDirective(prefix = "v", name = "if")
+@BindDirective(prefix = "std", name = "if")
 public class IfComponent extends AbstractComponent {
     private Computation<Boolean> condition;
     private Fragment body;
