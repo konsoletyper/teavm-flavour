@@ -13,20 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates.directives;
+package org.teavm.flavour.templates.directives;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import org.teavm.vapor.templates.BindAttribute;
-import org.teavm.vapor.templates.BindContent;
-import org.teavm.vapor.templates.BindDirective;
-import org.teavm.vapor.templates.Computation;
-import org.teavm.vapor.templates.Fragment;
-import org.teavm.vapor.templates.Component;
-import org.teavm.vapor.templates.Slot;
-import org.teavm.vapor.templates.Variable;
+import org.teavm.flavour.templates.BindAttribute;
+import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.Computation;
+import org.teavm.flavour.templates.Fragment;
+import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Variable;
 
 /**
  *

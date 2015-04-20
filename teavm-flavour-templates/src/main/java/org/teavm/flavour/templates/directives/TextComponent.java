@@ -13,16 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates.directives;
+package org.teavm.flavour.templates.directives;
 
 import java.util.Objects;
 import org.teavm.dom.browser.Window;
+import org.teavm.flavour.templates.AbstractComponent;
+import org.teavm.flavour.templates.BindAttribute;
+import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.Computation;
+import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.JS;
-import org.teavm.vapor.templates.AbstractComponent;
-import org.teavm.vapor.templates.BindAttribute;
-import org.teavm.vapor.templates.BindDirective;
-import org.teavm.vapor.templates.Computation;
-import org.teavm.vapor.templates.Slot;
 
 /**
  *

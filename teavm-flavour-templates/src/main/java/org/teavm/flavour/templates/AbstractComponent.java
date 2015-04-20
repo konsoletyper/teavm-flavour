@@ -13,23 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+package org.teavm.flavour.templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE })
-@Documented
-public @interface BindDirective {
-    String prefix();
+public abstract class AbstractComponent implements Component {
+    private Slot slot;
 
-    String name();
+    public AbstractComponent(Slot slot) {
+        this.slot = slot;
+    }
+
+    @Override
+    public void destroy() {
+        slot.delete();
+    }
+
+    @Override
+    public Slot getSlot() {
+        return slot;
+    }
 }

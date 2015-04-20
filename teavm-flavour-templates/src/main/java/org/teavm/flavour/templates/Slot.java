@@ -13,12 +13,41 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates;
+package org.teavm.flavour.templates;
+
+import org.teavm.dom.core.Node;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Variable<T> {
-    void set(T value);
+public abstract class Slot {
+    Slot parent;
+
+    public void append(Slot slot) {
+        insert(slot, size());
+    }
+
+    public abstract void insert(Slot slot, int index);
+
+    public abstract void delete();
+
+    public abstract Slot getChild(int index);
+
+    public abstract int size();
+
+    public abstract int getIndex();
+
+    public abstract Slot getAttributeSlot(String name);
+
+    Slot() {
+    }
+
+    public static Slot create() {
+        return null;
+    }
+
+    public static Slot wrap(Node domNode) {
+        return null;
+    }
 }

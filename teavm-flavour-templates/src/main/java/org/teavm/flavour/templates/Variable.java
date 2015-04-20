@@ -13,16 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates;
+package org.teavm.flavour.templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component {
-    void render();
-
-    void destroy();
-
-    Slot getSlot();
+public interface Variable<T> {
+    void set(T value);
 }

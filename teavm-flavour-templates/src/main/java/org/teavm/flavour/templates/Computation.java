@@ -13,26 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates;
+package org.teavm.flavour.templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class AbstractComponent implements Component {
-    private Slot slot;
-
-    public AbstractComponent(Slot slot) {
-        this.slot = slot;
-    }
-
-    @Override
-    public void destroy() {
-        slot.delete();
-    }
-
-    @Override
-    public Slot getSlot() {
-        return slot;
-    }
+public interface Computation<T> {
+    T perform();
 }

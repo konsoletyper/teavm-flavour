@@ -13,23 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.vapor.templates;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+package org.teavm.flavour.templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD, ElementType.FIELD })
-@Documented
-public @interface BindAttribute {
-    String name();
-
-    boolean optional() default false;
+public interface Fragment {
+    Component create();
 }
