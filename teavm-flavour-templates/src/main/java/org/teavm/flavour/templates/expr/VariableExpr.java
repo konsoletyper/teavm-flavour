@@ -22,6 +22,10 @@ package org.teavm.flavour.templates.expr;
 public class VariableExpr<T> extends Expr<T> {
     private String name;
 
+    public VariableExpr(String name) {
+        this.name = name;
+    }
+
     public String getName() {
         return name;
     }

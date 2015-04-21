@@ -22,6 +22,10 @@ package org.teavm.flavour.templates.expr;
 public class ConstantExpr<T> extends Expr<T> {
     private Object value;
 
+    public ConstantExpr(Object value) {
+        this.value = value;
+    }
+
     public Object getValue() {
         return value;
     }

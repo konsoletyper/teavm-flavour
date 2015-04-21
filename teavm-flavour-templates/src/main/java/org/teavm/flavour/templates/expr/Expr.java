@@ -21,6 +21,8 @@ package org.teavm.flavour.templates.expr;
  */
 public abstract class Expr<T> {
     private T attribute;
+    private int start;
+    private int end;
 
     public T getAttribute() {
         return attribute;
@@ -28,6 +30,22 @@ public abstract class Expr<T> {
 
     public void setAttribute(T attribute) {
         this.attribute = attribute;
+    }
+
+    public int getStart() {
+        return start;
+    }
+
+    public void setStart(int start) {
+        this.start = start;
+    }
+
+    public int getEnd() {
+        return end;
+    }
+
+    public void setEnd(int end) {
+        this.end = end;
     }
 
     public abstract void acceptVisitor(ExprVisitor<? super T> visitor);

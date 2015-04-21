@@ -23,6 +23,11 @@ public class UnaryExpr<T> extends Expr<T> {
     private Expr<T> operand;
     private UnaryOperation operation;
 
+    public UnaryExpr(Expr<T> operand, UnaryOperation operation) {
+        this.operand = operand;
+        this.operation = operation;
+    }
+
     public Expr<T> getOperand() {
         return operand;
     }

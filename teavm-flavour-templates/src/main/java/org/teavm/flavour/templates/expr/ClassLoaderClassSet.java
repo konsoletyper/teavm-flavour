@@ -15,37 +15,33 @@
  */
 package org.teavm.flavour.templates.expr;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author Alexey Andreev
  */
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private ExprType targetType;
+public class ClassLoaderClassSet implements ClassSet {
+    private ClassLoader classLoader;
+    private Map<String, Boolean> cache = new HashMap<>();
 
-    public CastExpr(Expr<T> value, ExprType targetType) {
-        this.value = value;
-        this.targetType = targetType;
-    }
-
-    public Expr<T> getValue() {
-        return value;
-    }
-
-    public void setValue(Expr<T> value) {
-        this.value = value;
-    }
-
-    public ExprType getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(ExprType targetType) {
-        this.targetType = targetType;
+    public ClassLoaderClassSet(ClassLoader classLoader) {
+        this.classLoader = classLoader;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
+    public String findClass(String name) {
+        Boolean exists = cache.get(name);
+        if (exists == null) {
+            try {
+                Class.forName(name, false, classLoader);
+                exists = true;
+            } catch (ClassNotFoundException e) {
+                exists = false;
+            }
+            cache.put(name, exists);
+        }
+        return exists ? name : null;
     }
 }

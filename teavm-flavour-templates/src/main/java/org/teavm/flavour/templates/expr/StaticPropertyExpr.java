@@ -19,29 +19,29 @@ package org.teavm.flavour.templates.expr;
  *
  * @author Alexey Andreev
  */
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private ExprType targetType;
+public class StaticPropertyExpr<T> extends Expr<T> {
+    private String className;
+    private String propertyName;
 
-    public CastExpr(Expr<T> value, ExprType targetType) {
-        this.value = value;
-        this.targetType = targetType;
+    public StaticPropertyExpr(String className, String propertyName) {
+        this.className = className;
+        this.propertyName = propertyName;
     }
 
-    public Expr<T> getValue() {
-        return value;
+    public String getClassName() {
+        return className;
     }
 
-    public void setValue(Expr<T> value) {
-        this.value = value;
+    public void setClassName(String className) {
+        this.className = className;
     }
 
-    public ExprType getTargetType() {
-        return targetType;
+    public String getPropertyName() {
+        return propertyName;
     }
 
-    public void setTargetType(ExprType targetType) {
-        this.targetType = targetType;
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
     }
 
     @Override

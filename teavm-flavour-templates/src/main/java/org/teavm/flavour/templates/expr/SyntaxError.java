@@ -19,33 +19,26 @@ package org.teavm.flavour.templates.expr;
  *
  * @author Alexey Andreev
  */
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private ExprType targetType;
+public class SyntaxError {
+    private int start;
+    private int end;
+    private String message;
 
-    public CastExpr(Expr<T> value, ExprType targetType) {
-        this.value = value;
-        this.targetType = targetType;
+    public SyntaxError(int start, int end, String message) {
+        this.start = start;
+        this.end = end;
+        this.message = message;
     }
 
-    public Expr<T> getValue() {
-        return value;
+    public int getStart() {
+        return start;
     }
 
-    public void setValue(Expr<T> value) {
-        this.value = value;
+    public int getEnd() {
+        return end;
     }
 
-    public ExprType getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(ExprType targetType) {
-        this.targetType = targetType;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
+    public String getMessage() {
+        return message;
     }
 }

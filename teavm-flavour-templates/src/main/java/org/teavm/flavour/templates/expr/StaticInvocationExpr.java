@@ -16,6 +16,8 @@
 package org.teavm.flavour.templates.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -26,6 +28,17 @@ public class StaticInvocationExpr<T> extends Expr<T> {
     private String className;
     private String methodName;
     private List<Expr<T>> arguments = new ArrayList<>();
+
+    @SafeVarargs
+    public StaticInvocationExpr(String className, String methodName, Expr<T>... arguments) {
+        this(className, methodName, Arrays.asList(arguments));
+    }
+
+    public StaticInvocationExpr(String className, String methodName, Collection<Expr<T>> arguments) {
+        this.className = className;
+        this.methodName = methodName;
+        this.arguments.addAll(arguments);
+    }
 
     public String getClassName() {
         return className;

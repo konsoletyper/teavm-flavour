@@ -28,9 +28,11 @@ public interface ExprVisitor<T> {
 
     void visit(InvocationExpr<? extends T> expr);
 
+    void visit(StaticInvocationExpr<? extends T> expr);
+
     void visit(PropertyExpr<? extends T> expr);
 
-    void visit(StaticInvocationExpr<? extends T> expr);
+    void visit(StaticPropertyExpr<? extends T> expr);
 
     void visit(UnaryExpr<? extends T> expr);
 

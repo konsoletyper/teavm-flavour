@@ -19,33 +19,6 @@ package org.teavm.flavour.templates.expr;
  *
  * @author Alexey Andreev
  */
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private ExprType targetType;
-
-    public CastExpr(Expr<T> value, ExprType targetType) {
-        this.value = value;
-        this.targetType = targetType;
-    }
-
-    public Expr<T> getValue() {
-        return value;
-    }
-
-    public void setValue(Expr<T> value) {
-        this.value = value;
-    }
-
-    public ExprType getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(ExprType targetType) {
-        this.targetType = targetType;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
+public interface ClassSet {
+    String findClass(String name);
 }

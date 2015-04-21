@@ -23,6 +23,11 @@ public class InstanceOfExpr<T> extends Expr<T> {
     private Expr<T> value;
     private String checkedType;
 
+    public InstanceOfExpr(Expr<T> value, String checkedType) {
+        this.value = value;
+        this.checkedType = checkedType;
+    }
+
     public Expr<T> getValue() {
         return value;
     }

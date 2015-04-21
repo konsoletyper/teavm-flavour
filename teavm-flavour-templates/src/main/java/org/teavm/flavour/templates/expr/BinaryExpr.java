@@ -24,6 +24,12 @@ public class BinaryExpr<T> extends Expr<T> {
     private Expr<T> secondOperand;
     private BinaryOperation operation;
 
+    public BinaryExpr(Expr<T> firstOperand, Expr<T> secondOperand, BinaryOperation operation) {
+        this.firstOperand = firstOperand;
+        this.secondOperand = secondOperand;
+        this.operation = operation;
+    }
+
     public Expr<T> getFirstOperand() {
         return firstOperand;
     }

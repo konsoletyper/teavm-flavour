@@ -23,6 +23,11 @@ public class PropertyExpr<T> extends Expr<T> {
     private Expr<T> instance;
     private String propertyName;
 
+    public PropertyExpr(Expr<T> instance, String propertyName) {
+        this.instance = instance;
+        this.propertyName = propertyName;
+    }
+
     public Expr<T> getInstance() {
         return instance;
     }

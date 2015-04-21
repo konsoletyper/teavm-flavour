@@ -16,6 +16,8 @@
 package org.teavm.flavour.templates.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -26,6 +28,17 @@ public class InvocationExpr<T> extends Expr<T> {
     private Expr<T> instance;
     private String methodName;
     private List<Expr<T>> arguments = new ArrayList<>();
+
+    @SafeVarargs
+    public InvocationExpr(Expr<T> instance, String methodName, Expr<T>... arguments) {
+        this(instance, methodName, Arrays.asList(arguments));
+    }
+
+    public InvocationExpr(Expr<T> instance, String methodName, Collection<Expr<T>> arguments) {
+        this.instance = instance;
+        this.methodName = methodName;
+        this.arguments.addAll(arguments);
+    }
 
     public Expr<T> getInstance() {
         return instance;
