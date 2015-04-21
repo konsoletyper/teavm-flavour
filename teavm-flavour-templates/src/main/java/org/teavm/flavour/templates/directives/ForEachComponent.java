@@ -33,7 +33,7 @@ import org.teavm.flavour.templates.Variable;
  *
  * @author Alexey Andreev
  */
-@BindDirective(prefix = "std", name = "foreach")
+@BindDirective(name = "foreach")
 public class ForEachComponent<T> extends AbstractComponent {
     private Computation<Iterable<T>> collection;
     private Variable<T> elementVariable;

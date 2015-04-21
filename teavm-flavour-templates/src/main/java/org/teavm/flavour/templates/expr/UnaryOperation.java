@@ -13,12 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public enum UnaryOperation {
+    NEGATE,
+    NOT
 }

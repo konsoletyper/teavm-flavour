@@ -15,10 +15,19 @@
  */
 package org.teavm.flavour.templates;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface BindAttributeDirective {
+    String name();
+
+    String[] elements() default {};
 }

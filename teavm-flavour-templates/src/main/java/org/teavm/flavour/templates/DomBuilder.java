@@ -36,7 +36,7 @@ public class DomBuilder {
     private static final Document document = window.getDocument();
     private Slot slot;
     private Deque<Element> stack = new ArrayDeque<>();
-    private List<Component> components = new ArrayList<>();
+    private List<Renderable> renderables = new ArrayList<>();
 
     public DomBuilder(Slot slot) {
         this.slot = slot;
@@ -75,7 +75,7 @@ public class DomBuilder {
             elemSlot.append(component.getSlot());
         }
         component.render();
-        components.add(component);
+        renderables.add(component);
         return this;
     }
 
@@ -91,7 +91,7 @@ public class DomBuilder {
         }
     }
 
-    public List<Component> getComponents() {
-        return components;
+    public List<Renderable> getRenderables() {
+        return renderables;
     }
 }

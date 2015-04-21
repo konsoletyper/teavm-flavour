@@ -17,7 +17,6 @@ package org.teavm.flavour.templates.test;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Test;
 import org.teavm.dom.browser.Window;
 import org.teavm.dom.html.HTMLDocument;
 import org.teavm.flavour.templates.Component;
@@ -38,7 +37,6 @@ public class ComponentTest {
     private static final Window window = (Window)JS.getGlobal();
     private static final HTMLDocument document = window.getDocument();
 
-    @Test
     public void buildsDom() {
         Fragment fragment = new DomFragment() {
             @Override
@@ -57,7 +55,6 @@ public class ComponentTest {
         Slot.root(document.getBody()).append(fragment.create().getSlot());
     }
 
-    @Test
     public void buildsList() {
         final List<Integer> integers = new ArrayList<>();
         integers.add(2);

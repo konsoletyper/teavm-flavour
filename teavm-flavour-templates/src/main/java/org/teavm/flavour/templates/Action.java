@@ -19,6 +19,6 @@ package org.teavm.flavour.templates;
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public interface Action {
+    void perform();
 }

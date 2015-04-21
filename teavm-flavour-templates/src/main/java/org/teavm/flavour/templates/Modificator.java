@@ -15,10 +15,12 @@
  */
 package org.teavm.flavour.templates;
 
+import org.teavm.dom.html.HTMLElement;
+
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public interface Modificator {
+    Renderable apply(HTMLElement element);
 }

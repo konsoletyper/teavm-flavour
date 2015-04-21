@@ -29,7 +29,7 @@ import org.teavm.jso.JS;
  *
  * @author Alexey Andreev
  */
-@BindDirective(prefix = "std", name = "text")
+@BindDirective(name = "text")
 public class TextComponent<T> extends AbstractComponent {
     private static Window window = (Window)JS.getGlobal();
     private Computation<T> value;

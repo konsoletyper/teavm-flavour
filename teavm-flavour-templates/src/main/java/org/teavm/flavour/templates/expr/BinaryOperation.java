@@ -13,12 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public enum BinaryOperation {
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
+    REMAINDER,
+    AND,
+    OR,
+    EQUAL,
+    NOT_EQUAL,
+    LESS,
+    LESS_OR_EQUAL,
+    GREATER,
+    GREATER_OR_EQUAL,
+    GET_ELEMENT
 }

@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates;
 
+import java.util.List;
+
 /**
  *
  * @author Alexey Andreev
@@ -23,9 +25,27 @@ public abstract class DomFragment implements Fragment {
     @Override
     public Component create() {
         return new AbstractComponent(Slot.create()) {
+            private List<Renderable> renderables;
             @Override
             public void render() {
-                buildDom(new DomBuilder(getSlot()));
+                if (renderables == null) {
+                    DomBuilder builder = new DomBuilder(getSlot());
+                    buildDom(builder);
+                    renderables = builder.getRenderables();
+                }
+                for (Renderable renderable : renderables) {
+                    renderable.render();
+                }
+            }
+            @Override
+            public void destroy() {
+                if (renderables != null) {
+                    for (Renderable renderable : renderables) {
+                        renderable.destroy();
+                    }
+                    renderables = null;
+                }
+                super.destroy();
             }
         };
     }

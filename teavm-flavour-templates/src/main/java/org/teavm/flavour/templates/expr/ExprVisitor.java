@@ -13,12 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public interface ExprVisitor<T> {
+    void visit(BinaryExpr<? extends T> expr);
+
+    void visit(CastExpr<? extends T> expr);
+
+    void visit(InstanceOfExpr<? extends T> expr);
+
+    void visit(InvocationExpr<? extends T> expr);
+
+    void visit(PropertyExpr<? extends T> expr);
+
+    void visit(StaticInvocationExpr<? extends T> expr);
+
+    void visit(UnaryExpr<? extends T> expr);
+
+    void visit(VariableExpr<? extends T> expr);
+
+    void visit(ConstantExpr<? extends T> expr);
 }

@@ -13,12 +13,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Component extends Renderable {
-    Slot getSlot();
+public class PropertyExpr<T> extends Expr<T> {
+    private Expr<T> instance;
+    private String propertyName;
+
+    public Expr<T> getInstance() {
+        return instance;
+    }
+
+    public void setInstance(Expr<T> instance) {
+        this.instance = instance;
+    }
+
+    public String getPropertyName() {
+        return propertyName;
+    }
+
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
+    }
+
+    @Override
+    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+        visitor.visit(this);
+    }
 }
