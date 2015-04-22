@@ -90,9 +90,13 @@ class ExprParser extends BaseParser<Expr<Void>> {
 
     Rule Arithmetic() {
         return FirstOf(
-                Primitive(),
+                Path(),
                 Sequence(Keyword("-"), Arithmetic(), push(new UnaryExpr<>(pop(), UnaryOperation.NEGATE)),
                         setLocations));
+    }
+
+    Rule Path() {
+        return Sequence(Primitive(), ZeroOrMore(Navigation()));
     }
 
     Rule Primitive() {
@@ -102,43 +106,32 @@ class ExprParser extends BaseParser<Expr<Void>> {
                 Sequence(Keyword("true"), push(new ConstantExpr<Void>(true)), setLocations),
                 Sequence(Keyword("false"), push(new ConstantExpr<Void>(false)), setLocations),
                 Sequence(Keyword("null"), push(new ConstantExpr<Void>(true)), setLocations),
-                Invocation(),
-                ArraySubscript(),
-                Qualification(),
                 Sequence(Keyword("("), Expression(), Keyword(")")));
+    }
+
+    Rule Navigation() {
+        return FirstOf(Qualification(), ArraySubscript());
     }
 
     Rule Qualification() {
         Var<Expr<Void>> instance = new Var<>();
         Var<String> property = new Var<>();
-        return Sequence(Primitive(), instance.set(pop()),
-                Keyword("."), Identifier(property), qualify(instance, property), setLocations);
-    }
-
-    Rule Invocation() {
-        Var<Expr<Void>> instance = new Var<>();
-        Var<String> method = new Var<>();
         Var<List<Expr<Void>>> list = new Var<>();
-        return Sequence(
-                Primitive(), instance.set(pop()),
-                Keyword("."), Identifier(method), Keyword("("),
-                ExpressionList(list), Keyword(")"),
-                invoke(instance, method, list), setLocations);
+        return Sequence(list.set(null), instance.set(pop()), Keyword("."), Identifier(property),
+                Optional(Keyword("("), list.set(new ArrayList<Expr<Void>>()), ExpressionList(list), Keyword(")")),
+                qualify(instance, property, list), setLocations);
     }
 
     Rule ExpressionList(Var<List<Expr<Void>>> list) {
-        return Sequence(Expression(), list.get().add(pop()),
-                ZeroOrMore(Keyword(","), Expression(), list.get().add(pop())));
+        return Optional(Sequence(Expression(), append(list), ZeroOrMore(Keyword(","), Expression(), append(list))));
     }
 
     Rule ArraySubscript() {
         Var<Expr<Void>> array = new Var<>();
         Var<Expr<Void>> index = new Var<>();
         return Sequence(
-                Primitive(), array.set(pop()),
-                Keyword("["),
-                Expression(), index.set(pop()),
-                Keyword("]"),
+                array.set(pop()),
+                Keyword("["), Expression(), index.set(pop()), Keyword("]"),
                 push(new BinaryExpr<>(array.get(), index.get(), BinaryOperation.GET_ELEMENT)),
                 setLocations);
     }
@@ -157,12 +150,12 @@ class ExprParser extends BaseParser<Expr<Void>> {
 
     Rule Identifier() {
         Var<String> id = new Var<>();
-        return Sequence(Identifier(id), push(new VariableExpr<Void>(match())), setLocations);
+        return Sequence(Identifier(id), push(new VariableExpr<Void>(id.get())), setLocations);
     }
 
     Rule Identifier(Var<String> id) {
         return Sequence(
-                Sequence(IdentifierStart(), ZeroOrMore(IdentifierPart()), id.set(match())),
+                Sequence(IdentifierStart(), ZeroOrMore(IdentifierPart())), id.set(match()),
                 Whitespace());
     }
 
@@ -198,7 +191,8 @@ class ExprParser extends BaseParser<Expr<Void>> {
         Var<String> firstDigit = new Var<>();
         return FirstOf(
                 Sequence(Ch('0'), s.set("0")),
-                Sequence(CharRange('1', '9'), firstDigit.set(match()), Digits(s), s.set(firstDigit.get() + s.get())));
+                Sequence(CharRange('1', '9'), s.set(match()),
+                        Optional(firstDigit.set(s.get()), Digits(s), s.set(firstDigit.get() + match()))));
     }
 
     Rule FracNumber() {
@@ -334,35 +328,38 @@ class ExprParser extends BaseParser<Expr<Void>> {
         };
     }
 
-    Action<Expr<Void>> invoke(final Var<Expr<Void>> instanceVar, final Var<String> method,
+    Action<Expr<Void>> qualify(final Var<Expr<Void>> instanceVar, final Var<String> propertyVar,
             final Var<List<Expr<Void>>> argumentsVar) {
         return new Action<Expr<Void>>() {
             @Override
             public boolean run(Context<Expr<Void>> context) {
                 Expr<Void> instance = instanceVar.get();
                 String className = isClassName(instance);
-                if (className == null) {
-                    context.getValueStack().push(new InvocationExpr<>(instance, method.get(), argumentsVar.get()));
+                if (argumentsVar.get() == null) {
+                    if (className == null) {
+                        context.getValueStack().push(new PropertyExpr<>(instance, propertyVar.get()));
+                    } else {
+                        context.getValueStack().push(new StaticPropertyExpr<Void>(className, propertyVar.get()));
+                    }
                 } else {
-                    context.getValueStack().push(new StaticInvocationExpr<>(className, method.get(),
-                            argumentsVar.get()));
+                    if (className == null) {
+                        context.getValueStack().push(new InvocationExpr<>(instance, propertyVar.get(),
+                                argumentsVar.get()));
+                    } else {
+                        context.getValueStack().push(new StaticInvocationExpr<>(className, propertyVar.get(),
+                                argumentsVar.get()));
+                    }
                 }
                 return true;
             }
         };
     }
 
-    Action<Expr<Void>> qualify(final Var<Expr<Void>> instanceVar, final Var<String> propertyVar) {
+    Action<Expr<Void>> append(final Var<List<Expr<Void>>> list) {
         return new Action<Expr<Void>>() {
             @Override
             public boolean run(Context<Expr<Void>> context) {
-                Expr<Void> instance = instanceVar.get();
-                String className = isClassName(instance);
-                if (className == null) {
-                    context.getValueStack().push(new PropertyExpr<>(instance, propertyVar.get()));
-                } else {
-                    context.getValueStack().push(new StaticPropertyExpr<Void>(className, propertyVar.get()));
-                }
+                list.get().add(context.getValueStack().pop());
                 return true;
             }
         };

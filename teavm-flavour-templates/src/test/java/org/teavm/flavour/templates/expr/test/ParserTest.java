@@ -53,15 +53,16 @@ public class ParserTest {
 
     @Test
     public void parseExpression() {
-        System.out.println();
-        System.out.println("***");
-        System.out.println();
         Expr<?> expr = parser.parse("x * q.f(2 + u, -v)");
         assertThat(parser.getSyntaxErrors().size(), is(0));
         assertThat(expr, is(instanceOf(BinaryExpr.class)));
         BinaryExpr<?> binary = (BinaryExpr<?>)expr;
         assertThat(binary.getOperation(), is(BinaryOperation.MULTIPLY));
         assertThat(binary.getFirstOperand(), is(instanceOf(VariableExpr.class)));
+        assertThat(((VariableExpr<?>)binary.getFirstOperand()).getName(), is("x"));
         assertThat(binary.getSecondOperand(), is(instanceOf(InvocationExpr.class)));
+        InvocationExpr<?> invocation = (InvocationExpr<?>)binary.getSecondOperand();
+        assertThat(invocation.getMethodName(), is("f"));
+        assertThat(invocation.getArguments().size(), is(2));
     }
 }

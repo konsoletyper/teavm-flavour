@@ -1,4 +1,5 @@
 /target/
 .project
 .classpath
+.checkstyle
 .settings/

@@ -20,7 +20,6 @@ import java.util.List;
 import org.parboiled.Parboiled;
 import org.parboiled.errors.ParseError;
 import org.parboiled.parserunners.RecoveringParseRunner;
-import org.parboiled.parserunners.TracingParseRunner;
 import org.parboiled.support.ParsingResult;
 
 /**
@@ -39,7 +38,7 @@ public class Parser {
         syntaxErrors.clear();
         ExprParser parser = Parboiled.createParser(ExprParser.class);
         parser.importedClasses = classes;
-        TracingParseRunner<Expr<Void>> runner = new TracingParseRunner<>(parser.Expression());
+        RecoveringParseRunner<Expr<Void>> runner = new RecoveringParseRunner<>(parser.Expression());
         ParsingResult<Expr<Void>> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
             syntaxErrors.add(new SyntaxError(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
