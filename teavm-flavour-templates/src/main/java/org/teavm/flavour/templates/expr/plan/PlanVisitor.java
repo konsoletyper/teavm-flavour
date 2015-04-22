@@ -13,25 +13,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class NotPlan extends Plan {
-    private Plan operand;
+public interface PlanVisitor {
+    void visit(ArrayLengthPlan plan);
 
-    public Plan getOperand() {
-        return operand;
-    }
+    void visit(BinaryPlan plan);
 
-    public void setOperand(Plan operand) {
-        this.operand = operand;
-    }
+    void visit(CastPlan plan);
 
-    @Override
-    public void acceptVisitor(PlanVisitor visitor) {
-        visitor.visit(this);
-    }
+    void visit(ConstantPlan plan);
+
+    void visit(FieldPlan plan);
+
+    void visit(InstanceOfPlan plan);
+
+    void visit(InvocationPlan plan);
+
+    void visit(LogicalBinaryPlan plan);
+
+    void visit(NegatePlan plan);
+
+    void visit(NotPlan plan);
+
+    void visit(ReferenceEqualityPlan plan);
+
+    void visit(VariablePlan plan);
 }

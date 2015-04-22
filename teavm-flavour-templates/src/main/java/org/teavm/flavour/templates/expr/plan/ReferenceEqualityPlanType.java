@@ -13,13 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public enum LogicalBinaryPlanType {
-    AND,
-    OR
+public enum ReferenceEqualityPlanType {
+    EQUAL,
+    NOT_EQUAL
 }

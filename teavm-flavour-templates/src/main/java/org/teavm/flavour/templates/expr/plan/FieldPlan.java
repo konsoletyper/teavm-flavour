@@ -13,27 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class InstanceOfPlan extends Plan {
-    private Plan operand;
+public class FieldPlan extends Plan {
+    private Plan instance;
     private String className;
+    private String fieldName;
 
-    public InstanceOfPlan(Plan operand, String className) {
-        this.operand = operand;
+    public FieldPlan(Plan instance, String className, String fieldName) {
+        this.instance = instance;
         this.className = className;
+        this.fieldName = fieldName;
     }
 
-    public Plan getOperand() {
-        return operand;
+    public Plan getInstance() {
+        return instance;
     }
 
-    public void setOperand(Plan operand) {
-        this.operand = operand;
+    public void setInstance(Plan instance) {
+        this.instance = instance;
     }
 
     public String getClassName() {
@@ -42,6 +44,14 @@ public class InstanceOfPlan extends Plan {
 
     public void setClassName(String className) {
         this.className = className;
+    }
+
+    public String getFieldName() {
+        return fieldName;
+    }
+
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
     }
 
     @Override

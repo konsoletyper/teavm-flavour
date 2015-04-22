@@ -16,9 +16,9 @@
 package org.teavm.flavour.templates.expr;
 
 import org.teavm.flavour.templates.expr.ast.*;
-import org.teavm.flavour.templates.expr.intermediate.ConstantPlan;
-import org.teavm.flavour.templates.expr.intermediate.Plan;
-import org.teavm.flavour.templates.expr.intermediate.VariablePlan;
+import org.teavm.flavour.templates.expr.plan.ConstantPlan;
+import org.teavm.flavour.templates.expr.plan.Plan;
+import org.teavm.flavour.templates.expr.plan.VariablePlan;
 
 /**
  *

@@ -17,6 +17,7 @@ package org.teavm.flavour.templates.expr.type;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,9 +28,11 @@ public class TypeUnifier {
     private ClassDescriberRepository classRepository;
     private Map<TypeVar, GenericType> substitutions = new HashMap<>();
     private Map<TypeVar, GenericType> safeSubstitutions = Collections.unmodifiableMap(substitutions);
+    private GenericTypeNavigator typeNavigator;
 
     public TypeUnifier(ClassDescriberRepository classRepository) {
         this.classRepository = classRepository;
+        typeNavigator = new GenericTypeNavigator(classRepository);
     }
 
     public ClassDescriberRepository getClassRepository() {
@@ -40,25 +43,60 @@ public class TypeUnifier {
         return safeSubstitutions;
     }
 
-    public boolean unify(GenericType pattern, GenericType special) {
+    public boolean unify(GenericType pattern, GenericType special, boolean covariant) {
         substitutions.clear();
-        return unifyImpl(pattern, special) != null;
+        return unifyImpl(pattern, special, covariant) != null;
     }
 
-    private GenericType unifyImpl(GenericType pattern, GenericType special) {
+    private GenericType unifyImpl(GenericType pattern, GenericType special, boolean covariant) {
         if (pattern instanceof GenericReference) {
             return substituteVariable((GenericReference)pattern, special);
-        } else if (pattern instanceof Primitive && special instanceof Primitive) {
-            return ((Primitive)pattern).getKind() == ((Primitive)special).getKind() ?
-                    pattern : null;
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
-            GenericType unifiedElement = unifyImpl(((GenericArray)pattern).getElementType(),
-                    ((GenericArray)special).getElementType());
-            return unifiedElement != null ? new GenericArray(unifiedElement) : null;
-        } else if (pattern instanceof GenericClass && special instanceof GenericClass) {
-            return null;
+            return unifyArrays((GenericArray)pattern, (GenericArray)special);
+        } else if (pattern instanceof GenericClass) {
+            GenericClass patternClass = (GenericClass)pattern;
+            if (patternClass.getName().equals("java.lang.Object") && covariant) {
+                return special;
+            } else if (special instanceof GenericClass) {
+                GenericClass specialClass = (GenericClass)special;
+                return unifyClasses(patternClass, specialClass, covariant);
+            } else {
+                return null;
+            }
         }
         return null;
+    }
+
+    private GenericType unifyArrays(GenericArray pattern, GenericArray special) {
+        if (pattern.getElementType() instanceof GenericType && special.getElementType() instanceof GenericType) {
+            GenericType patternElem = (GenericType)pattern.getElementType();
+            GenericType specialElem = (GenericType)special.getElementType();
+            GenericType resultElem = unifyImpl(patternElem, specialElem, true);
+            return resultElem != null ? new GenericArray(resultElem) : null;
+        } else {
+            return pattern.getElementType().equals(special.getElementType()) ? special : null;
+        }
+    }
+
+    private GenericType unifyClasses(GenericClass pattern, GenericClass special, boolean covariant) {
+        if (pattern.getArguments().size() != special.getArguments().size()) {
+            return null;
+        }
+        GenericType matchType;
+        if (!covariant) {
+            if (!pattern.getName().equals(special.getName())) {
+                return null;
+            }
+            matchType = special;
+        } else {
+            List<GenericClass> path = typeNavigator.sublassPath(typeNavigator.getGenericClass(special.getName()),
+                    pattern.getName());
+            if (path == null) {
+                return null;
+            }
+            matchType = path.get(path.size() - 1);
+        }
+        return matchType;
     }
 
     private GenericType substituteVariable(GenericReference ref, GenericType special) {

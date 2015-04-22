@@ -50,6 +50,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
+          <propertyExpansion>config_loc=${basedir}/..</propertyExpansion>
           <configLocation>../checkstyle.xml</configLocation>
           <excludes>org/teavm/flavour/templates/expr/ExprParser.java</excludes>
         </configuration>

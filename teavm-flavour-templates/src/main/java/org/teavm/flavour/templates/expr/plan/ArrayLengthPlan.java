@@ -13,17 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.type;
-
-import java.util.Map;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class GenericType extends ValueType {
-    GenericType() {
+public class ArrayLengthPlan extends Plan {
+    private Plan array;
+
+    public Plan getArray() {
+        return array;
     }
 
-    public abstract GenericType substitute(Map<TypeVar, GenericType> substitutions);
+    public void setArray(Plan array) {
+        this.array = array;
+    }
+
+    @Override
+    public void acceptVisitor(PlanVisitor visitor) {
+        visitor.visit(this);
+    }
 }

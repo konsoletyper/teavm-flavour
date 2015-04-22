@@ -13,29 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ConstantPlan extends Plan {
-    private Object value;
-
-    public ConstantPlan(Object value) {
-        this.value = value;
-    }
-
-    public Object getValue() {
-        return value;
-    }
-
-    public void setValue(Object value) {
-        this.value = value;
-    }
-
-    @Override
-    public void acceptVisitor(PlanVisitor visitor) {
-        visitor.visit(this);
-    }
+public abstract class Plan {
+    public abstract void acceptVisitor(PlanVisitor visitor);
 }

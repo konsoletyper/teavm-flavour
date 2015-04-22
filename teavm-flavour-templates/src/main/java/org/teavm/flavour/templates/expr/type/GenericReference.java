@@ -16,6 +16,7 @@
 package org.teavm.flavour.templates.expr.type;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  *
@@ -25,6 +26,7 @@ public final class GenericReference extends GenericType {
     private TypeVar var;
 
     public GenericReference(TypeVar var) {
+        Objects.requireNonNull(var);
         this.var = var;
     }
 
@@ -36,5 +38,22 @@ public final class GenericReference extends GenericType {
     public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
         GenericType substitution = substitutions.get(substitutions);
         return substitution != null ? substitution : this;
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * var.hashCode() + 13;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof GenericReference)) {
+            return false;
+        }
+        GenericReference other = (GenericReference)obj;
+        return var == other.var;
     }
 }

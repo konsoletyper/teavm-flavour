@@ -15,21 +15,23 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericClass extends GenericType {
-    String name;
-    List<GenericType> arguments = new ArrayList<>();
+public final class GenericClass extends GenericType {
+    private String name;
+    private List<GenericType> arguments = new ArrayList<>();
     private List<GenericType> safeArguments = Collections.unmodifiableList(arguments);
 
     public GenericClass(String name, List<GenericType> arguments) {
+        Objects.nonNull(name);
+        Objects.nonNull(arguments);
+        for (GenericType argument : arguments) {
+            Objects.nonNull(argument);
+        }
         this.name = name;
         this.arguments.addAll(arguments);
     }
@@ -52,5 +54,37 @@ public class GenericClass extends GenericType {
             argumentSubstitutions.add(argSubst);
         }
         return changed ? new GenericClass(name, argumentSubstitutions) : this;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 31 * name.hashCode() + 13;
+        for (GenericType arg : arguments) {
+            hash = 31 * hash + arg.hashCode();
+        }
+        return super.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof GenericClass)) {
+            return false;
+        }
+        GenericClass other = (GenericClass)obj;
+        if (!name.equals(other.name)) {
+            return false;
+        }
+        if (arguments.size() != other.arguments.size()) {
+            return false;
+        }
+        for (int i = 0; i < arguments.size(); ++i) {
+            if (!arguments.get(i).equals(other.arguments.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,46 @@ public class GenericTypeNavigator {
         this.classRepository = classRepository;
     }
 
+    public List<GenericClass> sublassPath(GenericClass subclass, String superclass) {
+        List<GenericClass> path = new ArrayList<>();
+        if (!subclassPathImpl(subclass, superclass, path)) {
+            return null;
+        }
+        return path;
+    }
+
+    private boolean subclassPathImpl(GenericClass subclass, String superclass, List<GenericClass> path) {
+        path.add(subclass);
+        if (subclass.getName().equals(superclass)) {
+            return true;
+        }
+        GenericClass parent = getParent(subclass);
+        if (parent != null) {
+            if (subclassPathImpl(parent, superclass, path)) {
+                return true;
+            }
+        }
+        for (GenericClass iface : getInterfaces(subclass)) {
+            if (subclassPathImpl(iface, superclass, path)) {
+                return true;
+            }
+        }
+        path.remove(path.size() - 1);
+        return false;
+    }
+
+    public GenericClass getGenericClass(String className) {
+        ClassDescriber describer = classRepository.describe(className);
+        if (describer == null) {
+            return null;
+        }
+        List<GenericType> arguments = new ArrayList<>();
+        for (TypeVar var : describer.getTypeVariables()) {
+            arguments.add(new GenericReference(var));
+        }
+        return new GenericClass(className, arguments);
+    }
+
     public GenericClass getParent(GenericClass cls) {
         ClassDescriber describer = classRepository.describe(cls.getName());
         if (describer == null) {
@@ -40,12 +81,7 @@ public class GenericTypeNavigator {
             return null;
         }
 
-        ClassDescriber parentDescriber = classRepository.describe(superType.getName());
-        if (parentDescriber == null) {
-            return null;
-        }
-
-        TypeVar[] typeVars = parentDescriber.getTypeVariables();
+        TypeVar[] typeVars = describer.getTypeVariables();
         List<GenericType> typeValues = cls.getArguments();
         if (typeVars.length != typeValues.size()) {
             return null;
@@ -56,5 +92,29 @@ public class GenericTypeNavigator {
         }
 
         return superType.substitute(substitutions);
+    }
+
+    public GenericClass[] getInterfaces(GenericClass cls) {
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return null;
+        }
+
+        TypeVar[] typeVars = describer.getTypeVariables();
+        List<GenericType> typeValues = cls.getArguments();
+        if (typeVars.length != typeValues.size()) {
+            return null;
+        }
+        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        for (int i = 0; i < typeVars.length; ++i) {
+            substitutions.put(typeVars[i], typeValues.get(i));
+        }
+
+        GenericClass[] interfaces = describer.getInterfaces();
+        GenericClass[] result = new GenericClass[interfaces.length];
+        for (int i = 0; i < interfaces.length; ++i) {
+            result[i] = interfaces[i].substitute(substitutions);
+        }
+        return result;
     }
 }

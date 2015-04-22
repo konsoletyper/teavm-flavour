@@ -26,7 +26,7 @@ public interface MethodDescriber {
 
     TypeVar[] getTypeVariables();
 
-    GenericType[] getArgumentTypes();
+    ValueType[] getArgumentTypes();
 
-    GenericType getReturnType();
+    ValueType getReturnType();
 }

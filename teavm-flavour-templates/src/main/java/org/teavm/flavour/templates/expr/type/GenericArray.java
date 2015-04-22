@@ -16,25 +16,49 @@
 package org.teavm.flavour.templates.expr.type;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericArray extends GenericType {
-    GenericType elementType;
+public final class GenericArray extends GenericType {
+    ValueType elementType;
 
-    public GenericArray(GenericType elementType) {
+    public GenericArray(ValueType elementType) {
+        Objects.requireNonNull(elementType);
         this.elementType = elementType;
     }
 
-    public GenericType getElementType() {
+    public ValueType getElementType() {
         return elementType;
     }
 
     @Override
     public GenericArray substitute(Map<TypeVar, GenericType> substitutions) {
-        GenericType substElement = elementType.substitute(substitutions);
-        return substElement != elementType ? new GenericArray(substElement) : this;
+        if (elementType instanceof GenericType) {
+            GenericType genericElem = (GenericType)elementType;
+            GenericType substElement = genericElem.substitute(substitutions);
+            return substElement != elementType ? new GenericArray(substElement) : this;
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * elementType.hashCode() + 13;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof GenericArray)) {
+            return false;
+        }
+        GenericArray other = (GenericArray)obj;
+        return elementType.equals(other.elementType);
     }
 }

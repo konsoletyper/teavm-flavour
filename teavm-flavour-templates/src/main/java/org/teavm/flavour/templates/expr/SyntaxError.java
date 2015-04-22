@@ -20,9 +20,9 @@ package org.teavm.flavour.templates.expr;
  * @author Alexey Andreev
  */
 public class SyntaxError {
-    private int start;
-    private int end;
-    private String message;
+    private final int start;
+    private final int end;
+    private final String message;
 
     public SyntaxError(int start, int end, String message) {
         this.start = start;

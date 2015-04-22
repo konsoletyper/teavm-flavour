@@ -13,21 +13,35 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ArrayLengthPlan extends Plan {
-    private Plan array;
+public class NegatePlan extends Plan {
+    private Plan operand;
+    private ArithmeticType valueType;
 
-    public Plan getArray() {
-        return array;
+    public NegatePlan(Plan operand, ArithmeticType valueType) {
+        this.operand = operand;
+        this.valueType = valueType;
     }
 
-    public void setArray(Plan array) {
-        this.array = array;
+    public Plan getOperand() {
+        return operand;
+    }
+
+    public void setOperand(Plan operand) {
+        this.operand = operand;
+    }
+
+    public ArithmeticType getValueType() {
+        return valueType;
+    }
+
+    public void setValueType(ArithmeticType valueType) {
+        this.valueType = valueType;
     }
 
     @Override

@@ -13,30 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class CastPlan extends Plan {
-    private Plan operand;
-    private String targetType;
+public class ConstantPlan extends Plan {
+    private Object value;
 
-    public Plan getOperand() {
-        return operand;
+    public ConstantPlan(Object value) {
+        this.value = value;
     }
 
-    public void setOperand(Plan operand) {
-        this.operand = operand;
+    public Object getValue() {
+        return value;
     }
 
-    public String getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(String targetType) {
-        this.targetType = targetType;
+    public void setValue(Object value) {
+        this.value = value;
     }
 
     @Override

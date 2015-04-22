@@ -15,12 +15,12 @@
  */
 package org.teavm.flavour.templates.expr;
 
-import org.teavm.flavour.templates.expr.type.GenericType;
+import org.teavm.flavour.templates.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
 public interface Scope {
-    GenericType variableType(String variableName);
+    ValueType variableType(String variableName);
 }

@@ -15,13 +15,11 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-public final class Primitive extends GenericType {
+public final class Primitive extends ValueType {
     private static Primitive[] builders;
     private PrimitiveKind kind;
 
@@ -43,10 +41,5 @@ public final class Primitive extends GenericType {
 
     public static Primitive get(PrimitiveKind kind) {
         return builders[kind.ordinal()];
-    }
-
-    @Override
-    public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
-        return this;
     }
 }

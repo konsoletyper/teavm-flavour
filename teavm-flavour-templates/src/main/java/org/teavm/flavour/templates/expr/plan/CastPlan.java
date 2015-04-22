@@ -13,20 +13,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr.intermediate;
+package org.teavm.flavour.templates.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class NegatePlan extends Plan {
+public class CastPlan extends Plan {
     private Plan operand;
-    private ArithmeticType valueType;
-
-    public NegatePlan(Plan operand, ArithmeticType valueType) {
-        this.operand = operand;
-        this.valueType = valueType;
-    }
+    private String targetType;
 
     public Plan getOperand() {
         return operand;
@@ -36,12 +31,12 @@ public class NegatePlan extends Plan {
         this.operand = operand;
     }
 
-    public ArithmeticType getValueType() {
-        return valueType;
+    public String getTargetType() {
+        return targetType;
     }
 
-    public void setValueType(ArithmeticType valueType) {
-        this.valueType = valueType;
+    public void setTargetType(String targetType) {
+        this.targetType = targetType;
     }
 
     @Override
