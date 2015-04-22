@@ -13,25 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public enum BinaryOperation {
-    ADD,
-    SUBTRACT,
-    MULTIPLY,
-    DIVIDE,
-    REMAINDER,
-    AND,
-    OR,
-    EQUAL,
-    NOT_EQUAL,
-    LESS,
-    LESS_OR_EQUAL,
-    GREATER,
-    GREATER_OR_EQUAL,
-    GET_ELEMENT
+public class VariablePlan extends Plan {
+    private String name;
+
+    public VariablePlan(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public void acceptVisitor(PlanVisitor visitor) {
+        visitor.visit(this);
+    }
 }

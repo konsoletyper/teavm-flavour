@@ -23,6 +23,7 @@ import org.parboiled.BaseParser;
 import org.parboiled.Context;
 import org.parboiled.Rule;
 import org.parboiled.support.Var;
+import org.teavm.flavour.templates.expr.ast.*;
 
 /**
  *

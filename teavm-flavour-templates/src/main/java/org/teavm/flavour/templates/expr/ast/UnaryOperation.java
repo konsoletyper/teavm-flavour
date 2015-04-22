@@ -13,30 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.ast;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitor<T> {
-    void visit(BinaryExpr<? extends T> expr);
-
-    void visit(CastExpr<? extends T> expr);
-
-    void visit(InstanceOfExpr<? extends T> expr);
-
-    void visit(InvocationExpr<? extends T> expr);
-
-    void visit(StaticInvocationExpr<? extends T> expr);
-
-    void visit(PropertyExpr<? extends T> expr);
-
-    void visit(StaticPropertyExpr<? extends T> expr);
-
-    void visit(UnaryExpr<? extends T> expr);
-
-    void visit(VariableExpr<? extends T> expr);
-
-    void visit(ConstantExpr<? extends T> expr);
+public enum UnaryOperation {
+    NEGATE,
+    NOT
 }

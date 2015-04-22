@@ -13,40 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.type;
+
+import java.util.Map;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class Expr<T> {
-    private T attribute;
-    private int start;
-    private int end;
-
-    public T getAttribute() {
-        return attribute;
+public abstract class GenericTypeBuilder {
+    GenericType build(GenericTypeEnvironment env) {
+        return build(env.cache);
     }
 
-    public void setAttribute(T attribute) {
-        this.attribute = attribute;
+    GenericType build(Map<GenericTypeBuilder, GenericType> cache) {
+        GenericType result = cache.get(this);
+        if (result == null) {
+            result = buildCacheMiss(cache);
+        }
+        return result;
     }
 
-    public int getStart() {
-        return start;
-    }
-
-    public void setStart(int start) {
-        this.start = start;
-    }
-
-    public int getEnd() {
-        return end;
-    }
-
-    public void setEnd(int end) {
-        this.end = end;
-    }
-
-    public abstract void acceptVisitor(ExprVisitor<? super T> visitor);
+    abstract GenericType buildCacheMiss(Map<GenericTypeBuilder, GenericType> cache);
 }

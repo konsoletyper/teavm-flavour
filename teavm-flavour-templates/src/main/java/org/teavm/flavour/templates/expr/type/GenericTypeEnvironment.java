@@ -13,35 +13,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.type;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class UnaryExpr<T> extends Expr<T> {
-    private Expr<T> operand;
-    private UnaryOperation operation;
+public class GenericTypeEnvironment {
+    Map<GenericTypeBuilder, GenericType> cache = new HashMap<>();
 
-    public UnaryExpr(Expr<T> operand, UnaryOperation operation) {
-        this.operand = operand;
-        this.operation = operation;
-    }
-
-    public Expr<T> getOperand() {
-        return operand;
-    }
-
-    public void setOperand(Expr<T> operand) {
-        this.operand = operand;
-    }
-
-    public UnaryOperation getOperation() {
-        return operation;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
+    public GenericType buildType(GenericTypeBuilder typeBuilder) {
+        return typeBuilder.build(this);
     }
 }

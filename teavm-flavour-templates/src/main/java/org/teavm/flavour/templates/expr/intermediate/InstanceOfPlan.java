@@ -13,39 +13,39 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class PropertyExpr<T> extends Expr<T> {
-    private Expr<T> instance;
-    private String propertyName;
+public class InstanceOfPlan extends Plan {
+    private Plan operand;
+    private String className;
 
-    public PropertyExpr(Expr<T> instance, String propertyName) {
-        this.instance = instance;
-        this.propertyName = propertyName;
+    public InstanceOfPlan(Plan operand, String className) {
+        this.operand = operand;
+        this.className = className;
     }
 
-    public Expr<T> getInstance() {
-        return instance;
+    public Plan getOperand() {
+        return operand;
     }
 
-    public void setInstance(Expr<T> instance) {
-        this.instance = instance;
+    public void setOperand(Plan operand) {
+        this.operand = operand;
     }
 
-    public String getPropertyName() {
-        return propertyName;
+    public String getClassName() {
+        return className;
     }
 
-    public void setPropertyName(String propertyName) {
-        this.propertyName = propertyName;
+    public void setClassName(String className) {
+        this.className = className;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+    public void acceptVisitor(PlanVisitor visitor) {
         visitor.visit(this);
     }
 }

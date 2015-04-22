@@ -13,31 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.ast;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class StaticInvocationExpr<T> extends Expr<T> {
+public class StaticPropertyExpr<T> extends Expr<T> {
     private String className;
-    private String methodName;
-    private List<Expr<T>> arguments = new ArrayList<>();
+    private String propertyName;
 
-    @SafeVarargs
-    public StaticInvocationExpr(String className, String methodName, Expr<T>... arguments) {
-        this(className, methodName, Arrays.asList(arguments));
-    }
-
-    public StaticInvocationExpr(String className, String methodName, Collection<Expr<T>> arguments) {
+    public StaticPropertyExpr(String className, String propertyName) {
         this.className = className;
-        this.methodName = methodName;
-        this.arguments.addAll(arguments);
+        this.propertyName = propertyName;
     }
 
     public String getClassName() {
@@ -48,20 +37,21 @@ public class StaticInvocationExpr<T> extends Expr<T> {
         this.className = className;
     }
 
-    public String getMethodName() {
-        return methodName;
+    public String getPropertyName() {
+        return propertyName;
     }
 
-    public void setMethodName(String methodName) {
-        this.methodName = methodName;
-    }
-
-    public List<Expr<T>> getArguments() {
-        return arguments;
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
     }
 
     @Override
     public void acceptVisitor(ExprVisitor<? super T> visitor) {
         visitor.visit(this);
+    }
+
+    @Override
+    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
+        visitor.equals(this);
     }
 }

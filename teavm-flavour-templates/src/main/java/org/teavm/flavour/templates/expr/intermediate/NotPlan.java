@@ -13,13 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public enum UnaryOperation {
-    NEGATE,
-    NOT
+public class NotPlan extends Plan {
+    private Plan operand;
+
+    public Plan getOperand() {
+        return operand;
+    }
+
+    public void setOperand(Plan operand) {
+        this.operand = operand;
+    }
+
+    @Override
+    public void acceptVisitor(PlanVisitor visitor) {
+        visitor.visit(this);
+    }
 }

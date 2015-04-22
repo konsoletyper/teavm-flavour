@@ -19,23 +19,6 @@ package org.teavm.flavour.templates.expr;
  *
  * @author Alexey Andreev
  */
-public class ConstantExpr<T> extends Expr<T> {
-    private Object value;
+public class Compiler {
 
-    public ConstantExpr(Object value) {
-        this.value = value;
-    }
-
-    public Object getValue() {
-        return value;
-    }
-
-    public void setValue(Object value) {
-        this.value = value;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
 }

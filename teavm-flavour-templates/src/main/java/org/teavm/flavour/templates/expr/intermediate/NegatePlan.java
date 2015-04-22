@@ -13,29 +13,39 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class VariableExpr<T> extends Expr<T> {
-    private String name;
+public class NegatePlan extends Plan {
+    private Plan operand;
+    private ArithmeticType valueType;
 
-    public VariableExpr(String name) {
-        this.name = name;
+    public NegatePlan(Plan operand, ArithmeticType valueType) {
+        this.operand = operand;
+        this.valueType = valueType;
     }
 
-    public String getName() {
-        return name;
+    public Plan getOperand() {
+        return operand;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setOperand(Plan operand) {
+        this.operand = operand;
+    }
+
+    public ArithmeticType getValueType() {
+        return valueType;
+    }
+
+    public void setValueType(ArithmeticType valueType) {
+        this.valueType = valueType;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+    public void acceptVisitor(PlanVisitor visitor) {
         visitor.visit(this);
     }
 }

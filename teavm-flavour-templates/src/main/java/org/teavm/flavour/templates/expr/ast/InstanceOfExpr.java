@@ -13,39 +13,44 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.ast;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class StaticPropertyExpr<T> extends Expr<T> {
-    private String className;
-    private String propertyName;
+public class InstanceOfExpr<T> extends Expr<T> {
+    private Expr<T> value;
+    private String checkedType;
 
-    public StaticPropertyExpr(String className, String propertyName) {
-        this.className = className;
-        this.propertyName = propertyName;
+    public InstanceOfExpr(Expr<T> value, String checkedType) {
+        this.value = value;
+        this.checkedType = checkedType;
     }
 
-    public String getClassName() {
-        return className;
+    public Expr<T> getValue() {
+        return value;
     }
 
-    public void setClassName(String className) {
-        this.className = className;
+    public void setValue(Expr<T> value) {
+        this.value = value;
     }
 
-    public String getPropertyName() {
-        return propertyName;
+    public String getCheckedType() {
+        return checkedType;
     }
 
-    public void setPropertyName(String propertyName) {
-        this.propertyName = propertyName;
+    public void setCheckedType(String checkedType) {
+        this.checkedType = checkedType;
     }
 
     @Override
     public void acceptVisitor(ExprVisitor<? super T> visitor) {
         visitor.visit(this);
+    }
+
+    @Override
+    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
+        visitor.equals(this);
     }
 }

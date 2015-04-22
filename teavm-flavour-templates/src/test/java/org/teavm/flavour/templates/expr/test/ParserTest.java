@@ -19,14 +19,9 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import org.teavm.flavour.templates.expr.BinaryExpr;
-import org.teavm.flavour.templates.expr.BinaryOperation;
 import org.teavm.flavour.templates.expr.ClassLoaderClassSet;
-import org.teavm.flavour.templates.expr.ConstantExpr;
-import org.teavm.flavour.templates.expr.Expr;
-import org.teavm.flavour.templates.expr.InvocationExpr;
 import org.teavm.flavour.templates.expr.Parser;
-import org.teavm.flavour.templates.expr.VariableExpr;
+import org.teavm.flavour.templates.expr.ast.*;
 
 /**
  *

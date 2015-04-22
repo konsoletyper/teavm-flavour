@@ -13,39 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private ExprType targetType;
+public class ConstantPlan extends Plan {
+    private Object value;
 
-    public CastExpr(Expr<T> value, ExprType targetType) {
+    public ConstantPlan(Object value) {
         this.value = value;
-        this.targetType = targetType;
     }
 
-    public Expr<T> getValue() {
+    public Object getValue() {
         return value;
     }
 
-    public void setValue(Expr<T> value) {
+    public void setValue(Object value) {
         this.value = value;
     }
 
-    public ExprType getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(ExprType targetType) {
-        this.targetType = targetType;
-    }
-
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+    public void acceptVisitor(PlanVisitor visitor) {
         visitor.visit(this);
     }
 }

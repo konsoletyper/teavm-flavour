@@ -21,6 +21,7 @@ import org.parboiled.Parboiled;
 import org.parboiled.errors.ParseError;
 import org.parboiled.parserunners.RecoveringParseRunner;
 import org.parboiled.support.ParsingResult;
+import org.teavm.flavour.templates.expr.ast.Expr;
 
 /**
  *

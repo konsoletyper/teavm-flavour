@@ -15,37 +15,12 @@
  */
 package org.teavm.flavour.templates.expr;
 
+import org.teavm.flavour.templates.expr.type.GenericType;
+
 /**
  *
  * @author Alexey Andreev
  */
-public class InstanceOfExpr<T> extends Expr<T> {
-    private Expr<T> value;
-    private String checkedType;
-
-    public InstanceOfExpr(Expr<T> value, String checkedType) {
-        this.value = value;
-        this.checkedType = checkedType;
-    }
-
-    public Expr<T> getValue() {
-        return value;
-    }
-
-    public void setValue(Expr<T> value) {
-        this.value = value;
-    }
-
-    public String getCheckedType() {
-        return checkedType;
-    }
-
-    public void setCheckedType(String checkedType) {
-        this.checkedType = checkedType;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
+public interface Scope {
+    GenericType variableType(String variableName);
 }

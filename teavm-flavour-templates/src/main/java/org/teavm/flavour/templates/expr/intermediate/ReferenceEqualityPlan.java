@@ -13,49 +13,49 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class BinaryExpr<T> extends Expr<T> {
-    private Expr<T> firstOperand;
-    private Expr<T> secondOperand;
-    private BinaryOperation operation;
+public class ReferenceEqualityPlan extends Plan {
+    private Plan firstOperand;
+    private Plan secondOperand;
+    private ReferenceEqualityPlanType type;
 
-    public BinaryExpr(Expr<T> firstOperand, Expr<T> secondOperand, BinaryOperation operation) {
+    public ReferenceEqualityPlan(Plan firstOperand, Plan secondOperand, ReferenceEqualityPlanType type) {
         this.firstOperand = firstOperand;
         this.secondOperand = secondOperand;
-        this.operation = operation;
+        this.type = type;
     }
 
-    public Expr<T> getFirstOperand() {
+    public Plan getFirstOperand() {
         return firstOperand;
     }
 
-    public void setFirstOperand(Expr<T> firstOperand) {
+    public void setFirstOperand(Plan firstOperand) {
         this.firstOperand = firstOperand;
     }
 
-    public Expr<T> getSecondOperand() {
+    public Plan getSecondOperand() {
         return secondOperand;
     }
 
-    public void setSecondOperand(Expr<T> secondOperand) {
+    public void setSecondOperand(Plan secondOperand) {
         this.secondOperand = secondOperand;
     }
 
-    public BinaryOperation getOperation() {
-        return operation;
+    public ReferenceEqualityPlanType getType() {
+        return type;
     }
 
-    public void setOperation(BinaryOperation operation) {
-        this.operation = operation;
+    public void setType(ReferenceEqualityPlanType type) {
+        this.type = type;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+    public void acceptVisitor(PlanVisitor visitor) {
         visitor.visit(this);
     }
 }

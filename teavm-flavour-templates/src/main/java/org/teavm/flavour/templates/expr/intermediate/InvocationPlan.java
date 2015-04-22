@@ -13,35 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.expr;
+package org.teavm.flavour.templates.expr.intermediate;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class InvocationExpr<T> extends Expr<T> {
-    private Expr<T> instance;
+public class InvocationPlan extends Plan {
     private String methodName;
-    private List<Expr<T>> arguments = new ArrayList<>();
+    private String methodDesc;
+    private Plan instance;
+    private List<Plan> arguments = new ArrayList<>();
 
-    @SafeVarargs
-    public InvocationExpr(Expr<T> instance, String methodName, Expr<T>... arguments) {
-        this(instance, methodName, Arrays.asList(arguments));
-    }
-
-    public InvocationExpr(Expr<T> instance, String methodName, Collection<Expr<T>> arguments) {
-        this.instance = instance;
+    public InvocationPlan(String methodName, String methodDesc, Plan instance, List<Plan> arguments) {
         this.methodName = methodName;
+        this.methodDesc = methodDesc;
+        this.instance = instance;
         this.arguments.addAll(arguments);
-    }
-
-    public Expr<T> getInstance() {
-        return instance;
     }
 
     public String getMethodName() {
@@ -52,16 +43,28 @@ public class InvocationExpr<T> extends Expr<T> {
         this.methodName = methodName;
     }
 
-    public void setInstance(Expr<T> instance) {
+    public String getMethodDesc() {
+        return methodDesc;
+    }
+
+    public void setMethodDesc(String methodDesc) {
+        this.methodDesc = methodDesc;
+    }
+
+    public Plan getInstance() {
+        return instance;
+    }
+
+    public void setInstance(Plan instance) {
         this.instance = instance;
     }
 
-    public List<Expr<T>> getArguments() {
+    public List<Plan> getArguments() {
         return arguments;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+    public void acceptVisitor(PlanVisitor visitor) {
         visitor.visit(this);
     }
 }
