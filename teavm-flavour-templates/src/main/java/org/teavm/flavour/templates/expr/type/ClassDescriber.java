@@ -15,32 +15,18 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericArrayBuilder extends GenericTypeBuilder {
-    private GenericTypeBuilder elementType;
+public interface ClassDescriber {
+    String getName();
 
-    public GenericArrayBuilder(GenericTypeBuilder elementType) {
-        this.elementType = elementType;
-    }
+    TypeVar[] getTypeVariables();
 
-    public GenericTypeBuilder getElementType() {
-        return elementType;
-    }
+    GenericClass getSupertype();
 
-    public void setElementType(GenericTypeBuilder elementType) {
-        this.elementType = elementType;
-    }
+    GenericClass[] getInterfaces();
 
-    @Override
-    GenericType buildCacheMiss(Map<GenericTypeBuilder, GenericType> cache) {
-        GenericArray array = new GenericArray();
-        cache.put(this, array);
-        array.elementType = elementType.build(cache);
-        return array;
-    }
+    MethodDescriber[] getMethods();
 }

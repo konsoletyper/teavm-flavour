@@ -15,17 +15,18 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericTypeEnvironment {
-    Map<GenericTypeBuilder, GenericType> cache = new HashMap<>();
+public interface MethodDescriber {
+    String getName();
 
-    public GenericType buildType(GenericTypeBuilder typeBuilder) {
-        return typeBuilder.build(this);
-    }
+    boolean isStatic();
+
+    TypeVar[] getTypeVariables();
+
+    GenericType[] getArgumentTypes();
+
+    GenericType getReturnType();
 }

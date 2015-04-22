@@ -21,32 +21,20 @@ import java.util.Map;
  *
  * @author Alexey Andreev
  */
-public final class PrimitiveBuilder extends GenericTypeBuilder {
-    private static PrimitiveBuilder[] builders;
-    private PrimitiveKind kind;
+public final class GenericReference extends GenericType {
+    private TypeVar var;
 
-    static {
-        PrimitiveKind[] kinds = PrimitiveKind.values();
-        builders = new PrimitiveBuilder[kinds.length];
-        for (int i = 0; i < kinds.length; ++i) {
-            builders[i] = new PrimitiveBuilder(kinds[i]);
-        }
+    public GenericReference(TypeVar var) {
+        this.var = var;
     }
 
-    private PrimitiveBuilder(PrimitiveKind kind) {
-        this.kind = kind;
-    }
-
-    public PrimitiveKind getKind() {
-        return kind;
-    }
-
-    public static PrimitiveBuilder get(PrimitiveKind kind) {
-        return builders[kind.ordinal()];
+    public TypeVar getVar() {
+        return var;
     }
 
     @Override
-    GenericType buildCacheMiss(Map<GenericTypeBuilder, GenericType> cache) {
-        return null;
+    public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
+        GenericType substitution = substitutions.get(substitutions);
+        return substitution != null ? substitution : this;
     }
 }

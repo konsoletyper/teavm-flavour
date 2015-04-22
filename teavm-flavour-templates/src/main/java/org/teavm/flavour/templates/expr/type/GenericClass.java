@@ -18,6 +18,7 @@ package org.teavm.flavour.templates.expr.type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -28,14 +29,9 @@ public class GenericClass extends GenericType {
     List<GenericType> arguments = new ArrayList<>();
     private List<GenericType> safeArguments = Collections.unmodifiableList(arguments);
 
-    @Override
-    public boolean isClass() {
-        return true;
-    }
-
-    @Override
-    public boolean isVariable() {
-        return false;
+    public GenericClass(String name, List<GenericType> arguments) {
+        this.name = name;
+        this.arguments.addAll(arguments);
     }
 
     public String getName() {
@@ -47,32 +43,14 @@ public class GenericClass extends GenericType {
     }
 
     @Override
-    public GenericClass asClass() {
-        return this;
-    }
-
-    @Override
-    public GenericVariable asVariable() {
-        throw new IllegalStateException("This type is not a variable");
-    }
-
-    @Override
-    public boolean isPrimitive() {
-        return false;
-    }
-
-    @Override
-    public Primitive asPrimitive() {
-        throw new IllegalStateException("This type is not a primitive");
-    }
-
-    @Override
-    public boolean isArray() {
-        return false;
-    }
-
-    @Override
-    public GenericArray asArray() {
-        throw new IllegalStateException("This type is not an array");
+    public GenericClass substitute(Map<TypeVar, GenericType> substitutions) {
+        List<GenericType> argumentSubstitutions = new ArrayList<>();
+        boolean changed = false;
+        for (GenericType arg : arguments) {
+            GenericType argSubst = arg.substitute(substitutions);
+            changed |= arg != argSubst;
+            argumentSubstitutions.add(argSubst);
+        }
+        return changed ? new GenericClass(name, argumentSubstitutions) : this;
     }
 }

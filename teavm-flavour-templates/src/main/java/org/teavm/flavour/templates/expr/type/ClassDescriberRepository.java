@@ -15,26 +15,10 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericArray extends GenericType {
-    GenericType elementType;
-
-    public GenericArray(GenericType elementType) {
-        this.elementType = elementType;
-    }
-
-    public GenericType getElementType() {
-        return elementType;
-    }
-
-    @Override
-    public GenericArray substitute(Map<TypeVar, GenericType> substitutions) {
-        GenericType substElement = elementType.substitute(substitutions);
-        return substElement != elementType ? new GenericArray(substElement) : this;
-    }
+public interface ClassDescriberRepository {
+    ClassDescriber describe(String className);
 }

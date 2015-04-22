@@ -15,24 +15,12 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
+import java.util.Map;
+
 /**
  *
  * @author Alexey Andreev
  */
 public abstract class GenericType {
-    public abstract boolean isClass();
-
-    public abstract GenericClass asClass();
-
-    public abstract boolean isVariable();
-
-    public abstract GenericVariable asVariable();
-
-    public abstract boolean isPrimitive();
-
-    public abstract Primitive asPrimitive();
-
-    public abstract boolean isArray();
-
-    public abstract GenericArray asArray();
+    public abstract GenericType substitute(Map<TypeVar, GenericType> substitutions);
 }

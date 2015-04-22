@@ -15,38 +15,29 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-public final class Primitive extends GenericType {
-    private static Primitive[] builders;
-    private PrimitiveKind kind;
+public class TypeVar {
+    private GenericType lowerBound;
+    private GenericType upperBound;
 
-    static {
-        PrimitiveKind[] kinds = PrimitiveKind.values();
-        builders = new Primitive[kinds.length];
-        for (int i = 0; i < kinds.length; ++i) {
-            builders[i] = new Primitive(kinds[i]);
-        }
+    public GenericType getLowerBound() {
+        return lowerBound;
     }
 
-    private Primitive(PrimitiveKind kind) {
-        this.kind = kind;
+    public GenericType getUpperBound() {
+        return upperBound;
     }
 
-    public PrimitiveKind getKind() {
-        return kind;
+    public void withLowerBound(GenericType lowerBound) {
+        this.lowerBound = lowerBound;
+        this.upperBound = null;
     }
 
-    public static Primitive get(PrimitiveKind kind) {
-        return builders[kind.ordinal()];
-    }
-
-    @Override
-    public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
-        return this;
+    public void withUpperBound(GenericType upperBound) {
+        this.upperBound = upperBound;
+        this.lowerBound = null;
     }
 }

@@ -15,24 +15,22 @@
  */
 package org.teavm.flavour.templates.expr.type;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class GenericTypeBuilder {
-    GenericType build(GenericTypeEnvironment env) {
-        return build(env.cache);
-    }
+public class GenericTypeScope {
+    private Map<String, TypeVar> variables = new HashMap<>();
 
-    GenericType build(Map<GenericTypeBuilder, GenericType> cache) {
-        GenericType result = cache.get(this);
-        if (result == null) {
-            result = buildCacheMiss(cache);
+    public TypeVar get(String name) {
+        TypeVar var = variables.get(name);
+        if (var == null) {
+            var = new TypeVar();
+            variables.put(name, var);
         }
-        return result;
+        return var;
     }
-
-    abstract GenericType buildCacheMiss(Map<GenericTypeBuilder, GenericType> cache);
 }
