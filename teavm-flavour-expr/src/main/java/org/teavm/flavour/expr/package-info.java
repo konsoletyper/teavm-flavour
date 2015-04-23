@@ -48,5 +48,6 @@
  *
  * <h2>Full syntax</h2>
  *
+ * @author Alexey Andreev
  */
 package org.teavm.flavour.expr;

@@ -59,5 +59,7 @@ public class ParserTest {
         InvocationExpr<?> invocation = (InvocationExpr<?>)binary.getSecondOperand();
         assertThat(invocation.getMethodName(), is("f"));
         assertThat(invocation.getArguments().size(), is(2));
+        assertThat(invocation.getArguments().get(0), is(instanceOf(BinaryExpr.class)));
+        assertThat(invocation.getArguments().get(1), is(instanceOf(UnaryExpr.class)));
     }
 }

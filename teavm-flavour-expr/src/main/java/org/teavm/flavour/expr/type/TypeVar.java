@@ -20,23 +20,23 @@ package org.teavm.flavour.expr.type;
  * @author Alexey Andreev
  */
 public class TypeVar {
-    private ValueType lowerBound;
-    private ValueType upperBound;
+    private GenericType lowerBound;
+    private GenericType upperBound;
 
-    public ValueType getLowerBound() {
+    public GenericType getLowerBound() {
         return lowerBound;
     }
 
-    public ValueType getUpperBound() {
+    public GenericType getUpperBound() {
         return upperBound;
     }
 
-    public void withLowerBound(ValueType lowerBound) {
+    public void withLowerBound(GenericType lowerBound) {
         this.lowerBound = lowerBound;
         this.upperBound = null;
     }
 
-    public void withUpperBound(ValueType upperBound) {
+    public void withUpperBound(GenericType upperBound) {
         this.upperBound = upperBound;
         this.lowerBound = null;
     }

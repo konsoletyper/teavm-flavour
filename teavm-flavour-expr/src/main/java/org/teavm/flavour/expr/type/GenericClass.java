@@ -62,7 +62,7 @@ public final class GenericClass extends GenericType {
         for (GenericType arg : arguments) {
             hash = 31 * hash + arg.hashCode();
         }
-        return super.hashCode();
+        return hash;
     }
 
     @Override

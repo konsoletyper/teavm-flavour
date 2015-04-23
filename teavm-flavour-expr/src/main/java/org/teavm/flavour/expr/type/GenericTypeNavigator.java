@@ -15,10 +15,7 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  *
@@ -57,6 +54,58 @@ public class GenericTypeNavigator {
         }
         path.remove(path.size() - 1);
         return false;
+    }
+
+    public Set<GenericClass> commonSupertypes(Set<GenericClass> firstSet, Set<GenericClass> secondSet) {
+        Set<GenericClass> firstAncestors = allAncestors(firstSet);
+        Set<String> rawFirstAncestors = new HashSet<>();
+        for (GenericClass cls : firstAncestors) {
+            rawFirstAncestors.add(cls.getName());
+        }
+        Set<GenericClass> commonSupertypes = new HashSet<>();
+        for (GenericClass cls : secondSet) {
+            commonSupertypesImpl(cls, firstAncestors, rawFirstAncestors, new HashSet<GenericClass>(), commonSupertypes);
+        }
+        return commonSupertypes;
+    }
+
+    private void commonSupertypesImpl(GenericClass cls, Set<GenericClass> ancestors, Set<String> rawAncestors,
+            Set<GenericClass> visited, Set<GenericClass> commonSupertypes) {
+        if (!visited.add(cls)) {
+            return;
+        }
+        if (ancestors.contains(cls)) {
+            commonSupertypes.add(cls);
+            return;
+        }
+        GenericClass parent = getParent(cls);
+        if (parent != null) {
+            commonSupertypesImpl(parent, ancestors, rawAncestors, visited, commonSupertypes);
+        }
+        for (GenericClass iface : getInterfaces(cls)) {
+            commonSupertypesImpl(iface, ancestors, rawAncestors, visited, commonSupertypes);
+        }
+    }
+
+    public Set<GenericClass> allAncestors(Collection<GenericClass> classes) {
+        Set<GenericClass> ancestors = new HashSet<>();
+        for (GenericClass cls : classes) {
+            allAncestorsImpl(cls, ancestors);
+        }
+        return ancestors;
+    }
+
+    private void allAncestorsImpl(GenericClass cls, Set<GenericClass> ancestors) {
+        if (!ancestors.add(cls)) {
+            return;
+        }
+        GenericClass parent = getParent(cls);
+        if (parent != null) {
+            allAncestorsImpl(parent, ancestors);
+        }
+        for (GenericClass iface : getInterfaces(cls)) {
+            allAncestorsImpl(iface, ancestors);
+        }
     }
 
     public GenericClass getGenericClass(String className) {

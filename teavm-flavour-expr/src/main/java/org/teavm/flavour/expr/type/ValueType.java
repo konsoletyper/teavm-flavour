@@ -22,4 +22,9 @@ package org.teavm.flavour.expr.type;
 public abstract class ValueType {
     ValueType() {
     }
+
+    @Override
+    public String toString() {
+        return new GenericTypeFormatter().format(this);
+    }
 }

@@ -49,6 +49,9 @@ public class TypeUnifier {
     }
 
     private GenericType unifyImpl(GenericType pattern, GenericType special, boolean covariant) {
+        if (pattern.equals(special)) {
+            return special;
+        }
         if (pattern instanceof GenericReference) {
             return substituteVariable((GenericReference)pattern, special);
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
@@ -82,24 +85,44 @@ public class TypeUnifier {
         if (pattern.getArguments().size() != special.getArguments().size()) {
             return null;
         }
-        GenericType matchType;
+        GenericClass matchType;
         if (!covariant) {
             if (!pattern.getName().equals(special.getName())) {
                 return null;
             }
             matchType = special;
         } else {
-            List<GenericClass> path = typeNavigator.sublassPath(typeNavigator.getGenericClass(special.getName()),
-                    pattern.getName());
+            List<GenericClass> path = typeNavigator.sublassPath(special, pattern.getName());
             if (path == null) {
                 return null;
             }
             matchType = path.get(path.size() - 1);
         }
+        if (pattern.getArguments().size() != matchType.getArguments().size()) {
+            return null;
+        }
+        for (int i = 0; i < pattern.getArguments().size(); ++i) {
+            if (unifyImpl(pattern.getArguments().get(i), matchType.getArguments().get(i), false) == null) {
+                return null;
+            }
+        }
         return matchType;
     }
 
     private GenericType substituteVariable(GenericReference ref, GenericType special) {
-        return null;
+        GenericType knownSubstitution = substitutions.get(ref.getVar());
+        if (knownSubstitution == null) {
+            substitutions.put(ref.getVar(), special);
+            if (ref.getVar().getUpperBound() != null) {
+                if (unifyImpl(ref.getVar().getUpperBound(), special, false) == null) {
+                    return null;
+                }
+            }
+        } else {
+            if (!knownSubstitution.equals(special)) {
+                return null;
+            }
+        }
+        return special;
     }
 }

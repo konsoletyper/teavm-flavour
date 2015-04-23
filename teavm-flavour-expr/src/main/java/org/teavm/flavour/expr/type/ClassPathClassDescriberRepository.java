@@ -1,0 +1,123 @@
+/*
+ *  Copyright 2015 Alexey Andreev.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package org.teavm.flavour.expr.type;
+
+import java.lang.reflect.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ *
+ * @author Alexey Andreev
+ */
+public class ClassPathClassDescriberRepository implements ClassDescriberRepository {
+    private static final Map<String, Primitive> primitiveMap = new HashMap<>();
+    private ClassLoader classLoader;
+    private Map<String, Holder> cache = new HashMap<>();
+    private Map<TypeVariable<?>, TypeVar> typeVarCache = new HashMap<>();
+
+    static {
+        primitiveMap.put("boolean", Primitive.get(PrimitiveKind.BOOLEAN));
+        primitiveMap.put("char", Primitive.get(PrimitiveKind.CHAR));
+        primitiveMap.put("byte", Primitive.get(PrimitiveKind.BYTE));
+        primitiveMap.put("short", Primitive.get(PrimitiveKind.SHORT));
+        primitiveMap.put("int", Primitive.get(PrimitiveKind.INT));
+        primitiveMap.put("long", Primitive.get(PrimitiveKind.LONG));
+        primitiveMap.put("float", Primitive.get(PrimitiveKind.FLOAT));
+        primitiveMap.put("double", Primitive.get(PrimitiveKind.DOUBLE));
+    }
+
+    public ClassPathClassDescriberRepository() {
+        this(ClassLoader.getSystemClassLoader());
+    }
+
+    public ClassPathClassDescriberRepository(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    @Override
+    public ClassDescriber describe(String className) {
+        Holder holder = cache.get(className);
+        if (holder == null) {
+            holder = new Holder();
+            try {
+                holder.classDescriber = new ClassPathClassDescriber(this,
+                        Class.forName(className, false, classLoader));
+            } catch (ClassNotFoundException e) {
+                // Leave holder.classDescriber null
+            }
+            cache.put(className, holder);
+        }
+        return holder.classDescriber;
+    }
+
+    static class Holder {
+        ClassPathClassDescriber classDescriber;
+    }
+
+    TypeVar getTypeVariable(TypeVariable<?> javaVar) {
+        TypeVar var = typeVarCache.get(javaVar);
+        if (var == null) {
+            var = new TypeVar();
+            typeVarCache.put(javaVar, var);
+            Type[] javaBounds = javaVar.getBounds();
+            if (javaBounds.length > 0) {
+                var.withUpperBound((GenericClass)convertGenericType(javaBounds[0]));
+            }
+        }
+        return var;
+    }
+
+    ValueType convertGenericType(Type javaType) {
+        if (javaType instanceof Class<?>) {
+            Class<?> javaClass = (Class<?>)javaType;
+            if (javaClass.isPrimitive()) {
+                return primitiveMap.get(javaClass.getName());
+            }
+            return new GenericClass(javaClass.getName(), Collections.<GenericType>emptyList());
+        } else if (javaType instanceof ParameterizedType) {
+            ParameterizedType javaGenericType = (ParameterizedType)javaType;
+            Class<?> javaRawClass = (Class<?>)javaGenericType.getRawType();
+            Type[] javaArgs = javaGenericType.getActualTypeArguments();
+            GenericType[] args = new GenericType[javaArgs.length];
+            for (int i = 0; i < args.length; ++i) {
+                args[i] = (GenericType)convertGenericType(javaArgs[i]);
+            }
+            return new GenericClass(javaRawClass.getName(), Arrays.asList(args));
+        } else if (javaType instanceof GenericArrayType) {
+            GenericArrayType javaArray = (GenericArrayType)javaType;
+            return new GenericArray(convertGenericType(javaArray.getGenericComponentType()));
+        } else if (javaType instanceof TypeVariable<?>) {
+            TypeVariable<?> javaVar = (TypeVariable<?>)javaType;
+            return new GenericReference(getTypeVariable(javaVar));
+        } else if (javaType instanceof WildcardType) {
+            WildcardType wildcard = (WildcardType)javaType;
+            Type[] upperBounds = wildcard.getUpperBounds();
+            Type[] lowerBounds = wildcard.getLowerBounds();
+            TypeVar var = new TypeVar();
+            if (lowerBounds.length > 0) {
+                var.withLowerBound((GenericClass)convertGenericType(lowerBounds[0]));
+            } else if (upperBounds.length > 0) {
+                var.withUpperBound((GenericClass)convertGenericType(upperBounds[0]));
+            }
+            return new GenericReference(var);
+        } else {
+            throw new AssertionError("Unsupported type: " + javaType);
+        }
+    }
+}
