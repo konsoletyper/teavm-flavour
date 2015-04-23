@@ -23,7 +23,7 @@ import java.lang.reflect.TypeVariable;
  * @author Alexey Andreev
  */
 class ClassPathClassDescriber implements ClassDescriber {
-    private ClassPathClassDescriberRepository repository;
+    ClassPathClassDescriberRepository repository;
     private Class<?> cls;
     private TypeVar[] typeVariables;
     private GenericClass supertype;

@@ -22,6 +22,10 @@ package org.teavm.flavour.expr.plan;
 public class NotPlan extends Plan {
     private Plan operand;
 
+    public NotPlan(Plan operand) {
+        this.operand = operand;
+    }
+
     public Plan getOperand() {
         return operand;
     }

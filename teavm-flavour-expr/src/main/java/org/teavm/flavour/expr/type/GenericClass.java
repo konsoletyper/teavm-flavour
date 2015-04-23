@@ -26,6 +26,10 @@ public final class GenericClass extends GenericType {
     private List<GenericType> arguments = new ArrayList<>();
     private List<GenericType> safeArguments = Collections.unmodifiableList(arguments);
 
+    public GenericClass(String name) {
+        this(name, Collections.<GenericType>emptyList());
+    }
+
     public GenericClass(String name, List<GenericType> arguments) {
         Objects.nonNull(name);
         Objects.nonNull(arguments);

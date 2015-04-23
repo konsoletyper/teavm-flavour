@@ -166,4 +166,89 @@ public class GenericTypeNavigator {
         }
         return result;
     }
+
+    public GenericMethod[] findMethods(GenericClass cls, String name, int paramCount) {
+        Map<MethodSignature, GenericMethod> methods = new HashMap<>();
+        findMethodsImpl(cls, name, paramCount, new HashSet<String>(), methods);
+        return methods.values().toArray(new GenericMethod[0]);
+    }
+
+    private void findMethodsImpl(GenericClass cls, String name, int paramCount, Set<String> visitedClasses,
+            Map<MethodSignature, GenericMethod> methods) {
+        if (!visitedClasses.add(cls.getName())) {
+            return;
+        }
+
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return;
+        }
+
+        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        TypeVar[] typeVars = describer.getTypeVariables();
+        List<GenericType> typeValues = cls.getArguments();
+        if (typeVars.length != typeValues.size()) {
+            return;
+        }
+        for (int i = 0; i < typeVars.length; ++i) {
+            substitutions.put(typeVars[i], typeValues.get(i));
+        }
+
+        for (MethodDescriber methodDesc : describer.getMethods()) {
+            if (!methodDesc.getName().equals(name)) {
+                continue;
+            }
+
+            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            if (paramTypes.length != paramCount) {
+                continue;
+            }
+            for (int i = 0; i < paramTypes.length; ++i) {
+                if (paramTypes[i] instanceof GenericType) {
+                    paramTypes[i] = ((GenericType)paramTypes[i]).substitute(substitutions);
+                }
+            }
+
+            ValueType returnType = methodDesc.getReturnType();
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType)returnType).substitute(substitutions);
+            }
+
+            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            methods.put(signature, new GenericMethod(methodDesc, paramTypes, returnType));
+        }
+
+        GenericClass supertype = getParent(cls);
+        if (supertype != null) {
+            findMethodsImpl(supertype, name, paramCount, visitedClasses, methods);
+        }
+        for (GenericClass iface : getInterfaces(cls)) {
+            findMethodsImpl(iface, name, paramCount, visitedClasses, methods);
+        }
+    }
+
+    static class MethodSignature {
+        ValueType[] paramTypes;
+
+        public MethodSignature(ValueType[] paramTypes) {
+            this.paramTypes = paramTypes;
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(paramTypes);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (!(obj instanceof MethodSignature)) {
+                return false;
+            }
+            MethodSignature other = (MethodSignature)obj;
+            return Arrays.equals(paramTypes, other.paramTypes);
+        }
+    }
 }

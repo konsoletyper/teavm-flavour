@@ -13,26 +13,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface MethodDescriber {
-    ClassDescriber getOwner();
+public class CompilerDiagnostic {
+    private int start;
+    private int end;
+    private String message;
 
-    String getName();
+    public CompilerDiagnostic(int start, int end, String message) {
+        this.start = start;
+        this.end = end;
+        this.message = message;
+    }
 
-    boolean isStatic();
+    public int getStart() {
+        return start;
+    }
 
-    TypeVar[] getTypeVariables();
+    public int getEnd() {
+        return end;
+    }
 
-    ValueType[] getRawArgumentTypes();
-
-    ValueType[] getArgumentTypes();
-
-    ValueType getReturnType();
-
-    ValueType getRawReturnType();
+    public String getMessage() {
+        return message;
+    };
 }

@@ -13,26 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr;
+
+import org.teavm.flavour.expr.plan.Plan;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface MethodDescriber {
-    ClassDescriber getOwner();
+public class TypedPlan {
+    Plan plan;
+    ValueType type;
 
-    String getName();
+    public TypedPlan(Plan plan, ValueType type) {
+        this.plan = plan;
+        this.type = type;
+    }
 
-    boolean isStatic();
+    public Plan getPlan() {
+        return plan;
+    }
 
-    TypeVar[] getTypeVariables();
-
-    ValueType[] getRawArgumentTypes();
-
-    ValueType[] getArgumentTypes();
-
-    ValueType getReturnType();
-
-    ValueType getRawReturnType();
+    public ValueType getType() {
+        return type;
+    }
 }
