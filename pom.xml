@@ -166,5 +166,6 @@
 
   <modules>
     <module>teavm-flavour-templates</module>
+    <module>teavm-flavour-expr</module>
   </modules>
 </project>
