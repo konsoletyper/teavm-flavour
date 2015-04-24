@@ -20,6 +20,15 @@ package org.teavm.flavour.expr.type;
  * @author Alexey Andreev
  */
 public final class Primitive extends ValueType {
+    public static final Primitive BOOLEAN = Primitive.get(PrimitiveKind.BOOLEAN);
+    public static final Primitive CHAR = Primitive.get(PrimitiveKind.CHAR);
+    public static final Primitive BYTE = Primitive.get(PrimitiveKind.BYTE);
+    public static final Primitive SHORT = Primitive.get(PrimitiveKind.SHORT);
+    public static final Primitive INT = Primitive.get(PrimitiveKind.INT);
+    public static final Primitive LONG = Primitive.get(PrimitiveKind.LONG);
+    public static final Primitive FLOAT = Primitive.get(PrimitiveKind.FLOAT);
+    public static final Primitive DOUBLE = Primitive.get(PrimitiveKind.DOUBLE);
+
     private static Primitive[] builders;
     private PrimitiveKind kind;
 
@@ -39,7 +48,7 @@ public final class Primitive extends ValueType {
         return kind;
     }
 
-    public static Primitive get(PrimitiveKind kind) {
+    private static Primitive get(PrimitiveKind kind) {
         return builders[kind.ordinal()];
     }
 }

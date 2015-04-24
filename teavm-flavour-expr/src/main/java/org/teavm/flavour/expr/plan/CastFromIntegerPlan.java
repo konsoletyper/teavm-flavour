@@ -19,38 +19,33 @@ package org.teavm.flavour.expr.plan;
  *
  * @author Alexey Andreev
  */
-public interface PlanVisitor {
-    void visit(ConstantPlan plan);
+public class CastFromIntegerPlan extends Plan {
+    private IntegerSubtype type;
+    private Plan operand;
 
-    void visit(VariablePlan plan);
+    public CastFromIntegerPlan(IntegerSubtype type, Plan operand) {
+        this.type = type;
+        this.operand = operand;
+    }
 
-    void visit(BinaryPlan plan);
+    public IntegerSubtype getType() {
+        return type;
+    }
 
-    void visit(NegatePlan plan);
+    public void setType(IntegerSubtype type) {
+        this.type = type;
+    }
 
-    void visit(ReferenceEqualityPlan plan);
+    public Plan getOperand() {
+        return operand;
+    }
 
-    void visit(LogicalBinaryPlan plan);
+    public void setOperand(Plan operand) {
+        this.operand = operand;
+    }
 
-    void visit(NotPlan plan);
-
-    void visit(CastPlan plan);
-
-    void visit(ArithmeticCastPlan plan);
-
-    void visit(CastFromIntegerPlan plan);
-
-    void visit(CastToIntegerPlan plan);
-
-    void visit(GetArrayElementPlan plan);
-
-    void visit(ArrayLengthPlan plan);
-
-    void visit(FieldPlan plan);
-
-    void visit(InstanceOfPlan plan);
-
-    void visit(InvocationPlan plan);
-
-    void visit(ConstructionPlan plan);
+    @Override
+    public void acceptVisitor(PlanVisitor visitor) {
+        visitor.visit(this);
+    }
 }

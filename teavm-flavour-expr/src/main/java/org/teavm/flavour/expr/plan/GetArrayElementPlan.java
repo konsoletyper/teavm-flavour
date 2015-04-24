@@ -13,22 +13,39 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ClassDescriber {
-    String getName();
+public class GetArrayElementPlan extends Plan {
+    private Plan array;
+    private Plan index;
 
-    TypeVar[] getTypeVariables();
+    public GetArrayElementPlan(Plan array, Plan index) {
+        this.array = array;
+        this.index = index;
+    }
 
-    GenericClass getSupertype();
+    public Plan getArray() {
+        return array;
+    }
 
-    GenericClass[] getInterfaces();
+    public void setArray(Plan array) {
+        this.array = array;
+    }
 
-    MethodDescriber[] getMethods();
+    public Plan getIndex() {
+        return index;
+    }
 
-    MethodDescriber getMethod(String name, GenericClass... argumentTypes);
+    public void setIndex(Plan index) {
+        this.index = index;
+    }
+
+    @Override
+    public void acceptVisitor(PlanVisitor visitor) {
+        visitor.visit(this);
+    }
 }

@@ -23,27 +23,18 @@ import java.util.List;
  *
  * @author Alexey Andreev
  */
-public class InvocationPlan extends Plan {
+public class ConstructionPlan extends Plan {
     private String className;
-    private String methodName;
     private String methodDesc;
-    private Plan instance;
     private List<Plan> arguments = new ArrayList<>();
 
-    public InvocationPlan(String className, String methodName, String methodDesc, Plan instance, Plan... arguments) {
-        this.className = className;
-        this.methodName = methodName;
-        this.methodDesc = methodDesc;
-        this.instance = instance;
-        this.arguments.addAll(Arrays.asList(arguments));
+    public ConstructionPlan(String className, String methodDesc, Plan... arguments) {
+        this(className, methodDesc, Arrays.asList(arguments));
     }
 
-    public InvocationPlan(String className, String methodName, String methodDesc, Plan instance,
-            List<Plan> arguments) {
+    public ConstructionPlan(String className, String methodDesc, List<Plan> arguments) {
         this.className = className;
-        this.methodName = methodName;
         this.methodDesc = methodDesc;
-        this.instance = instance;
         this.arguments.addAll(arguments);
     }
 
@@ -55,28 +46,12 @@ public class InvocationPlan extends Plan {
         this.className = className;
     }
 
-    public String getMethodName() {
-        return methodName;
-    }
-
-    public void setMethodName(String methodName) {
-        this.methodName = methodName;
-    }
-
     public String getMethodDesc() {
         return methodDesc;
     }
 
     public void setMethodDesc(String methodDesc) {
         this.methodDesc = methodDesc;
-    }
-
-    public Plan getInstance() {
-        return instance;
-    }
-
-    public void setInstance(Plan instance) {
-        this.instance = instance;
     }
 
     public List<Plan> getArguments() {

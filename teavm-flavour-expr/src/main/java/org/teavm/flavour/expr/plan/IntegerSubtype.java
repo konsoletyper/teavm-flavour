@@ -13,22 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.plan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ClassDescriber {
-    String getName();
-
-    TypeVar[] getTypeVariables();
-
-    GenericClass getSupertype();
-
-    GenericClass[] getInterfaces();
-
-    MethodDescriber[] getMethods();
-
-    MethodDescriber getMethod(String name, GenericClass... argumentTypes);
+public enum IntegerSubtype {
+    BYTE,
+    SHORT,
+    CHAR
 }

@@ -28,6 +28,10 @@ public class GenericTypeNavigator {
         this.classRepository = classRepository;
     }
 
+    public ClassDescriberRepository getClassRepository() {
+        return classRepository;
+    }
+
     public List<GenericClass> sublassPath(GenericClass subclass, String superclass) {
         List<GenericClass> path = new ArrayList<>();
         if (!subclassPathImpl(subclass, superclass, path)) {
@@ -171,6 +175,37 @@ public class GenericTypeNavigator {
         Map<MethodSignature, GenericMethod> methods = new HashMap<>();
         findMethodsImpl(cls, name, paramCount, new HashSet<String>(), methods);
         return methods.values().toArray(new GenericMethod[0]);
+    }
+
+    public GenericMethod getMethod(GenericClass cls, String name, GenericClass... argumentTypes) {
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return null;
+        }
+
+        TypeVar[] typeVars = describer.getTypeVariables();
+        List<GenericType> typeValues = cls.getArguments();
+        if (typeVars.length != typeValues.size()) {
+            return null;
+        }
+        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        for (int i = 0; i < typeVars.length; ++i) {
+            substitutions.put(typeVars[i], typeValues.get(i));
+        }
+
+        MethodDescriber methodDescriber = describer.getMethod(name, argumentTypes);
+        ValueType[] argTypes = methodDescriber.getArgumentTypes();
+        for (int i = 0; i < argTypes.length; ++i) {
+            if (argTypes[i] instanceof GenericType) {
+                argTypes[i] = ((GenericType)argTypes[i]).substitute(substitutions);
+            }
+        }
+        ValueType returnType = methodDescriber.getReturnType();
+        if (returnType instanceof GenericType) {
+            returnType = ((GenericType)returnType).substitute(substitutions);
+        }
+
+        return new GenericMethod(methodDescriber, argumentTypes, returnType);
     }
 
     private void findMethodsImpl(GenericClass cls, String name, int paramCount, Set<String> visitedClasses,

@@ -15,8 +15,13 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -28,6 +33,8 @@ class ClassPathClassDescriber implements ClassDescriber {
     private TypeVar[] typeVariables;
     private GenericClass supertype;
     private GenericClass[] interfaces;
+    private ClassPathMethodDescriber[] methods;
+    private Map<Method, ClassPathMethodDescriber> methodMap = new HashMap<>();
 
     public ClassPathClassDescriber(ClassPathClassDescriberRepository repository, Class<?> cls) {
         this.repository = repository;
@@ -74,6 +81,44 @@ class ClassPathClassDescriber implements ClassDescriber {
 
     @Override
     public MethodDescriber[] getMethods() {
-        return null;
+        if (methods == null) {
+            Method[] javaMethods = cls.getDeclaredMethods();
+            methods = new ClassPathMethodDescriber[javaMethods.length];
+            int j = 0;
+            for (int i = 0; i < methods.length; ++i) {
+                ClassPathMethodDescriber method = getMethod(javaMethods[i]);
+                if (method != null) {
+                    methods[j++] = method;
+                }
+            }
+            methods = Arrays.copyOf(methods, j);
+        }
+        return methods.clone();
+    }
+
+    @Override
+    public MethodDescriber getMethod(String name, GenericClass... argumentTypes) {
+        Class<?>[] javaArgs = new Class<?>[argumentTypes.length];
+        for (int i = 0; i < javaArgs.length; ++i) {
+            javaArgs[i] = repository.convertToRawType(argumentTypes[i]);
+        }
+        try {
+            Method javaMethod = cls.getDeclaredMethod(name, javaArgs);
+            return getMethod(javaMethod);
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    private ClassPathMethodDescriber getMethod(Method javaMethod) {
+        if (!Modifier.isPublic(javaMethod.getModifiers())) {
+            return null;
+        }
+        ClassPathMethodDescriber method = methodMap.get(javaMethod);
+        if (method == null) {
+            method = new ClassPathMethodDescriber(this, javaMethod);
+            methodMap.put(javaMethod, method);
+        }
+        return method;
     }
 }

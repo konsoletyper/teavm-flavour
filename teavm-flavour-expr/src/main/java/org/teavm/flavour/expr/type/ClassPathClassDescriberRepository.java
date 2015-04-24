@@ -32,14 +32,14 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
     private Map<TypeVariable<?>, TypeVar> typeVarCache = new HashMap<>();
 
     static {
-        primitiveMap.put("boolean", Primitive.get(PrimitiveKind.BOOLEAN));
-        primitiveMap.put("char", Primitive.get(PrimitiveKind.CHAR));
-        primitiveMap.put("byte", Primitive.get(PrimitiveKind.BYTE));
-        primitiveMap.put("short", Primitive.get(PrimitiveKind.SHORT));
-        primitiveMap.put("int", Primitive.get(PrimitiveKind.INT));
-        primitiveMap.put("long", Primitive.get(PrimitiveKind.LONG));
-        primitiveMap.put("float", Primitive.get(PrimitiveKind.FLOAT));
-        primitiveMap.put("double", Primitive.get(PrimitiveKind.DOUBLE));
+        primitiveMap.put("boolean", Primitive.BOOLEAN);
+        primitiveMap.put("char", Primitive.CHAR);
+        primitiveMap.put("byte", Primitive.BYTE);
+        primitiveMap.put("short", Primitive.SHORT);
+        primitiveMap.put("int", Primitive.INT);
+        primitiveMap.put("long", Primitive.LONG);
+        primitiveMap.put("float", Primitive.FLOAT);
+        primitiveMap.put("double", Primitive.DOUBLE);
     }
 
     public ClassPathClassDescriberRepository() {
@@ -118,6 +118,45 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             return new GenericReference(var);
         } else {
             throw new AssertionError("Unsupported type: " + javaType);
+        }
+    }
+
+    Class<?> convertToRawType(ValueType type) {
+        if (type instanceof Primitive) {
+            switch (((Primitive)type).getKind()) {
+                case BOOLEAN:
+                    return boolean.class;
+                case CHAR:
+                    return char.class;
+                case BYTE:
+                    return byte.class;
+                case SHORT:
+                    return short.class;
+                case INT:
+                    return int.class;
+                case LONG:
+                    return long.class;
+                case FLOAT:
+                    return float.class;
+                case DOUBLE:
+                    return double.class;
+                default:
+                    throw new AssertionError();
+            }
+        } else if (type instanceof GenericArray) {
+            GenericArray array = (GenericArray)type;
+            return Array.newInstance(convertToRawType(array.getElementType()), 0).getClass();
+        } else if (type instanceof GenericClass) {
+            GenericClass cls = (GenericClass)type;
+            try {
+                return Class.forName(cls.getName(), false, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Class not found: " + cls.getName());
+            }
+        } else if (type instanceof GenericReference) {
+            return Object.class;
+        } else {
+            throw new AssertionError("Can't convert type: " + type);
         }
     }
 }

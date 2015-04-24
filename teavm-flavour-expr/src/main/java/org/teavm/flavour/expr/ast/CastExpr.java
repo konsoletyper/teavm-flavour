@@ -15,15 +15,17 @@
  */
 package org.teavm.flavour.expr.ast;
 
+import org.teavm.flavour.expr.type.GenericType;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class CastExpr<T> extends Expr<T> {
     private Expr<T> value;
-    private ExprType targetType;
+    private GenericType targetType;
 
-    public CastExpr(Expr<T> value, ExprType targetType) {
+    public CastExpr(Expr<T> value, GenericType targetType) {
         this.value = value;
         this.targetType = targetType;
     }
@@ -36,11 +38,11 @@ public class CastExpr<T> extends Expr<T> {
         this.value = value;
     }
 
-    public ExprType getTargetType() {
+    public GenericType getTargetType() {
         return targetType;
     }
 
-    public void setTargetType(ExprType targetType) {
+    public void setTargetType(GenericType targetType) {
         this.targetType = targetType;
     }
 

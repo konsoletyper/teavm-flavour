@@ -24,7 +24,7 @@ import java.lang.reflect.TypeVariable;
  *
  * @author Alexey Andreev
  */
-public class ClassPathMethodDescriber implements MethodDescriber {
+class ClassPathMethodDescriber implements MethodDescriber {
     private ClassPathClassDescriber owner;
     private Method javaMethod;
     private TypeVar[] typeVariables;
