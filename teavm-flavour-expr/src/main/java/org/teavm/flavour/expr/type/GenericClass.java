@@ -91,4 +91,9 @@ public final class GenericClass extends GenericType {
         }
         return true;
     }
+
+    @Override
+    public GenericType erasure() {
+        return new GenericClass(name);
+    }
 }

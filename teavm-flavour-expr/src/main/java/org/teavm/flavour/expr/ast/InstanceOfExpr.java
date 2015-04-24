@@ -15,15 +15,17 @@
  */
 package org.teavm.flavour.expr.ast;
 
+import org.teavm.flavour.expr.type.GenericType;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class InstanceOfExpr<T> extends Expr<T> {
     private Expr<T> value;
-    private String checkedType;
+    private GenericType checkedType;
 
-    public InstanceOfExpr(Expr<T> value, String checkedType) {
+    public InstanceOfExpr(Expr<T> value, GenericType checkedType) {
         this.value = value;
         this.checkedType = checkedType;
     }
@@ -36,11 +38,11 @@ public class InstanceOfExpr<T> extends Expr<T> {
         this.value = value;
     }
 
-    public String getCheckedType() {
+    public GenericType getCheckedType() {
         return checkedType;
     }
 
-    public void setCheckedType(String checkedType) {
+    public void setCheckedType(GenericType checkedType) {
         this.checkedType = checkedType;
     }
 

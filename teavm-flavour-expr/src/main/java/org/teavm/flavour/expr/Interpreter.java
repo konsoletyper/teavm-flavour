@@ -13,19 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
-
-import java.util.Map;
+package org.teavm.flavour.expr;
 
 /**
- *
+ * 
  * @author Alexey Andreev
  */
-public abstract class GenericType extends ValueType {
-    GenericType() {
-    }
+public class Interpreter {
 
-    public abstract GenericType substitute(Map<TypeVar, GenericType> substitutions);
-
-    public abstract GenericType erasure();
 }

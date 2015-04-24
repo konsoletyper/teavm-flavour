@@ -13,19 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
-
-import java.util.Map;
+package org.teavm.flavour.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class GenericType extends ValueType {
-    GenericType() {
+public class InterpretationException extends RuntimeException {
+    private static final long serialVersionUID = 1035334702418020743L;
+
+    public InterpretationException() {
+        super();
     }
 
-    public abstract GenericType substitute(Map<TypeVar, GenericType> substitutions);
+    public InterpretationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-    public abstract GenericType erasure();
+    public InterpretationException(String message) {
+        super(message);
+    }
+
+    public InterpretationException(Throwable cause) {
+        super(cause);
+    }
 }

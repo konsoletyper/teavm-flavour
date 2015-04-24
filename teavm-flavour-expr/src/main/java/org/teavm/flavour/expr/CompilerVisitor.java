@@ -200,19 +200,71 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     @Override
     public void visit(CastExpr<TypedPlan> expr) {
         Expr<TypedPlan> value = expr.getValue();
+        value.acceptVisitor(this);
+        GenericType targetType = expr.getTargetType();
+        GenericType sourceType = (GenericType)value.getAttribute().type;
+
         if (!(value.getAttribute().type instanceof GenericClass)) {
             error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
+            return;
         }
-        GenericType targetType = (GenericType)value.getAttribute().type;
+
+        TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
+        if (unifier.unify(targetType, sourceType, true)) {
+            expr.setAttribute(new TypedPlan(value.getAttribute().plan, expr.getTargetType()));
+        } else {
+            GenericType erasure = targetType.erasure();
+            CastPlan plan = new CastPlan(value.getAttribute().plan, typeToString(erasure));
+            expr.setAttribute(new TypedPlan(plan, expr.getTargetType()));
+        }
     }
 
     @Override
     public void visit(InstanceOfExpr<TypedPlan> expr) {
+        Expr<TypedPlan> value = expr.getValue();
+        value.acceptVisitor(this);
+        GenericType checkedType = expr.getCheckedType();
+        GenericType sourceType = (GenericType)value.getAttribute().type;
+
+        if (!(value.getAttribute().type instanceof GenericClass)) {
+            error(expr, "Can't check against " + checkedType + " type");
+            expr.setAttribute(new TypedPlan(new ConstantPlan(false), Primitive.BOOLEAN));
+            return;
+        }
+
+        TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
+        if (unifier.unify(checkedType, sourceType, true)) {
+            expr.setAttribute(new TypedPlan(new ConstantPlan(true), Primitive.BOOLEAN));
+        } else {
+            GenericType erasure = checkedType.erasure();
+            InstanceOfPlan plan = new InstanceOfPlan(value.getAttribute().plan, typeToString(erasure));
+            expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
+        }
     }
 
     @Override
     public void visit(InvocationExpr<TypedPlan> expr) {
+        expr.getInstance().acceptVisitor(this);
+        for (Expr<TypedPlan> arg : expr.getArguments()) {
+            arg.acceptVisitor(this);
+        }
+
+        ValueType instanceType = expr.getInstance().getAttribute().type;
+        if (!(instanceType instanceof GenericClass)) {
+            error(expr, "Can't call method of non-class value: " + instanceType);
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
+            return;
+        }
+
+        GenericClass cls = (GenericClass)instanceType;
+        GenericMethod[] methods = navigator.findMethods(cls, expr.getMethodName(), expr.getArguments().size());
+        List<GenericMethod> matchedMethods = new ArrayList<>();
+        for (GenericMethod method : methods) {
+            if (method.getDescriber().isStatic()) {
+                continue;
+            }
+        }
     }
 
     @Override
@@ -499,6 +551,105 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 break;
         }
         throw new AssertionError("Don't know how to map binary operation " + op + " to plan");
+    }
+
+    private TypedPlan tryConvert(TypedPlan plan, ValueType targetType) {
+        if (plan.type instanceof Primitive) {
+            switch (((Primitive)plan.type).getKind()) {
+                case BOOLEAN:
+                    if (targetType == Primitive.BOOLEAN) {
+                        return plan;
+                    } else if (isSubtype(targetType, booleanWrapperClass)) {
+                        return new TypedPlan(new InvocationPlan("java.lang.Boolean", "valueOf",
+                                "(Z)Ljava/lang/Boolean;", null, plan.plan), targetType);
+                    } else {
+                        return null;
+                    }
+                case CHAR:
+                    if (targetType == Primitive.CHAR) {
+                        return plan;
+                    } else if (targetType == Primitive.INT) {
+                        return new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan), targetType);
+                    } else if (targetType == Primitive.LONG) {
+                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.LONG,
+                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
+                    } else if (targetType == Primitive.FLOAT) {
+                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.FLOAT,
+                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
+                    } else if (targetType == Primitive.DOUBLE) {
+                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.DOUBLE,
+                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
+                    } else if (isSubtype(targetType, characterWrapperClass)) {
+                        return new TypedPlan(new InvocationPlan("java.lang.Character", "valueOf",
+                                "(C)Ljava/lang/Character;", null, plan.plan), targetType);
+                    } else {
+                        return null;
+                    }
+                case BYTE:
+                    if (targetType == Primitive.BOOLEAN) {
+                        return plan;
+                    } else if (isSubtype(targetType, characterWrapperClass)) {
+                        return new TypedPlan(new InvocationPlan("java.lang.Character", "valueOf",
+                                "(C)Ljava/lang/Character;", null, plan.plan), targetType);
+                    } else {
+                        return null;
+                    }
+            }
+        }
+        return null;
+    }
+
+    private TypeUnifier createUnifier() {
+        return new TypeUnifier(navigator.getClassRepository());
+    }
+
+    private boolean isSubtype(ValueType superType, GenericType subType) {
+        if (!(superType instanceof GenericType)) {
+            return false;
+        }
+        return createUnifier().unify((GenericType)superType, subType, true);
+    }
+
+    private String typeToString(ValueType type) {
+        StringBuilder sb = new StringBuilder();
+        typeToString(type, sb);
+        return sb.toString();
+    }
+
+    private void typeToString(ValueType type, StringBuilder sb) {
+        if (type instanceof Primitive) {
+            switch (((Primitive)type).getKind()) {
+                case BOOLEAN:
+                    sb.append('Z');
+                    break;
+                case CHAR:
+                    sb.append('C');
+                    break;
+                case BYTE:
+                    sb.append('B');
+                    break;
+                case SHORT:
+                    sb.append('S');
+                    break;
+                case INT:
+                    sb.append('I');
+                    break;
+                case LONG:
+                    sb.append('J');
+                    break;
+                case FLOAT:
+                    sb.append('F');
+                    break;
+                case DOUBLE:
+                    sb.append('D');
+                    break;
+            }
+        } else if (type instanceof GenericArray) {
+            sb.append('[');
+            typeToString(((GenericArray)type).getElementType(), sb);
+        } else if (type instanceof GenericClass) {
+            sb.append('L').append(((GenericClass)type).getName().replace('.', '/')).append(';');
+        }
     }
 
     private void error(Expr<TypedPlan> expr, String message) {

@@ -23,6 +23,11 @@ public class CastPlan extends Plan {
     private Plan operand;
     private String targetType;
 
+    public CastPlan(Plan operand, String targetType) {
+        this.operand = operand;
+        this.targetType = targetType;
+    }
+
     public Plan getOperand() {
         return operand;
     }

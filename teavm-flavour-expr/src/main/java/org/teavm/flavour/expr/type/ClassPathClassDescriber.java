@@ -47,6 +47,11 @@ class ClassPathClassDescriber implements ClassDescriber {
     }
 
     @Override
+    public boolean isInterface() {
+        return Modifier.isInterface(cls.getModifiers());
+    }
+
+    @Override
     public TypeVar[] getTypeVariables() {
         if (typeVariables == null) {
             TypeVariable<?>[] javaTypeVariables = cls.getTypeParameters();

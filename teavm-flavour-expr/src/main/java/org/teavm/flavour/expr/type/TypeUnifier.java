@@ -48,6 +48,11 @@ public class TypeUnifier {
         return unifyImpl(pattern, special, covariant) != null;
     }
 
+    public GenericType unifyAndGet(GenericType pattern, GenericType special, boolean covariant) {
+        substitutions.clear();
+        return unifyImpl(pattern, special, covariant);
+    }
+
     private GenericType unifyImpl(GenericType pattern, GenericType special, boolean covariant) {
         if (pattern.equals(special)) {
             return special;

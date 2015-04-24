@@ -61,4 +61,9 @@ public final class GenericArray extends GenericType {
         GenericArray other = (GenericArray)obj;
         return elementType.equals(other.elementType);
     }
+
+    @Override
+    public GenericType erasure() {
+        return elementType instanceof GenericType ? new GenericArray(((GenericType)elementType).erasure()) : this;
+    }
 }

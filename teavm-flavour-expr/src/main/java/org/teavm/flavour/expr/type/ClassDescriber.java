@@ -22,6 +22,8 @@ package org.teavm.flavour.expr.type;
 public interface ClassDescriber {
     String getName();
 
+    boolean isInterface();
+
     TypeVar[] getTypeVariables();
 
     GenericClass getSupertype();

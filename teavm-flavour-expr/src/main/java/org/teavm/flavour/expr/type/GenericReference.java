@@ -56,4 +56,13 @@ public final class GenericReference extends GenericType {
         GenericReference other = (GenericReference)obj;
         return var == other.var;
     }
+
+    @Override
+    public GenericType erasure() {
+        if (var.getUpperBound() == null) {
+            return new GenericClass("java.lang.Object");
+        } else {
+            return var.getUpperBound().erasure();
+        }
+    }
 }
