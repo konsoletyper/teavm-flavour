@@ -19,12 +19,12 @@ package org.teavm.flavour.expr;
  *
  * @author Alexey Andreev
  */
-public class SyntaxError {
+public class Diagnostic {
     private final int start;
     private final int end;
     private final String message;
 
-    public SyntaxError(int start, int end, String message) {
+    public Diagnostic(int start, int end, String message) {
         this.start = start;
         this.end = end;
         this.message = message;

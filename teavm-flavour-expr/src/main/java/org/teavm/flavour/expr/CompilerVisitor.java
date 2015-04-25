@@ -25,34 +25,52 @@ import org.teavm.flavour.expr.type.*;
  * @author Alexey Andreev
  */
 class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
-    private static final GenericClass booleanWrapperClass = new GenericClass("java.lang.Boolean");
-    private static final GenericClass characterWrapperClass = new GenericClass("java.lang.Character");
-    private static final GenericClass byteWrapperClass = new GenericClass("java.lang.Byte");
-    private static final GenericClass shortWrapperClass = new GenericClass("java.lang.Short");
-    private static final GenericClass integerWrapperClass = new GenericClass("java.lang.Integer");
-    private static final GenericClass longWrapperClass = new GenericClass("java.lang.Long");
-    private static final GenericClass floatWrapperClass = new GenericClass("java.lang.Float");
-    private static final GenericClass doubleWrapperClass = new GenericClass("java.lang.Double");
+    private static final GenericClass booleanClass = new GenericClass("java.lang.Boolean");
+    private static final GenericClass characterClass = new GenericClass("java.lang.Character");
+    private static final GenericClass byteClass = new GenericClass("java.lang.Byte");
+    private static final GenericClass shortClass = new GenericClass("java.lang.Short");
+    private static final GenericClass integerClass = new GenericClass("java.lang.Integer");
+    private static final GenericClass longClass = new GenericClass("java.lang.Long");
+    private static final GenericClass floatClass = new GenericClass("java.lang.Float");
+    private static final GenericClass doubleClass = new GenericClass("java.lang.Double");
     private static final GenericClass stringClass = new GenericClass("java.lang.String");
     private static final Set<ValueType> classesSuitableForArrayIndex = new HashSet<>(Arrays.<ValueType>asList(
-            characterWrapperClass, byteWrapperClass, shortWrapperClass, integerWrapperClass, Primitive.BYTE,
+            characterClass, byteClass, shortClass, integerClass, Primitive.BYTE,
             Primitive.CHAR, Primitive.SHORT, Primitive.INT));
     private static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.<ValueType>asList(
-            characterWrapperClass, byteWrapperClass, shortWrapperClass, integerWrapperClass, longWrapperClass,
-            floatWrapperClass, doubleWrapperClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
+            characterClass, byteClass, shortClass, integerClass, longClass,
+            floatClass, doubleClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
             Primitive.INT, Primitive.LONG, Primitive.FLOAT, Primitive.DOUBLE));
+    private static final Map<Primitive, GenericClass> primitivesToWrappers = new HashMap<>();
+    private static final Map<GenericClass, Primitive> wrappersToPrimitives = new HashMap<>();
 
     private GenericTypeNavigator navigator;
     private Scope scope;
-    private List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+    private List<Diagnostic> diagnostics = new ArrayList<>();
     private TypeVar nullType = new TypeVar();
+
+    static {
+        primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
+        primitiveAndWrapper(Primitive.CHAR, characterClass);
+        primitiveAndWrapper(Primitive.BYTE, byteClass);
+        primitiveAndWrapper(Primitive.SHORT, shortClass);
+        primitiveAndWrapper(Primitive.INT, integerClass);
+        primitiveAndWrapper(Primitive.LONG, longClass);
+        primitiveAndWrapper(Primitive.FLOAT, floatClass);
+        primitiveAndWrapper(Primitive.DOUBLE, doubleClass);
+    }
+
+    static void primitiveAndWrapper(Primitive primitive, GenericClass wrapper) {
+        primitivesToWrappers.put(primitive, wrapper);
+        wrappersToPrimitives.put(wrapper, primitive);
+    }
 
     public CompilerVisitor(GenericTypeNavigator navigator, Scope scope) {
         this.navigator = navigator;
         this.scope = scope;
     }
 
-    public List<CompilerDiagnostic> getDiagnostics() {
+    public List<Diagnostic> getDiagnostics() {
         return diagnostics;
     }
 
@@ -199,28 +217,51 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(CastExpr<TypedPlan> expr) {
+        expr.getValue().acceptVisitor(this);
         Expr<TypedPlan> value = expr.getValue();
-        value.acceptVisitor(this);
-        ValueType targetValueType = expr.getTargetType();
-        if (targetValueType instanceof GenericType) {
-            if (!(value.getAttribute().type instanceof GenericClass)) {
-                error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
-                expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
-                return;
+        TypedPlan plan = value.getAttribute();
+        plan = tryCast(plan, expr.getTargetType());
+        if (plan == null) {
+            error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
+            return;
+        }
+        expr.setAttribute(plan);
+    }
+
+    private TypedPlan tryCast(TypedPlan plan, ValueType targetType) {
+        if (plan.getType().equals(targetType)) {
+            return plan;
+        }
+
+        if (targetType instanceof Primitive) {
+            if (!(plan.type instanceof Primitive)) {
+                plan = unbox(plan);
+                if (plan == null) {
+                    return null;
+                }
             }
-
-            GenericType targetType = (GenericType)targetValueType;
-            GenericType sourceType = (GenericType)value.getAttribute().type;
-
-            TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
-            if (unifier.unify(targetType, sourceType, true)) {
-                expr.setAttribute(new TypedPlan(value.getAttribute().plan, expr.getTargetType()));
-            } else {
-                GenericType erasure = targetType.erasure();
-                CastPlan plan = new CastPlan(value.getAttribute().plan, typeToString(erasure));
-                expr.setAttribute(new TypedPlan(plan, expr.getTargetType()));
+            plan = tryCastPrimitive(plan, (Primitive)targetType);
+            if (plan == null) {
+                return null;
+            }
+            return plan;
+        }
+        if (plan.type instanceof Primitive) {
+            plan = box(plan);
+            if (plan == null) {
+                return null;
             }
         }
+
+        TypeUnifier unifier = createUnifier();
+        if (!unifier.unify((GenericType)targetType, (GenericType)plan.type, true)) {
+            GenericType erasure = ((GenericType)targetType).erasure();
+            plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)),
+                    ((GenericType)targetType).substitute(unifier.getSubstitutions()));
+        }
+
+        return plan;
     }
 
     @Override
@@ -341,40 +382,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private void ensureBooleanType(Expr<TypedPlan> expr) {
-        TypedPlan plan = expr.getAttribute();
-        if (plan.type.equals(booleanWrapperClass)) {
-            expr.setAttribute(new TypedPlan(new InvocationPlan("java.lang.Boolean", "booleanValue",
-                    "()Z", plan.plan), Primitive.BOOLEAN));
-        } else if (plan.type != Primitive.BOOLEAN) {
-            error(expr, "Value has value that is not suitable for boolean operation: " + plan.type);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(false), Primitive.BOOLEAN));
-        }
+        convert(expr, Primitive.BOOLEAN);
     }
 
     private void ensureIntType(Expr<TypedPlan> expr) {
-        TypedPlan plan = expr.getAttribute();
-        if (plan.type.equals(integerWrapperClass)) {
-            expr.setAttribute(new TypedPlan(new InvocationPlan("java.lang.Integer",
-                    "intValue", "()I", plan.plan), Primitive.INT));
-        } else if (plan.type.equals(byteWrapperClass)) {
-            Plan unwrapPlan = new InvocationPlan("java.lang.Byte", "byteValue", "()B", plan.plan);
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.BYTE, unwrapPlan), Primitive.INT));
-        } else if (plan.type.equals(characterWrapperClass)) {
-            Plan unwrapPlan = new InvocationPlan("java.lang.Character", "charValue", "()C", plan.plan);
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, unwrapPlan), Primitive.INT));
-        } else if (plan.type.equals(characterWrapperClass)) {
-            Plan unwrapPlan = new InvocationPlan("java.lang.Short", "shortValue", "()S", plan.plan);
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.SHORT, unwrapPlan), Primitive.INT));
-        } else if (plan.type == Primitive.BYTE) {
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.BYTE, plan.plan), Primitive.INT));
-        } else if (plan.type == Primitive.SHORT) {
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.SHORT, plan.plan), Primitive.INT));
-        } else if (plan.type == Primitive.CHAR) {
-            expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan), Primitive.INT));
-        } else if (plan.type != Primitive.INT) {
-            error(expr, "Expected int, occured " + plan.type);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(0), Primitive.INT));
-        }
+        convert(expr, Primitive.INT);
     }
 
     private void convertToString(Expr<TypedPlan> expr) {
@@ -384,33 +396,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         ValueType type = expr.getAttribute().type;
         Plan plan = expr.getAttribute().plan;
         if (type instanceof Primitive) {
-            PrimitiveKind kind = ((Primitive)type).getKind();
-            switch (kind) {
-                case BOOLEAN:
-                    plan = new InvocationPlan("java.lang.Boolean", "toString", "(Z)Ljava/lang/String;", null, plan);
-                    break;
-                case BYTE:
-                    plan = new InvocationPlan("java.lang.Byte", "toString", "(B)Ljava/lang/String;", null, plan);
-                    break;
-                case CHAR:
-                    plan = new InvocationPlan("java.lang.Character", "toString", "(C)Ljava/lang/String;", null, plan);
-                    break;
-                case SHORT:
-                    plan = new InvocationPlan("java.lang.Short", "toString", "(S)Ljava/lang/String;", null, plan);
-                    break;
-                case INT:
-                    plan = new InvocationPlan("java.lang.Integer", "toString", "(I)Ljava/lang/String;", null, plan);
-                    break;
-                case LONG:
-                    plan = new InvocationPlan("java.lang.Long", "toString", "(J)Ljava/lang/String;", null, plan);
-                    break;
-                case FLOAT:
-                    plan = new InvocationPlan("java.lang.Float", "toString", "(F)Ljava/lang/String;", null, plan);
-                    break;
-                case DOUBLE:
-                    plan = new InvocationPlan("java.lang.Double", "toString", "(D)Ljava/lang/String;", null, plan);
-                    break;
-            }
+            GenericClass wrapperClass = primitivesToWrappers.get(type);
+            plan = new InvocationPlan(wrapperClass.getName(), "toString", "(" + typeToString(type) +
+                    ")Ljava/lang/String;", null, plan);
         } else {
             plan = new InvocationPlan("java.lang.String", "valueOf", "(Ljava/lang/Object;)Ljava/lang/String;",
                     null, plan);
@@ -420,71 +408,23 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private ArithmeticType getArithmeticType(Expr<TypedPlan> expr) {
         TypedPlan plan = expr.getAttribute();
-        if (plan.type instanceof Primitive) {
+        if (!(plan.getType() instanceof Primitive)) {
+            plan = unbox(plan);
+        }
+        if (plan != null) {
             PrimitiveKind kind = ((Primitive)plan.type).getKind();
-            switch (kind) {
-                case BYTE:
-                    expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.BYTE, plan.plan),
-                            Primitive.INT));
-                    return ArithmeticType.INT;
-                case SHORT:
-                    expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.SHORT, plan.plan),
-                            Primitive.INT));
-                    return ArithmeticType.INT;
-                case CHAR:
-                    expr.setAttribute(new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan),
-                            Primitive.CHAR));
-                    return ArithmeticType.INT;
-                case INT:
-                    return ArithmeticType.INT;
-                case LONG:
-                    return ArithmeticType.LONG;
-                case FLOAT:
-                    return ArithmeticType.FLOAT;
-                case DOUBLE:
-                    return ArithmeticType.DOUBLE;
-                default:
-                    break;
+            IntegerSubtype subtype = getIntegerSubtype(kind);
+            if (subtype != null) {
+                expr.setAttribute(new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT));
+                plan = expr.getAttribute();
+                kind = ((Primitive)plan.type).getKind();
             }
-        } else if (plan.type instanceof GenericClass) {
-            if (plan.type.equals(byteWrapperClass)) {
-                Plan unwrapPlan = new InvocationPlan("java.lang.Byte", "byteValue", "()B", plan.plan);
-                plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.BYTE, unwrapPlan), Primitive.INT);
-                expr.setAttribute(plan);
-                return ArithmeticType.INT;
-            } else if (plan.type.equals(shortWrapperClass)) {
-                Plan unwrapPlan = new InvocationPlan("java.lang.Short", "shortValue", "()S", plan.plan);
-                plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.SHORT, unwrapPlan), Primitive.INT);
-                expr.setAttribute(plan);
-                return ArithmeticType.INT;
-            } else if (plan.type.equals(characterWrapperClass)) {
-                Plan unwrapPlan = new InvocationPlan("java.lang.Character", "charValue", "()S", plan.plan);
-                plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, unwrapPlan), Primitive.INT);
-                expr.setAttribute(plan);
-                return ArithmeticType.INT;
-            } else if (plan.type.equals(integerWrapperClass)) {
-                plan = new TypedPlan(new InvocationPlan("java.lang.Integer", "intValue", "()I", plan.plan),
-                        Primitive.INT);
-                expr.setAttribute(plan);
-                return ArithmeticType.INT;
-            } else if (plan.type.equals(longWrapperClass)) {
-                plan = new TypedPlan(new InvocationPlan("java.lang.Long", "longValue", "()L", plan.plan),
-                        Primitive.LONG);
-                expr.setAttribute(plan);
-                return ArithmeticType.LONG;
-            } else if (plan.type.equals(floatWrapperClass)) {
-                plan = new TypedPlan(new InvocationPlan("java.lang.Float", "floatValue", "()F", plan.plan),
-                        Primitive.FLOAT);
-                expr.setAttribute(plan);
-                return ArithmeticType.FLOAT;
-            } else if (plan.type.equals(doubleWrapperClass)) {
-                plan = new TypedPlan(new InvocationPlan("java.lang.Double", "doubleValue", "()D", plan.plan),
-                        Primitive.DOUBLE);
-                expr.setAttribute(plan);
-                return ArithmeticType.FLOAT;
+            ArithmeticType type = getArithmeticType(kind);
+            if (type != null) {
+                return type;
             }
         }
-        error(expr, "Illegal operand type: " + plan.type);
+        error(expr, "Invalid operand type: " + expr.getAttribute().type);
         expr.setAttribute(new TypedPlan(new ConstantPlan(0), Primitive.INT));
         return ArithmeticType.INT;
     }
@@ -516,6 +456,34 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 return Primitive.LONG;
         }
         throw new AssertionError("Unexpected arithmetic type: " + type);
+    }
+
+    private ArithmeticType getArithmeticType(PrimitiveKind kind) {
+        switch (kind) {
+            case INT:
+                return ArithmeticType.INT;
+            case LONG:
+                return ArithmeticType.LONG;
+            case FLOAT:
+                return ArithmeticType.FLOAT;
+            case DOUBLE:
+                return ArithmeticType.DOUBLE;
+            default:
+                return null;
+        }
+    }
+
+    private IntegerSubtype getIntegerSubtype(PrimitiveKind kind) {
+        switch (kind) {
+            case BYTE:
+                return IntegerSubtype.BYTE;
+            case SHORT:
+                return IntegerSubtype.SHORT;
+            case CHAR:
+                return IntegerSubtype.CHAR;
+            default:
+                return null;
+        }
     }
 
     private BinaryPlanType getPlanType(BinaryOperation op) {
@@ -556,47 +524,182 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         throw new AssertionError("Don't know how to map binary operation " + op + " to plan");
     }
 
-    private TypedPlan tryConvert(TypedPlan plan, ValueType targetType) {
+    void convert(Expr<TypedPlan> expr, ValueType targetType) {
+        TypedPlan plan = expr.getAttribute();
+        plan = tryConvert(plan, targetType);
+        if (plan != null) {
+            expr.setAttribute(plan);
+        } else {
+            error(expr, "Can't convert " + expr.getAttribute().type + " to " + targetType);
+            expr.setAttribute(new TypedPlan(new ConstantPlan(getDefaultConstant(targetType)), targetType));
+        }
+    }
+
+    TypedPlan tryConvert(TypedPlan plan, ValueType targetType) {
+        if (plan.getType().equals(targetType)) {
+            return plan;
+        }
+
+        if (targetType instanceof Primitive) {
+            if (!(plan.type instanceof Primitive)) {
+                plan = unbox(plan);
+                if (plan == null) {
+                    return null;
+                }
+            }
+            if (!hasImplicitConversion(((Primitive)plan.type).getKind(), ((Primitive)targetType).getKind())) {
+                return null;
+            }
+            plan = tryCastPrimitive(plan, (Primitive)targetType);
+            if (plan == null) {
+                return null;
+            }
+            return plan;
+        }
         if (plan.type instanceof Primitive) {
-            switch (((Primitive)plan.type).getKind()) {
+            plan = box(plan);
+            if (plan == null) {
+                return null;
+            }
+        }
+
+        TypeUnifier unifier = createUnifier();
+        if (!unifier.unify((GenericType)targetType, (GenericType)plan.type, true)) {
+            return null;
+        }
+
+        return new TypedPlan(plan.plan, ((GenericType)targetType).substitute(unifier.getSubstitutions()));
+    }
+
+    private boolean hasImplicitConversion(PrimitiveKind from, PrimitiveKind to) {
+        if (from == to) {
+            return true;
+        }
+        if (from == PrimitiveKind.BOOLEAN || to == PrimitiveKind.BOOLEAN) {
+            return false;
+        }
+        if (from == PrimitiveKind.CHAR) {
+            switch (to) {
+                case INT:
+                case LONG:
+                case FLOAT:
+                case DOUBLE:
+                    return true;
+                default:
+                    return false;
+            }
+        } else if (to == PrimitiveKind.CHAR) {
+            return from == PrimitiveKind.BYTE;
+        } else {
+            int a = arithmeticSize(from);
+            int b = arithmeticSize(to);
+            if (a < 0 || b < 0) {
+                return false;
+            }
+            return a < b;
+        }
+    }
+
+    private int arithmeticSize(PrimitiveKind kind) {
+        switch (kind) {
+            case BYTE:
+                return 0;
+            case SHORT:
+                return 1;
+            case INT:
+                return 2;
+            case LONG:
+                return 3;
+            case FLOAT:
+                return 4;
+            case DOUBLE:
+                return 5;
+            default:
+                return -1;
+        }
+    }
+
+    private TypedPlan tryCastPrimitive(TypedPlan plan, Primitive targetType) {
+        Primitive sourceType = (Primitive)plan.type;
+        if (sourceType == targetType) {
+            return plan;
+        }
+        if (sourceType.getKind() == PrimitiveKind.BOOLEAN) {
+            if (targetType != Primitive.BOOLEAN) {
+                return null;
+            }
+        } else {
+            IntegerSubtype subtype = getIntegerSubtype(sourceType.getKind());
+            if (subtype != null) {
+                plan = new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT);
+                sourceType = (Primitive)plan.type;
+            }
+            ArithmeticType sourceArithmetic = getArithmeticType(sourceType.getKind());
+            if (sourceArithmetic == null) {
+                return null;
+            }
+            subtype = getIntegerSubtype(targetType.getKind());
+            ArithmeticType targetArithmetic = getArithmeticType(targetType.getKind());
+            if (targetArithmetic == null) {
+                if (subtype == null) {
+                    return null;
+                }
+                targetArithmetic = ArithmeticType.INT;
+            }
+            plan = new TypedPlan(new ArithmeticCastPlan(sourceArithmetic, targetArithmetic, plan.plan),
+                    getType(targetArithmetic));
+            if (subtype != null) {
+                plan = new TypedPlan(new CastFromIntegerPlan(subtype, plan.plan), targetType);
+            }
+        }
+        return plan;
+    }
+
+    private TypedPlan unbox(TypedPlan plan) {
+        if (!(plan.type instanceof GenericClass)) {
+            return null;
+        }
+        GenericClass wrapper = (GenericClass)plan.type;
+        Primitive primitive = wrappersToPrimitives.get(wrapper);
+        if (primitive == null) {
+            return null;
+        }
+        String methodName = primitive.getKind().name().toLowerCase() + "Value";
+        return new TypedPlan(new InvocationPlan(wrapper.getName(), methodName, "()" + typeToString(primitive),
+                plan.plan), primitive);
+    }
+
+    private TypedPlan box(TypedPlan plan) {
+        if (!(plan.type instanceof Primitive)) {
+            return null;
+        }
+        GenericClass wrapper = primitivesToWrappers.get(plan.type);
+        if (wrapper == null) {
+            return null;
+        }
+        return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type) +
+                ")" + typeToString(wrapper), null, plan.plan), wrapper);
+    }
+
+    private Object getDefaultConstant(ValueType type) {
+        if (type instanceof Primitive) {
+            switch (((Primitive)type).getKind()) {
                 case BOOLEAN:
-                    if (targetType == Primitive.BOOLEAN) {
-                        return plan;
-                    } else if (isSubtype(targetType, booleanWrapperClass)) {
-                        return new TypedPlan(new InvocationPlan("java.lang.Boolean", "valueOf",
-                                "(Z)Ljava/lang/Boolean;", null, plan.plan), targetType);
-                    } else {
-                        return null;
-                    }
+                    return false;
                 case CHAR:
-                    if (targetType == Primitive.CHAR) {
-                        return plan;
-                    } else if (targetType == Primitive.INT) {
-                        return new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan), targetType);
-                    } else if (targetType == Primitive.LONG) {
-                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.LONG,
-                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
-                    } else if (targetType == Primitive.FLOAT) {
-                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.FLOAT,
-                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
-                    } else if (targetType == Primitive.DOUBLE) {
-                        return new TypedPlan(new ArithmeticCastPlan(ArithmeticType.INT, ArithmeticType.DOUBLE,
-                                new CastToIntegerPlan(IntegerSubtype.CHAR, plan.plan)), targetType);
-                    } else if (isSubtype(targetType, characterWrapperClass)) {
-                        return new TypedPlan(new InvocationPlan("java.lang.Character", "valueOf",
-                                "(C)Ljava/lang/Character;", null, plan.plan), targetType);
-                    } else {
-                        return null;
-                    }
+                    return '\0';
                 case BYTE:
-                    if (targetType == Primitive.BOOLEAN) {
-                        return plan;
-                    } else if (isSubtype(targetType, characterWrapperClass)) {
-                        return new TypedPlan(new InvocationPlan("java.lang.Character", "valueOf",
-                                "(C)Ljava/lang/Character;", null, plan.plan), targetType);
-                    } else {
-                        return null;
-                    }
+                    return (byte)0;
+                case SHORT:
+                    return (short)0;
+                case INT:
+                    return 0;
+                case LONG:
+                    return 0L;
+                case FLOAT:
+                    return 0F;
+                case DOUBLE:
+                    return 0.0;
             }
         }
         return null;
@@ -604,13 +707,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private TypeUnifier createUnifier() {
         return new TypeUnifier(navigator.getClassRepository());
-    }
-
-    private boolean isSubtype(ValueType superType, GenericType subType) {
-        if (!(superType instanceof GenericType)) {
-            return false;
-        }
-        return createUnifier().unify((GenericType)superType, subType, true);
     }
 
     private String typeToString(ValueType type) {
@@ -656,6 +752,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private void error(Expr<TypedPlan> expr, String message) {
-        diagnostics.add(new CompilerDiagnostic(expr.getStart(), expr.getEnd(), message));
+        diagnostics.add(new Diagnostic(expr.getStart(), expr.getEnd(), message));
     }
 }

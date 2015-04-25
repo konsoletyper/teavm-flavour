@@ -21,6 +21,7 @@ import java.util.List;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
@@ -29,26 +30,27 @@ import org.teavm.flavour.expr.type.GenericTypeNavigator;
 public class Compiler {
     private ClassDescriberRepository classRepository;
     private Scope scope;
-    private List<CompilerDiagnostic> diagnostics = new ArrayList<>();
-    private List<CompilerDiagnostic> safeDiagnostics = Collections.unmodifiableList(diagnostics);
+    private List<Diagnostic> diagnostics = new ArrayList<>();
+    private List<Diagnostic> safeDiagnostics = Collections.unmodifiableList(diagnostics);
 
     public Compiler(ClassDescriberRepository classRepository, Scope scope) {
         this.classRepository = classRepository;
         this.scope = scope;
     }
 
-    public TypedPlan compile(Expr<?> expr) {
+    public TypedPlan compile(Expr<?> expr, ValueType type) {
         diagnostics.clear();
         ExprCopier<TypedPlan> copier = new ExprCopier<>();
         expr.acceptVisitor(copier);
         Expr<TypedPlan> attributedExpr = copier.getResult();
         CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository), scope);
         attributedExpr.acceptVisitor(visitor);
+        visitor.convert(attributedExpr, type);
         diagnostics.addAll(visitor.getDiagnostics());
         return attributedExpr.getAttribute();
     }
 
-    public List<CompilerDiagnostic> getDiagnostics() {
+    public List<Diagnostic> getDiagnostics() {
         return safeDiagnostics;
     }
 

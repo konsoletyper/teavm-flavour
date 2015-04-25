@@ -176,7 +176,11 @@ public class PlanFormatter implements PlanVisitor {
 
     @Override
     public void visit(InstanceOfPlan plan) {
-
+        sb.append("[instanceof ").append(plan.getClassName());
+        ++indentLevel;
+        newLine();
+        plan.getOperand().acceptVisitor(this);
+        --indentLevel;
     }
 
     @Override

@@ -30,25 +30,25 @@ import org.teavm.flavour.expr.ast.Expr;
  */
 public class Parser {
     private ClassSet classes;
-    private List<SyntaxError> syntaxErrors = new ArrayList<>();
+    private List<Diagnostic> diagnostics = new ArrayList<>();
 
     public Parser(ClassSet classes) {
         this.classes = classes;
     }
 
     public Expr<Void> parse(String text) {
-        syntaxErrors.clear();
+        diagnostics.clear();
         ExprParser parser = Parboiled.createParser(ExprParser.class);
         parser.importedClasses = classes;
         RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Expression());
         ParsingResult<Holder> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
-            syntaxErrors.add(new SyntaxError(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
+            diagnostics.add(new Diagnostic(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
         }
         return result.resultValue.expr;
     }
 
-    public List<SyntaxError> getSyntaxErrors() {
-        return syntaxErrors;
+    public List<Diagnostic> getDiagnostics() {
+        return diagnostics;
     }
 }

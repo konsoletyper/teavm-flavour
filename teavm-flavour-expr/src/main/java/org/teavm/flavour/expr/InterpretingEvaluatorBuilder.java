@@ -60,15 +60,16 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
 
         Parser parser = new Parser(new ClassLoaderClassSet(ClassLoader.getSystemClassLoader()));
         Expr<Void> expr = parser.parse(exprString);
-        if (!parser.getSyntaxErrors().isEmpty()) {
-            throw new RuntimeException("Syntax errors found in expression " + exprString);
+        if (!parser.getDiagnostics().isEmpty()) {
+            throw new InvalidExpressionException(parser.getDiagnostics());
         }
 
         ClassPathClassDescriberRepository classes = new ClassPathClassDescriberRepository();
         Compiler compiler = new Compiler(classes, new ScopeImpl(classes, variableTypes));
-        TypedPlan typedPlan = compiler.compile(expr);
+        Type returnType = functionMethods[0].getGenericReturnType();
+        TypedPlan typedPlan = compiler.compile(expr, classes.convertGenericType(returnType));
         if (!compiler.wasSuccessful()) {
-            throw new RuntimeException("Type errors found in expression " + exprString);
+            throw new InvalidExpressionException(compiler.getDiagnostics());
         }
 
         Interpreter interpreter = new Interpreter(typedPlan.plan);

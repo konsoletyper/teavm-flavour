@@ -135,13 +135,13 @@ class ExprParser extends BaseParser<Holder> {
             Type(),
             Keyword(")"),
             Primitive(),
-            push(wrap(new CastExpr<>(pop(1).expr, pop().type))));
+            push(wrap(new CastExpr<>(pop().expr, pop().type))));
     }
 
     Rule InstanceOf() {
         return Sequence(
             Keyword("instanceof"),
-            Type(),
+            GenericType(),
             push(wrap(new InstanceOfExpr<>(pop(1).expr, (GenericType)pop().type))));
     }
 
@@ -188,11 +188,12 @@ class ExprParser extends BaseParser<Holder> {
 
     Rule RawClassType(Var<String> className) {
         Var<StringBuilder> sb = new Var<>();
+        Var<String> idPart = new Var<>();
         return Sequence(
-            Sequence(Identifier(), sb.set(new StringBuilder()), ACTION(sb.get().append(match()) != null)),
+            Sequence(Identifier(idPart), sb.set(new StringBuilder()), ACTION(sb.get().append(idPart.get()) != null)),
             ZeroOrMore(
                 Keyword("."),
-                Sequence(Identifier(), ACTION(sb.get().append(".").append(match()) != null))),
+                Sequence(Identifier(idPart), ACTION(sb.get().append(".").append(idPart.get()) != null))),
             className.set(sb.get().toString()));
     }
 
@@ -211,7 +212,7 @@ class ExprParser extends BaseParser<Holder> {
             StringLiteral(),
             Sequence(Keyword("true"), push(wrap(new ConstantExpr<Void>(true))), setLocations),
             Sequence(Keyword("false"), push(wrap(new ConstantExpr<Void>(false))), setLocations),
-            Sequence(Keyword("null"), push(wrap(new ConstantExpr<Void>(true))), setLocations),
+            Sequence(Keyword("null"), push(wrap(new ConstantExpr<Void>(null))), setLocations),
             Identifier(),
             Sequence(Keyword("("), Expression(), Keyword(")")));
     }

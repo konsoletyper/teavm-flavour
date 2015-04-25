@@ -49,7 +49,7 @@ public class ParserTest {
     @Test
     public void parseExpression() {
         Expr<?> expr = parser.parse("x * q.f(2 + u, -v)");
-        assertThat(parser.getSyntaxErrors().size(), is(0));
+        assertThat(parser.getDiagnostics().size(), is(0));
         assertThat(expr, is(instanceOf(BinaryExpr.class)));
         BinaryExpr<?> binary = (BinaryExpr<?>)expr;
         assertThat(binary.getOperation(), is(BinaryOperation.MULTIPLY));

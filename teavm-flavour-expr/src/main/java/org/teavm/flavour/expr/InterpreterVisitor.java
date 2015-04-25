@@ -282,7 +282,7 @@ class InterpreterVisitor implements PlanVisitor {
                 }
                 break;
             case OR:
-                if (!a) {
+                if (a) {
                     value = true;
                 } else {
                     plan.getSecondOperand().acceptVisitor(this);
@@ -299,6 +299,7 @@ class InterpreterVisitor implements PlanVisitor {
 
     @Override
     public void visit(CastPlan plan) {
+        plan.getOperand().acceptVisitor(this);
         if (value == null) {
             return;
         }
@@ -441,6 +442,7 @@ class InterpreterVisitor implements PlanVisitor {
 
     @Override
     public void visit(InstanceOfPlan plan) {
+        plan.getOperand().acceptVisitor(this);
         if (value == null) {
             value = false;
             return;
