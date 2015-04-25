@@ -83,7 +83,7 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
         return var;
     }
 
-    ValueType convertGenericType(Type javaType) {
+    public ValueType convertGenericType(Type javaType) {
         if (javaType instanceof Class<?>) {
             Class<?> javaClass = (Class<?>)javaType;
             if (javaClass.isPrimitive()) {

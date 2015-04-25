@@ -13,34 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.ast;
+package org.teavm.flavour.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ConstantExpr<T> extends Expr<T> {
-    private Object value;
+public class Evaluator<F, V> {
+    private F function;
+    private V variables;
 
-    public ConstantExpr(Object value) {
-        this.value = value;
+    public Evaluator(F function, V variables) {
+        this.function = function;
+        this.variables = variables;
     }
 
-    public Object getValue() {
-        return value;
+    public F getFunction() {
+        return function;
     }
 
-    public void setValue(Object value) {
-        this.value = value;
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public V getVariables() {
+        return variables;
     }
 }

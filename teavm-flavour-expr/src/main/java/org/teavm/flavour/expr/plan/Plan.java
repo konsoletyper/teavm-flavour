@@ -21,4 +21,12 @@ package org.teavm.flavour.expr.plan;
  */
 public abstract class Plan {
     public abstract void acceptVisitor(PlanVisitor visitor);
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        PlanFormatter formatter = new PlanFormatter(sb);
+        acceptVisitor(formatter);
+        return sb.toString();
+    }
 }

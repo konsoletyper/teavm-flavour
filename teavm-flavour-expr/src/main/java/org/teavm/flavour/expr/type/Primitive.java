@@ -20,25 +20,15 @@ package org.teavm.flavour.expr.type;
  * @author Alexey Andreev
  */
 public final class Primitive extends ValueType {
-    public static final Primitive BOOLEAN = Primitive.get(PrimitiveKind.BOOLEAN);
-    public static final Primitive CHAR = Primitive.get(PrimitiveKind.CHAR);
-    public static final Primitive BYTE = Primitive.get(PrimitiveKind.BYTE);
-    public static final Primitive SHORT = Primitive.get(PrimitiveKind.SHORT);
-    public static final Primitive INT = Primitive.get(PrimitiveKind.INT);
-    public static final Primitive LONG = Primitive.get(PrimitiveKind.LONG);
-    public static final Primitive FLOAT = Primitive.get(PrimitiveKind.FLOAT);
-    public static final Primitive DOUBLE = Primitive.get(PrimitiveKind.DOUBLE);
-
-    private static Primitive[] builders;
+    public static final Primitive BOOLEAN = new Primitive(PrimitiveKind.BOOLEAN);
+    public static final Primitive CHAR = new Primitive(PrimitiveKind.CHAR);
+    public static final Primitive BYTE = new Primitive(PrimitiveKind.BYTE);
+    public static final Primitive SHORT = new Primitive(PrimitiveKind.SHORT);
+    public static final Primitive INT = new Primitive(PrimitiveKind.INT);
+    public static final Primitive LONG = new Primitive(PrimitiveKind.LONG);
+    public static final Primitive FLOAT = new Primitive(PrimitiveKind.FLOAT);
+    public static final Primitive DOUBLE = new Primitive(PrimitiveKind.DOUBLE);
     private PrimitiveKind kind;
-
-    static {
-        PrimitiveKind[] kinds = PrimitiveKind.values();
-        builders = new Primitive[kinds.length];
-        for (int i = 0; i < kinds.length; ++i) {
-            builders[i] = new Primitive(kinds[i]);
-        }
-    }
 
     private Primitive(PrimitiveKind kind) {
         this.kind = kind;
@@ -46,9 +36,5 @@ public final class Primitive extends ValueType {
 
     public PrimitiveKind getKind() {
         return kind;
-    }
-
-    private static Primitive get(PrimitiveKind kind) {
-        return builders[kind.ordinal()];
     }
 }

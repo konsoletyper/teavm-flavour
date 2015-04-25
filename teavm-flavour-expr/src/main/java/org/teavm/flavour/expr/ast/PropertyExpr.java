@@ -51,6 +51,6 @@ public class PropertyExpr<T> extends Expr<T> {
 
     @Override
     public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.equals(this);
+        visitor.visit(this);
     }
 }

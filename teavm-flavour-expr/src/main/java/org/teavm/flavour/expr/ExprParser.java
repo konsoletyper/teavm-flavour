@@ -103,10 +103,11 @@ class ExprParser extends BaseParser<Expr<Void>> {
     Rule Primitive() {
         return FirstOf(
                 Number(),
-                Identifier(),
+                StringLiteral(),
                 Sequence(Keyword("true"), push(new ConstantExpr<Void>(true)), setLocations),
                 Sequence(Keyword("false"), push(new ConstantExpr<Void>(false)), setLocations),
                 Sequence(Keyword("null"), push(new ConstantExpr<Void>(true)), setLocations),
+                Identifier(),
                 Sequence(Keyword("("), Expression(), Keyword(")")));
     }
 
@@ -224,6 +225,7 @@ class ExprParser extends BaseParser<Expr<Void>> {
         Var<StringBuilder> sb = new Var<>();
         Var<Character> ch = new Var<>();
         return Sequence(Ch('\''),
+                sb.set(new StringBuilder()),
                 ZeroOrMore(StringLiteralChar(ch), append(sb, ch)),
                 Ch('\''),
                 push(new ConstantExpr<Void>(sb.get().toString())),
@@ -233,7 +235,8 @@ class ExprParser extends BaseParser<Expr<Void>> {
 
     Rule StringLiteralChar(Var<Character> ch) {
         return FirstOf(
-                Sequence(TestNot(CharRange('\0', '\u001F'), AnyOf("'\\")), ch.set(currentChar())),
+                Sequence(FirstOf(CharRange('\u001F', '&'), CharRange('(', '['), CharRange(']', Character.MAX_VALUE)),
+                        ch.set(matchedChar())),
                 Sequence("\\", StringEscapeSequence(ch)));
     }
 

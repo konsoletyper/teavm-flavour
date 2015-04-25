@@ -15,10 +15,29 @@
  */
 package org.teavm.flavour.expr;
 
+import java.util.HashMap;
+import java.util.Map;
+import org.teavm.flavour.expr.plan.Plan;
+
 /**
- * 
+ *
  * @author Alexey Andreev
  */
 public class Interpreter {
+    private Map<String, Object> variables = new HashMap<>();
+    private Plan plan;
 
+    public Interpreter(Plan plan) {
+        this.plan = plan;
+    }
+
+    public Object interpret() {
+        InterpreterVisitor visitor = new InterpreterVisitor(variables);
+        plan.acceptVisitor(visitor);
+        return visitor.value;
+    }
+
+    public Map<String, Object> getVariables() {
+        return variables;
+    }
 }

@@ -302,7 +302,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     public void visit(VariableExpr<TypedPlan> expr) {
         ValueType type = scope.variableType(expr.getName());
         if (type == null) {
-            error(expr, "Variable not found");
+            error(expr, "Variable " + expr.getName() + " was not found");
             type = new GenericClass("java.lang.Object");
         }
         expr.setAttribute(new TypedPlan(new VariablePlan(expr.getName()), type));
@@ -444,37 +444,37 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     break;
             }
         } else if (plan.type instanceof GenericClass) {
-            if (plan.equals(byteWrapperClass)) {
+            if (plan.type.equals(byteWrapperClass)) {
                 Plan unwrapPlan = new InvocationPlan("java.lang.Byte", "byteValue", "()B", plan.plan);
                 plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.BYTE, unwrapPlan), Primitive.INT);
                 expr.setAttribute(plan);
                 return ArithmeticType.INT;
-            } else if (plan.equals(shortWrapperClass)) {
+            } else if (plan.type.equals(shortWrapperClass)) {
                 Plan unwrapPlan = new InvocationPlan("java.lang.Short", "shortValue", "()S", plan.plan);
                 plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.SHORT, unwrapPlan), Primitive.INT);
                 expr.setAttribute(plan);
                 return ArithmeticType.INT;
-            } else if (plan.equals(characterWrapperClass)) {
+            } else if (plan.type.equals(characterWrapperClass)) {
                 Plan unwrapPlan = new InvocationPlan("java.lang.Character", "charValue", "()S", plan.plan);
                 plan = new TypedPlan(new CastToIntegerPlan(IntegerSubtype.CHAR, unwrapPlan), Primitive.INT);
                 expr.setAttribute(plan);
                 return ArithmeticType.INT;
-            } else if (plan.equals(integerWrapperClass)) {
+            } else if (plan.type.equals(integerWrapperClass)) {
                 plan = new TypedPlan(new InvocationPlan("java.lang.Integer", "intValue", "()I", plan.plan),
                         Primitive.INT);
                 expr.setAttribute(plan);
                 return ArithmeticType.INT;
-            } else if (plan.equals(longWrapperClass)) {
+            } else if (plan.type.equals(longWrapperClass)) {
                 plan = new TypedPlan(new InvocationPlan("java.lang.Long", "longValue", "()L", plan.plan),
                         Primitive.LONG);
                 expr.setAttribute(plan);
                 return ArithmeticType.LONG;
-            } else if (plan.equals(floatWrapperClass)) {
+            } else if (plan.type.equals(floatWrapperClass)) {
                 plan = new TypedPlan(new InvocationPlan("java.lang.Float", "floatValue", "()F", plan.plan),
                         Primitive.FLOAT);
                 expr.setAttribute(plan);
                 return ArithmeticType.FLOAT;
-            } else if (plan.equals(doubleWrapperClass)) {
+            } else if (plan.type.equals(doubleWrapperClass)) {
                 plan = new TypedPlan(new InvocationPlan("java.lang.Double", "doubleValue", "()D", plan.plan),
                         Primitive.DOUBLE);
                 expr.setAttribute(plan);
