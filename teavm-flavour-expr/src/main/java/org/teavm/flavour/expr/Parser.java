@@ -21,6 +21,7 @@ import org.parboiled.Parboiled;
 import org.parboiled.errors.ParseError;
 import org.parboiled.parserunners.RecoveringParseRunner;
 import org.parboiled.support.ParsingResult;
+import org.teavm.flavour.expr.ExprParser.Holder;
 import org.teavm.flavour.expr.ast.Expr;
 
 /**
@@ -39,12 +40,12 @@ public class Parser {
         syntaxErrors.clear();
         ExprParser parser = Parboiled.createParser(ExprParser.class);
         parser.importedClasses = classes;
-        RecoveringParseRunner<Expr<Void>> runner = new RecoveringParseRunner<>(parser.Expression());
-        ParsingResult<Expr<Void>> result = runner.run(text);
+        RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Expression());
+        ParsingResult<Holder> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
             syntaxErrors.add(new SyntaxError(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
         }
-        return result.resultValue;
+        return result.resultValue.expr;
     }
 
     public List<SyntaxError> getSyntaxErrors() {

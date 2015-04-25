@@ -130,11 +130,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 if (invocation.getClassName().equals("java.lang.StringBuilder") &&
                         invocation.getMethodName().equals("toString")) {
                     convertToString(secondOperand);
-                    Plan instance = invocation.getArguments().get(0);
-                    InvocationPlan append = new InvocationPlan("java/lang/StringBuilder", "append",
+                    Plan instance = invocation.getInstance();
+                    InvocationPlan append = new InvocationPlan("java.lang.StringBuilder", "append",
                             "(Ljava/lang/String;)Ljava/lang/StringBuilder;", instance,
                             secondOperand.getAttribute().plan);
-                    invocation.getArguments().set(0, append);
+                    invocation.setInstance(append);
                     expr.setAttribute(new TypedPlan(invocation, stringClass));
                     return;
                 }
@@ -201,22 +201,25 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     public void visit(CastExpr<TypedPlan> expr) {
         Expr<TypedPlan> value = expr.getValue();
         value.acceptVisitor(this);
-        GenericType targetType = expr.getTargetType();
-        GenericType sourceType = (GenericType)value.getAttribute().type;
+        ValueType targetValueType = expr.getTargetType();
+        if (targetValueType instanceof GenericType) {
+            if (!(value.getAttribute().type instanceof GenericClass)) {
+                error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
+                expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
+                return;
+            }
 
-        if (!(value.getAttribute().type instanceof GenericClass)) {
-            error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
-            return;
-        }
+            GenericType targetType = (GenericType)targetValueType;
+            GenericType sourceType = (GenericType)value.getAttribute().type;
 
-        TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
-        if (unifier.unify(targetType, sourceType, true)) {
-            expr.setAttribute(new TypedPlan(value.getAttribute().plan, expr.getTargetType()));
-        } else {
-            GenericType erasure = targetType.erasure();
-            CastPlan plan = new CastPlan(value.getAttribute().plan, typeToString(erasure));
-            expr.setAttribute(new TypedPlan(plan, expr.getTargetType()));
+            TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
+            if (unifier.unify(targetType, sourceType, true)) {
+                expr.setAttribute(new TypedPlan(value.getAttribute().plan, expr.getTargetType()));
+            } else {
+                GenericType erasure = targetType.erasure();
+                CastPlan plan = new CastPlan(value.getAttribute().plan, typeToString(erasure));
+                expr.setAttribute(new TypedPlan(plan, expr.getTargetType()));
+            }
         }
     }
 

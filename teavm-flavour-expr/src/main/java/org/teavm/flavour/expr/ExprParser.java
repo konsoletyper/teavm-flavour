@@ -23,13 +23,15 @@ import org.parboiled.BaseParser;
 import org.parboiled.Context;
 import org.parboiled.Rule;
 import org.parboiled.support.Var;
+import org.teavm.flavour.expr.ExprParser.Holder;
 import org.teavm.flavour.expr.ast.*;
+import org.teavm.flavour.expr.type.*;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ExprParser extends BaseParser<Expr<Void>> {
+class ExprParser extends BaseParser<Holder> {
     private static final double[] positiveExponents = { 1E1, 1E2, 1E4, 1E8, 1E16, 1E32, 1E64, 1E128 };
     private static final double[] negativeExponents = { 1E-1, 1E-2, 1E-4, 1E-8, 1E-16, 1E-32, 1E-64, 1E-128 };
     ClassSet importedClasses;
@@ -39,24 +41,40 @@ class ExprParser extends BaseParser<Expr<Void>> {
     }
 
     Rule Or() {
-        return Sequence(And(), ZeroOrMore(Keyword("or"), And(),
-                swap(), push(new BinaryExpr<>(pop(), pop(), BinaryOperation.OR)), setLocations));
+        return Sequence(
+            And(),
+            ZeroOrMore(
+                Keyword("or"),
+                And(),
+                push(wrap(new BinaryExpr<>(pop(1).expr, pop().expr, BinaryOperation.OR))),
+                setLocations));
     }
 
     Rule And() {
-        return Sequence(Not(), ZeroOrMore(Keyword("and"), Not(),
-                swap(), push(new BinaryExpr<>(pop(), pop(), BinaryOperation.AND)), setLocations));
+        return Sequence(
+            Not(),
+            ZeroOrMore(
+                Keyword("and"),
+                Not(),
+                push(wrap(new BinaryExpr<>(pop(1).expr, pop().expr, BinaryOperation.AND))),
+                setLocations));
     }
 
     Rule Not() {
         return FirstOf(
-                Comparison(),
-                Sequence(Keyword("not"), Not(), push(new UnaryExpr<>(pop(), UnaryOperation.NOT)), setLocations));
+            Comparison(),
+            Sequence(
+                Keyword("not"),
+                Not(),
+                push(wrap(new UnaryExpr<>(pop().expr, UnaryOperation.NOT))),
+                setLocations));
     }
 
     Rule Comparison() {
         Var<BinaryOperation> op = new Var<>();
-        return Sequence(Additive(), ZeroOrMore(
+        return Sequence(
+            Additive(),
+            ZeroOrMore(
                 FirstOf(
                     Sequence(Keyword("=="), op.set(BinaryOperation.EQUAL)),
                     Sequence(Keyword("!="), op.set(BinaryOperation.NOT_EQUAL)),
@@ -65,50 +83,137 @@ class ExprParser extends BaseParser<Expr<Void>> {
                     Sequence(OneOfKeyword(">", "greater"), op.set(BinaryOperation.GREATER)),
                     Sequence(OneOfKeyword(">=", "goe"), op.set(BinaryOperation.GREATER_OR_EQUAL))),
                 Additive(),
-                swap(), push(new BinaryExpr<>(pop(), pop(), op.get())), setLocations));
+                push(wrap(new BinaryExpr<>(pop(1).expr, pop().expr, op.get()))),
+                setLocations));
     }
 
     Rule Additive() {
         Var<BinaryOperation> op = new Var<>();
-        return Sequence(Multiplicative(), ZeroOrMore(
+        return Sequence(
+            Multiplicative(),
+            ZeroOrMore(
                 FirstOf(
                     Sequence(Keyword("+"), op.set(BinaryOperation.ADD)),
                     Sequence(Keyword("-"), op.set(BinaryOperation.SUBTRACT))),
-                Additive(),
-                swap(), push(new BinaryExpr<>(pop(), pop(), op.get())), setLocations));
+                Multiplicative(),
+                push(wrap(new BinaryExpr<>(pop(1).expr, pop().expr, op.get()))),
+                setLocations));
     }
 
     Rule Multiplicative() {
         Var<BinaryOperation> op = new Var<>();
-        return Sequence(Arithmetic(), ZeroOrMore(
+        return Sequence(Arithmetic(),
+            ZeroOrMore(
                 FirstOf(
                     Sequence(Keyword("*"), op.set(BinaryOperation.MULTIPLY)),
                     Sequence(Keyword("/"), op.set(BinaryOperation.DIVIDE)),
                     Sequence(Keyword("%"), op.set(BinaryOperation.REMAINDER))),
                 Arithmetic(),
-                swap(), push(new BinaryExpr<>(pop(), pop(), op.get())), setLocations));
+                push(wrap(new BinaryExpr<>(pop(1).expr, pop().expr, op.get()))),
+                setLocations));
     }
 
     Rule Arithmetic() {
         return FirstOf(
-                Path(),
-                Sequence(Keyword("-"), Arithmetic(), push(new UnaryExpr<>(pop(), UnaryOperation.NEGATE)),
-                        setLocations));
+            Path(),
+            Sequence(
+                Keyword("-"),
+                Arithmetic(),
+                push(wrap(new UnaryExpr<>(pop().expr, UnaryOperation.NEGATE))),
+                setLocations));
     }
 
     Rule Path() {
-        return Sequence(Primitive(), ZeroOrMore(Navigation()));
+        return FirstOf(
+            Cast(),
+            Sequence(Primitive(), ZeroOrMore(Navigation()), Optional(InstanceOf())));
+    }
+
+    Rule Cast() {
+        return Sequence(
+            Keyword("("),
+            Type(),
+            Keyword(")"),
+            Primitive(),
+            push(wrap(new CastExpr<>(pop(1).expr, pop().type))));
+    }
+
+    Rule InstanceOf() {
+        return Sequence(
+            Keyword("instanceof"),
+            Type(),
+            push(wrap(new InstanceOfExpr<>(pop(1).expr, (GenericType)pop().type))));
+    }
+
+    Rule Type() {
+        return Sequence(NonArrayType(), ArraySuffix());
+    }
+
+    Rule GenericType() {
+        return Sequence(QualifiedClassType(), ArraySuffix());
+    }
+
+    Rule ArraySuffix() {
+        return ZeroOrMore(
+            Keyword("["),
+            Keyword("]"),
+            push(wrap(new GenericArray(pop().type))));
+    }
+
+    Rule NonArrayType() {
+        return FirstOf(
+            Sequence(Keyword("boolean"), push(wrap(Primitive.BOOLEAN))),
+            Sequence(Keyword("char"), push(wrap(Primitive.CHAR))),
+            Sequence(Keyword("byte"), push(wrap(Primitive.BYTE))),
+            Sequence(Keyword("short"), push(wrap(Primitive.SHORT))),
+            Sequence(Keyword("int"), push(wrap(Primitive.INT))),
+            Sequence(Keyword("long"), push(wrap(Primitive.LONG))),
+            Sequence(Keyword("float"), push(wrap(Primitive.FLOAT))),
+            Sequence(Keyword("double"), push(wrap(Primitive.DOUBLE))),
+            QualifiedClassType());
+    }
+
+    Rule QualifiedClassType() {
+        Var<String> className = new Var<>();
+        Var<List<GenericType>> typeArgs = new Var<>();
+        return Sequence(
+            RawClassType(className),
+            typeArgs.set(new ArrayList<GenericType>()),
+            Optional(
+                Keyword("<"),
+                TypeArguments(typeArgs),
+                Keyword(">")),
+            push(wrap(new GenericClass(className.get(), typeArgs.get()))));
+    }
+
+    Rule RawClassType(Var<String> className) {
+        Var<StringBuilder> sb = new Var<>();
+        return Sequence(
+            Sequence(Identifier(), sb.set(new StringBuilder()), ACTION(sb.get().append(match()) != null)),
+            ZeroOrMore(
+                Keyword("."),
+                Sequence(Identifier(), ACTION(sb.get().append(".").append(match()) != null))),
+            className.set(sb.get().toString()));
+    }
+
+    Rule TypeArguments(Var<List<GenericType>> typeArgs) {
+        return Sequence(
+            GenericType(),
+            typeArgs.get().add((GenericType)pop().type),
+            ZeroOrMore(
+                Keyword(","),
+                typeArgs.get().add((GenericType)pop().type)));
     }
 
     Rule Primitive() {
         return FirstOf(
-                Number(),
-                StringLiteral(),
-                Sequence(Keyword("true"), push(new ConstantExpr<Void>(true)), setLocations),
-                Sequence(Keyword("false"), push(new ConstantExpr<Void>(false)), setLocations),
-                Sequence(Keyword("null"), push(new ConstantExpr<Void>(true)), setLocations),
-                Identifier(),
-                Sequence(Keyword("("), Expression(), Keyword(")")));
+            Number(),
+            StringLiteral(),
+            Sequence(Keyword("true"), push(wrap(new ConstantExpr<Void>(true))), setLocations),
+            Sequence(Keyword("false"), push(wrap(new ConstantExpr<Void>(false))), setLocations),
+            Sequence(Keyword("null"), push(wrap(new ConstantExpr<Void>(true))), setLocations),
+            Identifier(),
+            Sequence(Keyword("("), Expression(), Keyword(")")));
     }
 
     Rule Navigation() {
@@ -119,9 +224,18 @@ class ExprParser extends BaseParser<Expr<Void>> {
         Var<Expr<Void>> instance = new Var<>();
         Var<String> property = new Var<>();
         Var<List<Expr<Void>>> list = new Var<>();
-        return Sequence(list.set(null), instance.set(pop()), Keyword("."), Identifier(property),
-                Optional(Keyword("("), list.set(new ArrayList<Expr<Void>>()), ExpressionList(list), Keyword(")")),
-                qualify(instance, property, list), setLocations);
+        return Sequence(
+            instance.set(pop().expr),
+            Keyword("."),
+            Identifier(property),
+            list.set(null),
+            Optional(
+                Keyword("("),
+                list.set(new ArrayList<Expr<Void>>()),
+                ExpressionList(list),
+                Keyword(")")),
+            qualify(instance, property, list),
+            setLocations);
     }
 
     Rule ExpressionList(Var<List<Expr<Void>>> list) {
@@ -132,10 +246,13 @@ class ExprParser extends BaseParser<Expr<Void>> {
         Var<Expr<Void>> array = new Var<>();
         Var<Expr<Void>> index = new Var<>();
         return Sequence(
-                array.set(pop()),
-                Keyword("["), Expression(), index.set(pop()), Keyword("]"),
-                push(new BinaryExpr<>(array.get(), index.get(), BinaryOperation.GET_ELEMENT)),
-                setLocations);
+            array.set(pop().expr),
+            Keyword("["),
+            Expression(),
+            index.set(pop().expr),
+            Keyword("]"),
+            push(wrap(new BinaryExpr<>(array.get(), index.get(), BinaryOperation.GET_ELEMENT))),
+            setLocations);
     }
 
     Rule Keyword(String delimiter) {
@@ -152,13 +269,16 @@ class ExprParser extends BaseParser<Expr<Void>> {
 
     Rule Identifier() {
         Var<String> id = new Var<>();
-        return Sequence(Identifier(id), push(new VariableExpr<Void>(id.get())), setLocations);
+        return Sequence(Identifier(id), push(wrap(new VariableExpr<Void>(id.get()))), setLocations);
     }
 
     Rule Identifier(Var<String> id) {
         return Sequence(
-                Sequence(IdentifierStart(), ZeroOrMore(IdentifierPart())), id.set(match()),
-                Whitespace());
+            Sequence(
+                IdentifierStart(),
+                ZeroOrMore(IdentifierPart())),
+            id.set(match()),
+            Whitespace());
     }
 
     Rule IdentifierStart() {
@@ -175,11 +295,11 @@ class ExprParser extends BaseParser<Expr<Void>> {
 
     Rule IntNumber() {
         final Var<String> digits = new Var<>();
-        Action<Expr<Void>> action = new Action<Expr<Void>>() {
-            @Override public boolean run(Context<Expr<Void>> context) {
+        Action<Holder> action = new Action<Holder>() {
+            @Override public boolean run(Context<Holder> context) {
                 try {
                     int value = Integer.parseInt(digits.get());
-                    context.getValueStack().push(new ConstantExpr<Void>(value));
+                    context.getValueStack().push(wrap(new ConstantExpr<Void>(value)));
                     return true;
                 } catch (NumberFormatException e) {
                     return false;
@@ -192,9 +312,13 @@ class ExprParser extends BaseParser<Expr<Void>> {
     Rule IntNumber(Var<String> s) {
         Var<String> firstDigit = new Var<>();
         return FirstOf(
-                Sequence(Ch('0'), s.set("0")),
-                Sequence(CharRange('1', '9'), s.set(match()),
-                        Optional(firstDigit.set(s.get()), Digits(s), s.set(firstDigit.get() + match()))));
+            Sequence(Ch('0'), s.set("0")),
+            Sequence(CharRange('1', '9'),
+                s.set(match()),
+                Optional(
+                    firstDigit.set(s.get()),
+                    Digits(s),
+                    s.set(firstDigit.get() + match()))));
     }
 
     Rule FracNumber() {
@@ -225,29 +349,32 @@ class ExprParser extends BaseParser<Expr<Void>> {
         Var<StringBuilder> sb = new Var<>();
         Var<Character> ch = new Var<>();
         return Sequence(Ch('\''),
-                sb.set(new StringBuilder()),
-                ZeroOrMore(StringLiteralChar(ch), append(sb, ch)),
-                Ch('\''),
-                push(new ConstantExpr<Void>(sb.get().toString())),
-                setLocations,
-                Whitespace());
+            sb.set(new StringBuilder()),
+            ZeroOrMore(StringLiteralChar(ch), append(sb, ch)),
+            Ch('\''),
+            push(wrap(new ConstantExpr<Void>(sb.get().toString()))),
+            setLocations,
+            Whitespace());
     }
 
     Rule StringLiteralChar(Var<Character> ch) {
         return FirstOf(
-                Sequence(FirstOf(CharRange('\u001F', '&'), CharRange('(', '['), CharRange(']', Character.MAX_VALUE)),
-                        ch.set(matchedChar())),
-                Sequence("\\", StringEscapeSequence(ch)));
+            Sequence(
+                FirstOf(
+                    CharRange('\u001F', '&'),
+                    CharRange('(', '['), CharRange(']', Character.MAX_VALUE)),
+                ch.set(matchedChar())),
+            Sequence(String("\\"), StringEscapeSequence(ch)));
     }
 
     Rule StringEscapeSequence(Var<Character> ch) {
         return FirstOf(
-                Sequence(Ch('r'), ch.set('\r')),
-                Sequence(Ch('n'), ch.set('\n')),
-                Sequence(Ch('t'), ch.set('\t')),
-                Sequence(Ch('\''), ch.set('\'')),
-                Sequence(Ch('\\'), ch.set('\\')),
-                Sequence(IgnoreCase('u'), NTimes(4, HexDigit()), ch.set((char)Integer.parseInt(match(), 16))));
+            Sequence(Ch('r'), ch.set('\r')),
+            Sequence(Ch('n'), ch.set('\n')),
+            Sequence(Ch('t'), ch.set('\t')),
+            Sequence(Ch('\''), ch.set('\'')),
+            Sequence(Ch('\\'), ch.set('\\')),
+            Sequence(IgnoreCase('u'), NTimes(4, HexDigit()), ch.set((char)Integer.parseInt(match(), 16))));
     }
 
     Rule HexDigit() {
@@ -310,10 +437,10 @@ class ExprParser extends BaseParser<Expr<Void>> {
         return result;
     }
 
-    Action<Expr<Void>> setLocations = new Action<Expr<Void>>() {
+    Action<Holder> setLocations = new Action<Holder>() {
         @Override
-        public boolean run(Context<Expr<Void>> context) {
-            Expr<Void> expr = context.getValueStack().peek();
+        public boolean run(Context<Holder> context) {
+            Expr<Void> expr = context.getValueStack().peek().expr;
             if (expr != null) {
                 expr.setStart(context.getMatchStartIndex());
                 expr.setEnd(context.getMatchEndIndex());
@@ -322,36 +449,36 @@ class ExprParser extends BaseParser<Expr<Void>> {
         }
     };
 
-    Action<Expr<Void>> append(final Var<StringBuilder> sb, final Var<Character> ch) {
-        return new Action<Expr<Void>>() {
+    Action<Holder> append(final Var<StringBuilder> sb, final Var<Character> ch) {
+        return new Action<Holder>() {
             @Override
-            public boolean run(Context<Expr<Void>> context) {
+            public boolean run(Context<Holder> context) {
                 sb.get().append(ch.get().charValue());
                 return true;
             }
         };
     }
 
-    Action<Expr<Void>> qualify(final Var<Expr<Void>> instanceVar, final Var<String> propertyVar,
+    Action<Holder> qualify(final Var<Expr<Void>> instanceVar, final Var<String> propertyVar,
             final Var<List<Expr<Void>>> argumentsVar) {
-        return new Action<Expr<Void>>() {
+        return new Action<Holder>() {
             @Override
-            public boolean run(Context<Expr<Void>> context) {
+            public boolean run(Context<Holder> context) {
                 Expr<Void> instance = instanceVar.get();
                 String className = isClassName(instance);
                 if (argumentsVar.get() == null) {
                     if (className == null) {
-                        context.getValueStack().push(new PropertyExpr<>(instance, propertyVar.get()));
+                        context.getValueStack().push(wrap(new PropertyExpr<>(instance, propertyVar.get())));
                     } else {
-                        context.getValueStack().push(new StaticPropertyExpr<Void>(className, propertyVar.get()));
+                        context.getValueStack().push(wrap(new StaticPropertyExpr<Void>(className, propertyVar.get())));
                     }
                 } else {
                     if (className == null) {
-                        context.getValueStack().push(new InvocationExpr<>(instance, propertyVar.get(),
-                                argumentsVar.get()));
+                        context.getValueStack().push(wrap(new InvocationExpr<>(instance, propertyVar.get(),
+                                argumentsVar.get())));
                     } else {
-                        context.getValueStack().push(new StaticInvocationExpr<>(className, propertyVar.get(),
-                                argumentsVar.get()));
+                        context.getValueStack().push(wrap(new StaticInvocationExpr<>(className, propertyVar.get(),
+                                argumentsVar.get())));
                     }
                 }
                 return true;
@@ -359,11 +486,11 @@ class ExprParser extends BaseParser<Expr<Void>> {
         };
     }
 
-    Action<Expr<Void>> append(final Var<List<Expr<Void>>> list) {
-        return new Action<Expr<Void>>() {
+    Action<Holder> append(final Var<List<Expr<Void>>> list) {
+        return new Action<Holder>() {
             @Override
-            public boolean run(Context<Expr<Void>> context) {
-                list.get().add(context.getValueStack().pop());
+            public boolean run(Context<Holder> context) {
+                list.get().add(context.getValueStack().pop().expr);
                 return true;
             }
         };
@@ -390,5 +517,22 @@ class ExprParser extends BaseParser<Expr<Void>> {
             sb.append(parts.get(i));
         }
         return importedClasses.findClass(sb.toString());
+    }
+
+    static Holder wrap(Expr<Void> expr) {
+        Holder holder = new Holder();
+        holder.expr = expr;
+        return holder;
+    }
+
+    static Holder wrap(ValueType type) {
+        Holder holder = new Holder();
+        holder.type = type;
+        return holder;
+    }
+
+    static class Holder {
+        Expr<Void> expr;
+        ValueType type;
     }
 }

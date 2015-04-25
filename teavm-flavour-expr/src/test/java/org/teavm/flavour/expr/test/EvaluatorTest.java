@@ -62,6 +62,12 @@ public class EvaluatorTest {
     }
 
     @Test
+    public void leftAssociativity() {
+        IntComputation c = parseExpr(IntComputation.class, "3 - 2 + 1");
+        assertThat(c.compute(), is(2));
+    }
+
+    @Test
     public void implicitlyCastsByteToInt() {
         IntComputation c = parseExpr(IntComputation.class, "byteValue - 3");
         vars.byteValue((byte)8);
