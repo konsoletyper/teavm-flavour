@@ -17,6 +17,10 @@ package org.teavm.flavour.expr.test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -201,7 +205,7 @@ public class EvaluatorTest {
 
     @Test
     public void castsObjectToLong() {
-        LongComputation c = parseExpr(LongComputation.class, "(java.lang.Long)object");
+        LongComputation c = parseExpr(LongComputation.class, "(Long)object");
         vars.object(2L);
         assertThat(c.compute(), is(2L));
     }
@@ -215,7 +219,7 @@ public class EvaluatorTest {
 
     @Test
     public void evaluatesInstanceOf() {
-        BooleanComputation c = parseExpr(BooleanComputation.class, "object instanceof java.lang.Long");
+        BooleanComputation c = parseExpr(BooleanComputation.class, "object instanceof Long");
 
         vars.object(null);
         assertThat(c.compute(), is(false));
@@ -227,8 +231,84 @@ public class EvaluatorTest {
         assertThat(c.compute(), is(true));
     }
 
+    @Test
+    public void evaluatesArraySubscript() {
+        ObjectComputation o = parseExpr(ObjectComputation.class, "intArray[0]");
+        vars.intArray(new int[] { 23 });
+        assertThat(o.compute(), is((Object)23));
+
+        IntComputation c = parseExpr(IntComputation.class, "integerArray[0]");
+        vars.integerArray(new Integer[] { 42 });
+        assertThat(c.compute(), is(42));
+
+        o = parseExpr(ObjectComputation.class, "stringArray[0]");
+        vars.stringArray(new String[] { "foo" });
+        assertThat(o.compute(), is((Object)"foo"));
+    }
+
+    @Test
+    public void evaluatesListSubscript() {
+        IntComputation c = parseExpr(IntComputation.class, "integerList[0]");
+        vars.integerList(Arrays.asList(23));
+        assertThat(c.compute(), is(23));
+    }
+
+    @Test
+    public void evaluatesMapSubscript() {
+        IntComputation c = parseExpr(IntComputation.class, "stringIntMap['k']");
+        Map<String, Integer> map = new HashMap<>();
+        map.put("k", 23);
+        vars.stringIntMap(map);
+        assertThat(c.compute(), is(23));
+    }
+
+    @Test
+    public void evaluatesInvocation() {
+        StringComputation c = parseExpr(StringComputation.class, "object.getClass().getName()");
+
+        vars.object(new Object());
+        assertThat(c.compute(), is("java.lang.Object"));
+
+        vars.object("foo");
+        assertThat(c.compute(), is("java.lang.String"));
+    }
+
+    @Test
+    public void evaluatesStaticInvocation() {
+        IntComputation c = parseExpr(IntComputation.class, "Integer.valueOf('23')");
+        assertThat(c.compute(), is(23));
+    }
+
+    @Test
+    public void resolvesMethod() {
+        IntComputation c = parseExpr(IntComputation.class, "foo.bar(2)");
+        vars.foo(new Foo(3));
+        assertThat(c.compute(), is(5));
+
+        StringComputation sc = parseExpr(StringComputation.class, "foo.bar('x')");
+        vars.foo(new Foo(3));
+        assertThat(sc.compute(), is("x3"));
+    }
+
+    @Test
+    public void resolvesGenericMethod() {
+        IntComputation c = parseExpr(IntComputation.class, "foo.extract(stringIntMap, 'k')");
+        vars.foo(new Foo(0));
+        Map<String, Integer> map = new HashMap<>();
+        map.put("k", 23);
+        vars.stringIntMap(map);
+        assertThat(c.compute(), is(23));
+
+        ObjectComputation o = parseExpr(ObjectComputation.class, "foo.extract(stringIntMap, (String)null)");
+        vars.foo(new Foo(0));
+        vars.stringIntMap(new HashMap<String, Integer>());
+        assertThat(o.compute(), is((Object)null));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
-        EvaluatorBuilder builder = new InterpretingEvaluatorBuilder();
+        EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
+                .importPackage("java.lang")
+                .importPackage("java.util");
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();
@@ -246,6 +326,20 @@ public class EvaluatorTest {
         void longWrapper(Long v);
 
         void object(Object v);
+
+        void intArray(int[] array);
+
+        void integerArray(Integer[] array);
+
+        void stringArray(String[] array);
+
+        void integerList(List<Integer> list);
+
+        void stringList(List<String> list);
+
+        void stringIntMap(Map<String, Integer> map);
+
+        void foo(Foo v);
     }
 
     interface BooleanComputation {
@@ -262,5 +356,29 @@ public class EvaluatorTest {
 
     interface StringComputation {
         String compute();
+    }
+
+    interface ObjectComputation {
+        Object compute();
+    }
+
+    public class Foo {
+        int y;
+
+        public Foo(int y) {
+            this.y = y;
+        }
+
+        public int bar(int x) {
+            return x + y;
+        }
+
+        public String bar(String x) {
+            return x + y;
+        }
+
+        public <K, V> V extract(Map<K, V> map, K key) {
+            return map.get(key);
+        }
     }
 }

@@ -22,6 +22,7 @@ import org.parboiled.errors.ParseError;
 import org.parboiled.parserunners.RecoveringParseRunner;
 import org.parboiled.support.ParsingResult;
 import org.teavm.flavour.expr.ExprParser.Holder;
+import org.teavm.flavour.expr.ast.ConstantExpr;
 import org.teavm.flavour.expr.ast.Expr;
 
 /**
@@ -29,21 +30,24 @@ import org.teavm.flavour.expr.ast.Expr;
  * @author Alexey Andreev
  */
 public class Parser {
-    private ClassSet classes;
+    private ClassResolver classes;
     private List<Diagnostic> diagnostics = new ArrayList<>();
 
-    public Parser(ClassSet classes) {
+    public Parser(ClassResolver classes) {
         this.classes = classes;
     }
 
     public Expr<Void> parse(String text) {
         diagnostics.clear();
         ExprParser parser = Parboiled.createParser(ExprParser.class);
-        parser.importedClasses = classes;
-        RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Expression());
+        parser.classResolver = classes;
+        RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Root());
         ParsingResult<Holder> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
             diagnostics.add(new Diagnostic(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
+        }
+        if (!diagnostics.isEmpty() && result.resultValue == null) {
+            return new ConstantExpr<>(null);
         }
         return result.resultValue.expr;
     }

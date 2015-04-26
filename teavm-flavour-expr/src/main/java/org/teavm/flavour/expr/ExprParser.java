@@ -34,7 +34,11 @@ import org.teavm.flavour.expr.type.*;
 class ExprParser extends BaseParser<Holder> {
     private static final double[] positiveExponents = { 1E1, 1E2, 1E4, 1E8, 1E16, 1E32, 1E64, 1E128 };
     private static final double[] negativeExponents = { 1E-1, 1E-2, 1E-4, 1E-8, 1E-16, 1E-32, 1E-64, 1E-128 };
-    ClassSet importedClasses;
+    ClassResolver classResolver;
+
+    Rule Root() {
+        return Sequence(Expression(), EOI);
+    }
 
     Rule Expression() {
         return Or();
@@ -517,7 +521,7 @@ class ExprParser extends BaseParser<Holder> {
             }
             sb.append(parts.get(i));
         }
-        return importedClasses.findClass(sb.toString());
+        return classResolver.findClass(sb.toString());
     }
 
     static Holder wrap(Expr<Void> expr) {

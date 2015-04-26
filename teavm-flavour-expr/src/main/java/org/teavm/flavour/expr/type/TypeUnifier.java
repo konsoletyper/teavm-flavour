@@ -44,12 +44,10 @@ public class TypeUnifier {
     }
 
     public boolean unify(GenericType pattern, GenericType special, boolean covariant) {
-        substitutions.clear();
         return unifyImpl(pattern, special, covariant) != null;
     }
 
     public GenericType unifyAndGet(GenericType pattern, GenericType special, boolean covariant) {
-        substitutions.clear();
         return unifyImpl(pattern, special, covariant);
     }
 
@@ -119,7 +117,7 @@ public class TypeUnifier {
         if (knownSubstitution == null) {
             substitutions.put(ref.getVar(), special);
             if (ref.getVar().getUpperBound() != null) {
-                if (unifyImpl(ref.getVar().getUpperBound(), special, false) == null) {
+                if (unifyImpl(ref.getVar().getUpperBound(), special, true) == null) {
                     return null;
                 }
             }

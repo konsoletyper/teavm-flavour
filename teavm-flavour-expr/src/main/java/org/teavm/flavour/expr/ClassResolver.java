@@ -16,9 +16,16 @@
 package org.teavm.flavour.expr;
 
 /**
+ * <p>This object is responsible for finding the class by its name as appears in the source code.</p>
  *
  * @author Alexey Andreev
  */
-public interface ClassSet {
+public interface ClassResolver {
+    /**
+     * <p>Finds class by its full or simple name.</p>
+     *
+     * @param full or simple name of the class.
+     * @return the full name of found class, or <code>null</code> if class was not found.
+     */
     String findClass(String name);
 }

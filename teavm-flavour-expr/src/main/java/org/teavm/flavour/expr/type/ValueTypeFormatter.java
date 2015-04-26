@@ -22,7 +22,7 @@ import java.util.Map;
  *
  * @author Alexey Andreev
  */
-public class GenericTypeFormatter {
+public class ValueTypeFormatter {
     private Map<TypeVar, String> typeVarNames = new HashMap<>();
 
     public String format(ValueType type) {

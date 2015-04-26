@@ -48,6 +48,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private Scope scope;
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private TypeVar nullType = new TypeVar();
+    private GenericReference nullTypeRef = new GenericReference(nullType);
+    private ClassResolver classResolver;
 
     static {
         primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
@@ -65,8 +67,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         wrappersToPrimitives.put(wrapper, primitive);
     }
 
-    public CompilerVisitor(GenericTypeNavigator navigator, Scope scope) {
+    public CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
         this.navigator = navigator;
+        this.classResolver = classes;
         this.scope = scope;
     }
 
@@ -194,7 +197,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             GenericClass listClass = navigator.getGenericClass("java.util.List");
             TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
             if (unifier.unify(mapClass, (GenericType)firstType, true)) {
-                TypeVar var = ((GenericReference)mapClass.getArguments().get(0)).getVar();
+                TypeVar var = ((GenericReference)mapClass.getArguments().get(1)).getVar();
                 GenericType returnType = unifier.getSubstitutions().get(var);
                 InvocationPlan plan = new InvocationPlan("java.util.Map", "get",
                         "(Ljava/lang/Object;)Ljava/lang/Object;",
@@ -202,7 +205,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 expr.setAttribute(new TypedPlan(plan, returnType));
                 return;
             } else if (unifier.unify(listClass, (GenericType)firstType, false)) {
-                TypeVar var = ((GenericReference)mapClass.getArguments().get(0)).getVar();
+                TypeVar var = ((GenericReference)listClass.getArguments().get(0)).getVar();
                 GenericType returnType = unifier.getSubstitutions().get(var);
                 ensureIntType(secondOperand);
                 InvocationPlan plan = new InvocationPlan("java.util.List", "get", "(I)Ljava/lang/Object;",
@@ -217,6 +220,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(CastExpr<TypedPlan> expr) {
+        expr.setTargetType(resolveType(expr.getTargetType(), expr));
         expr.getValue().acceptVisitor(this);
         Expr<TypedPlan> value = expr.getValue();
         TypedPlan plan = value.getAttribute();
@@ -266,6 +270,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(InstanceOfExpr<TypedPlan> expr) {
+        expr.setCheckedType((GenericType)resolveType(expr.getCheckedType(), expr));
         Expr<TypedPlan> value = expr.getValue();
         value.acceptVisitor(this);
         GenericType checkedType = expr.getCheckedType();
@@ -290,29 +295,99 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     @Override
     public void visit(InvocationExpr<TypedPlan> expr) {
         expr.getInstance().acceptVisitor(this);
-        for (Expr<TypedPlan> arg : expr.getArguments()) {
-            arg.acceptVisitor(this);
-        }
+        TypedPlan instance = expr.getInstance().getAttribute();
 
-        ValueType instanceType = expr.getInstance().getAttribute().type;
-        if (!(instanceType instanceof GenericClass)) {
-            error(expr, "Can't call method of non-class value: " + instanceType);
+        if (!(instance.type instanceof GenericClass)) {
+            error(expr, "Can't call method of non-class value: " + instance.type);
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
             return;
         }
 
-        GenericClass cls = (GenericClass)instanceType;
-        GenericMethod[] methods = navigator.findMethods(cls, expr.getMethodName(), expr.getArguments().size());
-        List<GenericMethod> matchedMethods = new ArrayList<>();
-        for (GenericMethod method : methods) {
-            if (method.getDescriber().isStatic()) {
-                continue;
-            }
-        }
+        compileInvocation(expr, instance, (GenericClass)instance.type, expr.getMethodName(), expr.getArguments());
     }
 
     @Override
     public void visit(StaticInvocationExpr<TypedPlan> expr) {
+        compileInvocation(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getMethodName(),
+                expr.getArguments());
+    }
+
+    private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls, String methodName,
+            List<Expr<TypedPlan>> argumentExprList) {
+        TypedPlan[] actualArguments = new TypedPlan[argumentExprList.size()];
+        for (int i = 0; i < actualArguments.length; ++i) {
+            argumentExprList.get(i).acceptVisitor(this);
+            actualArguments[i] = argumentExprList.get(i).getAttribute();
+        }
+
+        GenericMethod[] methods = navigator.findMethods(cls, methodName, actualArguments.length);
+        List<TypedPlan> matchedPlans = new ArrayList<>();
+        List<GenericMethod> matchedMethods = new ArrayList<>();
+        methods: for (GenericMethod method : methods) {
+            if ((instance == null) != method.getDescriber().isStatic()) {
+                continue;
+            }
+
+            ValueType[] argTypes = method.getActualArgumentTypes();
+            Plan[] convertedArguments = new Plan[actualArguments.length];
+            TypeUnifier unifier = createUnifier();
+            for (int i = 0; i < argTypes.length; ++i) {
+                TypedPlan arg = actualArguments[i];
+                arg = tryConvert(arg, argTypes[i], unifier);
+                if (arg == null) {
+                    continue methods;
+                }
+                convertedArguments[i] = arg.plan;
+            }
+
+            ValueType returnType = method.getActualReturnType();
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType)returnType).substitute(unifier.getSubstitutions());
+            }
+
+            String className = method.getDescriber().getOwner().getName();
+            StringBuilder desc = new StringBuilder().append('(');
+            for (ValueType argType : method.getDescriber().getRawArgumentTypes()) {
+                desc.append(typeToString(argType));
+            }
+            desc.append(')');
+            if (returnType != null) {
+                desc.append(typeToString(returnType));
+            } else {
+                desc.append('V');
+            }
+            matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc.toString(),
+                    instance != null ? instance.plan : null, convertedArguments), returnType));
+            matchedMethods.add(method);
+        }
+
+        if (matchedMethods.size() == 1) {
+            expr.setAttribute(matchedPlans.get(0));
+            return;
+        }
+
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericReference(nullType)));
+        ValueType[] argumentTypes = new ValueType[actualArguments.length];
+        for (int i = 0; i < argumentTypes.length; ++i) {
+            argumentTypes[i] = actualArguments[i].type;
+        }
+        if (matchedMethods.isEmpty()) {
+            error(expr, "No corresponding method found: " + methodToString(methodName,
+                    Arrays.asList(argumentTypes)));
+        } else {
+            StringBuilder message = new StringBuilder();
+            message.append("Call to method ").append(methodToString(methodName,
+                    Arrays.asList(argumentTypes))).append(" is ambigous. The following methods match: ");
+            for (int i = 0; i < matchedMethods.size(); ++i) {
+                if (i > 0) {
+                    message.append(", ");
+                }
+                GenericMethod method = matchedMethods.get(i);
+                message.append(methodToString(method.getDescriber().getName(),
+                        Arrays.asList(method.getActualArgumentTypes())));
+            }
+            error(expr, message.toString());
+        }
     }
 
     @Override
@@ -536,8 +611,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     TypedPlan tryConvert(TypedPlan plan, ValueType targetType) {
+        return tryConvert(plan, targetType, createUnifier());
+    }
+
+    TypedPlan tryConvert(TypedPlan plan, ValueType targetType, TypeUnifier unifier) {
         if (plan.getType().equals(targetType)) {
             return plan;
+        }
+        if (plan.getType().equals(nullTypeRef)) {
+            return new TypedPlan(plan.plan, targetType);
         }
 
         if (targetType instanceof Primitive) {
@@ -563,7 +645,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         }
 
-        TypeUnifier unifier = createUnifier();
         if (!unifier.unify((GenericType)targetType, (GenericType)plan.type, true)) {
             return null;
         }
@@ -749,6 +830,46 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else if (type instanceof GenericClass) {
             sb.append('L').append(((GenericClass)type).getName().replace('.', '/')).append(';');
         }
+    }
+
+    private ValueType resolveType(ValueType type, Expr<TypedPlan> expr) {
+        if (type instanceof GenericClass) {
+            GenericClass cls = (GenericClass)type;
+            String resolvedName = classResolver.findClass(cls.getName());
+            if (resolvedName == null) {
+                error(expr, "Class not found: " + cls.getName());
+                return type;
+            }
+            boolean changed = !resolvedName.equals(cls.getName());
+            List<GenericType> arguments = new ArrayList<>();
+            for (GenericType arg : cls.getArguments()) {
+                GenericType resolvedArg = (GenericType)resolveType(arg, expr);
+                if (resolvedArg != arg) {
+                    changed = true;
+                }
+            }
+            return !changed ? type : new GenericClass(resolvedName, arguments);
+        } else if (type instanceof GenericArray) {
+            GenericArray array = (GenericArray)type;
+            ValueType elementType = resolveType(array.getElementType(), expr);
+            return elementType == array.getElementType() ? type : new GenericArray(elementType);
+        } else {
+            return type;
+        }
+    }
+
+    private String methodToString(String name, List<ValueType> arguments) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(name).append('(');
+        ValueTypeFormatter formatter = new ValueTypeFormatter();
+        for (int i = 0; i < arguments.size(); ++i) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            formatter.format(arguments.get(i), sb);
+        }
+        sb.append(")");
+        return sb.toString();
     }
 
     private void error(Expr<TypedPlan> expr, String message) {

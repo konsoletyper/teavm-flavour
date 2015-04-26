@@ -25,6 +25,6 @@ public abstract class ValueType {
 
     @Override
     public String toString() {
-        return new GenericTypeFormatter().format(this);
+        return new ValueTypeFormatter().format(this);
     }
 }

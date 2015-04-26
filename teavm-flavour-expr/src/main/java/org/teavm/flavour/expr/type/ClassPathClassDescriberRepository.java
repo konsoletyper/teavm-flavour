@@ -88,6 +88,8 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             Class<?> javaClass = (Class<?>)javaType;
             if (javaClass.isPrimitive()) {
                 return primitiveMap.get(javaClass.getName());
+            } else if (javaClass.isArray()) {
+                return new GenericArray(convertGenericType(javaClass.getComponentType()));
             }
             return new GenericClass(javaClass.getName(), Collections.<GenericType>emptyList());
         } else if (javaType instanceof ParameterizedType) {

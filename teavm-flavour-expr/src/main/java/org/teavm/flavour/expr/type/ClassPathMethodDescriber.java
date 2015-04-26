@@ -91,7 +91,7 @@ class ClassPathMethodDescriber implements MethodDescriber {
 
     @Override
     public ValueType getReturnType() {
-        if (returnType != null) {
+        if (returnType == null) {
             if (!javaMethod.getReturnType().equals(void.class)) {
                 returnType = owner.repository.convertGenericType(javaMethod.getGenericReturnType());
             }

@@ -13,11 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr;
+package org.teavm.flavour.expr.ast;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.flavour.expr.ast.*;
 
 /**
  *

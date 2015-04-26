@@ -30,6 +30,18 @@ import org.teavm.flavour.expr.type.ValueType;
  * @author Alexey Andreev
  */
 public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
+    private ClassLoaderClassResolver classResolver = new ClassLoaderClassResolver(ClassLoader.getSystemClassLoader());
+
+    public InterpretingEvaluatorBuilder importClass(String name) {
+        classResolver.importClass(name);
+        return this;
+    }
+
+    public InterpretingEvaluatorBuilder importPackage(String name) {
+        classResolver.importPackage(name);
+        return this;
+    }
+
     @Override
     public <F, V> Evaluator<F, V> build(Class<F> functionType, Class<V> variablesType, String exprString) {
         if (!functionType.isInterface()) {
@@ -58,21 +70,21 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
             variableTypes.put(method.getName(), parameters[0]);
         }
 
-        Parser parser = new Parser(new ClassLoaderClassSet(ClassLoader.getSystemClassLoader()));
+        Parser parser = new Parser(classResolver);
         Expr<Void> expr = parser.parse(exprString);
         if (!parser.getDiagnostics().isEmpty()) {
             throw new InvalidExpressionException(parser.getDiagnostics());
         }
 
         ClassPathClassDescriberRepository classes = new ClassPathClassDescriberRepository();
-        Compiler compiler = new Compiler(classes, new ScopeImpl(classes, variableTypes));
+        Compiler compiler = new Compiler(classes, classResolver, new ScopeImpl(classes, variableTypes));
         Type returnType = functionMethods[0].getGenericReturnType();
         TypedPlan typedPlan = compiler.compile(expr, classes.convertGenericType(returnType));
         if (!compiler.wasSuccessful()) {
             throw new InvalidExpressionException(compiler.getDiagnostics());
         }
 
-        Interpreter interpreter = new Interpreter(typedPlan.plan);
+        Interpreter interpreter = new Interpreter(typedPlan.getPlan());
         @SuppressWarnings("unchecked")
         F function = (F)Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { functionType },
                 new FunctionProxy(interpreter));
