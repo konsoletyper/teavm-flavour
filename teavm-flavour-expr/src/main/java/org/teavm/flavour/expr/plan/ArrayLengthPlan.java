@@ -22,6 +22,10 @@ package org.teavm.flavour.expr.plan;
 public class ArrayLengthPlan extends Plan {
     private Plan array;
 
+    public ArrayLengthPlan(Plan array) {
+        this.array = array;
+    }
+
     public Plan getArray() {
         return array;
     }

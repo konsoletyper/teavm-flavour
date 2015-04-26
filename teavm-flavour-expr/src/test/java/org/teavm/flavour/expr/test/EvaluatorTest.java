@@ -305,10 +305,40 @@ public class EvaluatorTest {
         assertThat(o.compute(), is((Object)null));
     }
 
+    @Test
+    public void evaluatesProperty() {
+        StringComputation c = parseExpr(StringComputation.class, "object.getClass().simpleName");
+        vars.object("foo");
+        assertThat(c.compute(), is("String"));
+    }
+
+    @Test
+    public void evaluatesField() {
+        IntComputation c = parseExpr(IntComputation.class, "foo.y");
+        vars.foo(new Foo(23));
+        assertThat(c.compute(), is(23));
+    }
+
+    @Test
+    public void evaluatesArrayLength() {
+        IntComputation c = parseExpr(IntComputation.class, "stringArray.length");
+        vars.stringArray(new String[] { "foo", "bar" });
+        assertThat(c.compute(), is(2));
+    }
+
+    public static final int STATIC_FIELD = 3;
+
+    @Test
+    public void evaluatesStaticField() {
+        IntComputation c = parseExpr(IntComputation.class, "EvaluatorTest.STATIC_FIELD");
+        assertThat(c.compute(), is(3));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")
-                .importPackage("java.util");
+                .importPackage("java.util")
+                .importClass(EvaluatorTest.class.getName());
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();
@@ -363,7 +393,7 @@ public class EvaluatorTest {
     }
 
     public class Foo {
-        int y;
+        public int y;
 
         public Foo(int y) {
             this.y = y;

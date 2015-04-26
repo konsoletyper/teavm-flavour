@@ -23,11 +23,13 @@ public class FieldPlan extends Plan {
     private Plan instance;
     private String className;
     private String fieldName;
+    private String fieldDesc;
 
-    public FieldPlan(Plan instance, String className, String fieldName) {
+    public FieldPlan(Plan instance, String className, String fieldName, String fieldDesc) {
         this.instance = instance;
         this.className = className;
         this.fieldName = fieldName;
+        this.fieldDesc = fieldDesc;
     }
 
     public Plan getInstance() {
@@ -52,6 +54,14 @@ public class FieldPlan extends Plan {
 
     public void setFieldName(String fieldName) {
         this.fieldName = fieldName;
+    }
+
+    public String getFieldDesc() {
+        return fieldDesc;
+    }
+
+    public void setFieldDesc(String fieldDesc) {
+        this.fieldDesc = fieldDesc;
     }
 
     @Override

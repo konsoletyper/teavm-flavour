@@ -19,22 +19,14 @@ package org.teavm.flavour.expr.type;
  *
  * @author Alexey Andreev
  */
-public interface ClassDescriber {
+public interface FieldDescriber {
+    ClassDescriber getOwner();
+
     String getName();
 
-    boolean isInterface();
+    ValueType getType();
 
-    TypeVar[] getTypeVariables();
+    ValueType getRawType();
 
-    GenericClass getSupertype();
-
-    GenericClass[] getInterfaces();
-
-    MethodDescriber[] getMethods();
-
-    MethodDescriber getMethod(String name, GenericClass... argumentTypes);
-
-    FieldDescriber[] getFields();
-
-    FieldDescriber getField(String name);
+    boolean isStatic();
 }

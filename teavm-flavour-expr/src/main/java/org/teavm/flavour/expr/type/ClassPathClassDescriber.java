@@ -15,10 +15,7 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
+import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +32,8 @@ class ClassPathClassDescriber implements ClassDescriber {
     private GenericClass[] interfaces;
     private ClassPathMethodDescriber[] methods;
     private Map<Method, ClassPathMethodDescriber> methodMap = new HashMap<>();
+    private ClassPathFieldDescriber[] fields;
+    private Map<Field, ClassPathFieldDescriber> fieldMap = new HashMap<>();
 
     public ClassPathClassDescriber(ClassPathClassDescriberRepository repository, Class<?> cls) {
         this.repository = repository;
@@ -125,5 +124,44 @@ class ClassPathClassDescriber implements ClassDescriber {
             methodMap.put(javaMethod, method);
         }
         return method;
+    }
+
+    @Override
+    public FieldDescriber[] getFields() {
+        if (fields == null) {
+            Field[] javaFields = cls.getDeclaredFields();
+            fields = new ClassPathFieldDescriber[javaFields.length];
+            int j = 0;
+            for (int i = 0; i < fields.length; ++i) {
+                ClassPathFieldDescriber field = getField(javaFields[i]);
+                if (field != null) {
+                    fields[j++] = field;
+                }
+            }
+            fields = Arrays.copyOf(fields, j);
+        }
+        return fields.clone();
+    }
+
+    @Override
+    public FieldDescriber getField(String name) {
+        try {
+            Field javaField = cls.getDeclaredField(name);
+            return getField(javaField);
+        } catch (NoSuchFieldException e) {
+            return null;
+        }
+    }
+
+    private ClassPathFieldDescriber getField(Field javaField) {
+        if (!Modifier.isPublic(javaField.getModifiers())) {
+            return null;
+        }
+        ClassPathFieldDescriber field = fieldMap.get(javaField);
+        if (field == null) {
+            field = new ClassPathFieldDescriber(this, javaField);
+            fieldMap.put(javaField, field);
+        }
+        return field;
     }
 }

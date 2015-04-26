@@ -177,12 +177,7 @@ public class GenericTypeNavigator {
         return methods.values().toArray(new GenericMethod[0]);
     }
 
-    public GenericMethod getMethod(GenericClass cls, String name, GenericClass... argumentTypes) {
-        ClassDescriber describer = classRepository.describe(cls.getName());
-        if (describer == null) {
-            return null;
-        }
-
+    private Map<TypeVar, GenericType> prepareSubstitutions(ClassDescriber describer, GenericClass cls) {
         TypeVar[] typeVars = describer.getTypeVariables();
         List<GenericType> typeValues = cls.getArguments();
         if (typeVars.length != typeValues.size()) {
@@ -191,6 +186,108 @@ public class GenericTypeNavigator {
         Map<TypeVar, GenericType> substitutions = new HashMap<>();
         for (int i = 0; i < typeVars.length; ++i) {
             substitutions.put(typeVars[i], typeValues.get(i));
+        }
+        return substitutions;
+    }
+
+    public GenericField getField(GenericClass cls, String name) {
+        return getFieldRec(cls, name, new HashSet<GenericClass>());
+    }
+
+    private GenericField getFieldRec(GenericClass cls, String name, Set<GenericClass> visited) {
+        if (!visited.add(cls)) {
+            return null;
+        }
+
+        GenericField field = getFieldImpl(cls, name);
+        if (field != null) {
+            return field;
+        }
+
+        GenericClass parent = getParent(cls);
+        if (parent != null) {
+            field = getFieldRec(parent, name, visited);
+            if (field != null) {
+                return field;
+            }
+        }
+
+        for (GenericClass iface : getInterfaces(cls)) {
+            field = getFieldRec(iface, name, visited);
+            if (field != null) {
+                return field;
+            }
+        }
+
+        return field;
+    }
+
+    private GenericField getFieldImpl(GenericClass cls, String name) {
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return null;
+        }
+
+        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        if (substitutions == null) {
+            return null;
+        }
+
+        FieldDescriber fieldDescriber = describer.getField(name);
+        if (fieldDescriber == null) {
+            return null;
+        }
+
+        ValueType type = fieldDescriber.getType();
+        if (type instanceof GenericType) {
+            type = ((GenericType)type).substitute(substitutions);
+        }
+
+        return new GenericField(fieldDescriber, type);
+    }
+
+    public GenericMethod getMethod(GenericClass cls, String name, GenericClass... argumentTypes) {
+        return getMethodRec(cls, name, argumentTypes, new HashSet<GenericClass>());
+    }
+
+    private GenericMethod getMethodRec(GenericClass cls, String name, GenericClass[] argumentTypes,
+            Set<GenericClass> visited) {
+        if (!visited.add(cls)) {
+            return null;
+        }
+
+        GenericMethod method = getMethodImpl(cls, name, argumentTypes);
+        if (method != null) {
+            return method;
+        }
+
+        GenericClass parent = getParent(cls);
+        if (parent != null) {
+            method = getMethodRec(parent, name, argumentTypes, visited);
+            if (method != null) {
+                return method;
+            }
+        }
+
+        for (GenericClass iface : getInterfaces(cls)) {
+            method = getMethodRec(iface, name, argumentTypes, visited);
+            if (method != null) {
+                return method;
+            }
+        }
+
+        return method;
+    }
+
+    private GenericMethod getMethodImpl(GenericClass cls, String name, GenericClass... argumentTypes) {
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return null;
+        }
+
+        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        if (substitutions == null) {
+            return null;
         }
 
         MethodDescriber methodDescriber = describer.getMethod(name, argumentTypes);
@@ -219,14 +316,9 @@ public class GenericTypeNavigator {
             return;
         }
 
-        Map<TypeVar, GenericType> substitutions = new HashMap<>();
-        TypeVar[] typeVars = describer.getTypeVariables();
-        List<GenericType> typeValues = cls.getArguments();
-        if (typeVars.length != typeValues.size()) {
+        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        if (substitutions == null) {
             return;
-        }
-        for (int i = 0; i < typeVars.length; ++i) {
-            substitutions.put(typeVars[i], typeValues.get(i));
         }
 
         for (MethodDescriber methodDesc : describer.getMethods()) {

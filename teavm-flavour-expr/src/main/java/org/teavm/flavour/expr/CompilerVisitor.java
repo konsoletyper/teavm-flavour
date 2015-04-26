@@ -392,10 +392,80 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(PropertyExpr<TypedPlan> expr) {
+        expr.getInstance().acceptVisitor(this);
+        TypedPlan instance = expr.getInstance().getAttribute();
+
+        if (instance.type instanceof GenericArray && expr.getPropertyName().equals("length")) {
+            expr.setAttribute(new TypedPlan(new ArrayLengthPlan(instance.plan), Primitive.INT));
+            return;
+        }
+
+        if (!(instance.type instanceof GenericClass)) {
+            error(expr, "Can't get property of non-class value: " + instance.type);
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
+            return;
+        }
+
+        GenericClass cls = (GenericClass)instance.type;
+        compilePropertyAccess(expr, instance, cls, expr.getPropertyName());
+    }
+
+    private GenericMethod findGetter(GenericClass cls, String name) {
+        GenericMethod method = navigator.getMethod(cls, getGetterName(name));
+        if (method == null) {
+            method = navigator.getMethod(cls, getBooleanGetterName(name));
+            if (method.getActualReturnType() != Primitive.BOOLEAN) {
+                method = null;
+            }
+        }
+        return method;
+    }
+
+    private String getGetterName(String propertyName) {
+        return "get" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
+    }
+
+    private String getBooleanGetterName(String propertyName) {
+        return "is" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
     }
 
     @Override
     public void visit(StaticPropertyExpr<TypedPlan> expr) {
+        compilePropertyAccess(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getPropertyName());
+    }
+
+    private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls,
+            String propertyName) {
+        GenericField field = navigator.getField(cls, propertyName);
+        boolean isStatic = instance == null;
+        if (field != null) {
+            if (isStatic == field.getDescriber().isStatic()) {
+                expr.setAttribute(new TypedPlan(new FieldPlan(instance != null ? instance.plan : null,
+                        field.getDescriber().getOwner().getName(), field.getDescriber().getName(),
+                        "()" + typeToString(field.getDescriber().getRawType())), field.getActualType()));
+                return;
+            } else {
+                error(expr, "Field " + propertyName + " should " + (!isStatic ? "not " : "") + "be static");
+            }
+        } else {
+            GenericMethod getter = findGetter(cls, propertyName);
+            if (getter != null) {
+                if (isStatic == getter.getDescriber().isStatic()) {
+                    String desc = "()" + typeToString(getter.getDescriber().getRawReturnType());
+                    expr.setAttribute(new TypedPlan(new InvocationPlan(getter.getDescriber().getOwner().getName(),
+                            getter.getDescriber().getName(), desc, instance != null ? instance.plan : null),
+                            getter.getActualReturnType()));
+                    return;
+                } else {
+                    error(expr, "Method " + getter.getDescriber().getName() + " should " +
+                            (!isStatic ? "not " : "") + " be static");
+                }
+            } else {
+                error(expr, "Property " + propertyName + " was not found");
+            }
+        }
+
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
     }
 
     @Override
