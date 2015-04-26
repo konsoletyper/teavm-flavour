@@ -291,6 +291,9 @@ public class GenericTypeNavigator {
         }
 
         MethodDescriber methodDescriber = describer.getMethod(name, argumentTypes);
+        if (methodDescriber == null) {
+            return null;
+        }
         ValueType[] argTypes = methodDescriber.getArgumentTypes();
         for (int i = 0; i < argTypes.length; ++i) {
             if (argTypes[i] instanceof GenericType) {

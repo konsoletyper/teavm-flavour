@@ -19,7 +19,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
@@ -30,7 +29,7 @@ import org.teavm.flavour.expr.InterpretingEvaluatorBuilder;
  *
  * @author Alexey Andreev
  */
-public class EvaluatorTest {
+public class EvaluatorTest extends BaseEvaluatorTest {
     TestVars vars;
 
     @Test
@@ -101,6 +100,13 @@ public class EvaluatorTest {
         vars.stringValue("x");
         vars.longWrapper(2L);
         assertThat(c.compute(), is("1-x!2"));
+    }
+
+    @Test
+    public void negatesNumber() {
+        IntComputation c = parseExpr(IntComputation.class, "-byteValue");
+        vars.byteValue((byte)23);
+        assertThat(c.compute(), is(-23));
     }
 
     @Test
@@ -194,6 +200,17 @@ public class EvaluatorTest {
         vars.object(null);
         vars.intValue(2);
         assertThat(c.compute(), is(true));
+    }
+
+    @Test
+    public void computesNotOperation() {
+        BooleanComputation c = parseExpr(BooleanComputation.class, "not intValue == 3");
+
+        vars.intValue(2);
+        assertThat(c.compute(), is(true));
+
+        vars.intValue(3);
+        assertThat(c.compute(), is(false));
     }
 
     @Test
@@ -342,73 +359,5 @@ public class EvaluatorTest {
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();
-    }
-
-    interface TestVars {
-        void intValue(int v);
-
-        void stringValue(String v);
-
-        void doubleValue(double v);
-
-        void byteValue(byte v);
-
-        void longWrapper(Long v);
-
-        void object(Object v);
-
-        void intArray(int[] array);
-
-        void integerArray(Integer[] array);
-
-        void stringArray(String[] array);
-
-        void integerList(List<Integer> list);
-
-        void stringList(List<String> list);
-
-        void stringIntMap(Map<String, Integer> map);
-
-        void foo(Foo v);
-    }
-
-    interface BooleanComputation {
-        boolean compute();
-    }
-
-    interface IntComputation {
-        int compute();
-    }
-
-    interface LongComputation {
-        long compute();
-    }
-
-    interface StringComputation {
-        String compute();
-    }
-
-    interface ObjectComputation {
-        Object compute();
-    }
-
-    public class Foo {
-        public int y;
-
-        public Foo(int y) {
-            this.y = y;
-        }
-
-        public int bar(int x) {
-            return x + y;
-        }
-
-        public String bar(String x) {
-            return x + y;
-        }
-
-        public <K, V> V extract(Map<K, V> map, K key) {
-            return map.get(key);
-        }
     }
 }

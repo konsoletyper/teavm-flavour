@@ -36,18 +36,21 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         expr.getSecondOperand().acceptVisitor(this);
         Expr<T> secondOperand = result;
         result = new BinaryExpr<>(firstOperand, secondOperand, expr.getOperation());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(CastExpr<? extends Object> expr) {
         expr.getValue().acceptVisitor(this);
         result = new CastExpr<>(result, expr.getTargetType());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(InstanceOfExpr<? extends Object> expr) {
         expr.getValue().acceptVisitor(this);
         result = new InstanceOfExpr<>(result, expr.getCheckedType());
+        copyLocation(expr);
     }
 
     @Override
@@ -60,6 +63,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
             arguments.add(result);
         }
         result = new InvocationExpr<>(instance, expr.getMethodName(), arguments);
+        copyLocation(expr);
     }
 
     @Override
@@ -70,6 +74,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
             arguments.add(result);
         }
         result = new StaticInvocationExpr<>(expr.getClassName(), expr.getMethodName(), arguments);
+        copyLocation(expr);
     }
 
     @Override
@@ -77,26 +82,36 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         expr.getInstance().acceptVisitor(this);
         Expr<T> instance = result;
         result = new PropertyExpr<>(instance, expr.getPropertyName());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(StaticPropertyExpr<? extends Object> expr) {
         result = new StaticPropertyExpr<>(expr.getClassName(), expr.getPropertyName());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(UnaryExpr<? extends Object> expr) {
         expr.getOperand().acceptVisitor(this);
         result = new UnaryExpr<>(result, expr.getOperation());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(VariableExpr<? extends Object> expr) {
         result = new VariableExpr<>(expr.getName());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(ConstantExpr<? extends Object> expr) {
         result = new ConstantExpr<>(expr.getValue());
+        copyLocation(expr);
+    }
+
+    private void copyLocation(Expr<? extends Object> expr) {
+        result.setStart(expr.getStart());
+        result.setEnd(expr.getEnd());
     }
 }

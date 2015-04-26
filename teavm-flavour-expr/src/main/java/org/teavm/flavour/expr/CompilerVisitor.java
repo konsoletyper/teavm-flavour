@@ -34,9 +34,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private static final GenericClass floatClass = new GenericClass("java.lang.Float");
     private static final GenericClass doubleClass = new GenericClass("java.lang.Double");
     private static final GenericClass stringClass = new GenericClass("java.lang.String");
-    private static final Set<ValueType> classesSuitableForArrayIndex = new HashSet<>(Arrays.<ValueType>asList(
-            characterClass, byteClass, shortClass, integerClass, Primitive.BYTE,
-            Primitive.CHAR, Primitive.SHORT, Primitive.INT));
     private static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.<ValueType>asList(
             characterClass, byteClass, shortClass, integerClass, longClass,
             floatClass, doubleClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
@@ -185,7 +182,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         ValueType firstType = firstOperand.getAttribute().type;
         Expr<TypedPlan> secondOperand = expr.getSecondOperand();
         ValueType secondType = secondOperand.getAttribute().type;
-        if (firstType instanceof GenericArray && classesSuitableForArrayIndex.contains(secondType)) {
+        if (firstType instanceof GenericArray) {
             GenericArray arrayType = (GenericArray)firstType;
             ensureIntType(secondOperand);
             GetArrayElementPlan plan = new GetArrayElementPlan(firstOperand.getAttribute().plan,
@@ -253,9 +250,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         if (plan.type instanceof Primitive) {
             plan = box(plan);
-            if (plan == null) {
-                return null;
-            }
         }
 
         TypeUnifier unifier = createUnifier();
@@ -274,14 +268,14 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         Expr<TypedPlan> value = expr.getValue();
         value.acceptVisitor(this);
         GenericType checkedType = expr.getCheckedType();
-        GenericType sourceType = (GenericType)value.getAttribute().type;
 
         if (!(value.getAttribute().type instanceof GenericClass)) {
-            error(expr, "Can't check against " + checkedType + " type");
+            error(expr, "Can't check against " + checkedType);
             expr.setAttribute(new TypedPlan(new ConstantPlan(false), Primitive.BOOLEAN));
             return;
         }
 
+        GenericType sourceType = (GenericType)value.getAttribute().type;
         TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
         if (unifier.unify(checkedType, sourceType, true)) {
             expr.setAttribute(new TypedPlan(new ConstantPlan(true), Primitive.BOOLEAN));
@@ -323,8 +317,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         GenericMethod[] methods = navigator.findMethods(cls, methodName, actualArguments.length);
         List<TypedPlan> matchedPlans = new ArrayList<>();
         List<GenericMethod> matchedMethods = new ArrayList<>();
+        List<GenericMethod> wrongContextMethods = new ArrayList<>();
         methods: for (GenericMethod method : methods) {
             if ((instance == null) != method.getDescriber().isStatic()) {
+                wrongContextMethods.add(method);
                 continue;
             }
 
@@ -372,8 +368,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             argumentTypes[i] = actualArguments[i].type;
         }
         if (matchedMethods.isEmpty()) {
-            error(expr, "No corresponding method found: " + methodToString(methodName,
-                    Arrays.asList(argumentTypes)));
+            if (wrongContextMethods.isEmpty()) {
+                error(expr, "No corresponding method found: " + methodToString(methodName,
+                        Arrays.asList(argumentTypes)));
+            } else {
+                String methodDescription = methodToString(methodName, Arrays.asList(
+                        wrongContextMethods.get(0).getActualArgumentTypes()));
+                error(expr, "Method " + methodDescription + " should be called from " +
+                        (instance != null ? "class" : "instance"));
+            }
         } else {
             StringBuilder message = new StringBuilder();
             message.append("Call to method ").append(methodToString(methodName,
@@ -414,7 +417,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         GenericMethod method = navigator.getMethod(cls, getGetterName(name));
         if (method == null) {
             method = navigator.getMethod(cls, getBooleanGetterName(name));
-            if (method.getActualReturnType() != Primitive.BOOLEAN) {
+            if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
                 method = null;
             }
         }
@@ -458,7 +461,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     return;
                 } else {
                     error(expr, "Method " + getter.getDescriber().getName() + " should " +
-                            (!isStatic ? "not " : "") + " be static");
+                            (!isStatic ? "not " : "") + "be static");
                 }
             } else {
                 error(expr, "Property " + propertyName + " was not found");
