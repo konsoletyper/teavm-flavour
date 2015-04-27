@@ -48,8 +48,6 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.7</slf4j.version>
     <teavm.version>0.3.0-SNAPSHOT</teavm.version>
-    <jsoup.version>1.8.2</jsoup.version>
-    <parboiled.version>1.1.7</parboiled.version>
   </properties>
 
   <dependencyManagement>
@@ -80,14 +78,14 @@
         <version>${teavm.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.jsoup</groupId>
-        <artifactId>jsoup</artifactId>
-        <version>${jsoup.version}</version>
+        <groupId>net.htmlparser.jericho</groupId>
+        <artifactId>jericho-html</artifactId>
+        <version>3.3</version>
       </dependency>
       <dependency>
         <groupId>org.parboiled</groupId>
         <artifactId>parboiled-java</artifactId>
-        <version>${parboiled.version}</version>
+        <version>1.1.7</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

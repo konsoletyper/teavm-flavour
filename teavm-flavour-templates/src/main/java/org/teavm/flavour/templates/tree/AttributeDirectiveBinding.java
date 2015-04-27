@@ -13,14 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.tree;
 
-import org.teavm.dom.html.HTMLElement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Modificator {
-    Renderable apply(HTMLElement element);
+public class AttributeDirectiveBinding {
+    private List<DirectiveVariableBinding> variables = new ArrayList<>();
+    private List<DirectiveComputationBinding> computations = new ArrayList<>();
+    private List<DirectiveActionBinding> actions = new ArrayList<>();
+
+    public List<DirectiveVariableBinding> getVariables() {
+        return variables;
+    }
+
+    public List<DirectiveComputationBinding> getComputations() {
+        return computations;
+    }
+
+    public List<DirectiveActionBinding> getActions() {
+        return actions;
+    }
 }
