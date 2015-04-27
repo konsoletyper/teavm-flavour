@@ -13,28 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
-
-import org.teavm.flavour.expr.type.meta.FieldDescriber;
+package org.teavm.flavour.expr.type.meta;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericField {
-    private FieldDescriber describer;
-    private ValueType actualType;
+public class AnnotationEnum extends AnnotationValue {
+    public final String className;
+    public final String fieldName;
 
-    public GenericField(FieldDescriber describer, ValueType actualType) {
-        this.describer = describer;
-        this.actualType = actualType;
-    }
-
-    public FieldDescriber getDescriber() {
-        return describer;
-    }
-
-    public ValueType getActualType() {
-        return actualType;
+    public AnnotationEnum(String className, String fieldName) {
+        this.className = className;
+        this.fieldName = fieldName;
     }
 }

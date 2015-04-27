@@ -13,16 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ClassPathFieldDescriber implements FieldDescriber {
+class ClassPathFieldDescriber extends ClassPathAnnotationsDescriber implements FieldDescriber {
     private ClassPathClassDescriber owner;
     private Field javaField;
     private ValueType type;
@@ -62,5 +64,15 @@ class ClassPathFieldDescriber implements FieldDescriber {
     @Override
     public boolean isStatic() {
         return Modifier.isStatic(javaField.getModifiers());
+    }
+
+    @Override
+    AnnotatedElement getAnnotatedElement() {
+        return javaField;
+    }
+
+    @Override
+    ClassPathClassDescriberRepository getRepository() {
+        return owner.repository;
     }
 }

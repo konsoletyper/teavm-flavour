@@ -13,28 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ClassDescriber {
-    String getName();
+public interface AnnotationsDescriber {
+    AnnotationDescriber getAnnotation(String className);
 
-    boolean isInterface();
-
-    TypeVar[] getTypeVariables();
-
-    GenericClass getSupertype();
-
-    GenericClass[] getInterfaces();
-
-    MethodDescriber[] getMethods();
-
-    MethodDescriber getMethod(String name, GenericClass... argumentTypes);
-
-    FieldDescriber[] getFields();
-
-    FieldDescriber getField(String name);
+    AnnotationDescriber[] getAnnotations();
 }

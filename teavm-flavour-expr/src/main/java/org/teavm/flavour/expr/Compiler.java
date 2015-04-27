@@ -20,9 +20,9 @@ import java.util.Collections;
 import java.util.List;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.ExprCopier;
-import org.teavm.flavour.expr.type.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
 /**
  * <p>Compiles AST into execution plan, performing type checks.</p>

@@ -13,21 +13,23 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.parser;
+package org.teavm.flavour.templates.parsing;
 
-import java.io.IOException;
-import java.io.Reader;
-import net.htmlparser.jericho.Source;
-import org.teavm.flavour.templates.tree.DOMElement;
+import java.io.InputStream;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class Parser {
-    public DOMElement parse(Reader reader) throws IOException {
-        Source source = new Source(reader);
-        // TODO: implement parser
-        return null;
+public class ClassPathResourceProvider implements ResourceProvider {
+    private ClassLoader classLoader;
+
+    public ClassPathResourceProvider(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    @Override
+    public InputStream openResource(String path) {
+        return classLoader.getResourceAsStream(path);
     }
 }

@@ -16,6 +16,10 @@
 package org.teavm.flavour.expr.type;
 
 import java.util.*;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
+import org.teavm.flavour.expr.type.meta.FieldDescriber;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
  *

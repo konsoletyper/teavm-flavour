@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Set;
 import org.junit.Test;
 import org.teavm.flavour.expr.type.*;
+import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
 /**
  *

@@ -13,18 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
 import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.TypeVar;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ClassPathClassDescriber implements ClassDescriber {
+class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements ClassDescriber {
     ClassPathClassDescriberRepository repository;
     private Class<?> cls;
     private TypeVar[] typeVariables;
@@ -163,5 +165,15 @@ class ClassPathClassDescriber implements ClassDescriber {
             fieldMap.put(javaField, field);
         }
         return field;
+    }
+
+    @Override
+    AnnotatedElement getAnnotatedElement() {
+        return cls;
+    }
+
+    @Override
+    ClassPathClassDescriberRepository getRepository() {
+        return repository;
     }
 }

@@ -13,26 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface MethodDescriber {
-    ClassDescriber getOwner();
-
-    String getName();
-
-    boolean isStatic();
-
-    TypeVar[] getTypeVariables();
-
-    ValueType[] getRawArgumentTypes();
-
-    ValueType[] getArgumentTypes();
-
-    ValueType getReturnType();
-
-    ValueType getRawReturnType();
+public abstract class AnnotationValue {
+    AnnotationValue() {
+    }
 }

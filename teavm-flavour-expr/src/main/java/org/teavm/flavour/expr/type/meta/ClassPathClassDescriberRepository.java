@@ -13,13 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
 import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.teavm.flavour.expr.type.GenericArray;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericReference;
+import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
@@ -27,7 +34,7 @@ import java.util.Map;
  */
 public class ClassPathClassDescriberRepository implements ClassDescriberRepository {
     private static final Map<String, Primitive> primitiveMap = new HashMap<>();
-    private ClassLoader classLoader;
+    ClassLoader classLoader;
     private Map<String, Holder> cache = new HashMap<>();
     private Map<TypeVariable<?>, TypeVar> typeVarCache = new HashMap<>();
 

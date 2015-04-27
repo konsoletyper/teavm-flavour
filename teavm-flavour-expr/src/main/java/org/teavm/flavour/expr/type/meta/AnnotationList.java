@@ -13,12 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ClassDescriberRepository {
-    ClassDescriber describe(String className);
+public class AnnotationList extends AnnotationValue {
+    public final List<AnnotationValue> value;
+
+    public AnnotationList(List<AnnotationValue> value) {
+        this.value = Collections.unmodifiableList(new ArrayList<>(value));
+    }
 }

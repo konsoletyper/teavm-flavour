@@ -13,18 +13,21 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ClassPathMethodDescriber implements MethodDescriber {
+class ClassPathMethodDescriber extends ClassPathAnnotationsDescriber implements MethodDescriber {
     private ClassPathClassDescriber owner;
     private Method javaMethod;
     private TypeVar[] typeVariables;
@@ -107,5 +110,15 @@ class ClassPathMethodDescriber implements MethodDescriber {
             }
         }
         return rawReturnType;
+    }
+
+    @Override
+    AnnotatedElement getAnnotatedElement() {
+        return javaMethod;
+    }
+
+    @Override
+    ClassPathClassDescriberRepository getRepository() {
+        return owner.repository;
     }
 }

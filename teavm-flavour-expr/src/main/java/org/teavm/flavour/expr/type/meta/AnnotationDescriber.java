@@ -13,24 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
-
-import java.util.HashMap;
-import java.util.Map;
+package org.teavm.flavour.expr.type.meta;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericTypeScope {
-    private Map<String, TypeVar> variables = new HashMap<>();
-
-    public TypeVar get(String name) {
-        TypeVar var = variables.get(name);
-        if (var == null) {
-            var = new TypeVar();
-            variables.put(name, var);
-        }
-        return var;
-    }
+public interface AnnotationDescriber {
+    AnnotationValue getValue(String name);
 }

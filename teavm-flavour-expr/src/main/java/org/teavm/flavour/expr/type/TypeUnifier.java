@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
 /**
  *

@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.*;
 import org.junit.Test;
 import org.teavm.flavour.expr.type.*;
+import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
 /**
  *

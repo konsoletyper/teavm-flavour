@@ -13,20 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface FieldDescriber {
-    ClassDescriber getOwner();
+public class AnnotationInt extends AnnotationValue {
+    public final int value;
 
-    String getName();
-
-    ValueType getType();
-
-    ValueType getRawType();
-
-    boolean isStatic();
+    public AnnotationInt(int value) {
+        this.value = value;
+    }
 }

@@ -22,15 +22,16 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import org.teavm.flavour.expr.ast.Expr;
-import org.teavm.flavour.expr.type.ClassPathClassDescriberRepository;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
-    private ClassLoaderClassResolver classResolver = new ClassLoaderClassResolver(ClassLoader.getSystemClassLoader());
+    private ImportingClassResolver classResolver = new ImportingClassResolver(
+            new ClassLoaderClassResolver(ClassLoader.getSystemClassLoader()));
 
     public InterpretingEvaluatorBuilder importClass(String name) {
         classResolver.importClass(name);

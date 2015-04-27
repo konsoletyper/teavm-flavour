@@ -13,28 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.templates.parsing;
 
-import org.teavm.flavour.expr.type.meta.FieldDescriber;
+import java.io.InputStream;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericField {
-    private FieldDescriber describer;
-    private ValueType actualType;
-
-    public GenericField(FieldDescriber describer, ValueType actualType) {
-        this.describer = describer;
-        this.actualType = actualType;
-    }
-
-    public FieldDescriber getDescriber() {
-        return describer;
-    }
-
-    public ValueType getActualType() {
-        return actualType;
-    }
+public interface ResourceProvider {
+    InputStream openResource(String path);
 }

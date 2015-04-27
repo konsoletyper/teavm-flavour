@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.expr.type;
 
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
+
 /**
  *
  * @author Alexey Andreev

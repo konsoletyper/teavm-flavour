@@ -13,28 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.meta;
 
-import org.teavm.flavour.expr.type.meta.FieldDescriber;
+import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class GenericField {
-    private FieldDescriber describer;
-    private ValueType actualType;
+public interface MethodDescriber extends AnnotationsDescriber {
+    ClassDescriber getOwner();
 
-    public GenericField(FieldDescriber describer, ValueType actualType) {
-        this.describer = describer;
-        this.actualType = actualType;
-    }
+    String getName();
 
-    public FieldDescriber getDescriber() {
-        return describer;
-    }
+    boolean isStatic();
 
-    public ValueType getActualType() {
-        return actualType;
-    }
+    TypeVar[] getTypeVariables();
+
+    ValueType[] getRawArgumentTypes();
+
+    ValueType[] getArgumentTypes();
+
+    ValueType getReturnType();
+
+    ValueType getRawReturnType();
 }
