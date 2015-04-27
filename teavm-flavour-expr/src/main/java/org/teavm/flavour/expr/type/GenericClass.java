@@ -31,10 +31,13 @@ public final class GenericClass extends GenericType {
     }
 
     public GenericClass(String name, List<GenericType> arguments) {
-        Objects.nonNull(name);
-        Objects.nonNull(arguments);
+        if (name == null || arguments == null) {
+            throw new IllegalArgumentException();
+        }
         for (GenericType argument : arguments) {
-            Objects.nonNull(argument);
+            if (argument == null) {
+                throw new IllegalArgumentException();
+            }
         }
         this.name = name;
         this.arguments.addAll(arguments);
