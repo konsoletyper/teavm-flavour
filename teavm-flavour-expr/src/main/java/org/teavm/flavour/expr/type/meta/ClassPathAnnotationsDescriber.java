@@ -53,7 +53,7 @@ abstract class ClassPathAnnotationsDescriber implements AnnotationsDescriber {
         } catch (ClassNotFoundException e) {
             return null;
         }
-        Annotation javaAnnotation = getAnnotatedElement().getDeclaredAnnotation(cls);
+        Annotation javaAnnotation = getAnnotatedElement().getAnnotation(cls);
         return javaAnnotation != null ? getAnnotation(javaAnnotation) : null;
     }
 

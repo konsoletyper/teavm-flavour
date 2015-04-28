@@ -15,29 +15,17 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import net.htmlparser.jericho.Element;
-import net.htmlparser.jericho.Segment;
-import net.htmlparser.jericho.Source;
-import net.htmlparser.jericho.StartTag;
-import net.htmlparser.jericho.StartTagType;
+import java.io.*;
+import java.util.*;
+import net.htmlparser.jericho.*;
 import org.apache.commons.lang3.StringUtils;
 import org.teavm.flavour.expr.ClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.ImportingClassResolver;
-import org.teavm.flavour.expr.type.meta.AnnotationDescriber;
-import org.teavm.flavour.expr.type.meta.AnnotationString;
-import org.teavm.flavour.expr.type.meta.ClassDescriber;
-import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.meta.*;
 import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
@@ -96,7 +84,18 @@ public class Parser {
 
     private TemplateNode parseDomElement(Element elem) {
         DOMElement templateElem = new DOMElement(elem.getName());
-        elem.getAttributes();
+        for (int i = 0; i < elem.getAttributes().size(); ++i) {
+            Attribute attr = elem.getAttributes().get(i);
+            templateElem.setAttribute(attr.getName(), attr.getValue());
+        }
+        Segment content = elem.getContent();
+        for (Iterator<Segment> segments = content.getNodeIterator(); segments.hasNext();) {
+            Segment child = segments.next();
+            TemplateNode templateChild = parseSegment(child);
+            if (templateChild != null) {
+                templateElem.getChildNodes().add(templateChild);
+            }
+        }
         return templateElem;
     }
 
@@ -165,20 +164,29 @@ public class Parser {
                     continue;
                 }
                 String className = packageName + "." + line;
+
                 ClassDescriber cls = classRepository.describe(className);
                 if (cls == null) {
                     error(segment, "Class " + className + " declared by directive package was not found");
                     continue;
-                } else {
-                    AnnotationDescriber annot = cls.getAnnotation(BindDirective.class.getName());
-                    if (annot == null) {
-                        error(segment, "Class " + className + " declared by directive package " +
-                                "is not marked by " + BindDirective.class.getName());
-                        continue;
-                    }
-                    String tagName = ((AnnotationString)annot.getValue("name")).value;
-                    directives.put(prefix + ":" + tagName, cls);
                 }
+
+                AnnotationDescriber annot = cls.getAnnotation(BindDirective.class.getName());
+                if (annot == null) {
+                    error(segment, "Class " + className + " declared by directive package " +
+                            "is not marked by " + BindDirective.class.getName());
+                    continue;
+                }
+
+                MethodDescriber cons = cls.getMethod("<init>", new GenericClass(Slot.class.getName()));
+                if (cons == null) {
+                    error(segment, "Class " + className + " declared by directive package does not have constructor " +
+                            "that takes " + Slot.class.getName());
+                    continue;
+                }
+
+                String tagName = ((AnnotationString)annot.getValue("name")).value;
+                directives.put(prefix + ":" + tagName, cls);
             }
         } catch (IOException e) {
             throw new RuntimeException("IO exception occured parsing HTML input", e);
