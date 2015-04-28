@@ -19,7 +19,7 @@ package org.teavm.flavour.templates.parsing;
  *
  * @author Alexey Andreev
  */
-enum DirectiveAttribyteType {
+enum DirectiveAttributeType {
     VARIABLE,
     ACTION,
     COMPUTATION

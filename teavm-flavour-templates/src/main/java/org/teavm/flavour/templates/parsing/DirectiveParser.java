@@ -15,12 +15,38 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
-import org.teavm.flavour.expr.type.*;
-import org.teavm.flavour.expr.type.meta.*;
-import org.teavm.flavour.templates.*;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericReference;
+import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.TypeUnifier;
+import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.ValueTypeFormatter;
+import org.teavm.flavour.expr.type.meta.AnnotationBoolean;
+import org.teavm.flavour.expr.type.meta.AnnotationDescriber;
+import org.teavm.flavour.expr.type.meta.AnnotationString;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import org.teavm.flavour.templates.Action;
+import org.teavm.flavour.templates.BindAttribute;
+import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.Computation;
+import org.teavm.flavour.templates.Fragment;
+import org.teavm.flavour.templates.IgnoreContent;
+import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Variable;
 
 /**
  *
@@ -122,6 +148,7 @@ class DirectiveParser {
     private void parseMethod(DirectiveMetadata metadata, GenericMethod method) {
         Set<AnnotationDescriber> bindings = new HashSet<>();
         parseBindContent(metadata, method, bindings);
+        parseBindAttribute(metadata, method, bindings);
     }
 
     private void parseBindContent(DirectiveMetadata metadata, GenericMethod method,
@@ -132,7 +159,8 @@ class DirectiveParser {
         }
         bindings.add(binding);
         if (metadata.contentSetter != null) {
-            error("Another method is alredy bound to content of directive " + metadata.cls.getName() + ": " +
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName() +
+                    " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": " +
                     methodToString(metadata.contentSetter));
             return;
         }
@@ -158,6 +186,67 @@ class DirectiveParser {
             return;
         }
         bindings.add(binding);
+        String name = ((AnnotationString)binding.getValue("name")).value;
+
+        DirectiveAttributeMetadata existing = metadata.attributes.get(name);
+        if (existing != null) {
+            error("Method " + methodToString(method.getDescriber()) + " is bound to " + name + " attribute, but " +
+                    "it is already bound to another method: " + methodToString(existing.setter));
+            return;
+        }
+
+        DirectiveAttributeMetadata attrMetadata = new DirectiveAttributeMetadata();
+        attrMetadata.name = name;
+        metadata.attributes.put(name, attrMetadata);
+        attrMetadata.setter = method.getDescriber();
+
+        AnnotationBoolean optionalValue = (AnnotationBoolean)binding.getValue("optional");
+        attrMetadata.required = optionalValue == null || !optionalValue.value;
+
+        ValueType[] arguments = method.getActualArgumentTypes();
+        if (arguments.length != 1) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " +
+                    BindAttribute.class.getName() + " and therefore must take exactly 1 argument, but " +
+                    "takes " + arguments.length);
+            return;
+        }
+
+        if (!parseAttributeType(attrMetadata, arguments[0])) {
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
+                    "mapped to an attribute: " + arguments[0]);
+        }
+    }
+
+    private boolean parseAttributeType(DirectiveAttributeMetadata attrMetadata, ValueType valueType) {
+        if (!(valueType instanceof GenericType)) {
+            return false;
+        }
+
+        TypeVar typeVar = new TypeVar();
+
+        TypeUnifier unifier = new TypeUnifier(classRepository);
+        GenericClass computationType = new GenericClass(Computation.class.getName(),
+                new GenericReference(typeVar));
+        if (unifier.unify(computationType, (GenericType)valueType, false)) {
+            attrMetadata.type = DirectiveAttributeType.COMPUTATION;
+            attrMetadata.valueType = unifier.getSubstitutions().get(typeVar);
+            return true;
+        }
+
+        unifier = new TypeUnifier(classRepository);
+        GenericClass variableType = new GenericClass(Variable.class.getName(), new GenericReference(typeVar));
+        if (unifier.unify(variableType, (GenericType)valueType, false)) {
+            attrMetadata.type = DirectiveAttributeType.VARIABLE;
+            attrMetadata.valueType = unifier.getSubstitutions().get(typeVar);
+            return true;
+        }
+
+        if (!valueType.equals(new GenericClass(Action.class.getName()))) {
+            attrMetadata.type = DirectiveAttributeType.ACTION;
+            return true;
+        }
+
+        return false;
     }
 
     private String methodToString(MethodDescriber method) {

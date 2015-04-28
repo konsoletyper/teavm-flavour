@@ -23,14 +23,17 @@ import java.util.Map;
  *
  * @author Alexey Andreev
  */
-public class ClassLoaderClassResolver implements ClassResolver {
+public class ClassPathClassResolver implements ClassResolver {
     private ClassLoader classLoader;
     private Map<String, String> cache = new HashMap<>();
 
-    public ClassLoaderClassResolver(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+    public ClassPathClassResolver() {
+        this(ClassLoader.getSystemClassLoader());
     }
 
+    public ClassPathClassResolver(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
 
     @Override
     public String findClass(String name) {

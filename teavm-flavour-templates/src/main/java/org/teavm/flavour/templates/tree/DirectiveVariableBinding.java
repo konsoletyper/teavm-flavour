@@ -15,25 +15,25 @@
  */
 package org.teavm.flavour.templates.tree;
 
-import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class DirectiveVariableBinding extends DirectivePropertyBinding {
-    private GenericType valueType;
+    private ValueType valueType;
 
-    public DirectiveVariableBinding(String methodOwner, String methodName, GenericType valueType) {
+    public DirectiveVariableBinding(String methodOwner, String methodName, ValueType valueType) {
         super(methodOwner, methodName);
         this.valueType = valueType;
     }
 
-    public GenericType getValueType() {
+    public ValueType getValueType() {
         return valueType;
     }
 
-    public void setValueType(GenericType valueType) {
+    public void setValueType(ValueType valueType) {
         this.valueType = valueType;
     }
 }

@@ -1,0 +1,33 @@
+<?import org.teavm.flavour.templates.test.*?>
+
+<div><b>Name:</b> <std:text value="this.name">name</std:text></div>
+<div><b>Weight:</b> <std:text value="this.weight">Weight</std:text></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+    </tr>
+    <tr>
+      <th>Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    <std:foreach var="row" in="this.rows">
+      <tr>
+        <td>
+          <std:text value="row.name">Item name</std:text>
+        </td>
+        <td>
+          <std:text value="row.amount">100</std:text>
+        </td>
+      </tr>
+    </std:foreach>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td>Total:</td>
+      <td><std:text value="this.total">100</std:text></td>
+    </tr>
+  </tfoot>
+</table>

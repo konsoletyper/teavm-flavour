@@ -25,9 +25,14 @@ import java.util.List;
 public class DirectiveBinding extends TemplateNode {
     private String className;
     private List<TemplateNode> contentNodes = new ArrayList<>();
+    private String contentMethodName;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
     private List<DirectiveComputationBinding> computations = new ArrayList<>();
     private List<DirectiveActionBinding> actions = new ArrayList<>();
+
+    public DirectiveBinding(String className) {
+        this.className = className;
+    }
 
     public List<DirectiveVariableBinding> getVariables() {
         return variables;
@@ -41,10 +46,6 @@ public class DirectiveBinding extends TemplateNode {
         return actions;
     }
 
-    public DirectiveBinding(String className) {
-        this.className = className;
-    }
-
     public String getClassName() {
         return className;
     }
@@ -55,6 +56,14 @@ public class DirectiveBinding extends TemplateNode {
 
     public List<TemplateNode> getContentNodes() {
         return contentNodes;
+    }
+
+    public String getContentMethodName() {
+        return contentMethodName;
+    }
+
+    public void setContentMethodName(String contentMethodName) {
+        this.contentMethodName = contentMethodName;
     }
 
     @Override

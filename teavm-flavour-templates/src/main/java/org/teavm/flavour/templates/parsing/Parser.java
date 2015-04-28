@@ -15,18 +15,42 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.io.*;
-import java.util.*;
-import net.htmlparser.jericho.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import net.htmlparser.jericho.Attribute;
+import net.htmlparser.jericho.Element;
+import net.htmlparser.jericho.Segment;
+import net.htmlparser.jericho.Source;
+import net.htmlparser.jericho.StartTag;
+import net.htmlparser.jericho.StartTagType;
 import org.apache.commons.lang3.StringUtils;
 import org.teavm.flavour.expr.ClassResolver;
+import org.teavm.flavour.expr.Compiler;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.ImportingClassResolver;
+import org.teavm.flavour.expr.Scope;
+import org.teavm.flavour.expr.TypedPlan;
+import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.GenericClass;
-import org.teavm.flavour.expr.type.meta.*;
-import org.teavm.flavour.templates.BindDirective;
-import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
 import org.teavm.flavour.templates.tree.DOMElement;
+import org.teavm.flavour.templates.tree.DirectiveActionBinding;
+import org.teavm.flavour.templates.tree.DirectiveBinding;
+import org.teavm.flavour.templates.tree.DirectiveComputationBinding;
+import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
 /**
@@ -37,8 +61,9 @@ public class Parser {
     private ClassDescriberRepository classRepository;
     private ImportingClassResolver classResolver;
     private ResourceProvider resourceProvider;
-    private Map<String, ClassDescriber> directives = new HashMap<>();
+    private Map<String, DirectiveMetadata> directives = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
+    private Map<String, Deque<ValueType>> variables = new HashMap<>();
 
     public Parser(ClassDescriberRepository classRepository, ClassResolver classResolver,
             ResourceProvider resourceProvider) {
@@ -55,30 +80,45 @@ public class Parser {
         return diagnostics.isEmpty();
     }
 
-    public TemplateNode parse(Reader reader) throws IOException {
+    public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         Source source = new Source(reader);
         use(source, "std", "org.teavm.flavour.templates.directives");
-        return parseSegment(source);
+        pushVar("this", new GenericClass(className));
+        List<TemplateNode> nodes = new ArrayList<>();
+        for (Iterator<Segment> segments = source.getNodeIterator(); segments.hasNext();) {
+            Segment child = segments.next();
+            TemplateNode node = parseSegment(child);
+            if (node != null) {
+                nodes.add(node);
+            }
+        }
+        popVar("this");
+        return nodes;
     }
 
     private TemplateNode parseSegment(Segment segment) {
         if (segment instanceof Element) {
-            Element elem = (Element)segment;
-            if (elem.getName().indexOf(':') > 0) {
-                return parseDirective(elem);
-            } else {
-                return parseDomElement(elem);
-            }
+            return parseElement((Element)segment);
         } else if (segment instanceof StartTag) {
             StartTag tag = (StartTag)segment;
             if (tag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
                 parseProcessingInstruction(tag);
                 return null;
+            } else if (tag.getStartTagType() == StartTagType.NORMAL) {
+                return parseElement(tag.getElement());
             } else{
                 return null;
             }
         } else {
             return null;
+        }
+    }
+
+    private TemplateNode parseElement(Element elem) {
+        if (elem.getName().indexOf(':') > 0) {
+            return parseDirective(elem);
+        } else {
+            return parseDomElement(elem);
         }
     }
 
@@ -104,18 +144,132 @@ public class Parser {
         String prefix = elem.getName().substring(0, prefixLength);
         String name = elem.getName().substring(prefixLength + 1);
         String fullName = prefix + ":" + name;
-        ClassDescriber directiveClass = directives.get(fullName);
-        if (directiveClass == null) {
+        DirectiveMetadata directiveMeta = directives.get(fullName);
+        if (directiveMeta == null) {
             error(elem.getStartTag().getNameSegment(), "Undefined directive " + fullName);
             return null;
         }
-        return null;
+
+        DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName());
+
+        Map<String, ValueType> declaredVars = new HashMap<>();
+        for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
+            Attribute attr = elem.getAttributes().get(attrMeta.name);
+            if (attr == null) {
+                if (attrMeta.required) {
+                    error(elem.getStartTag(), "Missing required attribute: " + attrMeta.name);
+                }
+                continue;
+            }
+            MethodDescriber setter = attrMeta.setter;
+            switch (attrMeta.type) {
+                case VARIABLE: {
+                    String varName = attr.getValue();
+                    if (declaredVars.containsKey(varName)) {
+                        error(attr.getValueSegment(), "Variable " + varName + " is already used by the same " +
+                                "directive");
+                    } else {
+                        declaredVars.put(varName, attrMeta.valueType);
+                    }
+                    DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
+                            setter.getOwner().getName(), setter.getName(), attrMeta.valueType);
+                    directive.getVariables().add(varBinding);
+                    break;
+                }
+                case COMPUTATION: {
+                    TypedPlan plan = compileExpr(attr.getValueSegment(), attrMeta.valueType);
+                    DirectiveComputationBinding computationBinding = new DirectiveComputationBinding(
+                            setter.getOwner().getName(), setter.getName(), plan);
+                    directive.getComputations().add(computationBinding);
+                    break;
+                }
+                case ACTION: {
+                    TypedPlan plan = compileExpr(attr.getValueSegment(), null);
+                    DirectiveActionBinding actionBinding = new DirectiveActionBinding(
+                            setter.getOwner().getName(), setter.getName(), plan.getPlan());
+                    directive.getActions().add(actionBinding);
+                    break;
+                }
+            }
+        }
+
+        for (Map.Entry<String, ValueType> varEntry : declaredVars.entrySet()) {
+            pushVar(varEntry.getKey(), varEntry.getValue());
+        }
+
+        Segment content = elem.getContent();
+        if (directiveMeta.contentSetter != null) {
+            for (Iterator<Segment> segments = content.getNodeIterator(); segments.hasNext();) {
+                Segment child = segments.next();
+                TemplateNode templateChild = parseSegment(child);
+                if (templateChild != null) {
+                    directive.getContentNodes().add(templateChild);
+                }
+            }
+            directive.setContentMethodName(directiveMeta.contentSetter.getName());
+        } else if (!directiveMeta.ignoreContent) {
+            if (content.getNodeIterator().hasNext()) {
+                error(elem, "Directive " + directiveMeta.cls.getName() + " should not have any content");
+            }
+        }
+
+        for (String varName : declaredVars.keySet()) {
+            popVar(varName);
+        }
+
+        return directive;
+    }
+
+    private TypedPlan compileExpr(Segment segment, ValueType type) {
+        org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
+        Expr<Void> expr = exprParser.parse(segment.toString());
+        int offset = segment.getBegin();
+        for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
+            diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
+                    diagnostic.getMessage());
+            diagnostics.add(diagnostic);
+        }
+        Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
+        TypedPlan result = compiler.compile(expr, type);
+        for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
+            diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
+                    diagnostic.getMessage());
+            diagnostics.add(diagnostic);
+        }
+        return result;
+    }
+
+    private void pushVar(String name, ValueType type) {
+        Deque<ValueType> stack = variables.get(name);
+        if (stack == null) {
+            stack = new ArrayDeque<>();
+            variables.put(name, stack);
+        }
+        stack.push(type);
+    }
+
+    private void popVar(String name) {
+        Deque<ValueType> stack = variables.get(name);
+        if (stack != null) {
+            stack.pop();
+            if (stack.isEmpty()) {
+                variables.remove(stack);
+            }
+        }
+    }
+
+    class TemplateScope implements Scope {
+        @Override
+        public ValueType variableType(String variableName) {
+            Deque<ValueType> stack = variables.get(variableName);
+            return stack != null && !stack.isEmpty() ? stack.peek() : null;
+        }
     }
 
     private void parseProcessingInstruction(StartTag tag) {
-        if (tag.getName().equals("import")) {
+        if (tag.getName().equals("?import")) {
             parseImport(tag);
-        } else if (tag.getName().equals("use")) {
+        } else if (tag.getName().equals("?use")) {
             parseUse(tag);
         }
     }
@@ -171,22 +325,11 @@ public class Parser {
                     continue;
                 }
 
-                AnnotationDescriber annot = cls.getAnnotation(BindDirective.class.getName());
-                if (annot == null) {
-                    error(segment, "Class " + className + " declared by directive package " +
-                            "is not marked by " + BindDirective.class.getName());
-                    continue;
+                DirectiveParser directiveParser = new DirectiveParser(classRepository, diagnostics, segment);
+                DirectiveMetadata directiveMeta = directiveParser.parse(cls);
+                if (directiveMeta != null) {
+                    directives.put(prefix + ":" + directiveMeta.name, directiveMeta);
                 }
-
-                MethodDescriber cons = cls.getMethod("<init>", new GenericClass(Slot.class.getName()));
-                if (cons == null) {
-                    error(segment, "Class " + className + " declared by directive package does not have constructor " +
-                            "that takes " + Slot.class.getName());
-                    continue;
-                }
-
-                String tagName = ((AnnotationString)annot.getValue("name")).value;
-                directives.put(prefix + ":" + tagName, cls);
             }
         } catch (IOException e) {
             throw new RuntimeException("IO exception occured parsing HTML input", e);

@@ -19,7 +19,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import org.junit.Test;
-import org.teavm.flavour.expr.ClassLoaderClassResolver;
+import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Parser;
 import org.teavm.flavour.expr.ast.*;
 
@@ -28,7 +28,7 @@ import org.teavm.flavour.expr.ast.*;
  * @author Alexey Andreev
  */
 public class ParserTest {
-    private Parser parser = new Parser(new ClassLoaderClassResolver(ParserTest.class.getClassLoader()));
+    private Parser parser = new Parser(new ClassPathClassResolver(ParserTest.class.getClassLoader()));
 
     @Test
     public void parseInteger() {

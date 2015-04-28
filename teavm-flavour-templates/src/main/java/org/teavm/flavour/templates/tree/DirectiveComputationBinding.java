@@ -16,18 +16,16 @@
 package org.teavm.flavour.templates.tree;
 
 import org.teavm.flavour.expr.TypedPlan;
-import org.teavm.flavour.expr.type.GenericType;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class DirectiveComputationBinding extends DirectiveVariableBinding {
+public class DirectiveComputationBinding extends DirectivePropertyBinding {
     private TypedPlan computationPlan;
 
-    public DirectiveComputationBinding(String methodOwner, String methodName, GenericType valueType,
-            TypedPlan computationPlan) {
-        super(methodOwner, methodName, valueType);
+    public DirectiveComputationBinding(String methodOwner, String methodName, TypedPlan computationPlan) {
+        super(methodOwner, methodName);
         this.computationPlan = computationPlan;
     }
 

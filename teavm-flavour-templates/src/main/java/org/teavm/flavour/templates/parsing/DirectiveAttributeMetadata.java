@@ -23,7 +23,8 @@ import org.teavm.flavour.expr.type.meta.MethodDescriber;
  * @author Alexey Andreev
  */
 class DirectiveAttributeMetadata {
-    DirectiveAttribyteType type;
+    String name;
+    DirectiveAttributeType type;
     boolean required;
     MethodDescriber setter;
     ValueType valueType;

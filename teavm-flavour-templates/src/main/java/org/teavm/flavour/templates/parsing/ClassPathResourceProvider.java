@@ -24,6 +24,10 @@ import java.io.InputStream;
 public class ClassPathResourceProvider implements ResourceProvider {
     private ClassLoader classLoader;
 
+    public ClassPathResourceProvider() {
+        this(ClassLoader.getSystemClassLoader());
+    }
+
     public ClassPathResourceProvider(ClassLoader classLoader) {
         this.classLoader = classLoader;
     }

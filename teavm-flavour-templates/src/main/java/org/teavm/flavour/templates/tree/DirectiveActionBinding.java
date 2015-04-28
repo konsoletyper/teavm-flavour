@@ -15,12 +15,25 @@
  */
 package org.teavm.flavour.templates.tree;
 
+import org.teavm.flavour.expr.plan.Plan;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class DirectiveActionBinding extends DirectivePropertyBinding {
-    public DirectiveActionBinding(String methodOwner, String methodName) {
+    private Plan value;
+
+    public DirectiveActionBinding(String methodOwner, String methodName, Plan value) {
         super(methodOwner, methodName);
+        this.value = value;
+    }
+
+    public Plan getValue() {
+        return value;
+    }
+
+    public void setValue(Plan value) {
+        this.value = value;
     }
 }
