@@ -15,43 +15,19 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import net.htmlparser.jericho.Attribute;
-import net.htmlparser.jericho.Element;
-import net.htmlparser.jericho.Segment;
-import net.htmlparser.jericho.Source;
-import net.htmlparser.jericho.StartTag;
-import net.htmlparser.jericho.StartTagType;
+import java.io.*;
+import java.util.*;
+import net.htmlparser.jericho.*;
 import org.apache.commons.lang3.StringUtils;
-import org.teavm.flavour.expr.ClassResolver;
+import org.teavm.flavour.expr.*;
 import org.teavm.flavour.expr.Compiler;
-import org.teavm.flavour.expr.Diagnostic;
-import org.teavm.flavour.expr.ImportingClassResolver;
-import org.teavm.flavour.expr.Scope;
-import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
-import org.teavm.flavour.templates.tree.DOMElement;
-import org.teavm.flavour.templates.tree.DirectiveActionBinding;
-import org.teavm.flavour.templates.tree.DirectiveBinding;
-import org.teavm.flavour.templates.tree.DirectiveComputationBinding;
-import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
-import org.teavm.flavour.templates.tree.TemplateNode;
+import org.teavm.flavour.templates.tree.*;
 
 /**
  *
@@ -64,6 +40,8 @@ public class Parser {
     private Map<String, DirectiveMetadata> directives = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private Map<String, Deque<ValueType>> variables = new HashMap<>();
+    private Source source;
+    private int position;
 
     public Parser(ClassDescriberRepository classRepository, ClassResolver classResolver,
             ResourceProvider resourceProvider) {
@@ -81,36 +59,44 @@ public class Parser {
     }
 
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
-        Source source = new Source(reader);
+        source = new Source(reader);
         use(source, "std", "org.teavm.flavour.templates.directives");
         pushVar("this", new GenericClass(className));
+        position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();
-        for (Iterator<Segment> segments = source.getNodeIterator(); segments.hasNext();) {
-            Segment child = segments.next();
-            TemplateNode node = parseSegment(child);
-            if (node != null) {
-                nodes.add(node);
-            }
-        }
+        parseSegment(source.getEnd(), nodes);
         popVar("this");
+        source = null;
         return nodes;
     }
 
-    private TemplateNode parseSegment(Segment segment) {
-        if (segment instanceof Element) {
-            return parseElement((Element)segment);
-        } else if (segment instanceof StartTag) {
-            StartTag tag = (StartTag)segment;
-            if (tag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
-                parseProcessingInstruction(tag);
-                return null;
-            } else if (tag.getStartTagType() == StartTagType.NORMAL) {
-                return parseElement(tag.getElement());
-            } else{
-                return null;
+    private void parseSegment(int limit, List<TemplateNode> result) {
+        while (position < limit) {
+            Tag tag = source.getNextTag(position);
+            if (tag == null || tag.getBegin() > limit) {
+                if (position < limit) {
+                    result.add(new DOMText(source.subSequence(position, limit).toString()));
+                }
+                position = limit;
+                break;
             }
-        } else {
-            return null;
+
+            if (position < tag.getBegin()) {
+                result.add(new DOMText(source.subSequence(position, tag.getBegin()).toString()));
+            }
+            position = tag.getEnd();
+            parseTag(tag, result);
+        }
+    }
+
+    private void parseTag(Tag tag, List<TemplateNode> result) {
+        if (tag instanceof StartTag) {
+            StartTag startTag = (StartTag)tag;
+            if (startTag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
+                parseProcessingInstruction(startTag);
+            } else if (startTag.getStartTagType() == StartTagType.NORMAL) {
+                result.add(parseElement(tag.getElement()));
+            }
         }
     }
 
@@ -128,14 +114,7 @@ public class Parser {
             Attribute attr = elem.getAttributes().get(i);
             templateElem.setAttribute(attr.getName(), attr.getValue());
         }
-        Segment content = elem.getContent();
-        for (Iterator<Segment> segments = content.getNodeIterator(); segments.hasNext();) {
-            Segment child = segments.next();
-            TemplateNode templateChild = parseSegment(child);
-            if (templateChild != null) {
-                templateElem.getChildNodes().add(templateChild);
-            }
-        }
+        parseSegment(elem.getEnd(), templateElem.getChildNodes());
         return templateElem;
     }
 
@@ -199,13 +178,7 @@ public class Parser {
 
         Segment content = elem.getContent();
         if (directiveMeta.contentSetter != null) {
-            for (Iterator<Segment> segments = content.getNodeIterator(); segments.hasNext();) {
-                Segment child = segments.next();
-                TemplateNode templateChild = parseSegment(child);
-                if (templateChild != null) {
-                    directive.getContentNodes().add(templateChild);
-                }
-            }
+            parseSegment(elem.getEnd(), directive.getContentNodes());
             directive.setContentMethodName(directiveMeta.contentSetter.getName());
         } else if (!directiveMeta.ignoreContent) {
             if (content.getNodeIterator().hasNext()) {

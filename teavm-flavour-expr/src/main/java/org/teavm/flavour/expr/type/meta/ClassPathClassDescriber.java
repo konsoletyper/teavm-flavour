@@ -32,8 +32,9 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     private TypeVar[] typeVariables;
     private GenericClass supertype;
     private GenericClass[] interfaces;
-    private ClassPathMethodDescriber[] methods;
+    private ClassPathAbstractMethodDescriber[] methods;
     private Map<Method, ClassPathMethodDescriber> methodMap = new HashMap<>();
+    private Map<Constructor<?>, ClassPathConstructorDescriber> constructorMap = new HashMap<>();
     private ClassPathFieldDescriber[] fields;
     private Map<Field, ClassPathFieldDescriber> fieldMap = new HashMap<>();
 
@@ -89,10 +90,17 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     public MethodDescriber[] getMethods() {
         if (methods == null) {
             Method[] javaMethods = cls.getDeclaredMethods();
-            methods = new ClassPathMethodDescriber[javaMethods.length];
+            Constructor<?>[] javaConstructors = cls.getDeclaredConstructors();
+            methods = new ClassPathAbstractMethodDescriber[javaMethods.length + javaConstructors.length];
             int j = 0;
-            for (int i = 0; i < methods.length; ++i) {
+            for (int i = 0; i < javaMethods.length; ++i) {
                 ClassPathMethodDescriber method = getMethod(javaMethods[i]);
+                if (method != null) {
+                    methods[j++] = method;
+                }
+            }
+            for (int i = 0; i < javaConstructors.length; ++i) {
+                ClassPathConstructorDescriber method = getMethod(javaConstructors[i]);
                 if (method != null) {
                     methods[j++] = method;
                 }
@@ -109,8 +117,13 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
             javaArgs[i] = repository.convertToRawType(argumentTypes[i]);
         }
         try {
-            Method javaMethod = cls.getDeclaredMethod(name, javaArgs);
-            return getMethod(javaMethod);
+            if (name.equals("<init>")) {
+                Constructor<?> javaConstructor = cls.getDeclaredConstructor(javaArgs);
+                return getMethod(javaConstructor);
+            } else {
+                Method javaMethod = cls.getDeclaredMethod(name, javaArgs);
+                return getMethod(javaMethod);
+            }
         } catch (NoSuchMethodException e) {
             return null;
         }
@@ -126,6 +139,18 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
             methodMap.put(javaMethod, method);
         }
         return method;
+    }
+
+    private ClassPathConstructorDescriber getMethod(Constructor<?> javaConstructor) {
+        if (!Modifier.isPublic(javaConstructor.getModifiers())) {
+            return null;
+        }
+        ClassPathConstructorDescriber ctor = constructorMap.get(javaConstructor);
+        if (ctor == null) {
+            ctor = new ClassPathConstructorDescriber(this, javaConstructor);
+            constructorMap.put(javaConstructor, ctor);
+        }
+        return ctor;
     }
 
     @Override

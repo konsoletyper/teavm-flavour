@@ -15,61 +15,57 @@
  */
 package org.teavm.flavour.expr.type.meta;
 
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
+import java.lang.reflect.*;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ClassPathMethodDescriber extends ClassPathAbstractMethodDescriber {
-    private Method javaMethod;
+class ClassPathConstructorDescriber extends ClassPathAbstractMethodDescriber {
+    private Constructor<?> javaConstructor;
 
-    public ClassPathMethodDescriber(ClassPathClassDescriber classDescriber, Method javaMethod) {
+    public ClassPathConstructorDescriber(ClassPathClassDescriber classDescriber, Constructor<?> javaConstructor) {
         super(classDescriber);
-        this.javaMethod = javaMethod;
+        this.javaConstructor = javaConstructor;
     }
 
     @Override
     public String getName() {
-        return javaMethod.getName();
+        return "<init>";
     }
 
     @Override
     public boolean isStatic() {
-        return Modifier.isStatic(javaMethod.getModifiers());
+        return Modifier.isStatic(javaConstructor.getModifiers());
     }
 
     @Override
     TypeVariable<?>[] getJavaTypeVariables() {
-        return javaMethod.getTypeParameters();
+        return javaConstructor.getTypeParameters();
     }
 
     @Override
     Type[] getJavaArgumentTypes() {
-        return javaMethod.getGenericParameterTypes();
+        return javaConstructor.getGenericParameterTypes();
     }
 
     @Override
     Class<?>[] getJavaRawArgumentTypes() {
-        return javaMethod.getParameterTypes();
+        return javaConstructor.getParameterTypes();
     }
 
     @Override
     Type getJavaReturnType() {
-        return javaMethod.getGenericReturnType();
+        return void.class;
     }
 
     @Override
     Type getJavaRawReturnType() {
-        return javaMethod.getReturnType();
+        return void.class;
     }
 
     @Override
     AnnotatedElement getAnnotatedElement() {
-        return javaMethod;
+        return javaConstructor;
     }
 }
