@@ -30,7 +30,7 @@ import org.teavm.model.instructions.InvokeInstruction;
  * @author Alexey Andreev
  */
 public class TemplateEmitter {
-    private DependencyAgent dependencyAgent;
+    DependencyAgent dependencyAgent;
 
     public TemplateEmitter(DependencyAgent dependencyAgent) {
         this.dependencyAgent = dependencyAgent;

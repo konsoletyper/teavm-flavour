@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.teavm.flavour.expr.plan.*;
 import org.teavm.model.*;
 import org.teavm.model.instructions.*;
@@ -305,6 +307,7 @@ class ExprPlanEmitter implements PlanVisitor {
         Variable instance = null;
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
+            requireValue();
             instance = var;
         }
 
@@ -332,10 +335,56 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(InvocationPlan plan) {
+        Variable instance = null;
+        if (plan.getInstance() != null) {
+            plan.getInstance().acceptVisitor(this);
+            requireValue();
+            instance = var;
+        }
+
+        List<Variable> arguments = new ArrayList<>();
+        for (Plan argPlan : plan.getArguments()) {
+            argPlan.acceptVisitor(this);
+            requireValue();
+            arguments.add(var);
+        }
+
+        InvokeInstruction insn = new InvokeInstruction();
+        insn.setInstance(instance);
+        insn.getArguments().addAll(arguments);
+        insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
+                plan.getMethodName() + plan.getMethodDesc())));
+        if (insn.getMethod().getReturnType() != ValueType.VOID) {
+            var = program.createVariable();
+            insn.setReceiver(var);
+        } else {
+            var = null;
+        }
+        block.getInstructions().add(insn);
     }
 
     @Override
     public void visit(ConstructionPlan plan) {
+        Variable result = program.createVariable();
+        ConstructInstruction constructInsn = new ConstructInstruction();
+        constructInsn.setReceiver(result);
+        constructInsn.setType(plan.getClassName());
+        block.getInstructions().add(constructInsn);
+
+        List<Variable> arguments = new ArrayList<>();
+        for (Plan argPlan : plan.getArguments()) {
+            argPlan.acceptVisitor(this);
+            requireValue();
+            arguments.add(var);
+        }
+        InvokeInstruction insn = new InvokeInstruction();
+        insn.setInstance(result);
+        insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
+                "<init>" + plan.getMethodDesc())));
+        insn.getArguments().addAll(arguments);
+
+        block.getInstructions().add(insn);
+        var = result;
     }
 
     void valueToBranching() {
