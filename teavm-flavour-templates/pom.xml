@@ -35,6 +35,10 @@
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>
+      <artifactId>teavm-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
       <artifactId>teavm-dom</artifactId>
     </dependency>
     <dependency>
