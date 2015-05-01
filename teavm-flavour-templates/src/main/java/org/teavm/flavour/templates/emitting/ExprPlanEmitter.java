@@ -17,20 +17,110 @@ package org.teavm.flavour.templates.emitting;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.flavour.expr.plan.*;
-import org.teavm.model.*;
-import org.teavm.model.instructions.*;
+import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
+import org.teavm.flavour.expr.plan.ArithmeticType;
+import org.teavm.flavour.expr.plan.ArrayLengthPlan;
+import org.teavm.flavour.expr.plan.BinaryPlan;
+import org.teavm.flavour.expr.plan.BinaryPlanType;
+import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
+import org.teavm.flavour.expr.plan.CastPlan;
+import org.teavm.flavour.expr.plan.CastToIntegerPlan;
+import org.teavm.flavour.expr.plan.ConstantPlan;
+import org.teavm.flavour.expr.plan.ConstructionPlan;
+import org.teavm.flavour.expr.plan.FieldPlan;
+import org.teavm.flavour.expr.plan.GetArrayElementPlan;
+import org.teavm.flavour.expr.plan.InstanceOfPlan;
+import org.teavm.flavour.expr.plan.InvocationPlan;
+import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
+import org.teavm.flavour.expr.plan.NegatePlan;
+import org.teavm.flavour.expr.plan.NotPlan;
+import org.teavm.flavour.expr.plan.Plan;
+import org.teavm.flavour.expr.plan.PlanVisitor;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
+import org.teavm.flavour.expr.plan.VariablePlan;
+import org.teavm.flavour.templates.Computation;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldReference;
+import org.teavm.model.Incoming;
+import org.teavm.model.MethodDescriptor;
+import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
+import org.teavm.model.Phi;
+import org.teavm.model.Program;
+import org.teavm.model.ValueType;
+import org.teavm.model.Variable;
+import org.teavm.model.instructions.ArrayLengthInstruction;
+import org.teavm.model.instructions.BinaryBranchingCondition;
+import org.teavm.model.instructions.BinaryBranchingInstruction;
+import org.teavm.model.instructions.BinaryInstruction;
+import org.teavm.model.instructions.BinaryOperation;
+import org.teavm.model.instructions.BranchingCondition;
+import org.teavm.model.instructions.BranchingInstruction;
+import org.teavm.model.instructions.CastInstruction;
+import org.teavm.model.instructions.CastIntegerDirection;
+import org.teavm.model.instructions.CastIntegerInstruction;
+import org.teavm.model.instructions.CastNumberInstruction;
+import org.teavm.model.instructions.ConstructInstruction;
+import org.teavm.model.instructions.DoubleConstantInstruction;
+import org.teavm.model.instructions.ExitInstruction;
+import org.teavm.model.instructions.FloatConstantInstruction;
+import org.teavm.model.instructions.GetElementInstruction;
+import org.teavm.model.instructions.GetFieldInstruction;
+import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.IsInstanceInstruction;
+import org.teavm.model.instructions.JumpInstruction;
+import org.teavm.model.instructions.NegateInstruction;
+import org.teavm.model.instructions.NullConstantInstruction;
+import org.teavm.model.instructions.NumericOperandType;
+import org.teavm.model.instructions.StringConstantInstruction;
 
 /**
  *
  * @author Alexey Andreev
  */
 class ExprPlanEmitter implements PlanVisitor {
-    private Program program;
-    private Variable var;
-    private BasicBlock block;
+    private EmitContext context;
+    String thisClassName;
+    Program program;
+    Variable var;
+    BasicBlock block;
     private BranchingConsumer branching;
+    Variable thisVar;
+
+    public ExprPlanEmitter(EmitContext context) {
+        this.context = context;
+    }
+
+    public String emitComputation(Plan plan) {
+        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
+        cls.setParent(Object.class.getName());
+        cls.getInterfaces().add(Computation.class.getName());
+        cls.setLevel(AccessLevel.PUBLIC);
+        context.fragmentEmitter.addConstructor(cls);
+        emitPerformMethod(cls, plan);
+        context.dependencyAgent.submitClass(cls);
+        return cls.getName();
+    }
+
+    private void emitPerformMethod(ClassHolder cls, Plan plan) {
+        MethodHolder method = new MethodHolder("perform", ValueType.parse(Object.class));
+        method.setLevel(AccessLevel.PUBLIC);
+        Program program = new Program();
+        thisVar = program.createVariable();
+        block = program.createBasicBlock();
+        thisClassName = cls.getName();
+        plan.acceptVisitor(this);
+        ExitInstruction exit = new ExitInstruction();
+        exit.setValueToReturn(var);
+        block.getInstructions().add(exit);
+        method.setProgram(program);
+        cls.addMethod(method);
+    }
 
     @Override
     public void visit(ConstantPlan plan) {
@@ -77,7 +167,27 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(VariablePlan plan) {
+        EmittedVariable emitVar = context.getVariable(plan.getName());
 
+        String lastClass = thisClassName;
+        var = thisVar;
+        for (int i = context.classStack.size() - 1; i >= emitVar.depth; ++i) {
+            GetFieldInstruction insn = new GetFieldInstruction();
+            insn.setFieldType(ValueType.object(context.classStack.get(i)));
+            insn.setInstance(var);
+            insn.setField(new FieldReference(lastClass, "this$owner"));
+            var = program.createVariable();
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            lastClass = context.classStack.get(i);
+        }
+
+        GetFieldInstruction getVarInsn = new GetFieldInstruction();
+        getVarInsn.setField(new FieldReference(lastClass, "var$" + plan.getName()));
+        getVarInsn.setInstance(var);
+        getVarInsn.setFieldType(emitVar.type);
+        var = program.createVariable();
+        getVarInsn.setReceiver(var);
     }
 
     @Override

@@ -151,7 +151,7 @@ public class Parser {
                         declaredVars.put(varName, attrMeta.valueType);
                     }
                     DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
-                            setter.getOwner().getName(), setter.getName(), attrMeta.valueType);
+                            setter.getOwner().getName(), setter.getName(), varName, attrMeta.valueType);
                     directive.getVariables().add(varBinding);
                     break;
                 }

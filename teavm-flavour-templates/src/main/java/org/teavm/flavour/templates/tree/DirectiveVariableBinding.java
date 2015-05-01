@@ -23,9 +23,11 @@ import org.teavm.flavour.expr.type.ValueType;
  */
 public class DirectiveVariableBinding extends DirectivePropertyBinding {
     private ValueType valueType;
+    private String name;
 
-    public DirectiveVariableBinding(String methodOwner, String methodName, ValueType valueType) {
+    public DirectiveVariableBinding(String methodOwner, String methodName, String name, ValueType valueType) {
         super(methodOwner, methodName);
+        this.name = name;
         this.valueType = valueType;
     }
 
@@ -35,5 +37,13 @@ public class DirectiveVariableBinding extends DirectivePropertyBinding {
 
     public void setValueType(ValueType valueType) {
         this.valueType = valueType;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }
