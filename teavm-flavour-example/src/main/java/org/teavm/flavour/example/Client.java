@@ -17,13 +17,7 @@ package org.teavm.flavour.example;
 
 import java.math.BigDecimal;
 import java.util.Date;
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.events.EventListener;
-import org.teavm.dom.events.MouseEvent;
-import org.teavm.dom.html.HTMLButtonElement;
-import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Templates;
-import org.teavm.jso.JS;
 
 /**
  *
@@ -39,7 +33,7 @@ public final class Client {
         order.setReceiverName("John Doe");
         order.setDate(new Date());
 
-        final OrderItem item = new OrderItem();
+        OrderItem item = new OrderItem();
         item.setAmount(2);
         item.setSku("009876");
         item.setProductName("Rubber boots");
@@ -53,16 +47,6 @@ public final class Client {
         item2.setUnitPrice(new BigDecimal("20.00"));
         order.getItems().add(item2);
 
-        final Component component = Templates.bind(order, "application-content");
-
-        final HTMLButtonElement button = (HTMLButtonElement)((Window)JS.getGlobal()).getDocument()
-                .getElementById("refresh-button");
-        button.addEventListener("click", new EventListener<MouseEvent>() {
-            @Override
-            public void handleEvent(MouseEvent evt) {
-                item.setAmount(item.getAmount() + 1);
-                component.render();
-            }
-        });
+        Templates.bind(order, "application-content");
     }
 }

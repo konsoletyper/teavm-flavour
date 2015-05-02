@@ -23,7 +23,7 @@
         <th>SKU</th>
         <th>Product</th>
         <th>Unit price</th>
-        <th>Amount</th>
+        <th colspan="2">Amount</th>
         <th>Price</th>
       </tr>
     </thead>
@@ -34,6 +34,12 @@
           <td><std:text value="item.sku"></std:text></td>
           <td><std:text value="item.productName"></std:text></td>
           <td align="right"><std:text value="'$' + item.unitPrice"></std:text></td>
+          <td>
+            <span class="action-link" std:click="item.more()">more</span>
+            <std:if condition="item.amount > 1">
+                <span class="action-link" std:click="item.less()">less</span>
+            </std:if>
+          </td>
           <td align="right"><std:text value="item.amount"></std:text></td>
           <td align="right"><std:text value="'$' + item.price"></std:text></td>
         </tr>
@@ -41,7 +47,7 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="5">Total:</td>
+        <td colspan="6">Total:</td>
         <td align="right"><std:text value="'$' + this.totalPrice"></std:text></td>
       </tr>
     </tfoot>

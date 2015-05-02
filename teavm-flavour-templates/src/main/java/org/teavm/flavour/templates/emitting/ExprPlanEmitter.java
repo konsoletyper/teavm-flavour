@@ -39,6 +39,7 @@ import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
 import org.teavm.flavour.expr.plan.VariablePlan;
+import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
@@ -103,13 +104,25 @@ class ExprPlanEmitter implements PlanVisitor {
         cls.getInterfaces().add(Computation.class.getName());
         cls.setLevel(AccessLevel.PUBLIC);
         context.fragmentEmitter.addConstructor(cls);
-        emitPerformMethod(cls, plan);
+        emitPerformMethod(cls, plan, true);
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
-    private void emitPerformMethod(ClassHolder cls, Plan plan) {
-        MethodHolder method = new MethodHolder("perform", ValueType.parse(Object.class));
+    public String emitAction(Plan plan) {
+        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
+        cls.setParent(Object.class.getName());
+        cls.getInterfaces().add(Action.class.getName());
+        cls.setLevel(AccessLevel.PUBLIC);
+        context.fragmentEmitter.addConstructor(cls);
+        emitPerformMethod(cls, plan, false);
+        context.dependencyAgent.submitClass(cls);
+        return cls.getName();
+    }
+
+    private void emitPerformMethod(ClassHolder cls, Plan plan, boolean returnValue) {
+        MethodHolder method = new MethodHolder("perform", returnValue ?
+                ValueType.parse(Object.class) : ValueType.VOID);
         method.setLevel(AccessLevel.PUBLIC);
         program = new Program();
         thisVar = program.createVariable();
@@ -117,7 +130,9 @@ class ExprPlanEmitter implements PlanVisitor {
         thisClassName = cls.getName();
         plan.acceptVisitor(this);
         ExitInstruction exit = new ExitInstruction();
-        exit.setValueToReturn(var);
+        if (returnValue) {
+            exit.setValueToReturn(var);
+        }
         block.getInstructions().add(exit);
         method.setProgram(program);
         cls.addMethod(method);
@@ -532,6 +547,8 @@ class ExprPlanEmitter implements PlanVisitor {
             return;
         }
 
+        block = program.createBasicBlock();
+
         BasicBlock thenBlock = program.createBasicBlock();
         Variable trueVar = program.createVariable();
         IntegerConstantInstruction insn = new IntegerConstantInstruction();
@@ -562,6 +579,7 @@ class ExprPlanEmitter implements PlanVisitor {
         falseIncoming.setSource(elseBlock);
         falseIncoming.setValue(falseVar);
         phi.getIncomings().add(falseIncoming);
+        phi.setReceiver(var);
         block.getPhis().add(phi);
 
         branching.setThen(thenBlock);

@@ -23,9 +23,18 @@ import java.util.List;
  * @author Alexey Andreev
  */
 public class AttributeDirectiveBinding {
+    private String className;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
     private List<DirectiveComputationBinding> computations = new ArrayList<>();
     private List<DirectiveActionBinding> actions = new ArrayList<>();
+
+    public AttributeDirectiveBinding(String className) {
+        this.className = className;
+    }
+
+    public String getClassName() {
+        return className;
+    }
 
     public List<DirectiveVariableBinding> getVariables() {
         return variables;

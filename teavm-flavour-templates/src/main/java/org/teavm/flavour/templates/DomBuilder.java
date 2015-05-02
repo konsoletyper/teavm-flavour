@@ -24,6 +24,7 @@ import org.teavm.dom.core.Document;
 import org.teavm.dom.core.Element;
 import org.teavm.dom.core.Node;
 import org.teavm.dom.core.Text;
+import org.teavm.dom.html.HTMLElement;
 import org.teavm.jso.JS;
 
 /**
@@ -81,6 +82,15 @@ public class DomBuilder {
 
     public DomBuilder add(Fragment fragment) {
         return add(fragment.create());
+    }
+
+    public DomBuilder add(Modifier modifier) {
+        if (stack.isEmpty()) {
+            throw new IllegalStateException("Can't apply modifier to root node");
+        }
+        Renderable renderable = modifier.apply((HTMLElement)stack.peek());
+        renderables.add(renderable);
+        return this;
     }
 
     private void appendNode(Node node) {

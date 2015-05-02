@@ -24,6 +24,8 @@ import org.teavm.jso.JS;
  * @author Alexey Andreev
  */
 public final class Templates {
+    private static Component root;
+
     private Templates() {
     }
 
@@ -36,7 +38,7 @@ public final class Templates {
         Component component = fragment.create();
         Slot root = Slot.root(element);
         root.append(component.getSlot());
-        component.render();
+        renderRoot(component);
         return component;
     }
 
@@ -44,5 +46,41 @@ public final class Templates {
         return createImpl(model, model.getClass().getName());
     }
 
+    public static void renderRoot(Component component) {
+        if (root != null) {
+            throw new IllegalStateException("This method can't be called recursively");
+        }
+        root = component;
+        component.render();
+        root = null;
+    }
+
     private static native Fragment createImpl(Object model, String modelType);
+
+    public static Component root() {
+        return root;
+    }
+
+    public static void update() {
+        if (root == null) {
+            throw new IllegalStateException("This method can be only called during rendering process");
+        }
+        root.render();
+    }
+
+    public static Action wrap(final Action action) {
+        if (root == null) {
+            throw new IllegalStateException("This method can be only called during rendering process");
+        }
+        final Component savedRoot = root;
+        return new Action() {
+            @Override
+            public void perform() {
+                root = savedRoot;
+                action.perform();
+                update();
+                root = null;
+            }
+        };
+    }
 }

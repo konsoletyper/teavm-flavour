@@ -62,4 +62,14 @@ public class OrderItem {
     public BigDecimal getPrice() {
         return unitPrice.multiply(new BigDecimal(amount));
     }
+
+    public void more() {
+        ++amount;
+    }
+
+    public void less() {
+        if (amount > 1) {
+            --amount;
+        }
+    }
 }

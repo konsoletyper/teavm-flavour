@@ -18,7 +18,25 @@ table.data thead, table.data tbody, table.data tfoot {
     border-top-style: solid;
     border-bottom-style:solid;
 }
-
 table.data thead, table.data tfoot {
     background-color: rgb(230,230,230);
+}
+
+a, span.action-link {
+    color: blue;
+    cursor: pointer;
+}
+a:hover, span.action-link:hover {
+    color: red;
+}
+a {
+    text-decoration: underline;
+}
+span.action-link {
+    border-bottom-color: blue;
+    border-bottom-width: 1px;
+    border-bottom-style: dashed;
+}
+span.action-link:hover {
+    border-bottom-color: red;
 }

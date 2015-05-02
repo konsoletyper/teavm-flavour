@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.templates.parsing;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.htmlparser.jericho.Segment;
+import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
@@ -40,6 +42,7 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.BindAttribute;
+import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Computation;
@@ -65,14 +68,21 @@ class DirectiveParser {
         this.typeNavigator = new GenericTypeNavigator(classRepository);
     }
 
-    public DirectiveMetadata parse(ClassDescriber cls) {
+    public Object parse(ClassDescriber cls) {
         AnnotationDescriber annot = cls.getAnnotation(BindDirective.class.getName());
-        if (annot == null) {
-            error("Class " + cls.getName() + " declared by directive package is not marked by " +
-                    BindDirective.class.getName());
+        AnnotationDescriber attrAnnot = cls.getAnnotation(BindAttributeDirective.class.getName());
+        if (annot != null) {
+            return parseElement(cls, annot);
+        } else if (attrAnnot != null) {
+            return parseAttribute(cls, attrAnnot);
+        } else {
+            error("Class " + cls.getName() + " declared by directive package is not marked either by " +
+                    BindDirective.class.getName() + " or by " + BindAttributeDirective.class.getName());
             return null;
         }
+    }
 
+    private DirectiveMetadata parseElement(ClassDescriber cls, AnnotationDescriber annot) {
         DirectiveMetadata metadata = new DirectiveMetadata();
         metadata.name = ((AnnotationString)annot.getValue("name")).value;
         metadata.cls = cls;
@@ -80,8 +90,27 @@ class DirectiveParser {
         parseConstructor(metadata);
         parseIgnoreContent(metadata);
         GenericClass genericCls = typeNavigator.getGenericClass(cls.getName());
-        parseMethodsRec(metadata, genericCls, new HashSet<GenericClass>(), new HashSet<MethodWithParams>());
+        for (GenericMethod method : collectMethods(genericCls)) {
+            parseMethod(metadata, method);
+        }
 
+        return metadata;
+    }
+
+    private AttributeDirectiveMetadata parseAttribute(ClassDescriber cls, AnnotationDescriber annot) {
+        AttributeDirectiveMetadata metadata = new AttributeDirectiveMetadata();
+        metadata.name = ((AnnotationString)annot.getValue("name")).value;
+        metadata.cls = cls;
+
+        parseAttributeConstructor(metadata);
+        GenericClass genericCls = typeNavigator.getGenericClass(cls.getName());
+        for (GenericMethod method : collectMethods(genericCls)) {
+            parseAttributeMethod(metadata, method);
+        }
+
+        if (metadata.type == null) {
+            return null;
+        }
         return metadata;
     }
 
@@ -94,29 +123,44 @@ class DirectiveParser {
         }
     }
 
+    private void parseAttributeConstructor(AttributeDirectiveMetadata metadata) {
+        ClassDescriber cls = metadata.cls;
+        metadata.constructor = cls.getMethod("<init>", new GenericClass(HTMLElement.class.getName()));
+        if (metadata.constructor == null) {
+            error("Class " + cls.getName() + " declared by directive package does not have constructor " +
+                    "that takes " + Slot.class.getName());
+        }
+    }
+
     private void parseIgnoreContent(DirectiveMetadata metadata) {
         if (metadata.cls.getAnnotation(IgnoreContent.class.getName()) != null) {
             metadata.ignoreContent = true;
         }
     }
 
-    private void parseMethodsRec(DirectiveMetadata metadata, GenericClass genericCls, Set<GenericClass> visited,
-            Set<MethodWithParams> visitedMethods) {
+    private List<GenericMethod> collectMethods(GenericClass genericCls) {
+        List<GenericMethod> methods = new ArrayList<>();
+        collectMethodsRec(genericCls, new HashSet<GenericClass>(), new HashSet<MethodWithParams>(), methods);
+        return methods;
+    }
+
+    private void collectMethodsRec(GenericClass genericCls, Set<GenericClass> visited,
+            Set<MethodWithParams> visitedMethods, List<GenericMethod> methods) {
         if (!visited.add(genericCls)) {
             return;
         }
-        parseMethods(metadata, genericCls, visitedMethods);
+        collectMethods(genericCls, visitedMethods, methods);
         GenericClass parent = typeNavigator.getParent(genericCls);
         if (parent != null) {
-            parseMethodsRec(metadata, parent, visited, new HashSet<>(visitedMethods));
+            collectMethodsRec(parent, visited, new HashSet<>(visitedMethods), methods);
         }
         for (GenericClass iface : typeNavigator.getInterfaces(genericCls)) {
-            parseMethodsRec(metadata, iface, visited, new HashSet<>(visitedMethods));
+            collectMethodsRec(iface, visited, new HashSet<>(visitedMethods), methods);
         }
     }
 
-    private void parseMethods(DirectiveMetadata metadata, GenericClass genericCls,
-            Set<MethodWithParams> visitedMethods) {
+    private void collectMethods(GenericClass genericCls, Set<MethodWithParams> visitedMethods,
+            List<GenericMethod> methods) {
         ClassDescriber clsDesc = classRepository.describe(genericCls.getName());
         if (clsDesc == null) {
             return;
@@ -140,7 +184,7 @@ class DirectiveParser {
             }
             GenericMethod method = new GenericMethod(methodDesc, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {
-                parseMethod(metadata, method);
+                methods.add(method);
             }
         }
     }
@@ -149,6 +193,10 @@ class DirectiveParser {
         Set<AnnotationDescriber> bindings = new HashSet<>();
         parseBindContent(metadata, method, bindings);
         parseBindAttribute(metadata, method, bindings);
+    }
+
+    private void parseAttributeMethod(AttributeDirectiveMetadata metadata, GenericMethod method) {
+        parseBindAttributeContent(metadata, method);
     }
 
     private void parseBindContent(DirectiveMetadata metadata, GenericMethod method,
@@ -176,6 +224,35 @@ class DirectiveParser {
             error("Method " + methodToString(method.getDescriber()) + " is marked with " +
                     BindContent.class.getName() + " and therefore should take " + Fragment.class.getName() +
                     " as an argument, but takes " + arguments[0]);
+        }
+    }
+
+    private void parseBindAttributeContent(AttributeDirectiveMetadata metadata, GenericMethod method) {
+        AnnotationDescriber binding = method.getDescriber().getAnnotation(BindContent.class.getName());
+        if (binding == null) {
+            return;
+        }
+        if (metadata.type != null) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName() +
+                    " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": " +
+                    methodToString(metadata.setter));
+        }
+        metadata.setter = method.getDescriber();
+        ValueType[] arguments = method.getActualArgumentTypes();
+        if (arguments.length != 1) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked with " +
+                    BindContent.class.getName() + " and therefore should take exactly 1 argument, " +
+                    "but takes " + arguments.length);
+            return;
+        }
+
+        DirectiveAttributeMetadata attrMeta = new DirectiveAttributeMetadata();
+        if (!parseAttributeType(attrMeta, arguments[0])) {
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
+                    "mapped to an attribute: " + arguments[0]);
+        } else {
+            metadata.type = attrMeta.type;
+            metadata.valueType = attrMeta.valueType;
         }
     }
 
@@ -241,7 +318,7 @@ class DirectiveParser {
             return true;
         }
 
-        if (!valueType.equals(new GenericClass(Action.class.getName()))) {
+        if (valueType.equals(new GenericClass(Action.class.getName()))) {
             attrMetadata.type = DirectiveAttributeType.ACTION;
             return true;
         }

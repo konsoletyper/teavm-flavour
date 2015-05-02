@@ -24,8 +24,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.htmlparser.jericho.Attribute;
 import net.htmlparser.jericho.Element;
 import net.htmlparser.jericho.Segment;
@@ -49,6 +51,7 @@ import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
 import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.DOMText;
 import org.teavm.flavour.templates.tree.DirectiveActionBinding;
@@ -66,6 +69,7 @@ public class Parser {
     private ImportingClassResolver classResolver;
     private ResourceProvider resourceProvider;
     private Map<String, DirectiveMetadata> directives = new HashMap<>();
+    private Map<String, AttributeDirectiveMetadata> attrDirectives = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private Map<String, Deque<ValueType>> variables = new HashMap<>();
     private Source source;
@@ -140,9 +144,30 @@ public class Parser {
         DOMElement templateElem = new DOMElement(elem.getName());
         for (int i = 0; i < elem.getAttributes().size(); ++i) {
             Attribute attr = elem.getAttributes().get(i);
-            templateElem.setAttribute(attr.getName(), attr.getValue());
+            if (attr.getName().indexOf(':') > 0) {
+                AttributeDirectiveBinding directive = parseAttributeDirective(attr);
+                if (directive != null) {
+                    templateElem.getAttributeDirectives().add(directive);
+                }
+            } else {
+                templateElem.setAttribute(attr.getName(), attr.getValue());
+            }
         }
+
+        Set<String> vars = new HashSet<>();
+        for (AttributeDirectiveBinding attrDirective : templateElem.getAttributeDirectives()) {
+            for (DirectiveVariableBinding var : attrDirective.getVariables()) {
+                vars.add(var.getName());
+                pushVar(var.getName(), var.getValueType());
+            }
+        }
+
         parseSegment(elem.getEnd(), templateElem.getChildNodes());
+
+        for (String var : vars) {
+            popVar(var);
+        }
+
         return templateElem;
     }
 
@@ -221,6 +246,12 @@ public class Parser {
             pushVar(varEntry.getKey(), type);
         }
 
+        for (Attribute attr : elem.getAttributes()) {
+            if (!directiveMeta.attributes.containsKey(attr.getName())) {
+                error(attr, "Unknown attribute " + attr.getName() + " for directive " + fullName);
+            }
+        }
+
         Segment content = elem.getContent();
         if (directiveMeta.contentSetter != null) {
             parseSegment(elem.getEnd(), directive.getContentNodes());
@@ -233,6 +264,60 @@ public class Parser {
 
         for (String varName : declaredVars.keySet()) {
             popVar(varName);
+        }
+
+        return directive;
+    }
+
+    private AttributeDirectiveBinding parseAttributeDirective(Attribute attr) {
+        int prefixLength = attr.getName().indexOf(':');
+        String prefix = attr.getName().substring(0, prefixLength);
+        String name = attr.getName().substring(prefixLength + 1);
+        String fullName = prefix + ":" + name;
+        AttributeDirectiveMetadata directiveMeta = attrDirectives.get(fullName);
+        if (directiveMeta == null) {
+            error(attr.getNameSegment(), "Undefined directive " + fullName);
+            return null;
+        }
+
+        AttributeDirectiveBinding directive = new AttributeDirectiveBinding(directiveMeta.cls.getName());
+
+        TypeUnifier unifier = new TypeUnifier(classRepository);
+        MethodDescriber setter = directiveMeta.setter;
+        switch (directiveMeta.type) {
+            case VARIABLE: {
+                String varName = attr.getValue();
+                DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
+                        setter.getOwner().getName(), setter.getName(), varName, directiveMeta.valueType);
+                directive.getVariables().add(varBinding);
+                break;
+            }
+            case COMPUTATION: {
+                TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.valueType);
+                DirectiveComputationBinding computationBinding = new DirectiveComputationBinding(
+                        setter.getOwner().getName(), setter.getName(), plan);
+                directive.getComputations().add(computationBinding);
+                if (plan.getType() instanceof GenericType) {
+                    if (!unifier.unify((GenericType)directiveMeta.valueType, (GenericType)plan.getType(), true)) {
+                        ValueTypeFormatter formatter = new ValueTypeFormatter();
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("Can't assign ").append(directiveMeta.setter.getName()).append(" computation " +
+                                "since its type ");
+                        formatter.format(directiveMeta.valueType, sb);
+                        sb.append("is incompatible with expression's type ");
+                        formatter.format(plan.getType(), sb);
+                        diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), sb.toString()));
+                    }
+                }
+                break;
+            }
+            case ACTION: {
+                TypedPlan plan = compileExpr(attr.getValueSegment(), null);
+                DirectiveActionBinding actionBinding = new DirectiveActionBinding(
+                        setter.getOwner().getName(), setter.getName(), plan.getPlan());
+                directive.getActions().add(actionBinding);
+                break;
+            }
         }
 
         return directive;
@@ -344,9 +429,13 @@ public class Parser {
                 }
 
                 DirectiveParser directiveParser = new DirectiveParser(classRepository, diagnostics, segment);
-                DirectiveMetadata directiveMeta = directiveParser.parse(cls);
-                if (directiveMeta != null) {
-                    directives.put(prefix + ":" + directiveMeta.name, directiveMeta);
+                Object directiveMetadata = directiveParser.parse(cls);
+                if (directiveMetadata instanceof DirectiveMetadata) {
+                    DirectiveMetadata elemDirectiveMeta = (DirectiveMetadata)directiveMetadata;
+                    directives.put(prefix + ":" + elemDirectiveMeta.name, elemDirectiveMeta);
+                } else if (directiveMetadata instanceof AttributeDirectiveMetadata) {
+                    AttributeDirectiveMetadata attrDirectiveMeta = (AttributeDirectiveMetadata)directiveMetadata;
+                    attrDirectives.put(prefix + ":" + attrDirectiveMeta.name, attrDirectiveMeta);
                 }
             }
         } catch (IOException e) {
