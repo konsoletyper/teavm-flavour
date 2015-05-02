@@ -73,7 +73,7 @@ public class TemplateEmitter {
     }
 
     private void emitConstructor(ClassHolder cls, String modelClassName, String innerName) {
-        FieldHolder model = new FieldHolder("this$model");
+        FieldHolder model = new FieldHolder("var$this");
         model.setType(ValueType.object(modelClassName));
         model.setLevel(AccessLevel.PUBLIC);
         cls.addField(model);
@@ -81,7 +81,7 @@ public class TemplateEmitter {
         FieldHolder innerFragment = new FieldHolder("this$inner");
         innerFragment.setType(ValueType.object(innerName));
         innerFragment.setLevel(AccessLevel.PUBLIC);
-        cls.addField(model);
+        cls.addField(innerFragment);
 
         MethodHolder ctor = new MethodHolder("<init>", ValueType.object(modelClassName), ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
@@ -97,7 +97,7 @@ public class TemplateEmitter {
         block.getInstructions().add(invokeSuper);
 
         PutFieldInstruction putField = new PutFieldInstruction();
-        putField.setField(new FieldReference(cls.getName(), "this$model"));
+        putField.setField(new FieldReference(cls.getName(), "var$this"));
         putField.setFieldType(ValueType.object(modelClassName));
         putField.setInstance(thisVar);
         putField.setValue(modelVar);
@@ -155,5 +155,8 @@ public class TemplateEmitter {
         ExitInstruction exit = new ExitInstruction();
         exit.setValueToReturn(resultVar);
         block.getInstructions().add(exit);
+
+        method.setProgram(program);
+        cls.addMethod(method);
     }
 }

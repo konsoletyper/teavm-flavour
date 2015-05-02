@@ -88,6 +88,11 @@
         <version>${teavm.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-classlib</artifactId>
+        <version>${teavm.version}</version>
+      </dependency>
+      <dependency>
         <groupId>net.htmlparser.jericho</groupId>
         <artifactId>jericho-html</artifactId>
         <version>3.3</version>
@@ -180,5 +185,6 @@
   <modules>
     <module>teavm-flavour-templates</module>
     <module>teavm-flavour-expr</module>
+    <module>teavm-flavour-example</module>
   </modules>
 </project>

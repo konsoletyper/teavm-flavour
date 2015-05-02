@@ -15,19 +15,47 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.io.*;
-import java.util.*;
-import net.htmlparser.jericho.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import net.htmlparser.jericho.Attribute;
+import net.htmlparser.jericho.Element;
+import net.htmlparser.jericho.Segment;
+import net.htmlparser.jericho.Source;
+import net.htmlparser.jericho.StartTag;
+import net.htmlparser.jericho.StartTagType;
+import net.htmlparser.jericho.Tag;
 import org.apache.commons.lang3.StringUtils;
-import org.teavm.flavour.expr.*;
+import org.teavm.flavour.expr.ClassResolver;
 import org.teavm.flavour.expr.Compiler;
+import org.teavm.flavour.expr.Diagnostic;
+import org.teavm.flavour.expr.ImportingClassResolver;
+import org.teavm.flavour.expr.Scope;
+import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
-import org.teavm.flavour.templates.tree.*;
+import org.teavm.flavour.templates.tree.DOMElement;
+import org.teavm.flavour.templates.tree.DOMText;
+import org.teavm.flavour.templates.tree.DirectiveActionBinding;
+import org.teavm.flavour.templates.tree.DirectiveBinding;
+import org.teavm.flavour.templates.tree.DirectiveComputationBinding;
+import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
+import org.teavm.flavour.templates.tree.TemplateNode;
 
 /**
  *
@@ -131,6 +159,7 @@ public class Parser {
 
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName());
 
+        TypeUnifier unifier = new TypeUnifier(classRepository);
         Map<String, ValueType> declaredVars = new HashMap<>();
         for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
             Attribute attr = elem.getAttributes().get(attrMeta.name);
@@ -160,6 +189,18 @@ public class Parser {
                     DirectiveComputationBinding computationBinding = new DirectiveComputationBinding(
                             setter.getOwner().getName(), setter.getName(), plan);
                     directive.getComputations().add(computationBinding);
+                    if (plan.getType() instanceof GenericType) {
+                        if (!unifier.unify((GenericType)attrMeta.valueType, (GenericType)plan.getType(), true)) {
+                            ValueTypeFormatter formatter = new ValueTypeFormatter();
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("Can't assign ").append(attrMeta.setter.getName()).append(" computation " +
+                                    "since its type ");
+                            formatter.format(attrMeta.valueType, sb);
+                            sb.append("is incompatible with expression's type ");
+                            formatter.format(plan.getType(), sb);
+                            diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), sb.toString()));
+                        }
+                    }
                     break;
                 }
                 case ACTION: {
@@ -173,7 +214,11 @@ public class Parser {
         }
 
         for (Map.Entry<String, ValueType> varEntry : declaredVars.entrySet()) {
-            pushVar(varEntry.getKey(), varEntry.getValue());
+            ValueType type = varEntry.getValue();
+            if (type instanceof GenericType) {
+                type = ((GenericType)type).substitute(unifier.getSubstitutions());
+            }
+            pushVar(varEntry.getKey(), type);
         }
 
         Segment content = elem.getContent();
@@ -204,7 +249,7 @@ public class Parser {
         }
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
         TypedPlan result = compiler.compile(expr, type);
-        for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
+        for (Diagnostic diagnostic : compiler.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
                     diagnostic.getMessage());
             diagnostics.add(diagnostic);

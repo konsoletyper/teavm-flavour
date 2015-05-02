@@ -21,7 +21,6 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.xml.transform.Templates;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyListener;
@@ -31,6 +30,7 @@ import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
@@ -56,18 +56,23 @@ class TemplatingDependencyListener implements DependencyListener {
     }
 
     @Override
-    public void methodAchieved(final DependencyAgent agent, MethodDependency method, final CallLocation location) {
+    public void methodAchieved(final DependencyAgent agent, final MethodDependency method,
+            final CallLocation location) {
         if (method.getReference().getClassName().equals(Templates.class.getName()) &&
                 method.getReference().getName().equals("createImpl")) {
             method.getVariable(1).addConsumer(new DependencyConsumer() {
                 @Override public void consume(DependencyType type) {
                     TemplateEmitter emitter = new TemplateEmitter(agent);
-                    List<TemplateNode> fragment = parseForModel(agent, type.getName());
+                    List<TemplateNode> fragment = parseForModel(agent, type.getName(), location);
                     if (fragment != null) {
                         String templateClass = emitter.emitTemplate(type.getName(), fragment);
                         agent.linkClass(templateClass, location);
-                        agent.linkMethod(new MethodReference(templateClass, "<init>",
+                        MethodDependency ctor = agent.linkMethod(new MethodReference(templateClass, "<init>",
                                 ValueType.object(type.getName()), ValueType.VOID), location);
+                        ctor.getVariable(0).propagate(agent.getType(templateClass));
+                        ctor.getVariable(1).propagate(type);
+                        ctor.use();
+                        method.getResult().propagate(agent.getType(templateClass));
                         templateMapping.put(type.getName(), templateClass);
                     }
                 }
@@ -75,13 +80,15 @@ class TemplatingDependencyListener implements DependencyListener {
         }
     }
 
-    private List<TemplateNode> parseForModel(DependencyAgent agent, String typeName) {
+    private List<TemplateNode> parseForModel(DependencyAgent agent, String typeName, CallLocation location) {
         ClassReader cls = agent.getClassSource().get(typeName);
         if (cls == null) {
             return null;
         }
         AnnotationReader annot = cls.getAnnotations().get(BindTemplate.class.getName());
         if (annot == null) {
+            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
+                    "no BindTemplate annotation supplied", typeName);
             return null;
         }
         String path = annot.getValue("value").getString();
@@ -98,6 +105,8 @@ class TemplatingDependencyListener implements DependencyListener {
             parser.getDiagnostics();
             return fragment;
         } catch (IOException e) {
+            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
+                    "template " + path + " was not found", typeName);
             return null;
         }
     }

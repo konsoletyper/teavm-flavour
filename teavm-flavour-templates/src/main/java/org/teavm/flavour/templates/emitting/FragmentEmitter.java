@@ -68,7 +68,7 @@ class FragmentEmitter {
 
         PutFieldInstruction putOwner = new PutFieldInstruction();
         putOwner.setInstance(thisVar);
-        putOwner.setField(new FieldReference(cls.getName(), "$this.owner"));
+        putOwner.setField(new FieldReference(cls.getName(), "this$owner"));
         putOwner.setFieldType(ValueType.object(ownerType));
         putOwner.setValue(ownerVar);
         block.getInstructions().add(putOwner);
@@ -96,6 +96,9 @@ class FragmentEmitter {
         }
         context.classStack.remove(context.classStack.size() - 1);
 
+        nodeEmitter.block.getInstructions().add(new ExitInstruction());
+
+        buildDomMethod.setProgram(prog);
         cls.addMethod(buildDomMethod);
     }
 }

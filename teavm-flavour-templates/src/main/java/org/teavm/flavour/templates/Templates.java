@@ -15,14 +15,33 @@
  */
 package org.teavm.flavour.templates;
 
+import org.teavm.dom.browser.Window;
+import org.teavm.dom.html.HTMLElement;
+import org.teavm.jso.JS;
+
 /**
  *
  * @author Alexey Andreev
  */
-public class Templates {
-    public Fragment create(Object model) {
+public final class Templates {
+    private Templates() {
+    }
+
+    public static void bind(Object model, String id) {
+        bind(model, ((Window)JS.getGlobal()).getDocument().getElementById(id));
+    }
+
+    public static void bind(Object model, HTMLElement element) {
+        Fragment fragment = create(model);
+        Component component = fragment.create();
+        Slot root = Slot.root(element);
+        root.append(component.getSlot());
+        component.render();
+    }
+
+    public static Fragment create(Object model) {
         return createImpl(model, model.getClass().getName());
     }
 
-    private native Fragment createImpl(Object model, String modelType);
+    private static native Fragment createImpl(Object model, String modelType);
 }

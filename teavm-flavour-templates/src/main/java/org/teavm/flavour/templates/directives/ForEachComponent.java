@@ -18,7 +18,6 @@ package org.teavm.flavour.templates.directives;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
@@ -40,7 +39,7 @@ public class ForEachComponent<T> extends AbstractComponent {
     private Variable<Integer> indexVariable;
     private Fragment body;
     private List<Component> childComponents = new ArrayList<>();
-    private List<T> computedCollection;
+    private List<T> computedCollection = new ArrayList<>();
 
     public ForEachComponent(Slot slot) {
         super(slot);
@@ -88,10 +87,10 @@ public class ForEachComponent<T> extends AbstractComponent {
             }
             if (i >= computedCollection.size()) {
                 Component childComponent = body.create();
+                childComponent.render();
                 childComponents.add(childComponent);
                 getSlot().append(childComponent.getSlot());
-            }
-            if (!Objects.equals(computedCollection.get(i), item)) {
+            } else {
                 childComponents.get(i).render();
             }
         }

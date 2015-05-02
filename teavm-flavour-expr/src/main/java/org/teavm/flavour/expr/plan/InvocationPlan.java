@@ -31,11 +31,7 @@ public class InvocationPlan extends Plan {
     private List<Plan> arguments = new ArrayList<>();
 
     public InvocationPlan(String className, String methodName, String methodDesc, Plan instance, Plan... arguments) {
-        this.className = className;
-        this.methodName = methodName;
-        this.methodDesc = methodDesc;
-        this.instance = instance;
-        this.arguments.addAll(Arrays.asList(arguments));
+        this(className, methodName, methodDesc, instance, Arrays.asList(arguments));
     }
 
     public InvocationPlan(String className, String methodName, String methodDesc, Plan instance,

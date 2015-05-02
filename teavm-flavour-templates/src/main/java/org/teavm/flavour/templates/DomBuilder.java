@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import org.teavm.dom.browser.Window;
-import org.teavm.dom.core.Attr;
 import org.teavm.dom.core.Document;
 import org.teavm.dom.core.Element;
 import org.teavm.dom.core.Node;
@@ -61,9 +60,10 @@ public class DomBuilder {
     }
 
     public DomBuilder attribute(String name, String value) {
-        Attr attr = document.createAttribute(name);
-        attr.setValue(value);
-        appendNode(attr);
+        if (stack.isEmpty()) {
+            throw new IllegalStateException("Can't set attribute to root node");
+        }
+        stack.peek().setAttribute(name, value);
         return this;
     }
 

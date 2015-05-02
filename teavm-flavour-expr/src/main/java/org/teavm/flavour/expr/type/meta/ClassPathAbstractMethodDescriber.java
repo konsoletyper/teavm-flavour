@@ -96,7 +96,7 @@ abstract class ClassPathAbstractMethodDescriber extends ClassPathAnnotationsDesc
 
     @Override
     public ValueType getRawReturnType() {
-        if (rawReturnType != null) {
+        if (rawReturnType == null) {
             if (!getJavaRawReturnType().equals(void.class)) {
                 rawReturnType = owner.repository.convertGenericType(getJavaRawReturnType());
             }

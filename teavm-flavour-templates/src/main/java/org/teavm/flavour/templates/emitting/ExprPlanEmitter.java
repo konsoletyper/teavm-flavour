@@ -71,6 +71,7 @@ import org.teavm.model.instructions.GetElementInstruction;
 import org.teavm.model.instructions.GetFieldInstruction;
 import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.instructions.InvocationType;
 import org.teavm.model.instructions.InvokeInstruction;
 import org.teavm.model.instructions.IsInstanceInstruction;
 import org.teavm.model.instructions.JumpInstruction;
@@ -110,7 +111,7 @@ class ExprPlanEmitter implements PlanVisitor {
     private void emitPerformMethod(ClassHolder cls, Plan plan) {
         MethodHolder method = new MethodHolder("perform", ValueType.parse(Object.class));
         method.setLevel(AccessLevel.PUBLIC);
-        Program program = new Program();
+        program = new Program();
         thisVar = program.createVariable();
         block = program.createBasicBlock();
         thisClassName = cls.getName();
@@ -133,34 +134,42 @@ class ExprPlanEmitter implements PlanVisitor {
         } else if (value instanceof Boolean) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setConstant((Boolean)value ? 1 : 0);
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Byte) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setConstant(((Byte)value).intValue());
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Short) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setConstant(((Short)value).intValue());
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Character) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setConstant(((Character)value).charValue());
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Integer) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setConstant((Integer)value);
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Float) {
             FloatConstantInstruction insn = new FloatConstantInstruction();
             insn.setConstant((Float)value);
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof Double) {
             DoubleConstantInstruction insn = new DoubleConstantInstruction();
             insn.setConstant((Double)value);
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         } else if (value instanceof String) {
             StringConstantInstruction insn = new StringConstantInstruction();
             insn.setConstant((String)value);
+            insn.setReceiver(var);
             block.getInstructions().add(insn);
         }
     }
@@ -171,7 +180,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         String lastClass = thisClassName;
         var = thisVar;
-        for (int i = context.classStack.size() - 1; i >= emitVar.depth; ++i) {
+        for (int i = context.classStack.size() - 1; i >= emitVar.depth; --i) {
             GetFieldInstruction insn = new GetFieldInstruction();
             insn.setFieldType(ValueType.object(context.classStack.get(i)));
             insn.setInstance(var);
@@ -188,6 +197,7 @@ class ExprPlanEmitter implements PlanVisitor {
         getVarInsn.setFieldType(emitVar.type);
         var = program.createVariable();
         getVarInsn.setReceiver(var);
+        block.getInstructions().add(getVarInsn);
     }
 
     @Override
@@ -464,6 +474,7 @@ class ExprPlanEmitter implements PlanVisitor {
         insn.getArguments().addAll(arguments);
         insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
                 plan.getMethodName() + plan.getMethodDesc())));
+        insn.setType(plan.getInstance() != null ? InvocationType.VIRTUAL : InvocationType.SPECIAL);
         if (insn.getMethod().getReturnType() != ValueType.VOID) {
             var = program.createVariable();
             insn.setReceiver(var);
@@ -491,6 +502,7 @@ class ExprPlanEmitter implements PlanVisitor {
         insn.setInstance(result);
         insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
                 "<init>" + plan.getMethodDesc())));
+        insn.setType(InvocationType.SPECIAL);
         insn.getArguments().addAll(arguments);
 
         block.getInstructions().add(insn);

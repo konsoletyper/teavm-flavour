@@ -1,0 +1,49 @@
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td><b>Receiver</b>:</td>
+        <td><std:text value="this.receiverName"></std:text></td>
+      </tr>
+      <tr>
+        <td><b>Address</b>:</td>
+        <td><std:text value="this.address"></std:text></td>
+      </tr>
+      <tr>
+        <td><b>Date</b>:</td>
+        <td><std:text value="this.date"></std:text></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>SKU</th>
+        <th>Product</th>
+        <th>Unit price</th>
+        <th>Amount</th>
+        <th>Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      <std:foreach var="item" index="index" in="this.items">
+        <tr>
+          <td><std:text value="index + 1"></std:text></td>
+          <td><std:text value="item.sku"></std:text></td>
+          <td><std:text value="item.productName"></std:text></td>
+          <td><std:text value="item.unitPrice"></std:text></td>
+          <td><std:text value="item.amount"></std:text></td>
+          <td><std:text value="item.price"></std:text></td>
+        </tr>
+      </std:foreach>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5">Total:</td>
+        <td><std:text value="this.totalPrice"></std:text></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
