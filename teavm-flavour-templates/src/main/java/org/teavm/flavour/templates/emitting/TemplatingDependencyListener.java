@@ -18,6 +18,7 @@ package org.teavm.flavour.templates.emitting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.FieldDependency;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.expr.ClassPathClassResolver;
+import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Templates;
@@ -37,6 +39,7 @@ import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
+import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 
@@ -92,23 +95,39 @@ class TemplatingDependencyListener implements DependencyListener {
             return null;
         }
         String path = annot.getValue("value").getString();
+        ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(
+                agent.getClassLoader());
+        ClassPathClassResolver classResolver = new ClassPathClassResolver(agent.getClassLoader());
+        ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(agent.getClassLoader());
+        Parser parser = new Parser(classRepository, classResolver, resourceProvider);
+        List<TemplateNode> fragment;
         try (InputStream input = agent.getClassLoader().getResourceAsStream(path)) {
             if (input == null) {
                 return null;
             }
-            ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(
-                    agent.getClassLoader());
-            ClassPathClassResolver classResolver = new ClassPathClassResolver(agent.getClassLoader());
-            ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(agent.getClassLoader());
-            Parser parser = new Parser(classRepository, classResolver, resourceProvider);
-            List<TemplateNode> fragment = parser.parse(new InputStreamReader(input, "UTF-8"), typeName);
-            parser.getDiagnostics();
-            return fragment;
+             fragment = parser.parse(new InputStreamReader(input, "UTF-8"), typeName);
         } catch (IOException e) {
             agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
                     "template " + path + " was not found", typeName);
             return null;
         }
+        if (!parser.getDiagnostics().isEmpty()) {
+            OffsetToLineMapper mapper = new OffsetToLineMapper();
+            try (Reader reader = new InputStreamReader(agent.getClassLoader().getResourceAsStream(path), "UTF-8")) {
+                mapper.prepare(reader);
+            } catch (IOException e) {
+                agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
+                        "template " + path + " was not found", typeName);
+                return null;
+            }
+            for (Diagnostic diagnostic : parser.getDiagnostics()) {
+                InstructionLocation textualLocation = new InstructionLocation(path,
+                        mapper.getLine(diagnostic.getStart()) + 1);
+                CallLocation diagnosticLocation = new CallLocation(location.getMethod(), textualLocation);
+                agent.getDiagnostics().error(diagnosticLocation, diagnostic.getMessage());
+            }
+        }
+        return fragment;
     }
 
     @Override

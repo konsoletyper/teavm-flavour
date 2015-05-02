@@ -27,16 +27,17 @@ public final class Templates {
     private Templates() {
     }
 
-    public static void bind(Object model, String id) {
-        bind(model, ((Window)JS.getGlobal()).getDocument().getElementById(id));
+    public static Component bind(Object model, String id) {
+        return bind(model, ((Window)JS.getGlobal()).getDocument().getElementById(id));
     }
 
-    public static void bind(Object model, HTMLElement element) {
+    public static Component bind(Object model, HTMLElement element) {
         Fragment fragment = create(model);
         Component component = fragment.create();
         Slot root = Slot.root(element);
         root.append(component.getSlot());
         component.render();
+        return component;
     }
 
     public static Fragment create(Object model) {

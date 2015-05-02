@@ -1,0 +1,24 @@
+table.data {
+    border-color: black;
+    border-width: 2px;
+    border-top-style: solid;
+    border-bottom-style:solid;
+    border-collapse: collapse;
+    background-color: rgb(245,245,245);
+}
+table.data td, table.data th {
+    padding-left: 0.6em;
+    padding-right: 0.6em;
+    padding-top: 0.15em;
+    padding-bottom: 0.15em;
+}
+table.data thead, table.data tbody, table.data tfoot {
+    border-color: black;
+    border-width: 1px;
+    border-top-style: solid;
+    border-bottom-style:solid;
+}
+
+table.data thead, table.data tfoot {
+    background-color: rgb(230,230,230);
+}

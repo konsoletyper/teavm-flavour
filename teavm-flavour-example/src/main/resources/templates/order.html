@@ -1,5 +1,5 @@
 <div>
-  <table>
+  <table class="form">
     <tbody>
       <tr>
         <td><b>Receiver</b>:</td>
@@ -16,7 +16,7 @@
     </tbody>
   </table>
 
-  <table>
+  <table class="data">
     <thead>
       <tr>
         <th>#</th>
@@ -30,19 +30,19 @@
     <tbody>
       <std:foreach var="item" index="index" in="this.items">
         <tr>
-          <td><std:text value="index + 1"></std:text></td>
+          <td align="right"><std:text value="index + 1"></std:text></td>
           <td><std:text value="item.sku"></std:text></td>
           <td><std:text value="item.productName"></std:text></td>
-          <td><std:text value="item.unitPrice"></std:text></td>
-          <td><std:text value="item.amount"></std:text></td>
-          <td><std:text value="item.price"></std:text></td>
+          <td align="right"><std:text value="'$' + item.unitPrice"></std:text></td>
+          <td align="right"><std:text value="item.amount"></std:text></td>
+          <td align="right"><std:text value="'$' + item.price"></std:text></td>
         </tr>
       </std:foreach>
     </tbody>
     <tfoot>
       <tr>
         <td colspan="5">Total:</td>
-        <td><std:text value="this.totalPrice"></std:text></td>
+        <td align="right"><std:text value="'$' + this.totalPrice"></std:text></td>
       </tr>
     </tfoot>
   </table>

@@ -569,6 +569,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             ArithmeticType type = getArithmeticType(kind);
             if (type != null) {
+                expr.setAttribute(plan);
                 return type;
             }
         }

@@ -62,8 +62,10 @@ public abstract class Space {
         upperNode += nodeCount;
         Space ancestor = this;
         while (ancestor != null) {
-            for (int i = ancestor.index + 1; i < ancestor.parent.childList.size(); ++i) {
-                ancestor.parent.childList.get(i).offsetNode(-nodeCount);
+            if (ancestor.parent != null) {
+                for (int i = ancestor.index + 1; i < ancestor.parent.childList.size(); ++i) {
+                    ancestor.parent.childList.get(i).offsetNode(-nodeCount);
+                }
             }
             ancestor.upperNode -= nodeCount;
             ancestor = ancestor.parent;

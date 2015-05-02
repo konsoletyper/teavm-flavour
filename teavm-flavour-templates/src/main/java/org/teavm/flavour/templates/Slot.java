@@ -35,7 +35,7 @@ public abstract class Slot extends Space {
 
     public void insert(Space space, int index) {
         if (space.getParent() != null) {
-            throw new IllegalArgumentException("The given space is already in already hosted by a slot");
+            throw new IllegalArgumentException("The given space is already hosted by a slot");
         }
 
         RootSlot root = getRoot();
@@ -55,7 +55,7 @@ public abstract class Slot extends Space {
         }
 
         int nodeCount = space.upperNode - space.lowerNode;
-        upperNode -= nodeCount;
+        space.upperNode -= nodeCount;
         Space ancestor = space;
         while (ancestor != null) {
             if (ancestor.parent != null) {
