@@ -529,6 +529,31 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         expr.setAttribute(new TypedPlan(new ConstantPlan(expr.getValue()), type));
     }
 
+    @Override
+    public void visit(TernaryConditionExpr<TypedPlan> expr) {
+        expr.getCondition().acceptVisitor(this);
+        convert(expr.getCondition(), Primitive.BOOLEAN);
+
+        expr.getConsequent().acceptVisitor(this);
+        expr.getAlternative().acceptVisitor(this);
+
+        ValueType a = expr.getConsequent().getAttribute().type;
+        ValueType b = expr.getAlternative().getAttribute().type;
+        ValueType type = commonSupertype(a, b);
+        if (type == null) {
+            expr.setAttribute(new TypedPlan(new ConstantPlan(nullType), nullTypeRef));
+            ValueTypeFormatter formatter = new ValueTypeFormatter();
+            error(expr, "Clauses of ternary conditional operator are not compatible: " +
+                    formatter.format(a) + " vs. " + formatter.format(b));
+            return;
+        }
+        convert(expr.getConsequent(), type);
+        convert(expr.getAlternative(), type);
+        TypedPlan plan = new TypedPlan(new ConditionalPlan(expr.getCondition().getAttribute().plan,
+                expr.getConsequent().getAttribute().plan, expr.getAlternative().getAttribute().plan), type);
+        expr.setAttribute(plan);
+    }
+
     private void ensureBooleanType(Expr<TypedPlan> expr) {
         convert(expr, Primitive.BOOLEAN);
     }
@@ -637,12 +662,16 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private BinaryPlanType getPlanType(BinaryOperation op) {
         switch (op) {
+            case ADD:
+                return BinaryPlanType.ADD;
             case SUBTRACT:
                 return BinaryPlanType.SUBTRACT;
             case MULTIPLY:
                 return BinaryPlanType.MULTIPLY;
             case DIVIDE:
                 return BinaryPlanType.DIVIDE;
+            case REMAINDER:
+                return BinaryPlanType.REMAINDER;
             case EQUAL:
                 return BinaryPlanType.EQUAL;
             case NOT_EQUAL:
@@ -835,6 +864,59 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type) +
                 ")" + typeToString(wrapper), null, plan.plan), wrapper);
     }
+
+    private ValueType commonSupertype(ValueType a, ValueType b) {
+        if (a instanceof Primitive && b instanceof Primitive) {
+            if (a == Primitive.BOOLEAN && b == Primitive.BOOLEAN) {
+                return Primitive.BOOLEAN;
+            } else if (a == Primitive.CHAR && b == Primitive.CHAR) {
+                return Primitive.CHAR;
+            }
+            int p = numericTypeToOrder(((Primitive)a).getKind());
+            int q = numericTypeToOrder(((Primitive)b).getKind());
+            if (p < 0 || q < 0) {
+                return null;
+            }
+            return orderedNumericTypes[Math.max(p, q)];
+        } else if (a instanceof Primitive) {
+            a = primitivesToWrappers.get(a);
+        } else if (b instanceof Primitive) {
+            b = primitivesToWrappers.get(b);
+        }
+
+        TypeUnifier unifier = createUnifier();
+        if (unifier.unify((GenericType)a, (GenericType)b, true)) {
+            return ((GenericType)a).substitute(unifier.getSubstitutions());
+        }
+        unifier = createUnifier();
+        if (unifier.unify((GenericType)b, (GenericType)a, true)) {
+            return ((GenericType)b).substitute(unifier.getSubstitutions());
+        }
+        return null;
+    }
+
+    private int numericTypeToOrder(PrimitiveKind kind) {
+        switch (kind) {
+            case BYTE:
+                return 0;
+            case SHORT:
+                return 1;
+            case INT:
+                return 2;
+            case LONG:
+                return 3;
+            case FLOAT:
+                return 4;
+            case DOUBLE:
+                return 5;
+            default:
+                break;
+        }
+        return -1;
+    }
+
+    private ValueType[] orderedNumericTypes = { Primitive.BYTE, Primitive.SHORT, Primitive.INT, Primitive.LONG,
+            Primitive.FLOAT, Primitive.DOUBLE };
 
     private Object getDefaultConstant(ValueType type) {
         if (type instanceof Primitive) {

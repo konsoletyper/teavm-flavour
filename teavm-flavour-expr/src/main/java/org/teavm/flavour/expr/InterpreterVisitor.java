@@ -499,6 +499,17 @@ class InterpreterVisitor implements PlanVisitor {
         }
     }
 
+    @Override
+    public void visit(ConditionalPlan plan) {
+        plan.getCondition().acceptVisitor(this);
+        Boolean condition = (Boolean)value;
+        if (condition) {
+            plan.getConsequent().acceptVisitor(this);
+        } else {
+            plan.getAlternative().acceptVisitor(this);
+        }
+    }
+
     private Class<?> decodeType(String type) {
         return new TypeDecoder(type).decode();
     }

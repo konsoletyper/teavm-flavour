@@ -4,7 +4,7 @@ table.data {
     border-top-style: solid;
     border-bottom-style:solid;
     border-collapse: collapse;
-    background-color: rgb(245,245,245);
+    background-color: rgb(250,250,250);
 }
 table.data td, table.data th {
     padding-left: 0.6em;
@@ -21,6 +21,13 @@ table.data thead, table.data tbody, table.data tfoot {
 table.data thead, table.data tfoot {
     background-color: rgb(230,230,230);
 }
+table.data tr.even {
+  background-color: rgb(250,250,250);
+}
+table.data tr.odd {
+  background-color: rgb(240,240,240);
+}
+
 
 a, span.action-link {
     color: blue;

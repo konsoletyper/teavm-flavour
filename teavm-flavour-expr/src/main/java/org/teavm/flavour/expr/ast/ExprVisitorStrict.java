@@ -39,4 +39,6 @@ public interface ExprVisitorStrict<T> {
     void visit(VariableExpr<T> expr);
 
     void visit(ConstantExpr<T> expr);
+
+    void visit(TernaryConditionExpr<T> expr);
 }

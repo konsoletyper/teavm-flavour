@@ -41,7 +41,21 @@ class ExprParser extends BaseParser<Holder> {
     }
 
     Rule Expression() {
-        return Or();
+        return TernaryCondition();
+    }
+
+    Rule TernaryCondition() {
+        Var<Integer> start = new Var<>();
+        return Sequence(
+            start.set(currentIndex()),
+            Or(),
+            Optional(
+                Keyword("?"),
+                Or(),
+                Keyword(":"),
+                TernaryCondition(),
+                push(wrap(new TernaryConditionExpr<>(pop(2).expr, pop(1).expr, pop().expr))),
+                setLocations(start)));
     }
 
     Rule Or() {

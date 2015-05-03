@@ -223,6 +223,15 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
         assertThat(d.getEnd(), is(40));
     }
 
+    @Test
+    public void reportsIncompatibleTernary() {
+        Diagnostic d = parseExpr(StringComputation.class, "object == null ? stringValue : foo").get(0);
+        assertThat(d.getMessage(), is("Clauses of ternary conditional operator are not compatible:" +
+                " java.lang.String vs. org.teavm.flavour.expr.test.BaseEvaluatorTest$Foo"));
+        assertThat(d.getStart(), is(0));
+        assertThat(d.getEnd(), is(34));
+    }
+
     private List<Diagnostic> parseExpr(Class<?> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")

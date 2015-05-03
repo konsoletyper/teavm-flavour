@@ -29,7 +29,7 @@
     </thead>
     <tbody>
       <std:foreach var="item" index="index" in="this.items">
-        <tr>
+        <tr std:class="index % 2 == 0 ? 'even' : 'odd'">
           <td align="right"><std:text value="index + 1"></std:text></td>
           <td><std:text value="item.sku"></std:text></td>
           <td><std:text value="item.productName"></std:text></td>

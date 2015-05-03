@@ -33,19 +33,21 @@ public final class Client {
         order.setReceiverName("John Doe");
         order.setDate(new Date());
 
-        OrderItem item = new OrderItem();
-        item.setAmount(2);
-        item.setSku("009876");
-        item.setProductName("Rubber boots");
-        item.setUnitPrice(new BigDecimal("30.00"));
-        order.getItems().add(item);
+        for (int i = 0; i < 5; ++i) {
+            OrderItem item = new OrderItem();
+            item.setAmount(2);
+            item.setSku("009876");
+            item.setProductName("Rubber boots");
+            item.setUnitPrice(new BigDecimal("30.00"));
+            order.getItems().add(item);
 
-        OrderItem item2 = new OrderItem();
-        item2.setAmount(3);
-        item2.setSku("005555");
-        item2.setProductName("Plastic umbrella");
-        item2.setUnitPrice(new BigDecimal("20.00"));
-        order.getItems().add(item2);
+            OrderItem item2 = new OrderItem();
+            item2.setAmount(3);
+            item2.setSku("005555");
+            item2.setProductName("Plastic umbrella");
+            item2.setUnitPrice(new BigDecimal("20.00"));
+            order.getItems().add(item2);
+        }
 
         Templates.bind(order, "application-content");
     }

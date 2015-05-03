@@ -351,6 +351,21 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(c.compute(), is(3));
     }
 
+    @Test
+    public void evaluatesTernaryCondition() {
+        IntComputation c = parseExpr(IntComputation.class, "stringValue.length() > 3 ? byteValue : intArray[0]");
+
+        vars.stringValue("a");
+        vars.byteValue((byte)2);
+        vars.intArray(new int[] { 3 });
+        assertThat(c.compute(), is(3));
+
+        vars.stringValue("abcd");
+        vars.byteValue((byte)2);
+        vars.intArray(new int[] { 3 });
+        assertThat(c.compute(), is(2));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")

@@ -217,6 +217,20 @@ public class PlanFormatter implements PlanVisitor {
         --indentLevel;
     }
 
+    @Override
+    public void visit(ConditionalPlan plan) {
+        sb.append("[if");
+        ++indentLevel;
+        newLine();
+        plan.getCondition().acceptVisitor(this);
+        newLine();
+        plan.getConsequent().acceptVisitor(this);
+        newLine();
+        plan.getAlternative().acceptVisitor(this);
+        sb.append(']');
+        --indentLevel;
+    }
+
     private void printIndent() {
         for (int i = 0; i < indentLevel; ++i) {
             sb.append("  ");

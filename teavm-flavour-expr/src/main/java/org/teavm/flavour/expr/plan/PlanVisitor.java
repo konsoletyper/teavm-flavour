@@ -53,4 +53,6 @@ public interface PlanVisitor {
     void visit(InvocationPlan plan);
 
     void visit(ConstructionPlan plan);
+
+    void visit(ConditionalPlan plan);
 }

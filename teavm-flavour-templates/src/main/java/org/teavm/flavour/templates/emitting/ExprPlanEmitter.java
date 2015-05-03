@@ -25,6 +25,7 @@ import org.teavm.flavour.expr.plan.BinaryPlanType;
 import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
 import org.teavm.flavour.expr.plan.CastPlan;
 import org.teavm.flavour.expr.plan.CastToIntegerPlan;
+import org.teavm.flavour.expr.plan.ConditionalPlan;
 import org.teavm.flavour.expr.plan.ConstantPlan;
 import org.teavm.flavour.expr.plan.ConstructionPlan;
 import org.teavm.flavour.expr.plan.FieldPlan;
@@ -523,6 +524,51 @@ class ExprPlanEmitter implements PlanVisitor {
 
         block.getInstructions().add(insn);
         var = result;
+    }
+
+    @Override
+    public void visit(ConditionalPlan plan) {
+        plan.getCondition().acceptVisitor(this);
+        valueToBranching();
+        BranchingConsumer branching = this.branching;
+        this.branching = null;
+
+        BasicBlock thenBlock = program.createBasicBlock();
+        BasicBlock elseBlock = program.createBasicBlock();
+        BasicBlock joint = program.createBasicBlock();
+
+        block = thenBlock;
+        plan.getConsequent().acceptVisitor(this);
+        requireValue();
+        JumpInstruction jump = new JumpInstruction();
+        jump.setTarget(joint);
+        block.getInstructions().add(jump);
+        Variable trueVar = var;
+
+        block = elseBlock;
+        plan.getAlternative().acceptVisitor(this);
+        requireValue();
+        jump = new JumpInstruction();
+        jump.setTarget(joint);
+        block.getInstructions().add(jump);
+        Variable falseVar = var;
+
+        branching.setThen(thenBlock);
+        branching.setElse(elseBlock);
+
+        block = joint;
+        var = program.createVariable();
+        Phi phi = new Phi();
+        Incoming trueIncoming = new Incoming();
+        trueIncoming.setSource(thenBlock);
+        trueIncoming.setValue(trueVar);
+        phi.getIncomings().add(trueIncoming);
+        Incoming falseIncoming = new Incoming();
+        falseIncoming.setSource(elseBlock);
+        falseIncoming.setValue(falseVar);
+        phi.getIncomings().add(falseIncoming);
+        phi.setReceiver(var);
+        block.getPhis().add(phi);
     }
 
     void valueToBranching() {

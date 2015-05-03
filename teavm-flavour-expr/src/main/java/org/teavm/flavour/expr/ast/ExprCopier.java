@@ -110,6 +110,18 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         copyLocation(expr);
     }
 
+    @Override
+    public void visit(TernaryConditionExpr<? extends Object> expr) {
+        expr.getCondition().acceptVisitor(this);
+        Expr<T> condition = result;
+        expr.getConsequent().acceptVisitor(this);
+        Expr<T> consequent = result;
+        expr.getAlternative().acceptVisitor(this);
+        Expr<T> alternative = result;
+        result = new TernaryConditionExpr<>(condition, consequent, alternative);
+        copyLocation(expr);
+    }
+
     private void copyLocation(Expr<? extends Object> expr) {
         result.setStart(expr.getStart());
         result.setEnd(expr.getEnd());

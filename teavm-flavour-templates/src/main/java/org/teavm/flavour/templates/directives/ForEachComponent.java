@@ -67,13 +67,14 @@ public class ForEachComponent<T> extends AbstractComponent {
 
     @Override
     public void render() {
-        List<T> newComputedCollection = new ArrayList<>();
+        List<T> newComputedCollection;
         Iterable<T> items = collection.perform();
         if (items instanceof Collection<?>) {
             @SuppressWarnings("unchecked")
             Collection<T> safeItems = (Collection<T>)(Collection<?>)items;
-            newComputedCollection.addAll(safeItems);
+            newComputedCollection = new ArrayList<>(safeItems);
         } else {
+            newComputedCollection = new ArrayList<>();
             for (T item : items) {
                 newComputedCollection.add(item);
             }
