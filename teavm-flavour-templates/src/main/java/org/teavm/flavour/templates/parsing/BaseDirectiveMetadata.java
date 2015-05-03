@@ -15,17 +15,15 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
  *
  * @author Alexey Andreev
  */
-class DirectiveMetadata extends BaseDirectiveMetadata {
-    MethodDescriber constructor;
-    MethodDescriber contentSetter;
-    boolean ignoreContent;
-    final Map<String, DirectiveAttributeMetadata> attributes = new HashMap<>();
+class BaseDirectiveMetadata {
+    ClassDescriber cls;
+    String[] nameRules;
+    MethodDescriber nameSetter;
 }

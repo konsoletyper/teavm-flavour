@@ -16,16 +16,13 @@
 package org.teavm.flavour.templates.parsing;
 
 import org.teavm.flavour.expr.type.ValueType;
-import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
  *
  * @author Alexey Andreev
  */
-class AttributeDirectiveMetadata {
-    ClassDescriber cls;
-    String name;
+class AttributeDirectiveMetadata extends BaseDirectiveMetadata {
     MethodDescriber constructor;
     DirectiveAttributeType type;
     MethodDescriber setter;

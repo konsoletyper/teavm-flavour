@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.teavm.dom.browser.Window;
 import org.teavm.dom.html.HTMLDocument;
+import org.teavm.flavour.directives.standard.ForEachComponent;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.DomBuilder;
@@ -26,7 +27,6 @@ import org.teavm.flavour.templates.DomFragment;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Variable;
-import org.teavm.flavour.templates.directives.ForEachComponent;
 import org.teavm.jso.JS;
 
 /**

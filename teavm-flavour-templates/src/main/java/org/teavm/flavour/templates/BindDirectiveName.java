@@ -13,19 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.parsing;
+package org.teavm.flavour.templates;
 
-import java.util.HashMap;
-import java.util.Map;
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author Alexey Andreev
  */
-class DirectiveMetadata extends BaseDirectiveMetadata {
-    MethodDescriber constructor;
-    MethodDescriber contentSetter;
-    boolean ignoreContent;
-    final Map<String, DirectiveAttributeMetadata> attributes = new HashMap<>();
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface BindDirectiveName {
 }

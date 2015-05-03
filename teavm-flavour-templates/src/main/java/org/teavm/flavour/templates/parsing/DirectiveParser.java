@@ -36,7 +36,9 @@ import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.AnnotationBoolean;
 import org.teavm.flavour.expr.type.meta.AnnotationDescriber;
+import org.teavm.flavour.expr.type.meta.AnnotationList;
 import org.teavm.flavour.expr.type.meta.AnnotationString;
+import org.teavm.flavour.expr.type.meta.AnnotationValue;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
@@ -45,6 +47,7 @@ import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
@@ -84,7 +87,7 @@ class DirectiveParser {
 
     private DirectiveMetadata parseElement(ClassDescriber cls, AnnotationDescriber annot) {
         DirectiveMetadata metadata = new DirectiveMetadata();
-        metadata.name = ((AnnotationString)annot.getValue("name")).value;
+        metadata.nameRules = parseNames(annot);
         metadata.cls = cls;
 
         parseConstructor(metadata);
@@ -99,7 +102,7 @@ class DirectiveParser {
 
     private AttributeDirectiveMetadata parseAttribute(ClassDescriber cls, AnnotationDescriber annot) {
         AttributeDirectiveMetadata metadata = new AttributeDirectiveMetadata();
-        metadata.name = ((AnnotationString)annot.getValue("name")).value;
+        metadata.nameRules = parseNames(annot);
         metadata.cls = cls;
 
         parseAttributeConstructor(metadata);
@@ -112,6 +115,15 @@ class DirectiveParser {
             return null;
         }
         return metadata;
+    }
+
+    private String[] parseNames(AnnotationDescriber annot) {
+        List<AnnotationValue> names = ((AnnotationList)annot.getValue("name")).value;
+        String[] result = new String[names.size()];
+        for (int i = 0; i < result.length; ++i) {
+            result[i] = ((AnnotationString)names.get(i)).value;
+        }
+        return result;
     }
 
     private void parseConstructor(DirectiveMetadata metadata) {
@@ -193,10 +205,12 @@ class DirectiveParser {
         Set<AnnotationDescriber> bindings = new HashSet<>();
         parseBindContent(metadata, method, bindings);
         parseBindAttribute(metadata, method, bindings);
+        parseBindName(metadata, method);
     }
 
     private void parseAttributeMethod(AttributeDirectiveMetadata metadata, GenericMethod method) {
         parseBindAttributeContent(metadata, method);
+        parseBindName(metadata, method);
     }
 
     private void parseBindContent(DirectiveMetadata metadata, GenericMethod method,
@@ -324,6 +338,33 @@ class DirectiveParser {
         }
 
         return false;
+    }
+
+    private void parseBindName(BaseDirectiveMetadata directive, GenericMethod method) {
+        AnnotationDescriber annot = method.getDescriber().getAnnotation(BindDirectiveName.class.getName());
+        if (annot == null) {
+            return;
+        }
+
+        if (directive.nameSetter != null) {
+            error("Method " + methodToString(method.getDescriber()) + " declares binding to annotation name " +
+                    "that is already bound to " + methodToString(directive.nameSetter));
+            return;
+        }
+
+        ValueType[] args = method.getActualArgumentTypes();
+        if (args.length != 1) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " +
+                    BindDirectiveName.class.getName() + " and therefore must take exactly 1 argument, but " +
+                    "takes " + args.length);
+            return;
+        }
+
+        if (!args[0].equals(new GenericClass(String.class.getName()))) {
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
+                    "mapped to directive's name: " + args[0]);
+        }
+        directive.nameSetter = method.getDescriber();
     }
 
     private String methodToString(MethodDescriber method) {

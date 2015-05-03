@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.directives;
+package org.teavm.flavour.directives.events;
 
 import org.teavm.dom.events.EventListener;
 import org.teavm.dom.events.MouseEvent;
@@ -24,14 +24,20 @@ import org.teavm.flavour.templates.*;
  *
  * @author Alexey Andreev
  */
-@BindAttributeDirective(name = "click")
-public class ClickBinder implements Renderable {
+@BindAttributeDirective(name = { "click", "dblclick", "mouseup", "mousedown" })
+public class MouseBinder implements Renderable {
     private HTMLElement element;
+    private String eventName;
     private Action action;
     private boolean bound;
 
-    public ClickBinder(HTMLElement element) {
+    public MouseBinder(HTMLElement element) {
         this.element = element;
+    }
+
+    @BindDirectiveName
+    public void setEventName(String eventName) {
+        this.eventName = eventName;
     }
 
     @BindContent
@@ -43,7 +49,7 @@ public class ClickBinder implements Renderable {
     public void render() {
         if (!bound) {
             bound = true;
-            element.addEventListener("click", clickListener);
+            element.addEventListener(eventName, clickListener);
         }
     }
 
@@ -51,7 +57,7 @@ public class ClickBinder implements Renderable {
     public void destroy() {
         if (bound) {
             bound = false;
-            element.removeEventListener("click", clickListener);
+            element.removeEventListener(eventName, clickListener);
         }
     }
 

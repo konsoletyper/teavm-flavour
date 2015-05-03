@@ -68,6 +68,8 @@ public class Parser {
     private ClassDescriberRepository classRepository;
     private ImportingClassResolver classResolver;
     private ResourceProvider resourceProvider;
+    private Map<String, List<DirectiveMetadata>> avaliableDirectives = new HashMap<>();
+    private Map<String, List<AttributeDirectiveMetadata>> avaliableAttrDirectives = new HashMap<>();
     private Map<String, DirectiveMetadata> directives = new HashMap<>();
     private Map<String, AttributeDirectiveMetadata> attrDirectives = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
@@ -92,7 +94,9 @@ public class Parser {
 
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         source = new Source(reader);
-        use(source, "std", "org.teavm.flavour.templates.directives");
+        use(source, "std", "org.teavm.flavour.directives.standard");
+        use(source, "event", "org.teavm.flavour.directives.events");
+        use(source, "attr", "org.teavm.flavour.directives.attributes");
         pushVar("this", new GenericClass(className));
         position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();
@@ -127,7 +131,10 @@ public class Parser {
             if (startTag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
                 parseProcessingInstruction(startTag);
             } else if (startTag.getStartTagType() == StartTagType.NORMAL) {
-                result.add(parseElement(tag.getElement()));
+                TemplateNode node = parseElement(tag.getElement());
+                if (node != null) {
+                    result.add(node);
+                }
             }
         }
     }
@@ -176,13 +183,16 @@ public class Parser {
         String prefix = elem.getName().substring(0, prefixLength);
         String name = elem.getName().substring(prefixLength + 1);
         String fullName = prefix + ":" + name;
-        DirectiveMetadata directiveMeta = directives.get(fullName);
+        DirectiveMetadata directiveMeta = resolveDirective(prefix, name);
         if (directiveMeta == null) {
             error(elem.getStartTag().getNameSegment(), "Undefined directive " + fullName);
             return null;
         }
 
-        DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName());
+        DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
+        if (directiveMeta.nameSetter != null) {
+            directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
+        }
 
         TypeUnifier unifier = new TypeUnifier(classRepository);
         Map<String, ValueType> declaredVars = new HashMap<>();
@@ -274,13 +284,16 @@ public class Parser {
         String prefix = attr.getName().substring(0, prefixLength);
         String name = attr.getName().substring(prefixLength + 1);
         String fullName = prefix + ":" + name;
-        AttributeDirectiveMetadata directiveMeta = attrDirectives.get(fullName);
+        AttributeDirectiveMetadata directiveMeta = resolveAttrDirective(prefix, name);
         if (directiveMeta == null) {
             error(attr.getNameSegment(), "Undefined directive " + fullName);
             return null;
         }
 
-        AttributeDirectiveBinding directive = new AttributeDirectiveBinding(directiveMeta.cls.getName());
+        AttributeDirectiveBinding directive = new AttributeDirectiveBinding(directiveMeta.cls.getName(), name);
+        if (directiveMeta.nameSetter != null) {
+            directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
+        }
 
         TypeUnifier unifier = new TypeUnifier(classRepository);
         MethodDescriber setter = directiveMeta.setter;
@@ -369,6 +382,57 @@ public class Parser {
         }
     }
 
+    private DirectiveMetadata resolveDirective(String prefix, String name) {
+        String fullName = prefix + ":" + name;
+        DirectiveMetadata directive = directives.get(fullName);
+        if (directive == null) {
+            List<DirectiveMetadata> byPrefix = avaliableDirectives.get(prefix);
+            if (byPrefix != null) {
+                directive: for (DirectiveMetadata testDirective : byPrefix) {
+                    for (String rule : testDirective.nameRules) {
+                        if (matchRule(rule, name)) {
+                            directive = testDirective;
+                            break directive;
+                        }
+                    }
+                }
+            }
+            directives.put(fullName, directive);
+        }
+        return directive;
+    }
+
+    private AttributeDirectiveMetadata resolveAttrDirective(String prefix, String name) {
+        String fullName = prefix + ":" + name;
+        AttributeDirectiveMetadata directive = attrDirectives.get(fullName);
+        if (directive == null) {
+            List<AttributeDirectiveMetadata> byPrefix = avaliableAttrDirectives.get(prefix);
+            if (byPrefix != null) {
+                directive: for (AttributeDirectiveMetadata testDirective : byPrefix) {
+                    for (String rule : testDirective.nameRules) {
+                        if (matchRule(rule, name)) {
+                            directive = testDirective;
+                            break directive;
+                        }
+                    }
+                }
+            }
+            attrDirectives.put(fullName, directive);
+        }
+        return directive;
+    }
+
+    private boolean matchRule(String rule, String name) {
+        int index = rule.indexOf('*');
+        if (index < 0) {
+            return name.equals(rule);
+        }
+        String prefix = rule.substring(0, index);
+        String suffix = rule.substring(index + 1);
+        return name.startsWith(prefix) && name.endsWith(suffix) &&
+                prefix.length() + suffix.length() < name.length();
+    }
+
     private void parseProcessingInstruction(StartTag tag) {
         if (tag.getName().equals("?import")) {
             parseImport(tag);
@@ -411,6 +475,8 @@ public class Parser {
                 return;
             }
             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+            List<DirectiveMetadata> directiveList = new ArrayList<>();
+            List<AttributeDirectiveMetadata> attributeDirectiveList = new ArrayList<>();
             while (true) {
                 String line = reader.readLine();
                 if (line == null) {
@@ -432,12 +498,14 @@ public class Parser {
                 Object directiveMetadata = directiveParser.parse(cls);
                 if (directiveMetadata instanceof DirectiveMetadata) {
                     DirectiveMetadata elemDirectiveMeta = (DirectiveMetadata)directiveMetadata;
-                    directives.put(prefix + ":" + elemDirectiveMeta.name, elemDirectiveMeta);
+                    directiveList.add(elemDirectiveMeta);
                 } else if (directiveMetadata instanceof AttributeDirectiveMetadata) {
                     AttributeDirectiveMetadata attrDirectiveMeta = (AttributeDirectiveMetadata)directiveMetadata;
-                    attrDirectives.put(prefix + ":" + attrDirectiveMeta.name, attrDirectiveMeta);
+                    attributeDirectiveList.add(attrDirectiveMeta);
                 }
             }
+            avaliableDirectives.put(prefix, directiveList);
+            avaliableAttrDirectives.put(prefix, attributeDirectiveList);
         } catch (IOException e) {
             throw new RuntimeException("IO exception occured parsing HTML input", e);
         }

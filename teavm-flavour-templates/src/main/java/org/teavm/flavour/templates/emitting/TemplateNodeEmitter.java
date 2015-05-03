@@ -289,6 +289,11 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             emitContent(cls, directive, block, thisVar, componentVar);
         }
 
+        if (directive.getDirectiveNameMethodName() != null) {
+            emitDirectiveName(directive.getClassName(), directive.getDirectiveNameMethodName(), directive.getName(),
+                    block, componentVar);
+        }
+
         ExitInstruction exit = new ExitInstruction();
         exit.setValueToReturn(componentVar);
         block.getInstructions().add(exit);
@@ -337,6 +342,11 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
         for (DirectiveActionBinding action : directive.getActions()) {
             emitAction(cls, action, block, thisVar, componentVar);
+        }
+
+        if (directive.getDirectiveNameMethodName() != null) {
+            emitDirectiveName(directive.getClassName(), directive.getDirectiveNameMethodName(), directive.getName(),
+                    block, componentVar);
         }
 
         ExitInstruction exit = new ExitInstruction();
@@ -526,6 +536,23 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
                 ValueType.parse(Fragment.class), ValueType.VOID));
         setContent.getArguments().add(contentVar);
         block.getInstructions().add(setContent);
+    }
+
+    private void emitDirectiveName(String className, String methodName, String directiveName, BasicBlock block,
+            Variable componentVar) {
+        Program program = block.getProgram();
+        Variable nameVar = program.createVariable();
+        StringConstantInstruction nameInsn = new StringConstantInstruction();
+        nameInsn.setReceiver(nameVar);
+        nameInsn.setConstant(directiveName);
+        block.getInstructions().add(nameInsn);
+
+        InvokeInstruction setName = new InvokeInstruction();
+        setName.setInstance(componentVar);
+        setName.setType(InvocationType.VIRTUAL);
+        setName.setMethod(new MethodReference(className, methodName, ValueType.parse(String.class), ValueType.VOID));
+        setName.getArguments().add(nameVar);
+        block.getInstructions().add(setName);
     }
 
     private Variable stringConstant(String value) {

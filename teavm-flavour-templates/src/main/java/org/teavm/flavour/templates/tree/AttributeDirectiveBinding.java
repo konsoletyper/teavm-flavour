@@ -24,16 +24,39 @@ import java.util.List;
  */
 public class AttributeDirectiveBinding {
     private String className;
+    private String name;
+    private String directiveNameMethodName;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
     private List<DirectiveComputationBinding> computations = new ArrayList<>();
     private List<DirectiveActionBinding> actions = new ArrayList<>();
 
-    public AttributeDirectiveBinding(String className) {
+    public AttributeDirectiveBinding(String className, String name) {
         this.className = className;
+        this.name = name;
     }
 
     public String getClassName() {
         return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDirectiveNameMethodName() {
+        return directiveNameMethodName;
+    }
+
+    public void setDirectiveNameMethodName(String directiveNameMethodName) {
+        this.directiveNameMethodName = directiveNameMethodName;
     }
 
     public List<DirectiveVariableBinding> getVariables() {

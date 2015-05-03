@@ -29,15 +29,15 @@
     </thead>
     <tbody>
       <std:foreach var="item" index="index" in="this.items">
-        <tr std:class="index % 2 == 0 ? 'even' : 'odd'">
+        <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
           <td align="right"><std:text value="index + 1"></std:text></td>
           <td><std:text value="item.sku"></std:text></td>
           <td><std:text value="item.productName"></std:text></td>
           <td align="right"><std:text value="'$' + item.unitPrice"></std:text></td>
           <td>
-            <span class="action-link" std:click="item.more()">more</span>
+            <span class="action-link" event:click="item.more()">more</span>
             <std:if condition="item.amount > 1">
-                <span class="action-link" std:click="item.less()">less</span>
+                <span class="action-link" event:click="item.less()">less</span>
             </std:if>
           </td>
           <td align="right"><std:text value="item.amount"></std:text></td>

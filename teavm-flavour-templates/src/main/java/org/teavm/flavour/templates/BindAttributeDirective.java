@@ -27,7 +27,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface BindAttributeDirective {
-    String name();
+    String[] name();
 
     String[] elements() default {};
 }

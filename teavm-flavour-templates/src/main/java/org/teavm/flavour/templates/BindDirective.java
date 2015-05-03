@@ -29,5 +29,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Documented
 public @interface BindDirective {
-    String name();
+    String[] name();
 }
