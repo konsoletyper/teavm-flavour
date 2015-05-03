@@ -22,7 +22,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
+import org.teavm.flavour.templates.DomFragment;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldHolder;
+import org.teavm.model.FieldReference;
+import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
+import org.teavm.model.Program;
 import org.teavm.model.ValueType;
+import org.teavm.model.Variable;
+import org.teavm.model.instructions.ExitInstruction;
+import org.teavm.model.instructions.InvocationType;
+import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.PutFieldInstruction;
 
 /**
  *
@@ -31,13 +45,24 @@ import org.teavm.model.ValueType;
 class EmitContext {
     DependencyAgent dependencyAgent;
     List<String> classStack = new ArrayList<>();
+    List<Map<String, EmittedVariable>> boundVariableStack = new ArrayList<>();
     Map<String, Deque<EmittedVariable>> variables = new HashMap<>();
-    FragmentEmitter fragmentEmitter;
-    ExprPlanEmitter exprEmitter;
+
+    public void pushBoundVars() {
+        boundVariableStack.add(new HashMap<String, EmittedVariable>());
+    }
+
+    public Map<String, EmittedVariable> popBoundVars() {
+        Map<String, EmittedVariable> vars = boundVariableStack.get(boundVariableStack.size() - 1);
+        boundVariableStack.remove(boundVariableStack.size() - 1);
+        return vars;
+    }
 
     public EmittedVariable getVariable(String name) {
         Deque<EmittedVariable> stack = variables.get(name);
-        return stack != null && !stack.isEmpty() ? stack.peek() : null;
+        EmittedVariable var = stack != null && !stack.isEmpty() ? stack.peek() : null;
+        boundVariableStack.get(boundVariableStack.size() - 1).put(name, var);
+        return var;
     }
 
     public void addVariable(String name, ValueType type) {
@@ -61,5 +86,39 @@ class EmitContext {
                 variables.remove(name);
             }
         }
+    }
+
+    void addConstructor(ClassHolder cls) {
+        String ownerType = classStack.get(classStack.size() - 1);
+        FieldHolder ownerField = new FieldHolder("this$owner");
+        ownerField.setType(ValueType.object(ownerType));
+        ownerField.setLevel(AccessLevel.PUBLIC);
+        cls.addField(ownerField);
+
+        MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
+        ctor.setLevel(AccessLevel.PUBLIC);
+        Program prog = new Program();
+        Variable thisVar = prog.createVariable();
+        Variable ownerVar = prog.createVariable();
+        BasicBlock block = prog.createBasicBlock();
+
+        InvokeInstruction invokeSuper = new InvokeInstruction();
+        invokeSuper.setInstance(thisVar);
+        invokeSuper.setMethod(new MethodReference(DomFragment.class.getName(), "<init>", ValueType.VOID));
+        invokeSuper.setType(InvocationType.SPECIAL);
+        block.getInstructions().add(invokeSuper);
+
+        PutFieldInstruction putOwner = new PutFieldInstruction();
+        putOwner.setInstance(thisVar);
+        putOwner.setField(new FieldReference(cls.getName(), "this$owner"));
+        putOwner.setFieldType(ValueType.object(ownerType));
+        putOwner.setValue(ownerVar);
+        block.getInstructions().add(putOwner);
+
+        ExitInstruction exit = new ExitInstruction();
+        block.getInstructions().add(exit);
+
+        ctor.setProgram(prog);
+        cls.addMethod(ctor);
     }
 }

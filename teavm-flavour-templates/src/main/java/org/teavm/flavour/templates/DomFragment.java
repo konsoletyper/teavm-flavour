@@ -28,6 +28,7 @@ public abstract class DomFragment implements Fragment {
             private List<Renderable> renderables;
             @Override
             public void render() {
+                update();
                 if (renderables == null) {
                     DomBuilder builder = new DomBuilder(getSlot());
                     buildDom(builder);
@@ -48,6 +49,9 @@ public abstract class DomFragment implements Fragment {
                 super.destroy();
             }
         };
+    }
+
+    protected void update() {
     }
 
     protected abstract void buildDom(DomBuilder builder);

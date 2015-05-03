@@ -67,9 +67,7 @@ public class TemplateEmitter {
         context.classStack.add(cls.getName());
         context.addVariable("this", ValueType.object(modelClassName));
         context.dependencyAgent = dependencyAgent;
-        context.exprEmitter = new ExprPlanEmitter(context);
-        context.fragmentEmitter = new FragmentEmitter(context);
-        return context.fragmentEmitter.emitTemplate(fragment);
+        return new FragmentEmitter(context).emitTemplate(fragment);
     }
 
     private void emitConstructor(ClassHolder cls, String modelClassName, String innerName) {

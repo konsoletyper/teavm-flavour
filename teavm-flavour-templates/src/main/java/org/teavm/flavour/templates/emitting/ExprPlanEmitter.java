@@ -103,7 +103,7 @@ class ExprPlanEmitter implements PlanVisitor {
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(Computation.class.getName());
         cls.setLevel(AccessLevel.PUBLIC);
-        context.fragmentEmitter.addConstructor(cls);
+        context.addConstructor(cls);
         emitPerformMethod(cls, plan, true);
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
@@ -114,7 +114,7 @@ class ExprPlanEmitter implements PlanVisitor {
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(Action.class.getName());
         cls.setLevel(AccessLevel.PUBLIC);
-        context.fragmentEmitter.addConstructor(cls);
+        context.addConstructor(cls);
         emitPerformMethod(cls, plan, false);
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
@@ -195,7 +195,8 @@ class ExprPlanEmitter implements PlanVisitor {
 
         String lastClass = thisClassName;
         var = thisVar;
-        for (int i = context.classStack.size() - 1; i >= emitVar.depth; --i) {
+        int bottom = context.classStack.size() - 2;
+        for (int i = context.classStack.size() - 1; i >= bottom; --i) {
             GetFieldInstruction insn = new GetFieldInstruction();
             insn.setFieldType(ValueType.object(context.classStack.get(i)));
             insn.setInstance(var);
@@ -207,7 +208,7 @@ class ExprPlanEmitter implements PlanVisitor {
         }
 
         GetFieldInstruction getVarInsn = new GetFieldInstruction();
-        getVarInsn.setField(new FieldReference(lastClass, "var$" + plan.getName()));
+        getVarInsn.setField(new FieldReference(lastClass, "cache$" + plan.getName()));
         getVarInsn.setInstance(var);
         getVarInsn.setFieldType(emitVar.type);
         var = program.createVariable();

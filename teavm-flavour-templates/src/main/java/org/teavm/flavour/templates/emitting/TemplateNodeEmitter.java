@@ -206,7 +206,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         fragmentCls.getInterfaces().add(Fragment.class.getName());
 
         emitDirectiveFields(fragmentCls, node.getVariables());
-        context.fragmentEmitter.addConstructor(fragmentCls);
+        context.addConstructor(fragmentCls);
         emitDirectiveWorker(fragmentCls, node);
 
         context.dependencyAgent.submitClass(fragmentCls);
@@ -220,7 +220,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         fragmentCls.getInterfaces().add(Modifier.class.getName());
 
         emitDirectiveFields(fragmentCls, node.getVariables());
-        context.fragmentEmitter.addConstructor(fragmentCls);
+        context.addConstructor(fragmentCls);
         emitAttributeDirectiveWorker(fragmentCls, node);
 
         context.dependencyAgent.submitClass(fragmentCls);
@@ -381,7 +381,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(org.teavm.flavour.templates.Variable.class.getName());
 
-        context.fragmentEmitter.addConstructor(cls);
+        context.addConstructor(cls);
 
         MethodHolder setMethod = new MethodHolder("set", ValueType.parse(Object.class), ValueType.VOID);
         setMethod.setLevel(AccessLevel.PUBLIC);
@@ -454,13 +454,13 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private String emitComputationClass(DirectiveComputationBinding computation) {
-        return context.exprEmitter.emitComputation(computation.getComputationPlan().getPlan());
+        return new ExprPlanEmitter(context).emitComputation(computation.getComputationPlan().getPlan());
     }
 
     private void emitAction(ClassHolder cls, DirectiveActionBinding action, BasicBlock block,
             Variable thisVar, Variable componentVar) {
         Program program = block.getProgram();
-        String actionClass = context.exprEmitter.emitAction(action.getValue());
+        String actionClass = new ExprPlanEmitter(context).emitAction(action.getValue());
 
         Variable actionVar = program.createVariable();
         ConstructInstruction constructAction = new ConstructInstruction();
@@ -496,7 +496,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     private void emitContent(ClassHolder cls, DirectiveBinding directive, BasicBlock block, Variable thisVar,
             Variable componentVar) {
         Program program = block.getProgram();
-        String contentClass = context.fragmentEmitter.emitTemplate(directive.getContentNodes());
+        String contentClass = new FragmentEmitter(context).emitTemplate(directive.getContentNodes());
 
         Variable contentVar = program.createVariable();
         ConstructInstruction constructVar = new ConstructInstruction();
