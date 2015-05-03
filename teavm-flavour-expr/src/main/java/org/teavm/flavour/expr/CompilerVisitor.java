@@ -327,6 +327,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             ValueType[] argTypes = method.getActualArgumentTypes();
             Plan[] convertedArguments = new Plan[actualArguments.length];
             TypeUnifier unifier = createUnifier();
+            boolean exactMatch = true;
             for (int i = 0; i < argTypes.length; ++i) {
                 TypedPlan arg = actualArguments[i];
                 arg = tryConvert(arg, argTypes[i], unifier);
@@ -334,6 +335,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     continue methods;
                 }
                 convertedArguments[i] = arg.plan;
+                if (!arg.type.equals(actualArguments[i].type)) {
+                    exactMatch = false;
+                }
             }
 
             ValueType returnType = method.getActualReturnType();
@@ -348,13 +352,21 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             desc.append(')');
             if (returnType != null) {
-                desc.append(typeToString(returnType));
+                desc.append(typeToString(method.getDescriber().getRawReturnType()));
             } else {
                 desc.append('V');
+            }
+
+            if (exactMatch) {
+                matchedPlans.clear();
+                matchedMethods.clear();
             }
             matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc.toString(),
                     instance != null ? instance.plan : null, convertedArguments), returnType));
             matchedMethods.add(method);
+            if (exactMatch) {
+                break;
+            }
         }
 
         if (matchedMethods.size() == 1) {
