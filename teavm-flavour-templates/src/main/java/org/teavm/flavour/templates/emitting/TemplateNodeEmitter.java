@@ -80,12 +80,19 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
     @Override
     public void visit(DOMElement node) {
+        boolean hasInnerDirectives = false;
+        for (TemplateNode child : node.getChildNodes()) {
+            if (child instanceof DirectiveBinding) {
+                hasInnerDirectives = true;
+            }
+        }
+
         Variable tagNameVar = stringConstant(node.getName());
 
         InvokeInstruction openInsn = new InvokeInstruction();
         openInsn.setInstance(builderVar);
-        openInsn.setMethod(new MethodReference(DomBuilder.class.getName(), "open", ValueType.parse(String.class),
-                ValueType.parse(DomBuilder.class)));
+        openInsn.setMethod(new MethodReference(DomBuilder.class, !hasInnerDirectives ? "open" : "openSlot",
+                String.class, DomBuilder.class));
         openInsn.setType(InvocationType.VIRTUAL);
         openInsn.getArguments().add(tagNameVar);
         builderVar = program.createVariable();

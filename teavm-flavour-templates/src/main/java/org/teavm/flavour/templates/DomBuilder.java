@@ -35,7 +35,7 @@ public class DomBuilder {
     private static final Window window = (Window)JS.getGlobal();
     private static final Document document = window.getDocument();
     private Slot slot;
-    private Deque<Element> stack = new ArrayDeque<>();
+    private Deque<Item> stack = new ArrayDeque<>();
     private List<Renderable> renderables = new ArrayList<>();
 
     public DomBuilder(Slot slot) {
@@ -43,14 +43,26 @@ public class DomBuilder {
     }
 
     public DomBuilder open(String tagName) {
+        return open(tagName, false);
+    }
+
+    public DomBuilder openSlot(String tagName) {
+        return open(tagName, true);
+    }
+
+    private DomBuilder open(String tagName, boolean slot) {
         Element elem = document.createElement(tagName);
-        appendNode(elem);
-        stack.push(elem);
+        Item item = new Item();
+        item.element = elem;
+        if (slot) {
+            item.slot = Slot.root(elem);
+        }
+        stack.push(item);
         return this;
     }
 
     public DomBuilder close() {
-        stack.pop();
+        appendNode(stack.pop().element);
         return this;
     }
 
@@ -64,7 +76,7 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             throw new IllegalStateException("Can't set attribute to root node");
         }
-        stack.peek().setAttribute(name, value);
+        stack.peek().element.setAttribute(name, value);
         return this;
     }
 
@@ -72,8 +84,13 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             slot.append(component.getSlot());
         } else {
-            Slot elemSlot = Slot.root(stack.peek());
-            elemSlot.append(component.getSlot());
+            Item item = stack.peek();
+            if (item.slot == null) {
+                Slot elemSlot = Slot.root(item.element);
+                elemSlot.append(component.getSlot());
+            } else {
+                item.slot.append(component.getSlot());
+            }
         }
         component.render();
         renderables.add(component);
@@ -88,7 +105,7 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             throw new IllegalStateException("Can't apply modifier to root node");
         }
-        Renderable renderable = modifier.apply((HTMLElement)stack.peek());
+        Renderable renderable = modifier.apply((HTMLElement)stack.peek().element);
         renderables.add(renderable);
         return this;
     }
@@ -97,11 +114,21 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             slot.append(new NodeHolder(node));
         } else {
-            stack.peek().appendChild(node);
+            Item item = stack.peek();
+            if (item.slot == null) {
+                item.element.appendChild(node);
+            } else {
+                item.slot.append(new NodeHolder(node));
+            }
         }
     }
 
     public List<Renderable> getRenderables() {
         return renderables;
+    }
+
+    static class Item {
+        Element element;
+        Slot slot;
     }
 }
