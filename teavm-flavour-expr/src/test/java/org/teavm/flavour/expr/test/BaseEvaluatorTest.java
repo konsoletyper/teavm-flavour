@@ -17,6 +17,7 @@ package org.teavm.flavour.expr.test;
 
 import java.util.List;
 import java.util.Map;
+import org.teavm.flavour.expr.VariableName;
 
 /**
  *
@@ -49,6 +50,9 @@ public abstract class BaseEvaluatorTest {
         void stringIntMap(Map<String, Integer> map);
 
         void foo(Foo v);
+
+        @VariableName("this")
+        void self(Foo v);
     }
 
     interface BooleanComputation {

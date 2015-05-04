@@ -13,34 +13,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.ast;
+package org.teavm.flavour.expr;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitorStrict<T> {
-    void visit(BinaryExpr<T> expr);
-
-    void visit(CastExpr<T> expr);
-
-    void visit(InstanceOfExpr<T> expr);
-
-    void visit(InvocationExpr<T> expr);
-
-    void visit(StaticInvocationExpr<T> expr);
-
-    void visit(PropertyExpr<T> expr);
-
-    void visit(StaticPropertyExpr<T> expr);
-
-    void visit(UnaryExpr<T> expr);
-
-    void visit(VariableExpr<T> expr);
-
-    void visit(ConstantExpr<T> expr);
-
-    void visit(TernaryConditionExpr<T> expr);
-
-    void visit(ThisExpr<T> expr);
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface VariableName {
+    String value();
 }

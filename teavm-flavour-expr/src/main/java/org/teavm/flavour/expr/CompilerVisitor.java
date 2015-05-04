@@ -288,8 +288,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(InvocationExpr<TypedPlan> expr) {
-        expr.getInstance().acceptVisitor(this);
-        TypedPlan instance = expr.getInstance().getAttribute();
+        TypedPlan instance;
+        if (expr.getInstance() != null) {
+            expr.getInstance().acceptVisitor(this);
+            instance = expr.getInstance().getAttribute();
+        } else {
+            instance = new TypedPlan(new ThisPlan(), scope.variableType("this"));
+        }
 
         if (!(instance.type instanceof GenericClass)) {
             error(expr, "Can't call method of non-class value: " + instance.type);
@@ -476,7 +481,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                             (!isStatic ? "not " : "") + "be static");
                 }
             } else {
-                error(expr, "Property " + propertyName + " was not found");
+                if (instance.plan instanceof ThisPlan) {
+                    error(expr, "Variable " + propertyName + " was not found");
+                } else {
+                    error(expr, "Property " + propertyName + " was not found");
+                }
             }
         }
 
@@ -506,10 +515,17 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     public void visit(VariableExpr<TypedPlan> expr) {
         ValueType type = scope.variableType(expr.getName());
         if (type == null) {
-            error(expr, "Variable " + expr.getName() + " was not found");
-            type = new GenericClass("java.lang.Object");
+            type = scope.variableType("this");
+            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass)type, expr.getName());
+            return;
         }
         expr.setAttribute(new TypedPlan(new VariablePlan(expr.getName()), type));
+    }
+
+    @Override
+    public void visit(ThisExpr<TypedPlan> expr) {
+        ValueType type = scope.variableType("this");
+        expr.setAttribute(new TypedPlan(new ThisPlan(), type));
     }
 
     @Override

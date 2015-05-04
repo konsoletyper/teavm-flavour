@@ -67,8 +67,12 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
             if (parameters.length != 1) {
                 throw new IllegalArgumentException("Method " + method + " does not take one parameter");
             }
-            methodToVariableMap.put(method, method.getName());
-            variableTypes.put(method.getName(), parameters[0]);
+            String variableName = method.getName();
+            if (method.isAnnotationPresent(VariableName.class)) {
+                variableName = method.getAnnotation(VariableName.class).value();
+            }
+            methodToVariableMap.put(method, variableName);
+            variableTypes.put(variableName, parameters[0]);
         }
 
         Parser parser = new Parser(classResolver);

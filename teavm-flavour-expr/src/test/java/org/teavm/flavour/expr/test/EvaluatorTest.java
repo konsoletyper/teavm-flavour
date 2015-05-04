@@ -366,6 +366,20 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(c.compute(), is(2));
     }
 
+    @Test
+    public void evaluatesDefaultProperty() {
+        IntComputation c = parseExpr(IntComputation.class, "y");
+        vars.self(new Foo(23));
+        assertThat(c.compute(), is(23));
+    }
+
+    @Test
+    public void evaluatesDefaultMethod() {
+        IntComputation c = parseExpr(IntComputation.class, "bar(1)");
+        vars.self(new Foo(23));
+        assertThat(c.compute(), is(24));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")

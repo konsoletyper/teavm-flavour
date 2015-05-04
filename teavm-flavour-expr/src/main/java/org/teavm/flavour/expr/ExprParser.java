@@ -252,9 +252,11 @@ class ExprParser extends BaseParser<Holder> {
             FirstOf(
                 Number(),
                 StringLiteral(),
+                Sequence(Keyword("this"), push(wrap(new ThisExpr<Void>())), setLocations(start)),
                 Sequence(Keyword("true"), push(wrap(new ConstantExpr<Void>(true))),  setLocations(start)),
                 Sequence(Keyword("false"), push(wrap(new ConstantExpr<Void>(false))), setLocations(start)),
                 Sequence(Keyword("null"), push(wrap(new ConstantExpr<Void>(null))), setLocations(start)),
+                FunctionInvocation(),
                 Identifier(),
                 Sequence(Keyword("("), Expression(), Keyword(")"))));
     }
@@ -280,6 +282,19 @@ class ExprParser extends BaseParser<Holder> {
                 ExpressionList(list),
                 Keyword(")")),
             qualify(instance, property, list),
+            setLocations(start));
+    }
+
+    Rule FunctionInvocation() {
+        Var<String> functionName = new Var<>();
+        Var<List<Expr<Void>>> list = new Var<>();
+        Var<Integer> start = new Var<>();
+        return Sequence(
+            start.set(currentIndex()),
+            list.set(new ArrayList<Expr<Void>>()),
+            Identifier(functionName),
+            Keyword("("), ExpressionList(list), Keyword(")"),
+            qualify(null, functionName, list),
             setLocations(start));
     }
 
@@ -526,8 +541,8 @@ class ExprParser extends BaseParser<Holder> {
         return new Action<Holder>() {
             @Override
             public boolean run(Context<Holder> context) {
-                Expr<Void> instance = instanceVar.get();
-                String className = isClassName(instance);
+                Expr<Void> instance = instanceVar != null ? instanceVar.get() : null;
+                String className = instance != null ? isClassName(instance) : null;
                 if (argumentsVar.get() == null) {
                     if (className == null) {
                         context.getValueStack().push(wrap(new PropertyExpr<>(instance, propertyVar.get())));

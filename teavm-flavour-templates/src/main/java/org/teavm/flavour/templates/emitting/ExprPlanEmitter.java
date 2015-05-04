@@ -39,6 +39,7 @@ import org.teavm.flavour.expr.plan.Plan;
 import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
+import org.teavm.flavour.expr.plan.ThisPlan;
 import org.teavm.flavour.expr.plan.VariablePlan;
 import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.Computation;
@@ -192,7 +193,16 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(VariablePlan plan) {
-        EmittedVariable emitVar = context.getVariable(plan.getName());
+        emitVariable(plan.getName());
+    }
+
+    @Override
+    public void visit(ThisPlan plan) {
+        emitVariable("this");
+    }
+
+    private void emitVariable(String name) {
+        EmittedVariable emitVar = context.getVariable(name);
 
         String lastClass = thisClassName;
         var = thisVar;
@@ -209,7 +219,7 @@ class ExprPlanEmitter implements PlanVisitor {
         }
 
         GetFieldInstruction getVarInsn = new GetFieldInstruction();
-        getVarInsn.setField(new FieldReference(lastClass, "cache$" + plan.getName()));
+        getVarInsn.setField(new FieldReference(lastClass, "cache$" + name));
         getVarInsn.setInstance(var);
         getVarInsn.setFieldType(emitVar.type);
         var = program.createVariable();

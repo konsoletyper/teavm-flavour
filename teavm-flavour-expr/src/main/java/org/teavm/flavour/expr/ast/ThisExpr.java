@@ -19,28 +19,14 @@ package org.teavm.flavour.expr.ast;
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitor<T> {
-    void visit(BinaryExpr<? extends T> expr);
+public class ThisExpr<T> extends Expr<T> {
+    @Override
+    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+        visitor.visit(this);
+    }
 
-    void visit(CastExpr<? extends T> expr);
-
-    void visit(InstanceOfExpr<? extends T> expr);
-
-    void visit(InvocationExpr<? extends T> expr);
-
-    void visit(StaticInvocationExpr<? extends T> expr);
-
-    void visit(PropertyExpr<? extends T> expr);
-
-    void visit(StaticPropertyExpr<? extends T> expr);
-
-    void visit(UnaryExpr<? extends T> expr);
-
-    void visit(VariableExpr<? extends T> expr);
-
-    void visit(ConstantExpr<? extends T> expr);
-
-    void visit(TernaryConditionExpr<? extends T> expr);
-
-    void visit(ThisExpr<? extends T> expr);
+    @Override
+    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
+        visitor.visit(this);
+    }
 }

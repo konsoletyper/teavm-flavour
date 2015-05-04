@@ -510,6 +510,11 @@ class InterpreterVisitor implements PlanVisitor {
         }
     }
 
+    @Override
+    public void visit(ThisPlan plan) {
+        value = variables.get("this");
+    }
+
     private Class<?> decodeType(String type) {
         return new TypeDecoder(type).decode();
     }

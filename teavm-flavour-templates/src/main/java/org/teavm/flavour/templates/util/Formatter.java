@@ -13,34 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.ast;
+package org.teavm.flavour.templates.util;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitorStrict<T> {
-    void visit(BinaryExpr<T> expr);
+public final class Formatter {
+    private Formatter() {
+    }
 
-    void visit(CastExpr<T> expr);
-
-    void visit(InstanceOfExpr<T> expr);
-
-    void visit(InvocationExpr<T> expr);
-
-    void visit(StaticInvocationExpr<T> expr);
-
-    void visit(PropertyExpr<T> expr);
-
-    void visit(StaticPropertyExpr<T> expr);
-
-    void visit(UnaryExpr<T> expr);
-
-    void visit(VariableExpr<T> expr);
-
-    void visit(ConstantExpr<T> expr);
-
-    void visit(TernaryConditionExpr<T> expr);
-
-    void visit(ThisExpr<T> expr);
+    public static String format(String format, Date date) {
+        return new SimpleDateFormat(format).format(date);
+    }
 }

@@ -55,8 +55,13 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
 
     @Override
     public void visit(InvocationExpr<? extends Object> expr) {
-        expr.getInstance().acceptVisitor(this);
-        Expr<T> instance = result;
+        Expr<T> instance;
+        if (expr.getInstance() != null) {
+            expr.getInstance().acceptVisitor(this);
+            instance = result;
+        } else {
+            instance = null;
+        }
         List<Expr<T>> arguments = new ArrayList<>();
         for (Expr<?> arg : expr.getArguments()) {
             arg.acceptVisitor(this);
@@ -119,6 +124,12 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         expr.getAlternative().acceptVisitor(this);
         Expr<T> alternative = result;
         result = new TernaryConditionExpr<>(condition, consequent, alternative);
+        copyLocation(expr);
+    }
+
+    @Override
+    public void visit(ThisExpr<? extends Object> expr) {
+        result = new ThisExpr<>();
         copyLocation(expr);
     }
 

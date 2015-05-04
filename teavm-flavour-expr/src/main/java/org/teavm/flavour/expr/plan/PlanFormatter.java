@@ -231,6 +231,11 @@ public class PlanFormatter implements PlanVisitor {
         --indentLevel;
     }
 
+    @Override
+    public void visit(ThisPlan plan) {
+        sb.append("[this]");
+    }
+
     private void printIndent() {
         for (int i = 0; i < indentLevel; ++i) {
             sb.append("  ");
