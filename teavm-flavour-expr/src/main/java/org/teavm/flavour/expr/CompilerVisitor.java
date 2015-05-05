@@ -319,14 +319,25 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             List<Expr<TypedPlan>> argumentExprList) {
         TypedPlan[] actualArguments = new TypedPlan[argumentExprList.size()];
         for (int i = 0; i < actualArguments.length; ++i) {
-            argumentExprList.get(i).acceptVisitor(this);
-            actualArguments[i] = argumentExprList.get(i).getAttribute();
+            Expr<TypedPlan> arg = argumentExprList.get(i);
+            if (arg instanceof LambdaExpr<?>) {
+                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>)arg;
+                for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
+                    BoundVariable boundVar = lambda.getBoundVariables().get(j);
+                    lambda.getBoundVariables().set(j, new BoundVariable(boundVar.getName(),
+                            resolveType(boundVar.getType(), lambda)));
+                }
+            } else {
+                arg.acceptVisitor(this);
+                actualArguments[i] = arg.getAttribute();
+            }
         }
 
         GenericMethod[] methods = navigator.findMethods(cls, methodName, actualArguments.length);
         List<TypedPlan> matchedPlans = new ArrayList<>();
         List<GenericMethod> matchedMethods = new ArrayList<>();
         List<GenericMethod> wrongContextMethods = new ArrayList<>();
+        List<GenericMethod[]> samArgumentList = new ArrayList<>();
         methods: for (GenericMethod method : methods) {
             if ((instance == null) != method.getDescriber().isStatic()) {
                 wrongContextMethods.add(method);
@@ -335,24 +346,61 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
             ValueType[] argTypes = method.getActualArgumentTypes();
             Plan[] convertedArguments = new Plan[actualArguments.length];
+            GenericMethod[] samArguments = new GenericMethod[actualArguments.length];
             TypeUnifier unifier = createUnifier();
             boolean exactMatch = true;
             for (int i = 0; i < argTypes.length; ++i) {
                 TypedPlan arg = actualArguments[i];
-                arg = tryConvert(arg, argTypes[i], unifier);
                 if (arg == null) {
-                    continue methods;
-                }
-                convertedArguments[i] = arg.plan;
-                if (!arg.type.equals(actualArguments[i].type)) {
-                    exactMatch = false;
+                    if (!(argTypes[i] instanceof GenericClass)) {
+                        continue;
+                    }
+                    GenericMethod sam = navigator.isSingleAbstractMethod((GenericClass)argTypes[i]);
+                    if (sam == null) {
+                        continue methods;
+                    }
+                    LambdaExpr<TypedPlan> lambdaArg = (LambdaExpr<TypedPlan>)argumentExprList.get(i);
+                    if (sam.getActualArgumentTypes().length != lambdaArg.getBoundVariables().size()) {
+                        continue methods;
+                    }
+                    samArguments[i] = sam;
+                } else {
+                    arg = tryConvert(arg, argTypes[i], unifier);
+                    if (arg == null) {
+                        continue methods;
+                    }
+                    convertedArguments[i] = arg.plan;
+                    if (!arg.type.equals(actualArguments[i].type)) {
+                        exactMatch = false;
+                    }
                 }
             }
 
-            ValueType returnType = method.getActualReturnType();
-            if (returnType instanceof GenericType) {
-                returnType = ((GenericType)returnType).substitute(unifier.getSubstitutions());
+            for (int i = 0; i < argTypes.length; ++i) {
+                if (samArguments[i] == null) {
+                    continue;
+                }
+                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>)argumentExprList.get(i);
+                GenericMethod sam = samArguments[i];
+                sam = sam.substitute(unifier.getSubstitutions());
+                samArguments[i] = sam;
+                ValueType[] desiredLambdaArgs = sam.getActualArgumentTypes();
+                for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
+                    ValueType declaredLambdaArg = lambda.getBoundVariables().get(j).getType();
+                    if (declaredLambdaArg == null) {
+                        declaredLambdaArg = new GenericReference(new TypeVar());
+                    }
+                    ValueType desiredLambdaArg = desiredLambdaArgs[j];
+                    if (!desiredLambdaArg.equals(declaredLambdaArg) && declaredLambdaArg instanceof GenericType &&
+                            desiredLambdaArg instanceof GenericType) {
+                        if (!unifier.unify((GenericType)declaredLambdaArg, (GenericType)desiredLambdaArg, true)) {
+                            continue methods;
+                        }
+                    }
+                }
             }
+
+            method = method.substitute(unifier.getSubstitutions());
 
             String className = method.getDescriber().getOwner().getName();
             String desc = methodToDesc(method.getDescriber());
@@ -360,9 +408,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             if (exactMatch) {
                 matchedPlans.clear();
                 matchedMethods.clear();
+                samArgumentList.clear();
             }
             matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc,
-                    instance != null ? instance.plan : null, convertedArguments), returnType));
+                    instance != null ? instance.plan : null, convertedArguments), method.getActualReturnType()));
+            samArgumentList.add(samArguments);
             matchedMethods.add(method);
             if (exactMatch) {
                 break;
@@ -370,14 +420,26 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         if (matchedMethods.size() == 1) {
-            expr.setAttribute(matchedPlans.get(0));
+            GenericMethod[] samArgs = samArgumentList.get(0);
+            TypedPlan matchedPlan = matchedPlans.get(0);
+            InvocationPlan invocation = (InvocationPlan)matchedPlan.plan;
+            for (int i = 0; i < samArgs.length; ++i) {
+                if (samArgs[i] != null) {
+                    lambdaSam = samArgs[i];
+                    argumentExprList.get(i).acceptVisitor(this);
+                    invocation.getArguments().set(i, argumentExprList.get(i).getAttribute().plan);
+                }
+            }
+            expr.setAttribute(matchedPlan);
             return;
         }
 
         expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericReference(nullType)));
         ValueType[] argumentTypes = new ValueType[actualArguments.length];
         for (int i = 0; i < argumentTypes.length; ++i) {
-            argumentTypes[i] = actualArguments[i].type;
+            if (actualArguments[i] != null) {
+                argumentTypes[i] = actualArguments[i].type;
+            }
         }
         if (matchedMethods.isEmpty()) {
             if (wrongContextMethods.isEmpty()) {
@@ -508,7 +570,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(VariableExpr<TypedPlan> expr) {
-        ValueType type = scope.variableType(expr.getName());
+        ValueType type = boundVars.get(expr.getName());
+        if (type != null) {
+            String boundName = boundVarRenamings.get(expr.getName());
+            expr.setAttribute(new TypedPlan(new VariablePlan(boundName), type));
+            return;
+        }
+        type = scope.variableType(expr.getName());
         if (type == null) {
             type = scope.variableType("this");
             compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass)type, expr.getName());
@@ -530,6 +598,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
             return;
         }
+        GenericMethod lambdaSam = this.lambdaSam;
+        this.lambdaSam = null;
+        ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
 
         ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
         String[] oldRenamings = new String[oldVarTypes.length];
@@ -543,8 +614,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 if (!usedNames.add(boundVar.getName())) {
                     error(expr, "Duplicate bound variable name: " + boundVar.getName());
                 } else {
-                    boundVars.put(boundVar.getName(), boundVar.getType() != null ? boundVar.getType() :
-                            new GenericReference(new TypeVar()));
+                    boundVars.put(boundVar.getName(), actualArgTypes[i]);
                     String renaming = "$" + boundVarRenamings.size();
                     boundVarRenamings.put(boundVar.getName(), renaming);
                     boundVarNames.add(renaming);
@@ -553,9 +623,12 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         expr.getBody().acceptVisitor(this);
+        if (lambdaSam.getActualReturnType() != null) {
+            convert(expr.getBody(), lambdaSam.getActualReturnType());
+        }
         TypedPlan body = expr.getBody().getAttribute();
         String className = lambdaSam.getDescriber().getOwner().getName();
-        String methodName = lambdaSam.getDescriber().getOwner().getName();
+        String methodName = lambdaSam.getDescriber().getName();
         String methodDesc = methodToDesc(lambdaSam.getDescriber());
 
         LambdaPlan lambda = new LambdaPlan(body.plan, className, methodName, methodDesc, boundVarNames);
@@ -788,6 +861,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     TypedPlan tryConvert(TypedPlan plan, ValueType targetType, TypeUnifier unifier) {
+        if (plan.getType() == null) {
+            return null;
+        }
         if (plan.getType().equals(targetType)) {
             return plan;
         }
@@ -1092,7 +1168,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             if (i > 0) {
                 sb.append(", ");
             }
-            formatter.format(arguments.get(i), sb);
+            if (arguments.get(i) == null) {
+                sb.append("<lambda>");
+            } else {
+                formatter.format(arguments.get(i), sb);
+            }
         }
         sb.append(")");
         return sb.toString();

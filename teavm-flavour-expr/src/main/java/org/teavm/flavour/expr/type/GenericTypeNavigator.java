@@ -377,6 +377,9 @@ public class GenericTypeNavigator {
 
     private int isSingleAbstractMethodImpl(GenericClass cls, Set<String> visitedClasses,
             Map<MethodSignature, GenericMethod> methods) {
+        if (cls.getName().equals(Object.class.getName())) {
+            return 0;
+        }
         if (!visitedClasses.add(cls.getName())) {
             return 0;
         }
@@ -392,7 +395,11 @@ public class GenericTypeNavigator {
         }
 
         int result = 0;
+        ClassDescriber objectDescriber = classRepository.describe(Object.class.getName());
         for (MethodDescriber methodDesc : describer.getMethods()) {
+            if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getArgumentTypes()) != null) {
+                continue;
+            }
             ValueType[] paramTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < paramTypes.length; ++i) {
                 if (paramTypes[i] instanceof GenericType) {

@@ -15,12 +15,19 @@
  */
 package org.teavm.flavour.expr.type.meta;
 
-import java.lang.reflect.*;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
@@ -111,7 +118,7 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     }
 
     @Override
-    public MethodDescriber getMethod(String name, GenericClass... argumentTypes) {
+    public MethodDescriber getMethod(String name, ValueType... argumentTypes) {
         Class<?>[] javaArgs = new Class<?>[argumentTypes.length];
         for (int i = 0; i < javaArgs.length; ++i) {
             javaArgs[i] = repository.convertToRawType(argumentTypes[i]);

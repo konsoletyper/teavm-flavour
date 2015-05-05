@@ -17,7 +17,11 @@ package org.teavm.flavour.expr.test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -385,6 +389,22 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(c.compute(), is((Object)Arrays.asList("!foo", "!bar")));
     }
 
+    @Test
+    public void evaluatesLambda2() {
+        IntComputation c = parseExpr(IntComputation.class,
+                "EvaluatorTest.reduce(integerList, 0, (Integer a, b) -> a + b)");
+        vars.integerList(Arrays.asList(2, 5, 7, 11));
+        assertThat(c.compute(), is(25));
+    }
+
+    @Test
+    public void evaluatesLambda3() {
+        ObjectComputation c = parseExpr(ObjectComputation.class,
+                "Collections.sort(integerList, (a, b) -> Integer.compare(a, b))");
+        vars.integerList(Arrays.asList(7, 11, 5, 13, 2));
+        assertThat(c.compute(), is((Object)Arrays.asList(2, 5, 7, 11, 13)));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")
@@ -399,11 +419,22 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         T apply(S value);
     }
 
-    public static <S, T> List<T> map(List<S> list, Mapping<? super S, ? extends T> mapping) {
-        List<T> result = new ArrayList<>(list.size());
+    public interface Reduction<T> {
+        T apply(T a, T b);
+    }
+
+    public static <S, T> List<T> map(Iterable<S> list, Mapping<? super S, ? extends T> mapping) {
+        List<T> result = new ArrayList<>();
         for (S item : list) {
             result.add(mapping.apply(item));
         }
         return result;
+    }
+
+    public static <T> T reduce(List<? extends T> list, T initial, Reduction<T> reduction) {
+        for (T item : list) {
+            initial = reduction.apply(initial, item);
+        }
+        return initial;
     }
 }

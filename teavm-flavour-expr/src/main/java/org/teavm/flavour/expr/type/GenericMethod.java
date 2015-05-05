@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.Map;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
@@ -55,5 +56,20 @@ public class GenericMethod {
 
     public ValueType getActualReturnType() {
         return actualReturnType;
+    }
+
+    public GenericMethod substitute(Map<TypeVar, GenericType> substitutions) {
+        GenericClass actualOwner = this.actualOwner.substitute(substitutions);
+        ValueType[] actualArgumentTypes = this.actualArgumentTypes.clone();
+        for (int i = 0; i < actualArgumentTypes.length; ++i) {
+            if (actualArgumentTypes[i] instanceof GenericType) {
+                actualArgumentTypes[i] = ((GenericType)actualArgumentTypes[i]).substitute(substitutions);
+            }
+        }
+        ValueType actualReturnType = this.actualReturnType;
+        if (actualReturnType instanceof GenericType) {
+            actualReturnType = ((GenericType)actualReturnType).substitute(substitutions);
+        }
+        return new GenericMethod(describer, actualOwner, actualArgumentTypes, actualReturnType);
     }
 }

@@ -528,7 +528,8 @@ class InterpreterVisitor implements PlanVisitor {
                 if (method.equals(proxyMethod)) {
                     Object[] oldVars = new Object[plan.getBoundVars().size()];
                     for (int i = 0; i < plan.getBoundVars().size(); ++i) {
-                        oldVars[i] = args[i];
+                        oldVars[i] = variables.get(plan.getBoundVars().get(i));
+                        variables.put(plan.getBoundVars().get(i), args[i]);
                     }
                     plan.getBody().acceptVisitor(InterpreterVisitor.this);
                     for (int i = 0; i < plan.getBoundVars().size(); ++i) {
