@@ -17,9 +17,7 @@ package org.teavm.flavour.expr.test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -380,6 +378,13 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(c.compute(), is(24));
     }
 
+    @Test
+    public void evaluatesLambda() {
+        ObjectComputation c = parseExpr(ObjectComputation.class, "EvaluatorTest.map(stringList, s -> '!' + s)");
+        vars.stringList(Arrays.asList("foo", "bar"));
+        assertThat(c.compute(), is((Object)Arrays.asList("!foo", "!bar")));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")
@@ -388,5 +393,17 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();
+    }
+
+    public interface Mapping<S, T> {
+        T apply(S value);
+    }
+
+    public static <S, T> List<T> map(List<S> list, Mapping<? super S, ? extends T> mapping) {
+        List<T> result = new ArrayList<>(list.size());
+        for (S item : list) {
+            result.add(mapping.apply(item));
+        }
+        return result;
     }
 }

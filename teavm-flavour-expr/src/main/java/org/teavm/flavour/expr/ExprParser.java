@@ -37,7 +37,51 @@ class ExprParser extends BaseParser<Holder> {
     ClassResolver classResolver;
 
     Rule Root() {
-        return Sequence(Whitespace(), Expression(), EOI);
+        return Sequence(Whitespace(), LambdaExpression(), EOI);
+    }
+
+    Rule LambdaExpression() {
+        Var<List<BoundVariable>> boundVars = new Var<>();
+        Var<Integer> start = new Var<>();
+        return FirstOf(
+            Sequence(
+                start.set(currentIndex()),
+                boundVars.set(new ArrayList<BoundVariable>()),
+                LambdaBoundVariables(boundVars),
+                Keyword("->"),
+                Expression(),
+                push(wrap(new LambdaExpr<>(pop().expr, boundVars.get()))),
+                setLocations(start)),
+            Expression());
+    }
+
+    Rule LambdaBoundVariables(Var<List<BoundVariable>> boundVars) {
+        return FirstOf(
+            Sequence(Keyword("("), Keyword(")")),
+            Sequence(
+                Keyword("("),
+                LambdaBoundVariable(boundVars),
+                ZeroOrMore(Keyword(","), LambdaBoundVariable(boundVars)),
+                Keyword(")")),
+            LambdaBoundVariable(boundVars));
+    }
+
+    Rule LambdaBoundVariable(Var<List<BoundVariable>> boundVars) {
+        Var<String> name = new Var<>();
+        return FirstOf(
+            Sequence(
+                Type(),
+                LambdaIdentifier(name),
+                ACTION(boundVars.get().add(new BoundVariable(name.get(), pop().type)))),
+            Sequence(
+                LambdaIdentifier(name),
+                ACTION(boundVars.get().add(new BoundVariable(name.get(), null)))));
+    }
+
+    Rule LambdaIdentifier(Var<String> name) {
+        return FirstOf(
+            Sequence(Keyword("_"), name.set("")),
+            Identifier(name));
     }
 
     Rule Expression() {
@@ -299,7 +343,14 @@ class ExprParser extends BaseParser<Holder> {
     }
 
     Rule ExpressionList(Var<List<Expr<Void>>> list) {
-        return Optional(Sequence(Expression(), append(list), ZeroOrMore(Keyword(","), Expression(), append(list))));
+        return Optional(
+            Sequence(
+                LambdaExpression(),
+                append(list),
+                ZeroOrMore(
+                    Keyword(","),
+                    LambdaExpression(),
+                    append(list))));
     }
 
     Rule ArraySubscript() {

@@ -43,4 +43,6 @@ public interface ExprVisitorStrict<T> {
     void visit(TernaryConditionExpr<T> expr);
 
     void visit(ThisExpr<T> expr);
+
+    void visit(LambdaExpr<T> expr);
 }

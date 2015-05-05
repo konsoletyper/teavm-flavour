@@ -120,9 +120,9 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             Type[] lowerBounds = wildcard.getLowerBounds();
             TypeVar var = new TypeVar();
             if (lowerBounds.length > 0) {
-                var.withLowerBound((GenericClass)convertGenericType(lowerBounds[0]));
+                var.withLowerBound((GenericType)convertGenericType(lowerBounds[0]));
             } else if (upperBounds.length > 0) {
-                var.withUpperBound((GenericClass)convertGenericType(upperBounds[0]));
+                var.withUpperBound((GenericType)convertGenericType(upperBounds[0]));
             }
             return new GenericReference(var);
         } else {

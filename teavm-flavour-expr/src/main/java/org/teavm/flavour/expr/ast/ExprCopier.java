@@ -133,6 +133,13 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         copyLocation(expr);
     }
 
+    @Override
+    public void visit(LambdaExpr<? extends Object> expr) {
+        expr.getBody().acceptVisitor(this);
+        result = new LambdaExpr<>(result, expr.getBoundVariables());
+        copyLocation(expr);
+    }
+
     private void copyLocation(Expr<? extends Object> expr) {
         result.setStart(expr.getStart());
         result.setEnd(expr.getEnd());

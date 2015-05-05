@@ -57,4 +57,6 @@ public interface PlanVisitor {
     void visit(ConditionalPlan plan);
 
     void visit(ThisPlan plan);
+
+    void visit(LambdaPlan plan);
 }

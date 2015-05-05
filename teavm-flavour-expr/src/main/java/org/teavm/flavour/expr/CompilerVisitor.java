@@ -529,6 +529,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     @Override
+    public void visit(LambdaExpr<TypedPlan> expr) {
+        error(expr, "Lambda expressions are not supported yet");
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+        // TODO: implement
+    }
+
+    @Override
     public void visit(ConstantExpr<TypedPlan> expr) {
         ValueType type;
         if (expr.getValue() == null) {

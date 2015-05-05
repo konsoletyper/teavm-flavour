@@ -15,34 +15,26 @@
  */
 package org.teavm.flavour.expr.ast;
 
+import org.teavm.flavour.expr.type.ValueType;
+
 /**
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitor<T> {
-    void visit(BinaryExpr<? extends T> expr);
+public class BoundVariable {
+    private String name;
+    private ValueType type;
 
-    void visit(CastExpr<? extends T> expr);
+    public BoundVariable(String name, ValueType type) {
+        this.name = name;
+        this.type = type;
+    }
 
-    void visit(InstanceOfExpr<? extends T> expr);
+    public String getName() {
+        return name;
+    }
 
-    void visit(InvocationExpr<? extends T> expr);
-
-    void visit(StaticInvocationExpr<? extends T> expr);
-
-    void visit(PropertyExpr<? extends T> expr);
-
-    void visit(StaticPropertyExpr<? extends T> expr);
-
-    void visit(UnaryExpr<? extends T> expr);
-
-    void visit(VariableExpr<? extends T> expr);
-
-    void visit(ConstantExpr<? extends T> expr);
-
-    void visit(TernaryConditionExpr<? extends T> expr);
-
-    void visit(ThisExpr<? extends T> expr);
-
-    void visit(LambdaExpr<? extends T> expr);
+    public ValueType getType() {
+        return type;
+    }
 }

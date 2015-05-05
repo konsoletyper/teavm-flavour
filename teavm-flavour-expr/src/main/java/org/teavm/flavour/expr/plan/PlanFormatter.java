@@ -236,6 +236,25 @@ public class PlanFormatter implements PlanVisitor {
         sb.append("[this]");
     }
 
+    @Override
+    public void visit(LambdaPlan plan) {
+        sb.append("[lambda (");
+        for (int i = 0; i < plan.getBoundVars().size(); ++i) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(plan.getBoundVars());
+        }
+        sb.append(")");
+        ++indentLevel;
+        newLine();
+        sb.append(plan.getClassName()).append("#").append(plan.getMethodName()).append(plan.getMethodDesc());
+        newLine();
+        plan.getBody().acceptVisitor(this);
+        sb.append(']');
+        --indentLevel;
+    }
+
     private void printIndent() {
         for (int i = 0; i < indentLevel; ++i) {
             sb.append("  ");

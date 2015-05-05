@@ -17,30 +17,7 @@ package org.teavm.flavour.templates.emitting;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
-import org.teavm.flavour.expr.plan.ArithmeticType;
-import org.teavm.flavour.expr.plan.ArrayLengthPlan;
-import org.teavm.flavour.expr.plan.BinaryPlan;
-import org.teavm.flavour.expr.plan.BinaryPlanType;
-import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
-import org.teavm.flavour.expr.plan.CastPlan;
-import org.teavm.flavour.expr.plan.CastToIntegerPlan;
-import org.teavm.flavour.expr.plan.ConditionalPlan;
-import org.teavm.flavour.expr.plan.ConstantPlan;
-import org.teavm.flavour.expr.plan.ConstructionPlan;
-import org.teavm.flavour.expr.plan.FieldPlan;
-import org.teavm.flavour.expr.plan.GetArrayElementPlan;
-import org.teavm.flavour.expr.plan.InstanceOfPlan;
-import org.teavm.flavour.expr.plan.InvocationPlan;
-import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
-import org.teavm.flavour.expr.plan.NegatePlan;
-import org.teavm.flavour.expr.plan.NotPlan;
-import org.teavm.flavour.expr.plan.Plan;
-import org.teavm.flavour.expr.plan.PlanVisitor;
-import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
-import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
-import org.teavm.flavour.expr.plan.ThisPlan;
-import org.teavm.flavour.expr.plan.VariablePlan;
+import org.teavm.flavour.expr.plan.*;
 import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.model.AccessLevel;
@@ -579,6 +556,11 @@ class ExprPlanEmitter implements PlanVisitor {
         phi.getIncomings().add(falseIncoming);
         phi.setReceiver(var);
         block.getPhis().add(phi);
+    }
+
+    @Override
+    public void visit(LambdaPlan plan) {
+        // TODO: implement
     }
 
     void valueToBranching() {

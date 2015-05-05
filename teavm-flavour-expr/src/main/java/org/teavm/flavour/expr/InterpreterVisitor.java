@@ -515,6 +515,33 @@ class InterpreterVisitor implements PlanVisitor {
         value = variables.get("this");
     }
 
+    @Override
+    public void visit(final LambdaPlan plan) {
+        Class<?> cls = getClass(plan.getClassName());
+        final Method proxyMethod = getMethod(plan.getClassName(), plan.getMethodName(), plan.getMethodDesc());
+        value = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { cls },
+                new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                Object oldValue = value;
+                value = null;
+                if (method.equals(proxyMethod)) {
+                    Object[] oldVars = new Object[plan.getBoundVars().size()];
+                    for (int i = 0; i < plan.getBoundVars().size(); ++i) {
+                        oldVars[i] = args[i];
+                    }
+                    plan.getBody().acceptVisitor(InterpreterVisitor.this);
+                    for (int i = 0; i < plan.getBoundVars().size(); ++i) {
+                        variables.put(plan.getBoundVars().get(i), oldVars[i]);
+                    }
+                }
+                Object result = value;
+                value = oldValue;
+                return result;
+            }
+        });
+    }
+
     private Class<?> decodeType(String type) {
         return new TypeDecoder(type).decode();
     }
