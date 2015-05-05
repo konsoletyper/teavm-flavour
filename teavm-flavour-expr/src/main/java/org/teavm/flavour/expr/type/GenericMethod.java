@@ -23,10 +23,12 @@ import org.teavm.flavour.expr.type.meta.MethodDescriber;
  */
 public class GenericMethod {
     private MethodDescriber describer;
+    private GenericClass actualOwner;
     private ValueType[] actualArgumentTypes;
     private ValueType actualReturnType;
 
-    public GenericMethod(MethodDescriber describer, ValueType[] actualArgumentTypes, ValueType actualReturnType) {
+    public GenericMethod(MethodDescriber describer, GenericClass actualOwner,
+            ValueType[] actualArgumentTypes, ValueType actualReturnType) {
         if (describer.getArgumentTypes().length != actualArgumentTypes.length) {
             throw new IllegalArgumentException();
         }
@@ -34,8 +36,13 @@ public class GenericMethod {
             throw new IllegalArgumentException();
         }
         this.describer = describer;
+        this.actualOwner = actualOwner;
         this.actualArgumentTypes = actualArgumentTypes;
         this.actualReturnType = actualReturnType;
+    }
+
+    public GenericClass getActualOwner() {
+        return actualOwner;
     }
 
     public MethodDescriber getDescriber() {

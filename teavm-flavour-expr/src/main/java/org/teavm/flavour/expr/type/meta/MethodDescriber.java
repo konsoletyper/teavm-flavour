@@ -29,6 +29,8 @@ public interface MethodDescriber extends AnnotationsDescriber {
 
     boolean isStatic();
 
+    boolean isAbstract();
+
     TypeVar[] getTypeVariables();
 
     ValueType[] getRawArgumentTypes();

@@ -36,7 +36,12 @@ class ClassPathConstructorDescriber extends ClassPathAbstractMethodDescriber {
 
     @Override
     public boolean isStatic() {
-        return Modifier.isStatic(javaConstructor.getModifiers());
+        return false;
+    }
+
+    @Override
+    public boolean isAbstract() {
+        return false;
     }
 
     @Override

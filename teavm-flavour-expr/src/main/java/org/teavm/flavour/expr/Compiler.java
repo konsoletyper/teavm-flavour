@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.List;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.ExprCopier;
+import org.teavm.flavour.expr.ast.LambdaExpr;
+import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
@@ -69,6 +71,9 @@ public class Compiler {
         Expr<TypedPlan> attributedExpr = copier.getResult();
         CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository),
                 classResolver, scope);
+        if (attributedExpr instanceof LambdaExpr<?> && type instanceof GenericClass) {
+            visitor.lambdaSam = visitor.navigator.isSingleAbstractMethod((GenericClass)type);
+        }
         attributedExpr.acceptVisitor(visitor);
         if (type != null) {
             visitor.convert(attributedExpr, type);

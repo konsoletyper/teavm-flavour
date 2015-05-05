@@ -44,6 +44,11 @@ class ClassPathMethodDescriber extends ClassPathAbstractMethodDescriber {
     }
 
     @Override
+    public boolean isAbstract() {
+        return Modifier.isAbstract(javaMethod.getModifiers());
+    }
+
+    @Override
     TypeVariable<?>[] getJavaTypeVariables() {
         return javaMethod.getTypeParameters();
     }

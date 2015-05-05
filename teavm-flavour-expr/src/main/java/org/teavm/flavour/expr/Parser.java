@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.parboiled.Parboiled;
 import org.parboiled.errors.ParseError;
-import org.parboiled.parserunners.TracingParseRunner;
+import org.parboiled.parserunners.RecoveringParseRunner;
 import org.parboiled.support.ParsingResult;
 import org.teavm.flavour.expr.ExprParser.Holder;
 import org.teavm.flavour.expr.ast.ConstantExpr;
@@ -41,7 +41,7 @@ public class Parser {
         diagnostics.clear();
         ExprParser parser = Parboiled.createParser(ExprParser.class);
         parser.classResolver = classes;
-        TracingParseRunner<Holder> runner = new TracingParseRunner<>(parser.Root());
+        RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Root());
         ParsingResult<Holder> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
             diagnostics.add(new Diagnostic(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));

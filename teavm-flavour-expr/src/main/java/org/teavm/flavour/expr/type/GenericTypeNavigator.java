@@ -309,7 +309,7 @@ public class GenericTypeNavigator {
             returnType = ((GenericType)returnType).substitute(substitutions);
         }
 
-        return new GenericMethod(methodDescriber, argumentTypes, returnType);
+        return new GenericMethod(methodDescriber, cls, argumentTypes, returnType);
     }
 
     private void findMethodsImpl(GenericClass cls, String name, int paramCount, Set<String> visitedClasses,
@@ -349,7 +349,7 @@ public class GenericTypeNavigator {
             }
 
             MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
-            methods.put(signature, new GenericMethod(methodDesc, paramTypes, returnType));
+            methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
         }
 
         GenericClass supertype = getParent(cls);
@@ -359,6 +359,76 @@ public class GenericTypeNavigator {
         for (GenericClass iface : getInterfaces(cls)) {
             findMethodsImpl(iface, name, paramCount, visitedClasses, methods);
         }
+    }
+
+    public GenericMethod isSingleAbstractMethod(GenericClass cls) {
+        Map<MethodSignature, GenericMethod> methods = new HashMap<>();
+        int count = isSingleAbstractMethodImpl(cls, new HashSet<String>(), methods);
+        if (count != 1) {
+            return null;
+        }
+        for (GenericMethod method : methods.values()) {
+            if (method.getDescriber().isAbstract()) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private int isSingleAbstractMethodImpl(GenericClass cls, Set<String> visitedClasses,
+            Map<MethodSignature, GenericMethod> methods) {
+        if (!visitedClasses.add(cls.getName())) {
+            return 0;
+        }
+
+        ClassDescriber describer = classRepository.describe(cls.getName());
+        if (describer == null) {
+            return 0;
+        }
+
+        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        if (substitutions == null) {
+            return 0;
+        }
+
+        int result = 0;
+        for (MethodDescriber methodDesc : describer.getMethods()) {
+            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            for (int i = 0; i < paramTypes.length; ++i) {
+                if (paramTypes[i] instanceof GenericType) {
+                    paramTypes[i] = ((GenericType)paramTypes[i]).substitute(substitutions);
+                }
+            }
+
+            ValueType returnType = methodDesc.getReturnType();
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType)returnType).substitute(substitutions);
+            }
+
+            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            if (!methods.containsKey(signature)) {
+                methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
+                if (methodDesc.isAbstract()) {
+                    ++result;
+                    if (result > 1) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        GenericClass supertype = getParent(cls);
+        if (supertype != null && result <= 1) {
+            result += isSingleAbstractMethodImpl(supertype, visitedClasses, methods);
+        }
+        for (GenericClass iface : getInterfaces(cls)) {
+            if (result > 1) {
+                break;
+            }
+            result += isSingleAbstractMethodImpl(iface, visitedClasses, methods);
+        }
+
+        return result;
     }
 
     static class MethodSignature {

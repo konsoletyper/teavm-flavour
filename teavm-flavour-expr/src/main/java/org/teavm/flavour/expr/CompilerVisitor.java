@@ -19,6 +19,7 @@ import java.util.*;
 import org.teavm.flavour.expr.ast.*;
 import org.teavm.flavour.expr.plan.*;
 import org.teavm.flavour.expr.type.*;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
  *
@@ -41,12 +42,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private static final Map<Primitive, GenericClass> primitivesToWrappers = new HashMap<>();
     private static final Map<GenericClass, Primitive> wrappersToPrimitives = new HashMap<>();
 
-    private GenericTypeNavigator navigator;
+    GenericTypeNavigator navigator;
     private Scope scope;
+    private Map<String, ValueType> boundVars = new HashMap<>();
+    private Map<String, String> boundVarRenamings = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private TypeVar nullType = new TypeVar();
     private GenericReference nullTypeRef = new GenericReference(nullType);
     private ClassResolver classResolver;
+    GenericMethod lambdaSam;
 
     static {
         primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
@@ -351,22 +355,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
 
             String className = method.getDescriber().getOwner().getName();
-            StringBuilder desc = new StringBuilder().append('(');
-            for (ValueType argType : method.getDescriber().getRawArgumentTypes()) {
-                desc.append(typeToString(argType));
-            }
-            desc.append(')');
-            if (returnType != null) {
-                desc.append(typeToString(method.getDescriber().getRawReturnType()));
-            } else {
-                desc.append('V');
-            }
+            String desc = methodToDesc(method.getDescriber());
 
             if (exactMatch) {
                 matchedPlans.clear();
                 matchedMethods.clear();
             }
-            matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc.toString(),
+            matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc,
                     instance != null ? instance.plan : null, convertedArguments), returnType));
             matchedMethods.add(method);
             if (exactMatch) {
@@ -530,9 +525,49 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(LambdaExpr<TypedPlan> expr) {
-        error(expr, "Lambda expressions are not supported yet");
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
-        // TODO: implement
+        if (lambdaSam == null) {
+            error(expr, "Unexpected lambda here. Lambdas can only be passed for SAM classes");
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+            return;
+        }
+
+        ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
+        String[] oldRenamings = new String[oldVarTypes.length];
+        Set<String> usedNames = new HashSet<>();
+        List<String> boundVarNames = new ArrayList<>();
+        for (int i = 0; i < oldVarTypes.length; ++i) {
+            BoundVariable boundVar = expr.getBoundVariables().get(i);
+            if (!boundVar.getName().isEmpty()) {
+                oldVarTypes[i] = boundVars.get(boundVar.getName());
+                oldRenamings[i] = boundVarRenamings.get(boundVar.getName());
+                if (!usedNames.add(boundVar.getName())) {
+                    error(expr, "Duplicate bound variable name: " + boundVar.getName());
+                } else {
+                    boundVars.put(boundVar.getName(), boundVar.getType() != null ? boundVar.getType() :
+                            new GenericReference(new TypeVar()));
+                    String renaming = "$" + boundVarRenamings.size();
+                    boundVarRenamings.put(boundVar.getName(), renaming);
+                    boundVarNames.add(renaming);
+                }
+            }
+        }
+
+        expr.getBody().acceptVisitor(this);
+        TypedPlan body = expr.getBody().getAttribute();
+        String className = lambdaSam.getDescriber().getOwner().getName();
+        String methodName = lambdaSam.getDescriber().getOwner().getName();
+        String methodDesc = methodToDesc(lambdaSam.getDescriber());
+
+        LambdaPlan lambda = new LambdaPlan(body.plan, className, methodName, methodDesc, boundVarNames);
+        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner()));
+
+        for (int i = 0; i < oldVarTypes.length; ++i) {
+            BoundVariable boundVar = expr.getBoundVariables().get(i);
+            if (!boundVar.getName().isEmpty()) {
+                boundVars.put(boundVar.getName(), oldVarTypes[i]);
+                boundVarRenamings.put(boundVar.getName(), oldRenamings[i]);
+            }
+        }
     }
 
     @Override
@@ -1061,6 +1096,20 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         sb.append(")");
         return sb.toString();
+    }
+
+    private String methodToDesc(MethodDescriber method) {
+        StringBuilder desc = new StringBuilder().append('(');
+        for (ValueType argType : method.getRawArgumentTypes()) {
+            desc.append(typeToString(argType));
+        }
+        desc.append(')');
+        if (method.getRawReturnType() != null) {
+            desc.append(typeToString(method.getRawReturnType()));
+        } else {
+            desc.append('V');
+        }
+        return desc.toString();
     }
 
     private void error(Expr<TypedPlan> expr, String message) {

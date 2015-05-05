@@ -194,7 +194,7 @@ class DirectiveParser {
             if (returnType instanceof GenericType) {
                 returnType = ((GenericType)returnType).substitute(substitutions);
             }
-            GenericMethod method = new GenericMethod(methodDesc, argumentTypes, returnType);
+            GenericMethod method = new GenericMethod(methodDesc, genericCls, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {
                 methods.add(method);
             }
