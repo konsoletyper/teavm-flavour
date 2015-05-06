@@ -37,7 +37,7 @@ public final class GenericReference extends GenericType {
     @Override
     public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
         GenericType substitution = substitutions.get(var);
-        return substitution != null ? substitution : this;
+        return substitution != null ? substitution.substitute(substitutions) : this;
     }
 
     @Override

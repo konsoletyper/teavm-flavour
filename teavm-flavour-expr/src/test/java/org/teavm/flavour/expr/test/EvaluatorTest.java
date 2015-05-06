@@ -17,11 +17,7 @@ package org.teavm.flavour.expr.test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -400,9 +396,16 @@ public class EvaluatorTest extends BaseEvaluatorTest {
     @Test
     public void evaluatesLambda3() {
         ObjectComputation c = parseExpr(ObjectComputation.class,
-                "Collections.sort(integerList, (a, b) -> Integer.compare(a, b))");
+                "EvaluatorTest.sort(integerList, (a, b) -> Integer.compare(a, b))");
         vars.integerList(Arrays.asList(7, 11, 5, 13, 2));
         assertThat(c.compute(), is((Object)Arrays.asList(2, 5, 7, 11, 13)));
+    }
+
+    @Test
+    public void evaluatesTopLevelLambda() {
+        StringMappingComputation c = parseExpr(StringMappingComputation.class, "s -> '!' + s");
+        Mapping<String, String> mapping = c.compute();
+        assertThat(mapping.apply("foo"), is("!foo"));
     }
 
     private <T> T parseExpr(Class<T> cls, String str) {
@@ -413,14 +416,6 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();
-    }
-
-    public interface Mapping<S, T> {
-        T apply(S value);
-    }
-
-    public interface Reduction<T> {
-        T apply(T a, T b);
     }
 
     public static <S, T> List<T> map(Iterable<S> list, Mapping<? super S, ? extends T> mapping) {
@@ -436,5 +431,11 @@ public class EvaluatorTest extends BaseEvaluatorTest {
             initial = reduction.apply(initial, item);
         }
         return initial;
+    }
+
+    public static <T> List<T> sort(List<T> list, Comparator<? super T> comparator) {
+        List<T> result = new ArrayList<>(list);
+        Collections.sort(result, comparator);
+        return result;
     }
 }

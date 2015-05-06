@@ -79,6 +79,18 @@ public abstract class BaseEvaluatorTest {
         Object compute();
     }
 
+    interface StringMappingComputation {
+        Mapping<String, String> compute();
+    }
+
+    public interface Mapping<S, T> {
+        T apply(S value);
+    }
+
+    public interface Reduction<T> {
+        T apply(T a, T b);
+    }
+
     public static class Foo {
         public int y;
 

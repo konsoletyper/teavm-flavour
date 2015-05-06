@@ -57,7 +57,15 @@ public class TypeUnifier {
             return special;
         }
         if (pattern instanceof GenericReference) {
+            pattern = pattern.substitute(substitutions);
+        }
+        if (special instanceof GenericReference) {
+            special = special.substitute(substitutions);
+        }
+        if (pattern instanceof GenericReference) {
             return substituteVariable((GenericReference)pattern, special);
+        } else if (special instanceof GenericReference) {
+            return substituteVariable((GenericReference)special, pattern);
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
             return unifyArrays((GenericArray)pattern, (GenericArray)special);
         } else if (pattern instanceof GenericClass) {

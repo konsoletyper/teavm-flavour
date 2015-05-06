@@ -51,6 +51,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private GenericReference nullTypeRef = new GenericReference(nullType);
     private ClassResolver classResolver;
     GenericMethod lambdaSam;
+    Map<TypeVar, GenericType> lambdaSubstitutions;
 
     static {
         primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
@@ -338,6 +339,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         List<GenericMethod> matchedMethods = new ArrayList<>();
         List<GenericMethod> wrongContextMethods = new ArrayList<>();
         List<GenericMethod[]> samArgumentList = new ArrayList<>();
+        List<TypeUnifier> unifiers = new ArrayList<>();
         methods: for (GenericMethod method : methods) {
             if ((instance == null) != method.getDescriber().isStatic()) {
                 wrongContextMethods.add(method);
@@ -409,11 +411,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 matchedPlans.clear();
                 matchedMethods.clear();
                 samArgumentList.clear();
+                unifiers.clear();
             }
             matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc,
                     instance != null ? instance.plan : null, convertedArguments), method.getActualReturnType()));
             samArgumentList.add(samArguments);
             matchedMethods.add(method);
+            unifiers.add(unifier);
             if (exactMatch) {
                 break;
             }
@@ -426,6 +430,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             for (int i = 0; i < samArgs.length; ++i) {
                 if (samArgs[i] != null) {
                     lambdaSam = samArgs[i];
+                    lambdaSubstitutions = unifiers.get(0).getSubstitutions();
                     argumentExprList.get(i).acceptVisitor(this);
                     invocation.getArguments().set(i, argumentExprList.get(i).getAttribute().plan);
                 }
@@ -600,6 +605,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         GenericMethod lambdaSam = this.lambdaSam;
         this.lambdaSam = null;
+        Map<TypeVar, GenericType> lambdaSubstitutions = this.lambdaSubstitutions;
+        this.lambdaSubstitutions = null;
         ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
 
         ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
@@ -614,7 +621,18 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 if (!usedNames.add(boundVar.getName())) {
                     error(expr, "Duplicate bound variable name: " + boundVar.getName());
                 } else {
-                    boundVars.put(boundVar.getName(), actualArgTypes[i]);
+                    ValueType boundVarType = actualArgTypes[i];
+                    if (boundVarType instanceof GenericReference) {
+                        TypeVar typeVar = ((GenericReference)boundVarType).getVar();
+                        if (typeVar.getUpperBound() != null && lambdaSubstitutions != null) {
+                            boundVarType = typeVar.getUpperBound().substitute(lambdaSubstitutions);
+                        } else if (typeVar.getLowerBound() != null && lambdaSubstitutions != null) {
+                            boundVarType = typeVar.getLowerBound().substitute(lambdaSubstitutions);
+                        } else {
+                            boundVarType = new GenericClass("java.lang.Object");
+                        }
+                    }
+                    boundVars.put(boundVar.getName(), boundVarType);
                     String renaming = "$" + boundVarRenamings.size();
                     boundVarRenamings.put(boundVar.getName(), renaming);
                     boundVarNames.add(renaming);
