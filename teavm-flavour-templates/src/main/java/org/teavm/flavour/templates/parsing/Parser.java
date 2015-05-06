@@ -15,50 +15,22 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import net.htmlparser.jericho.Attribute;
-import net.htmlparser.jericho.Element;
-import net.htmlparser.jericho.Segment;
-import net.htmlparser.jericho.Source;
-import net.htmlparser.jericho.StartTag;
-import net.htmlparser.jericho.StartTagType;
-import net.htmlparser.jericho.Tag;
+import java.io.*;
+import java.util.*;
+import net.htmlparser.jericho.*;
 import org.apache.commons.lang3.StringUtils;
-import org.teavm.flavour.expr.ClassResolver;
+import org.teavm.flavour.expr.*;
 import org.teavm.flavour.expr.Compiler;
-import org.teavm.flavour.expr.Diagnostic;
-import org.teavm.flavour.expr.ImportingClassResolver;
-import org.teavm.flavour.expr.Scope;
-import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
+import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.ValueType;
-import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
-import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
-import org.teavm.flavour.templates.tree.DOMElement;
-import org.teavm.flavour.templates.tree.DOMText;
-import org.teavm.flavour.templates.tree.DirectiveActionBinding;
-import org.teavm.flavour.templates.tree.DirectiveBinding;
-import org.teavm.flavour.templates.tree.DirectiveComputationBinding;
-import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
-import org.teavm.flavour.templates.tree.TemplateNode;
+import org.teavm.flavour.templates.tree.*;
 
 /**
  *
@@ -220,29 +192,12 @@ public class Parser {
                     break;
                 }
                 case COMPUTATION: {
-                    TypedPlan plan = compileExpr(attr.getValueSegment(), attrMeta.valueType);
-                    DirectiveComputationBinding computationBinding = new DirectiveComputationBinding(
-                            setter.getOwner().getName(), setter.getName(), plan);
+                    TypedPlan plan = compileExpr(attr.getValueSegment(), (GenericClass)attrMeta.valueType);
+                    DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
+                            setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
+                            attrMeta.sam.getActualOwner().getName());
                     directive.getComputations().add(computationBinding);
-                    if (plan.getType() instanceof GenericType) {
-                        if (!unifier.unify((GenericType)attrMeta.valueType, (GenericType)plan.getType(), true)) {
-                            ValueTypeFormatter formatter = new ValueTypeFormatter();
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Can't assign ").append(attrMeta.setter.getName()).append(" computation " +
-                                    "since its type ");
-                            formatter.format(attrMeta.valueType, sb);
-                            sb.append("is incompatible with expression's type ");
-                            formatter.format(plan.getType(), sb);
-                            diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), sb.toString()));
-                        }
-                    }
-                    break;
-                }
-                case ACTION: {
-                    TypedPlan plan = compileExpr(attr.getValueSegment(), null);
-                    DirectiveActionBinding actionBinding = new DirectiveActionBinding(
-                            setter.getOwner().getName(), setter.getName(), plan.getPlan());
-                    directive.getActions().add(actionBinding);
+                    unifier.unify(attrMeta.sam.getActualOwner(), (GenericType)plan.getType(), false);
                     break;
                 }
             }
@@ -295,7 +250,6 @@ public class Parser {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
 
-        TypeUnifier unifier = new TypeUnifier(classRepository);
         MethodDescriber setter = directiveMeta.setter;
         switch (directiveMeta.type) {
             case VARIABLE: {
@@ -306,29 +260,11 @@ public class Parser {
                 break;
             }
             case COMPUTATION: {
-                TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.valueType);
-                DirectiveComputationBinding computationBinding = new DirectiveComputationBinding(
-                        setter.getOwner().getName(), setter.getName(), plan);
-                directive.getComputations().add(computationBinding);
-                if (plan.getType() instanceof GenericType) {
-                    if (!unifier.unify((GenericType)directiveMeta.valueType, (GenericType)plan.getType(), true)) {
-                        ValueTypeFormatter formatter = new ValueTypeFormatter();
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("Can't assign ").append(directiveMeta.setter.getName()).append(" computation " +
-                                "since its type ");
-                        formatter.format(directiveMeta.valueType, sb);
-                        sb.append("is incompatible with expression's type ");
-                        formatter.format(plan.getType(), sb);
-                        diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), sb.toString()));
-                    }
-                }
-                break;
-            }
-            case ACTION: {
-                TypedPlan plan = compileExpr(attr.getValueSegment(), null);
-                DirectiveActionBinding actionBinding = new DirectiveActionBinding(
-                        setter.getOwner().getName(), setter.getName(), plan.getPlan());
-                directive.getActions().add(actionBinding);
+                TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.sam.getActualOwner());
+                DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
+                        setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
+                        directiveMeta.sam.getDescriber().getOwner().getName());
+                directive.getFunctions().add(computationBinding);
                 break;
             }
         }
@@ -336,7 +272,7 @@ public class Parser {
         return directive;
     }
 
-    private TypedPlan compileExpr(Segment segment, ValueType type) {
+    private TypedPlan compileExpr(Segment segment, GenericClass type) {
         org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
         Expr<Void> expr = exprParser.parse(segment.toString());
         int offset = segment.getBegin();
@@ -346,7 +282,7 @@ public class Parser {
             diagnostics.add(diagnostic);
         }
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
-        TypedPlan result = compiler.compile(expr, type);
+        TypedPlan result = compiler.compileLambda(expr, type);
         for (Diagnostic diagnostic : compiler.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
                     diagnostic.getMessage());

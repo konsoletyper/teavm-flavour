@@ -15,50 +15,11 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import org.teavm.flavour.expr.plan.*;
-import org.teavm.flavour.templates.Action;
-import org.teavm.flavour.templates.Computation;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldReference;
-import org.teavm.model.Incoming;
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.Phi;
-import org.teavm.model.Program;
-import org.teavm.model.ValueType;
-import org.teavm.model.Variable;
-import org.teavm.model.instructions.ArrayLengthInstruction;
-import org.teavm.model.instructions.BinaryBranchingCondition;
-import org.teavm.model.instructions.BinaryBranchingInstruction;
-import org.teavm.model.instructions.BinaryInstruction;
-import org.teavm.model.instructions.BinaryOperation;
-import org.teavm.model.instructions.BranchingCondition;
-import org.teavm.model.instructions.BranchingInstruction;
-import org.teavm.model.instructions.CastInstruction;
-import org.teavm.model.instructions.CastIntegerDirection;
-import org.teavm.model.instructions.CastIntegerInstruction;
-import org.teavm.model.instructions.CastNumberInstruction;
-import org.teavm.model.instructions.ConstructInstruction;
-import org.teavm.model.instructions.DoubleConstantInstruction;
-import org.teavm.model.instructions.ExitInstruction;
-import org.teavm.model.instructions.FloatConstantInstruction;
-import org.teavm.model.instructions.GetElementInstruction;
-import org.teavm.model.instructions.GetFieldInstruction;
-import org.teavm.model.instructions.IntegerConstantInstruction;
+import org.teavm.model.*;
+import org.teavm.model.instructions.*;
 import org.teavm.model.instructions.IntegerSubtype;
-import org.teavm.model.instructions.InvocationType;
-import org.teavm.model.instructions.InvokeInstruction;
-import org.teavm.model.instructions.IsInstanceInstruction;
-import org.teavm.model.instructions.JumpInstruction;
-import org.teavm.model.instructions.NegateInstruction;
-import org.teavm.model.instructions.NullConstantInstruction;
-import org.teavm.model.instructions.NumericOperandType;
-import org.teavm.model.instructions.StringConstantInstruction;
 
 /**
  *
@@ -72,49 +33,13 @@ class ExprPlanEmitter implements PlanVisitor {
     BasicBlock block;
     private BranchingConsumer branching;
     Variable thisVar;
+    Set<String> innerClosure = new HashSet<>();
+    List<String> innerClosureList = new ArrayList<>();
+    private Map<String, BoundVariableEmitter> boundVars = new HashMap<>();
+    private Map<String, ValueType> boundVarTypes = new HashMap<>();
 
     public ExprPlanEmitter(EmitContext context) {
         this.context = context;
-    }
-
-    public String emitComputation(Plan plan) {
-        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(Computation.class.getName());
-        cls.setLevel(AccessLevel.PUBLIC);
-        context.addConstructor(cls);
-        emitPerformMethod(cls, plan, true);
-        context.dependencyAgent.submitClass(cls);
-        return cls.getName();
-    }
-
-    public String emitAction(Plan plan) {
-        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(Action.class.getName());
-        cls.setLevel(AccessLevel.PUBLIC);
-        context.addConstructor(cls);
-        emitPerformMethod(cls, plan, false);
-        context.dependencyAgent.submitClass(cls);
-        return cls.getName();
-    }
-
-    private void emitPerformMethod(ClassHolder cls, Plan plan, boolean returnValue) {
-        MethodHolder method = new MethodHolder("perform", returnValue ?
-                ValueType.parse(Object.class) : ValueType.VOID);
-        method.setLevel(AccessLevel.PUBLIC);
-        program = new Program();
-        thisVar = program.createVariable();
-        block = program.createBasicBlock();
-        thisClassName = cls.getName();
-        plan.acceptVisitor(this);
-        ExitInstruction exit = new ExitInstruction();
-        if (returnValue) {
-            exit.setValueToReturn(var);
-        }
-        block.getInstructions().add(exit);
-        method.setProgram(program);
-        cls.addMethod(method);
     }
 
     @Override
@@ -179,6 +104,14 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private void emitVariable(String name) {
+        if (boundVars.containsKey(name)) {
+            boundVars.get(name).emit();
+            if (innerClosure.add(name)) {
+                innerClosureList.add(name);
+            }
+            return;
+        }
+
         EmittedVariable emitVar = context.getVariable(name);
 
         String lastClass = thisClassName;
@@ -560,7 +493,147 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(LambdaPlan plan) {
-        // TODO: implement
+        Map<String, ClosureEmitter> innerBoundVars = new HashMap<>();
+        for (String boundVar : boundVars.keySet()) {
+            innerBoundVars.put(boundVar, new ClosureEmitter(boundVar, boundVarTypes.get(boundVar)));
+        }
+
+        ExprPlanEmitter innerEmitter = new ExprPlanEmitter(context);
+        String lambdaClass = innerEmitter.emitLambdaClass(plan.getClassName(), plan.getMethodName(),
+                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars);
+
+        String ownerCls = context.classStack.get(context.classStack.size() - 1);
+
+        Variable lambda = program.createVariable();
+        ConstructInstruction constructLambda = new ConstructInstruction();
+        constructLambda.setType(lambdaClass);
+        constructLambda.setReceiver(lambda);
+        block.getInstructions().add(constructLambda);
+
+        List<ValueType> ctorArgTypes = new ArrayList<>();
+        List<Variable> ctorArgs = new ArrayList<>();
+
+        ctorArgTypes.add(ValueType.object(ownerCls));
+        Variable ownerVar = program.createVariable();
+        GetFieldInstruction getOwner = new GetFieldInstruction();
+        getOwner.setField(new FieldReference(thisClassName, "this$owner"));
+        getOwner.setFieldType(ValueType.object(ownerCls));
+        getOwner.setInstance(thisVar);
+        getOwner.setReceiver(ownerVar);
+        ctorArgs.add(ownerVar);
+
+        for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
+            String closedVar = innerEmitter.innerClosureList.get(i);
+            boundVars.get(closedVar).emit();
+            ctorArgTypes.add(boundVarTypes.get(closedVar));
+            ctorArgs.add(var);
+        }
+        ctorArgTypes.add(ValueType.VOID);
+
+        InvokeInstruction initLambda = new InvokeInstruction();
+        initLambda.setInstance(lambda);
+        initLambda.setType(InvocationType.SPECIAL);
+        initLambda.setMethod(new MethodReference(lambdaClass, "<init>", ctorArgTypes.toArray(new ValueType[0])));
+        initLambda.getArguments().addAll(ctorArgs);
+        block.getInstructions().add(initLambda);
+
+        var = lambda;
+    }
+
+    private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
+            List<String> boundVarList, Map<String, ClosureEmitter> outerBoundVars) {
+        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
+        cls.setLevel(AccessLevel.PUBLIC);
+        cls.setParent(Object.class.getName());
+        cls.getInterfaces().add(className);
+
+        MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
+        workerMethod.setLevel(AccessLevel.PUBLIC);
+        program = new Program();
+        thisVar = program.createVariable();
+        for (ClosureEmitter outerClosure : outerBoundVars.values()) {
+            boundVarTypes.put(outerClosure.name, outerClosure.type);
+        }
+        boundVars.putAll(outerBoundVars);
+        for (int i = 0; i < workerMethod.parameterCount(); ++i) {
+            String varName = boundVarList.get(i);
+            if (!varName.isEmpty()) {
+                boundVars.put(varName, new ParamEmitter(i + 1));
+                boundVarTypes.put(varName, workerMethod.parameterType(i));
+            }
+        }
+        block = program.createBasicBlock();
+        thisClassName = cls.getName();
+        body.acceptVisitor(this);
+        requireValue();
+        ExitInstruction exit = new ExitInstruction();
+        if (workerMethod.getResultType() != ValueType.VOID) {
+            exit.setValueToReturn(var);
+        }
+        block.getInstructions().add(exit);
+        workerMethod.setProgram(program);
+        cls.addMethod(workerMethod);
+
+        emitLambdaConstructor(cls);
+
+        context.dependencyAgent.submitClass(cls);
+        return cls.getName();
+    }
+
+    private void emitLambdaConstructor(ClassHolder cls) {
+        String ownerCls = context.classStack.get(context.classStack.size() - 1);
+
+        List<ValueType> ctorArgTypes = new ArrayList<>();
+        ctorArgTypes.add(ValueType.object(ownerCls));
+        for (int i = 0; i < innerClosureList.size(); ++i) {
+            String closedVar = innerClosureList.get(i);
+            ctorArgTypes.add(boundVarTypes.get(closedVar));
+        }
+        ctorArgTypes.add(ValueType.VOID);
+
+        MethodHolder ctor = new MethodHolder("<init>", ctorArgTypes.toArray(new ValueType[0]));
+        ctor.setLevel(AccessLevel.PUBLIC);
+        program = new Program();
+        block = program.createBasicBlock();
+        thisVar = program.createVariable();
+
+        InvokeInstruction initSuper = new InvokeInstruction();
+        initSuper.setInstance(thisVar);
+        initSuper.setMethod(new MethodReference(Object.class, "<init>", void.class));
+        initSuper.setType(InvocationType.SPECIAL);
+        block.getInstructions().add(initSuper);
+
+        FieldHolder ownerField = new FieldHolder("this$owner");
+        ownerField.setLevel(AccessLevel.PUBLIC);
+        ownerField.setType(ValueType.object(ownerCls));
+        cls.addField(ownerField);
+        Variable ownerVar = program.createVariable();
+        PutFieldInstruction setOwner = new PutFieldInstruction();
+        setOwner.setField(ownerField.getReference());
+        setOwner.setFieldType(ownerField.getType());
+        setOwner.setInstance(thisVar);
+        setOwner.setValue(ownerVar);
+        block.getInstructions().add(setOwner);
+
+        for (int i = 0; i < innerClosureList.size(); ++i) {
+            String closedVar = innerClosureList.get(i);
+            FieldHolder closureField = new FieldHolder("closure$" + closedVar);
+            closureField.setLevel(AccessLevel.PUBLIC);
+            closureField.setType(boundVarTypes.get(closedVar));
+            cls.addField(closureField);
+            Variable closureVar = program.createVariable();
+            PutFieldInstruction setClosure = new PutFieldInstruction();
+            setClosure.setField(closureField.getReference());
+            setClosure.setFieldType(closureField.getType());
+            setClosure.setInstance(thisVar);
+            setClosure.setValue(closureVar);
+            block.getInstructions().add(setClosure);
+        }
+
+        block.getInstructions().add(new ExitInstruction());
+
+        ctor.setProgram(program);
+        cls.addMethod(ctor);
     }
 
     void valueToBranching() {
@@ -755,5 +828,43 @@ class ExprPlanEmitter implements PlanVisitor {
         void setThen(BasicBlock block);
 
         void setElse(BasicBlock block);
+    }
+
+    interface BoundVariableEmitter {
+        void emit();
+    }
+
+    class ParamEmitter implements BoundVariableEmitter {
+        private int index;
+
+        public ParamEmitter(int index) {
+            this.index = index;
+        }
+
+        @Override
+        public void emit() {
+            var = program.variableAt(index);
+        }
+    }
+
+    class ClosureEmitter implements BoundVariableEmitter {
+        final String name;
+        final ValueType type;
+
+        public ClosureEmitter(String name, ValueType type) {
+            this.name = name;
+            this.type = type;
+        }
+
+        @Override
+        public void emit() {
+            var = program.createVariable();
+            GetFieldInstruction insn = new GetFieldInstruction();
+            insn.setInstance(thisVar);
+            insn.setField(new FieldReference(thisClassName, "closure$" + name));
+            insn.setFieldType(type);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+        }
     }
 }

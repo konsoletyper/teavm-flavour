@@ -29,8 +29,7 @@ public class DirectiveBinding extends TemplateNode {
     private String contentMethodName;
     private String directiveNameMethodName;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
-    private List<DirectiveComputationBinding> computations = new ArrayList<>();
-    private List<DirectiveActionBinding> actions = new ArrayList<>();
+    private List<DirectiveFunctionBinding> computations = new ArrayList<>();
 
     public DirectiveBinding(String className, String name) {
         this.className = className;
@@ -41,12 +40,8 @@ public class DirectiveBinding extends TemplateNode {
         return variables;
     }
 
-    public List<DirectiveComputationBinding> getComputations() {
+    public List<DirectiveFunctionBinding> getComputations() {
         return computations;
-    }
-
-    public List<DirectiveActionBinding> getActions() {
-        return actions;
     }
 
     public String getClassName() {

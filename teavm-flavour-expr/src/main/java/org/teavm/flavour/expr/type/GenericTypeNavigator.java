@@ -361,9 +361,9 @@ public class GenericTypeNavigator {
         }
     }
 
-    public GenericMethod isSingleAbstractMethod(GenericClass cls) {
+    public GenericMethod findSingleAbstractMethod(GenericClass cls) {
         Map<MethodSignature, GenericMethod> methods = new HashMap<>();
-        int count = isSingleAbstractMethodImpl(cls, new HashSet<String>(), methods);
+        int count = findSingleAbstractMethodImpl(cls, new HashSet<String>(), methods);
         if (count != 1) {
             return null;
         }
@@ -375,7 +375,7 @@ public class GenericTypeNavigator {
         return null;
     }
 
-    private int isSingleAbstractMethodImpl(GenericClass cls, Set<String> visitedClasses,
+    private int findSingleAbstractMethodImpl(GenericClass cls, Set<String> visitedClasses,
             Map<MethodSignature, GenericMethod> methods) {
         if (cls.getName().equals(Object.class.getName())) {
             return 0;
@@ -426,13 +426,13 @@ public class GenericTypeNavigator {
 
         GenericClass supertype = getParent(cls);
         if (supertype != null && result <= 1) {
-            result += isSingleAbstractMethodImpl(supertype, visitedClasses, methods);
+            result += findSingleAbstractMethodImpl(supertype, visitedClasses, methods);
         }
         for (GenericClass iface : getInterfaces(cls)) {
             if (result > 1) {
                 break;
             }
-            result += isSingleAbstractMethodImpl(iface, visitedClasses, methods);
+            result += findSingleAbstractMethodImpl(iface, visitedClasses, methods);
         }
 
         return result;

@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.templates.parsing;
 
+import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
@@ -27,5 +28,6 @@ class DirectiveAttributeMetadata {
     DirectiveAttributeType type;
     boolean required;
     MethodDescriber setter;
+    GenericMethod sam;
     ValueType valueType;
 }

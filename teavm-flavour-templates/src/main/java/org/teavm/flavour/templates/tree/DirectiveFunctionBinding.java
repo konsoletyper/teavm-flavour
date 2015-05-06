@@ -15,25 +15,35 @@
  */
 package org.teavm.flavour.templates.tree;
 
-import org.teavm.flavour.expr.plan.Plan;
+import org.teavm.flavour.expr.plan.LambdaPlan;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class DirectiveActionBinding extends DirectivePropertyBinding {
-    private Plan value;
+public class DirectiveFunctionBinding extends DirectivePropertyBinding {
+    private LambdaPlan plan;
+    private String lambdaType;
 
-    public DirectiveActionBinding(String methodOwner, String methodName, Plan value) {
+    public DirectiveFunctionBinding(String methodOwner, String methodName, LambdaPlan plan, String lambdaType) {
         super(methodOwner, methodName);
-        this.value = value;
+        this.plan = plan;
+        this.lambdaType = lambdaType;
     }
 
-    public Plan getValue() {
-        return value;
+    public LambdaPlan getPlan() {
+        return plan;
     }
 
-    public void setValue(Plan value) {
-        this.value = value;
+    public void setPlan(LambdaPlan plan) {
+        this.plan = plan;
+    }
+
+    public String getLambdaType() {
+        return lambdaType;
+    }
+
+    public void setLambdaType(String lambdaType) {
+        this.lambdaType = lambdaType;
     }
 }

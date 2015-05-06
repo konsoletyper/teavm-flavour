@@ -27,8 +27,7 @@ public class AttributeDirectiveBinding {
     private String name;
     private String directiveNameMethodName;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
-    private List<DirectiveComputationBinding> computations = new ArrayList<>();
-    private List<DirectiveActionBinding> actions = new ArrayList<>();
+    private List<DirectiveFunctionBinding> computations = new ArrayList<>();
 
     public AttributeDirectiveBinding(String className, String name) {
         this.className = className;
@@ -63,11 +62,7 @@ public class AttributeDirectiveBinding {
         return variables;
     }
 
-    public List<DirectiveComputationBinding> getComputations() {
+    public List<DirectiveFunctionBinding> getFunctions() {
         return computations;
-    }
-
-    public List<DirectiveActionBinding> getActions() {
-        return actions;
     }
 }

@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.templates.parsing;
 
+import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
@@ -27,4 +28,5 @@ class AttributeDirectiveMetadata extends BaseDirectiveMetadata {
     DirectiveAttributeType type;
     MethodDescriber setter;
     ValueType valueType;
+    GenericMethod sam;
 }

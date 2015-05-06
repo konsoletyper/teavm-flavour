@@ -42,13 +42,11 @@ import org.teavm.flavour.expr.type.meta.AnnotationValue;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
-import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindDirectiveName;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.Slot;
@@ -267,6 +265,7 @@ class DirectiveParser {
         } else {
             metadata.type = attrMeta.type;
             metadata.valueType = attrMeta.valueType;
+            metadata.sam = attrMeta.sam;
         }
     }
 
@@ -316,15 +315,6 @@ class DirectiveParser {
         TypeVar typeVar = new TypeVar();
 
         TypeUnifier unifier = new TypeUnifier(classRepository);
-        GenericClass computationType = new GenericClass(Computation.class.getName(),
-                new GenericReference(typeVar));
-        if (unifier.unify(computationType, (GenericType)valueType, false)) {
-            attrMetadata.type = DirectiveAttributeType.COMPUTATION;
-            attrMetadata.valueType = unifier.getSubstitutions().get(typeVar);
-            return true;
-        }
-
-        unifier = new TypeUnifier(classRepository);
         GenericClass variableType = new GenericClass(Variable.class.getName(), new GenericReference(typeVar));
         if (unifier.unify(variableType, (GenericType)valueType, false)) {
             attrMetadata.type = DirectiveAttributeType.VARIABLE;
@@ -332,9 +322,14 @@ class DirectiveParser {
             return true;
         }
 
-        if (valueType.equals(new GenericClass(Action.class.getName()))) {
-            attrMetadata.type = DirectiveAttributeType.ACTION;
-            return true;
+        if (valueType instanceof GenericClass) {
+            GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass)valueType);
+            if (sam != null) {
+                attrMetadata.sam = sam;
+                attrMetadata.type = DirectiveAttributeType.COMPUTATION;
+                attrMetadata.valueType = sam.getActualOwner();
+                return true;
+            }
         }
 
         return false;

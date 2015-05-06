@@ -18,12 +18,11 @@ package org.teavm.flavour.expr;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.ExprCopier;
 import org.teavm.flavour.expr.ast.LambdaExpr;
-import org.teavm.flavour.expr.type.GenericClass;
-import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.*;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
 /**
@@ -72,7 +71,7 @@ public class Compiler {
         CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository),
                 classResolver, scope);
         if (attributedExpr instanceof LambdaExpr<?> && type instanceof GenericClass) {
-            visitor.lambdaSam = visitor.navigator.isSingleAbstractMethod((GenericClass)type);
+            visitor.lambdaSam = visitor.navigator.findSingleAbstractMethod((GenericClass)type);
         }
         attributedExpr.acceptVisitor(visitor);
         if (type != null) {
@@ -80,6 +79,21 @@ public class Compiler {
         }
         diagnostics.addAll(visitor.getDiagnostics());
         return attributedExpr.getAttribute();
+    }
+
+    public TypedPlan compileLambda(Expr<?> expr, GenericClass cls) {
+        if (!(expr instanceof LambdaExpr<?>)) {
+            List<BoundVariable> boundVars = new ArrayList<>();
+            GenericMethod sam = new GenericTypeNavigator(classRepository).findSingleAbstractMethod(cls);
+            for (ValueType arg : sam.getActualArgumentTypes()) {
+                boundVars.add(new BoundVariable("", arg));
+            }
+            LambdaExpr<?> lambda = new LambdaExpr<>(expr, boundVars);
+            lambda.setStart(expr.getStart());
+            lambda.setEnd(expr.getEnd());
+            expr = lambda;
+        }
+        return compile(expr, cls);
     }
 
     public List<Diagnostic> getDiagnostics() {
