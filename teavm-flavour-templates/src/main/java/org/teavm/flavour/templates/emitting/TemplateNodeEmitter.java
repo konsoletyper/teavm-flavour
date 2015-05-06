@@ -15,19 +15,24 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.Collections;
 import java.util.List;
 import org.teavm.dom.html.HTMLElement;
+import org.teavm.flavour.expr.plan.InvocationPlan;
+import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Modifier;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
 import org.teavm.flavour.templates.tree.DOMAttribute;
 import org.teavm.flavour.templates.tree.DOMElement;
@@ -42,6 +47,7 @@ import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;
 import org.teavm.model.FieldReference;
+import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
@@ -240,8 +246,6 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private void emitDirectiveWorker(ClassHolder cls, DirectiveBinding directive) {
-        context.classStack.add(cls.getName());
-
         MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
         method.setLevel(AccessLevel.PUBLIC);
         Program program = new Program();
@@ -277,6 +281,8 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             emitFunction(cls, computation, block, thisVar, componentVar);
         }
 
+        context.classStack.add(cls.getName());
+
         if (directive.getContentMethodName() != null) {
             emitContent(cls, directive, block, thisVar, componentVar);
         }
@@ -300,8 +306,6 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private void emitAttributeDirectiveWorker(ClassHolder cls, AttributeDirectiveBinding directive) {
-        context.classStack.add(cls.getName());
-
         MethodHolder method = new MethodHolder("apply", ValueType.parse(HTMLElement.class),
                 ValueType.parse(Renderable.class));
         method.setLevel(AccessLevel.PUBLIC);
@@ -347,13 +351,14 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         for (DirectiveVariableBinding varBinding : directive.getVariables()) {
             context.removeVariable(varBinding.getName());
         }
-        context.classStack.remove(context.classStack.size() - 1);
     }
 
     private void emitVariable(ClassHolder cls, DirectiveVariableBinding varBinding, BasicBlock block,
             Variable thisVar, Variable componentVar) {
         Program program = block.getProgram();
+        context.classStack.add(cls.getName());
         String varClass = emitVariableClass(cls, varBinding);
+        context.classStack.remove(context.classStack.size() - 1);
 
         Variable varVar = program.createVariable();
         ConstructInstruction constructVar = new ConstructInstruction();
@@ -437,7 +442,18 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         exprEmitter.thisVar = thisVar;
         exprEmitter.program = block.getProgram();
         exprEmitter.block = block;
-        computation.getPlan().acceptVisitor(exprEmitter);
+        LambdaPlan plan = computation.getPlan();
+        ValueType[] signature = MethodDescriptor.parseSignature(computation.getPlan().getMethodDesc());
+        if (signature[signature.length - 1] == ValueType.VOID) {
+            LambdaPlan actionPlan = new LambdaPlan(plan.getBody(), Action.class.getName(), "perform", "()V",
+                    Collections.<String>emptyList());
+            String actionType = "L" + Action.class.getName().replace('.', '/') + ";";
+            InvocationPlan wrapperPlan = new InvocationPlan(Templates.class.getName(), "wrap",
+                    "(" + actionType + ")" + actionType, null, actionPlan);
+            plan = new LambdaPlan(wrapperPlan, plan.getClassName(), plan.getMethodName(), plan.getMethodDesc(),
+                    plan.getBoundVars());
+        }
+        plan.acceptVisitor(exprEmitter);
 
         InvokeInstruction setComputation = new InvokeInstruction();
         setComputation.setType(InvocationType.VIRTUAL);

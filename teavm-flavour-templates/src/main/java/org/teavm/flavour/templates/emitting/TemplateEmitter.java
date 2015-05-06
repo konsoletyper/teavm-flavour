@@ -64,8 +64,8 @@ public class TemplateEmitter {
 
     private String emitInnerFragment(ClassHolder cls, String modelClassName, List<TemplateNode> fragment) {
         EmitContext context = new EmitContext();
-        context.classStack.add(cls.getName());
         context.addVariable("this", ValueType.object(modelClassName));
+        context.classStack.add(cls.getName());
         context.dependencyAgent = dependencyAgent;
         return new FragmentEmitter(context).emitTemplate(fragment);
     }

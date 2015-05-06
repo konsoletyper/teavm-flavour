@@ -73,7 +73,7 @@ class EmitContext {
         }
         EmittedVariable ev = new EmittedVariable();
         ev.name = name;
-        ev.depth = classStack.size() - 1;
+        ev.depth = classStack.size();
         ev.type = type;
         stack.push(ev);
     }

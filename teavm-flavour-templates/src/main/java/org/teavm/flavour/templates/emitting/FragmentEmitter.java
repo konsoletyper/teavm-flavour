@@ -150,6 +150,7 @@ class FragmentEmitter {
 
         for (EmittedVariable var : vars.values()) {
             FieldHolder field = new FieldHolder("cache$" + var.name);
+            field.setType(var.type);
             cls.addField(field);
             PutFieldInstruction saveValue = new PutFieldInstruction();
             saveValue.setInstance(thisVar);

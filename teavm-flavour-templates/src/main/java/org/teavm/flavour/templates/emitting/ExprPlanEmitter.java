@@ -15,11 +15,78 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.*;
-import org.teavm.flavour.expr.plan.*;
-import org.teavm.model.*;
-import org.teavm.model.instructions.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
+import org.teavm.flavour.expr.plan.ArithmeticType;
+import org.teavm.flavour.expr.plan.ArrayLengthPlan;
+import org.teavm.flavour.expr.plan.BinaryPlan;
+import org.teavm.flavour.expr.plan.BinaryPlanType;
+import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
+import org.teavm.flavour.expr.plan.CastPlan;
+import org.teavm.flavour.expr.plan.CastToIntegerPlan;
+import org.teavm.flavour.expr.plan.ConditionalPlan;
+import org.teavm.flavour.expr.plan.ConstantPlan;
+import org.teavm.flavour.expr.plan.ConstructionPlan;
+import org.teavm.flavour.expr.plan.FieldPlan;
+import org.teavm.flavour.expr.plan.GetArrayElementPlan;
+import org.teavm.flavour.expr.plan.InstanceOfPlan;
+import org.teavm.flavour.expr.plan.InvocationPlan;
+import org.teavm.flavour.expr.plan.LambdaPlan;
+import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
+import org.teavm.flavour.expr.plan.NegatePlan;
+import org.teavm.flavour.expr.plan.NotPlan;
+import org.teavm.flavour.expr.plan.Plan;
+import org.teavm.flavour.expr.plan.PlanVisitor;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
+import org.teavm.flavour.expr.plan.ThisPlan;
+import org.teavm.flavour.expr.plan.VariablePlan;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldHolder;
+import org.teavm.model.FieldReference;
+import org.teavm.model.Incoming;
+import org.teavm.model.MethodDescriptor;
+import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
+import org.teavm.model.Phi;
+import org.teavm.model.Program;
+import org.teavm.model.ValueType;
+import org.teavm.model.Variable;
+import org.teavm.model.instructions.ArrayLengthInstruction;
+import org.teavm.model.instructions.BinaryBranchingCondition;
+import org.teavm.model.instructions.BinaryBranchingInstruction;
+import org.teavm.model.instructions.BinaryInstruction;
+import org.teavm.model.instructions.BinaryOperation;
+import org.teavm.model.instructions.BranchingCondition;
+import org.teavm.model.instructions.BranchingInstruction;
+import org.teavm.model.instructions.CastInstruction;
+import org.teavm.model.instructions.CastIntegerDirection;
+import org.teavm.model.instructions.CastIntegerInstruction;
+import org.teavm.model.instructions.CastNumberInstruction;
+import org.teavm.model.instructions.ConstructInstruction;
+import org.teavm.model.instructions.DoubleConstantInstruction;
+import org.teavm.model.instructions.ExitInstruction;
+import org.teavm.model.instructions.FloatConstantInstruction;
+import org.teavm.model.instructions.GetElementInstruction;
+import org.teavm.model.instructions.GetFieldInstruction;
+import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.instructions.InvocationType;
+import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.IsInstanceInstruction;
+import org.teavm.model.instructions.JumpInstruction;
+import org.teavm.model.instructions.NegateInstruction;
+import org.teavm.model.instructions.NullConstantInstruction;
+import org.teavm.model.instructions.NumericOperandType;
+import org.teavm.model.instructions.PutFieldInstruction;
+import org.teavm.model.instructions.StringConstantInstruction;
 
 /**
  *
@@ -116,7 +183,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         String lastClass = thisClassName;
         var = thisVar;
-        int bottom = context.classStack.size() - 2;
+        int bottom = context.classStack.size() - 1;
         for (int i = context.classStack.size() - 1; i >= bottom; --i) {
             GetFieldInstruction insn = new GetFieldInstruction();
             insn.setFieldType(ValueType.object(context.classStack.get(i)));
@@ -520,6 +587,7 @@ class ExprPlanEmitter implements PlanVisitor {
         getOwner.setFieldType(ValueType.object(ownerCls));
         getOwner.setInstance(thisVar);
         getOwner.setReceiver(ownerVar);
+        block.getInstructions().add(getOwner);
         ctorArgs.add(ownerVar);
 
         for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {

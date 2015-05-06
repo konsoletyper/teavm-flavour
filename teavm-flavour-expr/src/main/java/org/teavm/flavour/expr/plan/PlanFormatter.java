@@ -243,7 +243,7 @@ public class PlanFormatter implements PlanVisitor {
             if (i > 0) {
                 sb.append(", ");
             }
-            sb.append(plan.getBoundVars());
+            sb.append(plan.getBoundVars().get(i));
         }
         sb.append(")");
         ++indentLevel;
