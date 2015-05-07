@@ -590,6 +590,7 @@ class ExprPlanEmitter implements PlanVisitor {
         requireValue();
 
         if (updateTemplates) {
+            emitSetRoot(emitGetRoot());
             InvokeInstruction invokeUpdate = new InvokeInstruction();
             invokeUpdate.setType(InvocationType.SPECIAL);
             invokeUpdate.setMethod(new MethodReference(Templates.class, "update", void.class));

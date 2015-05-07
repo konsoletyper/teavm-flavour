@@ -4,15 +4,15 @@
     <tbody>
       <tr>
         <td><b>Receiver</b>:</td>
-        <td><std:text value="receiverName"></std:text></td>
+        <td><std:text value="receiverName"/></td>
       </tr>
       <tr>
         <td><b>Address</b>:</td>
-        <td><std:text value="address"></std:text></td>
+        <td><std:text value="address"/></td>
       </tr>
       <tr>
         <td><b>Date</b>:</td>
-        <td><std:text value="Formatter.format('yyyy-MM-dd', date)"></std:text></td>
+        <td><std:text value="Formatter.format('yyyy-MM-dd', date)"/></td>
       </tr>
     </tbody>
   </table>
@@ -32,10 +32,10 @@
     <tbody>
       <std:foreach var="item" index="index" in="items">
         <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
-          <td align="right"><std:text value="index + 1"></std:text></td>
-          <td><std:text value="item.product.sku"></td>
-          <td><std:text value="item.product.name"></td>
-          <td align="right"><std:text value="'$' + item.product.unitPrice"></std:text></td>
+          <td align="right"><std:text value="index + 1"/></td>
+          <td><std:text value="item.product.sku"/></td>
+          <td><std:text value="item.product.name"/></td>
+          <td align="right"><std:text value="'$' + item.product.unitPrice"/></td>
           <td>
             <span class="action-link" event:click="item.more()">more</span>
             <std:if condition="item.amount > 1">
@@ -47,7 +47,7 @@
                 attr:class="item.invalidAmountString ? 'error' : ''"
                 std:change="val -> item.parseAmount(val)">
           </td>
-          <td align="right"><std:text value="'$' + item.price"></std:text></td>
+          <td align="right"><std:text value="'$' + item.price"/></td>
           <td><span class="action-link" event:click="items.remove((int)index)">delete</span></td>
         </tr>
       </std:foreach>
@@ -64,7 +64,7 @@
     <tfoot>
       <tr>
         <td colspan="6">Total:</td>
-        <td align="right"><std:text value="'$' + totalPrice"></std:text></td>
+        <td align="right"><std:text value="'$' + totalPrice"/></td>
         <td></td>
       </tr>
     </tfoot>

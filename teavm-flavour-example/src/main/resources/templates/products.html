@@ -13,10 +13,10 @@ Please, select a product
     <tbody>
       <std:foreach var="product" index="i" in="products">
         <tr>
-          <td><std:text value="i + offset + 1"></td>
-          <td><std:text value="product.sku"></td>
-          <td><std:text value="product.name"></td>
-          <td><std:text value="'$' + product.unitPrice"></td>
+          <td><std:text value="i + offset + 1"/></td>
+          <td><std:text value="product.sku"/></td>
+          <td><std:text value="product.name"/></td>
+          <td><std:text value="'$' + product.unitPrice"/></td>
           <td><button event:click="choose(i)">Choose</button></td>
         </tr>
       </std:foreach>
