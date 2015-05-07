@@ -15,24 +15,20 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.Collections;
 import java.util.List;
 import org.teavm.dom.html.HTMLElement;
-import org.teavm.flavour.expr.plan.InvocationPlan;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
-import org.teavm.flavour.templates.Action;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Modifier;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
 import org.teavm.flavour.templates.tree.DOMAttribute;
 import org.teavm.flavour.templates.tree.DOMElement;
@@ -435,31 +431,22 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         return cls.getName();
     }
 
-    private void emitFunction(ClassHolder cls, DirectiveFunctionBinding computation, BasicBlock block,
+    private void emitFunction(ClassHolder cls, DirectiveFunctionBinding function, BasicBlock block,
             Variable thisVar, Variable componentVar) {
         ExprPlanEmitter exprEmitter = new ExprPlanEmitter(context);
         exprEmitter.thisClassName = cls.getName();
         exprEmitter.thisVar = thisVar;
         exprEmitter.program = block.getProgram();
         exprEmitter.block = block;
-        LambdaPlan plan = computation.getPlan();
-        ValueType[] signature = MethodDescriptor.parseSignature(computation.getPlan().getMethodDesc());
-        if (signature[signature.length - 1] == ValueType.VOID) {
-            LambdaPlan actionPlan = new LambdaPlan(plan.getBody(), Action.class.getName(), "perform", "()V",
-                    Collections.<String>emptyList());
-            String actionType = "L" + Action.class.getName().replace('.', '/') + ";";
-            InvocationPlan wrapperPlan = new InvocationPlan(Templates.class.getName(), "wrap",
-                    "(" + actionType + ")" + actionType, null, actionPlan);
-            plan = new LambdaPlan(wrapperPlan, plan.getClassName(), plan.getMethodName(), plan.getMethodDesc(),
-                    plan.getBoundVars());
-        }
-        plan.acceptVisitor(exprEmitter);
+        LambdaPlan plan = function.getPlan();
+        ValueType[] signature = MethodDescriptor.parseSignature(function.getPlan().getMethodDesc());
+        exprEmitter.emit(plan, signature[signature.length - 1] == ValueType.VOID);
 
         InvokeInstruction setComputation = new InvokeInstruction();
         setComputation.setType(InvocationType.VIRTUAL);
         setComputation.setInstance(componentVar);
-        setComputation.setMethod(new MethodReference(computation.getMethodOwner(), computation.getMethodName(),
-                ValueType.object(computation.getLambdaType()), ValueType.VOID));
+        setComputation.setMethod(new MethodReference(function.getMethodOwner(), function.getMethodName(),
+                ValueType.object(function.getLambdaType()), ValueType.VOID));
         setComputation.getArguments().add(exprEmitter.var);
         block.getInstructions().add(setComputation);
     }

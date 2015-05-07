@@ -15,78 +15,13 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
-import org.teavm.flavour.expr.plan.ArithmeticType;
-import org.teavm.flavour.expr.plan.ArrayLengthPlan;
-import org.teavm.flavour.expr.plan.BinaryPlan;
-import org.teavm.flavour.expr.plan.BinaryPlanType;
-import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
-import org.teavm.flavour.expr.plan.CastPlan;
-import org.teavm.flavour.expr.plan.CastToIntegerPlan;
-import org.teavm.flavour.expr.plan.ConditionalPlan;
-import org.teavm.flavour.expr.plan.ConstantPlan;
-import org.teavm.flavour.expr.plan.ConstructionPlan;
-import org.teavm.flavour.expr.plan.FieldPlan;
-import org.teavm.flavour.expr.plan.GetArrayElementPlan;
-import org.teavm.flavour.expr.plan.InstanceOfPlan;
-import org.teavm.flavour.expr.plan.InvocationPlan;
-import org.teavm.flavour.expr.plan.LambdaPlan;
-import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
-import org.teavm.flavour.expr.plan.NegatePlan;
-import org.teavm.flavour.expr.plan.NotPlan;
-import org.teavm.flavour.expr.plan.Plan;
-import org.teavm.flavour.expr.plan.PlanVisitor;
-import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
-import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
-import org.teavm.flavour.expr.plan.ThisPlan;
-import org.teavm.flavour.expr.plan.VariablePlan;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
-import org.teavm.model.Incoming;
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.Phi;
-import org.teavm.model.Program;
-import org.teavm.model.ValueType;
-import org.teavm.model.Variable;
-import org.teavm.model.instructions.ArrayLengthInstruction;
-import org.teavm.model.instructions.BinaryBranchingCondition;
-import org.teavm.model.instructions.BinaryBranchingInstruction;
-import org.teavm.model.instructions.BinaryInstruction;
-import org.teavm.model.instructions.BinaryOperation;
-import org.teavm.model.instructions.BranchingCondition;
-import org.teavm.model.instructions.BranchingInstruction;
-import org.teavm.model.instructions.CastInstruction;
-import org.teavm.model.instructions.CastIntegerDirection;
-import org.teavm.model.instructions.CastIntegerInstruction;
-import org.teavm.model.instructions.CastNumberInstruction;
-import org.teavm.model.instructions.ConstructInstruction;
-import org.teavm.model.instructions.DoubleConstantInstruction;
-import org.teavm.model.instructions.ExitInstruction;
-import org.teavm.model.instructions.FloatConstantInstruction;
-import org.teavm.model.instructions.GetElementInstruction;
-import org.teavm.model.instructions.GetFieldInstruction;
-import org.teavm.model.instructions.IntegerConstantInstruction;
+import java.util.*;
+import org.teavm.flavour.expr.plan.*;
+import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.Templates;
+import org.teavm.model.*;
+import org.teavm.model.instructions.*;
 import org.teavm.model.instructions.IntegerSubtype;
-import org.teavm.model.instructions.InvocationType;
-import org.teavm.model.instructions.InvokeInstruction;
-import org.teavm.model.instructions.IsInstanceInstruction;
-import org.teavm.model.instructions.JumpInstruction;
-import org.teavm.model.instructions.NegateInstruction;
-import org.teavm.model.instructions.NullConstantInstruction;
-import org.teavm.model.instructions.NumericOperandType;
-import org.teavm.model.instructions.PutFieldInstruction;
-import org.teavm.model.instructions.StringConstantInstruction;
 
 /**
  *
@@ -560,6 +495,10 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(LambdaPlan plan) {
+        emit(plan, false);
+    }
+
+    public void emit(LambdaPlan plan, boolean updateTemplates) {
         Map<String, ClosureEmitter> innerBoundVars = new HashMap<>();
         for (String boundVar : boundVars.keySet()) {
             innerBoundVars.put(boundVar, new ClosureEmitter(boundVar, boundVarTypes.get(boundVar)));
@@ -567,7 +506,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         ExprPlanEmitter innerEmitter = new ExprPlanEmitter(context);
         String lambdaClass = innerEmitter.emitLambdaClass(plan.getClassName(), plan.getMethodName(),
-                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars);
+                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, updateTemplates);
 
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
 
@@ -609,7 +548,7 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
-            List<String> boundVarList, Map<String, ClosureEmitter> outerBoundVars) {
+            List<String> boundVarList, Map<String, ClosureEmitter> outerBoundVars, boolean updateTemplates) {
         ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
@@ -630,25 +569,80 @@ class ExprPlanEmitter implements PlanVisitor {
                 boundVarTypes.put(varName, workerMethod.parameterType(i));
             }
         }
+
         block = program.createBasicBlock();
         thisClassName = cls.getName();
+        if (updateTemplates) {
+            emitSetRoot(emitGetRoot());
+        }
         body.acceptVisitor(this);
         requireValue();
+
+        if (updateTemplates) {
+            InvokeInstruction invokeUpdate = new InvokeInstruction();
+            invokeUpdate.setType(InvocationType.SPECIAL);
+            invokeUpdate.setMethod(new MethodReference(Templates.class, "update", void.class));
+            block.getInstructions().add(invokeUpdate);
+            emitSetRoot(emitNull());
+        }
+
         ExitInstruction exit = new ExitInstruction();
         if (workerMethod.getResultType() != ValueType.VOID) {
             exit.setValueToReturn(var);
         }
         block.getInstructions().add(exit);
+
+        /*if (updateTemplates) {
+            BasicBlock catchBlock = program.createBasicBlock();
+            Variable exceptionVar = program.createVariable();
+            TryCatchBlock tryCatch = new TryCatchBlock();
+            tryCatch.setHandler(catchBlock);
+            tryCatch.setExceptionVariable(exceptionVar);
+            block.getTryCatchBlocks().add(tryCatch);
+            block = catchBlock;
+
+            emitSetRoot(emitNull());
+            RaiseInstruction rethrow = new RaiseInstruction();
+            rethrow.setException(exceptionVar);
+            block.getInstructions().add(rethrow);
+        }*/
+
         workerMethod.setProgram(program);
         cls.addMethod(workerMethod);
 
-        emitLambdaConstructor(cls);
+        emitLambdaConstructor(cls, updateTemplates);
 
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
-    private void emitLambdaConstructor(ClassHolder cls) {
+    private Variable emitNull() {
+        Variable var = program.createVariable();
+        NullConstantInstruction insn = new NullConstantInstruction();
+        insn.setReceiver(var);
+        block.getInstructions().add(insn);
+        return var;
+    }
+
+    private void emitSetRoot(Variable value) {
+        PutFieldInstruction insn = new PutFieldInstruction();
+        insn.setField(new FieldReference(Templates.class.getName(), "root"));
+        insn.setValue(value);
+        block.getInstructions().add(insn);
+    }
+
+    private Variable emitGetRoot() {
+        Variable var = program.createVariable();
+        GetFieldInstruction insn = new GetFieldInstruction();
+        insn.setField(new FieldReference(thisClassName, "root"));
+        insn.setFieldType(ValueType.parse(Component.class));
+        insn.setInstance(thisVar);
+        insn.setReceiver(var);
+        block.getInstructions().add(insn);
+        return var;
+    }
+
+    private void emitLambdaConstructor(ClassHolder cls, boolean updateTemplates) {
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
 
         List<ValueType> ctorArgTypes = new ArrayList<>();
@@ -696,6 +690,27 @@ class ExprPlanEmitter implements PlanVisitor {
             setClosure.setInstance(thisVar);
             setClosure.setValue(closureVar);
             block.getInstructions().add(setClosure);
+        }
+
+        if (updateTemplates) {
+            FieldHolder rootField = new FieldHolder("root");
+            rootField.setLevel(AccessLevel.PUBLIC);
+            rootField.setType(ValueType.parse(Component.class));
+            cls.addField(rootField);
+
+            Variable rootVar = program.createVariable();
+            InvokeInstruction getRoot = new InvokeInstruction();
+            getRoot.setType(InvocationType.SPECIAL);
+            getRoot.setMethod(new MethodReference(Templates.class, "root", Component.class));
+            getRoot.setReceiver(rootVar);
+            block.getInstructions().add(getRoot);
+
+            PutFieldInstruction saveRoot = new PutFieldInstruction();
+            saveRoot.setField(new FieldReference(thisClassName, "root"));
+            saveRoot.setFieldType(ValueType.parse(Component.class));
+            saveRoot.setInstance(thisVar);
+            saveRoot.setValue(rootVar);
+            block.getInstructions().add(saveRoot);
         }
 
         block.getInstructions().add(new ExitInstruction());

@@ -1,4 +1,5 @@
 <?import org.teavm.flavour.templates.util.Formatter?>
+<?import java.lang.Integer?>
 <div>
   <table class="form">
     <tbody>
@@ -42,7 +43,8 @@
               <span class="action-link" event:click="item.less()">less</span>
             </std:if>
           </td>
-          <td align="right"><std:text value="item.amount"></std:text></td>
+          <td align="right"><input type="text" attr:value="item.amount" 
+                std:change="val -> item.setAmount(Integer.parseInt(val))"></td>
           <td align="right"><std:text value="'$' + item.price"></std:text></td>
           <td><span class="action-link" event:click="items.remove((int)index)">delete</span></td>
         </tr>

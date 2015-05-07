@@ -645,6 +645,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     boundVarRenamings.put(boundVar.getName(), renaming);
                     boundVarNames.add(renaming);
                 }
+            } else {
+                boundVarNames.add("");
             }
         }
 

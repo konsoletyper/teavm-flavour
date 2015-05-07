@@ -13,44 +13,41 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.directives.events;
+package org.teavm.flavour.directives.standard;
 
 import org.teavm.dom.events.Event;
 import org.teavm.dom.events.EventListener;
 import org.teavm.dom.html.HTMLElement;
+import org.teavm.dom.html.HTMLInputElement;
+import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Renderable;
+import org.teavm.flavour.templates.ValueChangeListener;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class BaseEventBinder<T extends Event> implements Renderable {
-    private HTMLElement element;
-    private String eventName;
-    private EventListener<T> action;
+@BindAttributeDirective(name = "change")
+public class ValueChangeBinder implements Renderable {
+    private HTMLInputElement element;
+    private ValueChangeListener<String> listener;
     private boolean bound;
 
-    public BaseEventBinder(HTMLElement element) {
-        this.element = element;
-    }
-
-    @BindDirectiveName
-    public void setEventName(String eventName) {
-        this.eventName = eventName;
+    public ValueChangeBinder(HTMLElement element) {
+        this.element = (HTMLInputElement)element;
     }
 
     @BindContent
-    public void setAction(EventListener<T> action) {
-        this.action = action;
+    public void setListener(ValueChangeListener<String> listener) {
+        this.listener = listener;
     }
 
     @Override
     public void render() {
         if (!bound) {
             bound = true;
-            element.addEventListener(eventName, action);
+            element.addEventListener("change", eventListener);
         }
     }
 
@@ -58,7 +55,14 @@ public abstract class BaseEventBinder<T extends Event> implements Renderable {
     public void destroy() {
         if (bound) {
             bound = false;
-            element.removeEventListener(eventName, action);
+            element.removeEventListener("change", eventListener);
         }
     }
+
+    private EventListener<Event> eventListener = new EventListener<Event>() {
+        @Override
+        public void handleEvent(Event evt) {
+            listener.changed(element.getValue());
+        }
+    };
 }

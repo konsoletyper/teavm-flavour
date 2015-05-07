@@ -76,10 +76,13 @@ public final class Templates {
         return new Action() {
             @Override
             public void perform() {
-                root = savedRoot;
-                action.perform();
-                update();
-                root = null;
+                try {
+                    root = savedRoot;
+                    action.perform();
+                    update();
+                } finally {
+                    root = null;
+                }
             }
         };
     }
