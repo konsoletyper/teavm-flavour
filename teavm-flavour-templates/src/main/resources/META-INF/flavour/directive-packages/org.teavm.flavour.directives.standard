@@ -1,4 +1,5 @@
 ForEachComponent
 IfComponent
 TextComponent
+ValueBinder
 ValueChangeBinder

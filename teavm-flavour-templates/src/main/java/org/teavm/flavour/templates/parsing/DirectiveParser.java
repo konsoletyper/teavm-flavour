@@ -326,7 +326,7 @@ class DirectiveParser {
             GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass)valueType);
             if (sam != null) {
                 attrMetadata.sam = sam;
-                attrMetadata.type = DirectiveAttributeType.COMPUTATION;
+                attrMetadata.type = DirectiveAttributeType.FUNCTION;
                 attrMetadata.valueType = sam.getActualOwner();
                 return true;
             }

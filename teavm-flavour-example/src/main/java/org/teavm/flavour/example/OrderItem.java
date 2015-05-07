@@ -26,6 +26,7 @@ public class OrderItem {
     private String productName;
     private BigDecimal unitPrice;
     private int amount;
+    private boolean invalidAmountString;
 
     public String getSku() {
         return sku;
@@ -56,7 +57,27 @@ public class OrderItem {
     }
 
     public void setAmount(int amount) {
-        this.amount = amount;
+        if (this.amount != amount) {
+            this.amount = amount;
+            invalidAmountString = false;
+        }
+    }
+
+    public void parseAmount(String amount) {
+        try {
+            int value = Integer.parseInt(amount);
+            if (value < 1) {
+                invalidAmountString = true;
+                return;
+            }
+            setAmount(Integer.parseInt(amount));
+        } catch (NumberFormatException e) {
+            invalidAmountString = true;
+        }
+    }
+
+    public boolean isInvalidAmountString() {
+        return invalidAmountString;
     }
 
     public BigDecimal getPrice() {
@@ -65,11 +86,13 @@ public class OrderItem {
 
     public void more() {
         ++amount;
+        invalidAmountString = false;
     }
 
     public void less() {
         if (amount > 1) {
             --amount;
+            invalidAmountString = false;
         }
     }
 }

@@ -47,3 +47,6 @@ span.action-link {
 span.action-link:hover {
     border-bottom-color: red;
 }
+input.error {
+    background-color: rgb(255,240,240);
+}

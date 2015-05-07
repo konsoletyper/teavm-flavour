@@ -529,11 +529,14 @@ class ExprPlanEmitter implements PlanVisitor {
         block.getInstructions().add(getOwner);
         ctorArgs.add(ownerVar);
 
+        Set<String> localBoundVars = new HashSet<>(plan.getBoundVars());
         for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
             String closedVar = innerEmitter.innerClosureList.get(i);
-            boundVars.get(closedVar).emit();
-            ctorArgTypes.add(boundVarTypes.get(closedVar));
-            ctorArgs.add(var);
+            if (!localBoundVars.contains(closedVar)) {
+                boundVars.get(closedVar).emit();
+                ctorArgTypes.add(boundVarTypes.get(closedVar));
+                ctorArgs.add(var);
+            }
         }
         ctorArgTypes.add(ValueType.VOID);
 
@@ -566,6 +569,7 @@ class ExprPlanEmitter implements PlanVisitor {
             String varName = boundVarList.get(i);
             if (!varName.isEmpty()) {
                 boundVars.put(varName, new ParamEmitter(i + 1));
+                program.createVariable();
                 boundVarTypes.put(varName, workerMethod.parameterType(i));
             }
         }
@@ -610,7 +614,14 @@ class ExprPlanEmitter implements PlanVisitor {
         workerMethod.setProgram(program);
         cls.addMethod(workerMethod);
 
-        emitLambdaConstructor(cls, updateTemplates);
+        List<String> closedVars = new ArrayList<>(innerClosureList.size());
+        Set<String> boundVars = new HashSet<>(boundVarList);
+        for (String var : innerClosureList) {
+            if (!boundVars.contains(var)) {
+                closedVars.add(var);
+            }
+        }
+        emitLambdaConstructor(cls, closedVars, updateTemplates);
 
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
@@ -642,13 +653,13 @@ class ExprPlanEmitter implements PlanVisitor {
         return var;
     }
 
-    private void emitLambdaConstructor(ClassHolder cls, boolean updateTemplates) {
+    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, boolean updateTemplates) {
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
 
         List<ValueType> ctorArgTypes = new ArrayList<>();
         ctorArgTypes.add(ValueType.object(ownerCls));
-        for (int i = 0; i < innerClosureList.size(); ++i) {
-            String closedVar = innerClosureList.get(i);
+        for (int i = 0; i < closedVars.size(); ++i) {
+            String closedVar = closedVars.get(i);
             ctorArgTypes.add(boundVarTypes.get(closedVar));
         }
         ctorArgTypes.add(ValueType.VOID);
@@ -677,8 +688,8 @@ class ExprPlanEmitter implements PlanVisitor {
         setOwner.setValue(ownerVar);
         block.getInstructions().add(setOwner);
 
-        for (int i = 0; i < innerClosureList.size(); ++i) {
-            String closedVar = innerClosureList.get(i);
+        for (int i = 0; i < closedVars.size(); ++i) {
+            String closedVar = closedVars.get(i);
             FieldHolder closureField = new FieldHolder("closure$" + closedVar);
             closureField.setLevel(AccessLevel.PUBLIC);
             closureField.setType(boundVarTypes.get(closedVar));
@@ -730,7 +741,7 @@ class ExprPlanEmitter implements PlanVisitor {
         constant.setReceiver(constVar);
         block.getInstructions().add(constant);
 
-        final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(BinaryBranchingCondition.EQUAL);
+        final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(BinaryBranchingCondition.NOT_EQUAL);
         insn.setFirstOperand(var);
         insn.setSecondOperand(constVar);
         block.getInstructions().add(insn);

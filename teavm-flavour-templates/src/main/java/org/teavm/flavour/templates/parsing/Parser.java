@@ -54,6 +54,7 @@ public class Parser {
         this.classRepository = classRepository;
         this.classResolver = new ImportingClassResolver(classResolver);
         this.resourceProvider = resourceProvider;
+        this.classResolver.importPackage("java.lang");
     }
 
     public List<Diagnostic> getDiagnostics() {
@@ -191,7 +192,7 @@ public class Parser {
                     directive.getVariables().add(varBinding);
                     break;
                 }
-                case COMPUTATION: {
+                case FUNCTION: {
                     TypedPlan plan = compileExpr(attr.getValueSegment(), (GenericClass)attrMeta.valueType);
                     DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
                             setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
@@ -259,12 +260,12 @@ public class Parser {
                 directive.getVariables().add(varBinding);
                 break;
             }
-            case COMPUTATION: {
+            case FUNCTION: {
                 TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.sam.getActualOwner());
-                DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
+                DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
                         directiveMeta.sam.getDescriber().getOwner().getName());
-                directive.getFunctions().add(computationBinding);
+                directive.getFunctions().add(functionBinding);
                 break;
             }
         }
