@@ -3,3 +3,4 @@ IfComponent
 TextComponent
 ValueBinder
 ValueChangeBinder
+EnabledBinder

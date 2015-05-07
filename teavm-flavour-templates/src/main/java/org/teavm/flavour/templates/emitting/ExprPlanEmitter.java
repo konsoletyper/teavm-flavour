@@ -574,9 +574,16 @@ class ExprPlanEmitter implements PlanVisitor {
             }
         }
 
+        BasicBlock entry = program.createBasicBlock();
         block = program.createBasicBlock();
+        JumpInstruction entryInsn = new JumpInstruction();
+        entryInsn.setTarget(block);
+        entry.getInstructions().add(entryInsn);
+
         thisClassName = cls.getName();
+        Variable oldRoot = null;
         if (updateTemplates) {
+            oldRoot = emitGetGlobalRoot();
             emitSetRoot(emitGetRoot());
         }
         body.acceptVisitor(this);
@@ -587,7 +594,7 @@ class ExprPlanEmitter implements PlanVisitor {
             invokeUpdate.setType(InvocationType.SPECIAL);
             invokeUpdate.setMethod(new MethodReference(Templates.class, "update", void.class));
             block.getInstructions().add(invokeUpdate);
-            emitSetRoot(emitNull());
+            emitSetRoot(oldRoot);
         }
 
         ExitInstruction exit = new ExitInstruction();
@@ -627,14 +634,6 @@ class ExprPlanEmitter implements PlanVisitor {
         return cls.getName();
     }
 
-    private Variable emitNull() {
-        Variable var = program.createVariable();
-        NullConstantInstruction insn = new NullConstantInstruction();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
-        return var;
-    }
-
     private void emitSetRoot(Variable value) {
         PutFieldInstruction insn = new PutFieldInstruction();
         insn.setField(new FieldReference(Templates.class.getName(), "root"));
@@ -651,6 +650,16 @@ class ExprPlanEmitter implements PlanVisitor {
         insn.setReceiver(var);
         block.getInstructions().add(insn);
         return var;
+    }
+
+    private Variable emitGetGlobalRoot() {
+        Variable rootVar = program.createVariable();
+        InvokeInstruction getRoot = new InvokeInstruction();
+        getRoot.setType(InvocationType.SPECIAL);
+        getRoot.setMethod(new MethodReference(Templates.class, "root", Component.class));
+        getRoot.setReceiver(rootVar);
+        block.getInstructions().add(getRoot);
+        return rootVar;
     }
 
     private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, boolean updateTemplates) {
@@ -709,18 +718,11 @@ class ExprPlanEmitter implements PlanVisitor {
             rootField.setType(ValueType.parse(Component.class));
             cls.addField(rootField);
 
-            Variable rootVar = program.createVariable();
-            InvokeInstruction getRoot = new InvokeInstruction();
-            getRoot.setType(InvocationType.SPECIAL);
-            getRoot.setMethod(new MethodReference(Templates.class, "root", Component.class));
-            getRoot.setReceiver(rootVar);
-            block.getInstructions().add(getRoot);
-
             PutFieldInstruction saveRoot = new PutFieldInstruction();
             saveRoot.setField(new FieldReference(thisClassName, "root"));
             saveRoot.setFieldType(ValueType.parse(Component.class));
             saveRoot.setInstance(thisVar);
-            saveRoot.setValue(rootVar);
+            saveRoot.setValue(emitGetGlobalRoot());
             block.getInstructions().add(saveRoot);
         }
 

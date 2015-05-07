@@ -47,12 +47,13 @@ public final class Templates {
     }
 
     public static void renderRoot(Component component) {
-        if (root != null) {
-            throw new IllegalStateException("This method can't be called recursively");
+        Component oldRoot = root;
+        try {
+            root = component;
+            component.render();
+        } finally {
+            root = oldRoot;
         }
-        root = component;
-        component.render();
-        root = null;
     }
 
     private static native Fragment createImpl(Object model, String modelType);
@@ -76,12 +77,13 @@ public final class Templates {
         return new Action() {
             @Override
             public void perform() {
+                Component oldRoot = root;
                 try {
                     root = savedRoot;
                     action.perform();
                     update();
                 } finally {
-                    root = null;
+                    root = oldRoot;
                 }
             }
         };

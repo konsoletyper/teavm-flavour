@@ -26,11 +26,16 @@ import org.teavm.flavour.templates.BindTemplate;
  * @author Alexey Andreev
  */
 @BindTemplate("templates/order.html")
-public class Order {
+public class OrderView {
+    private ProductViewFactory productViewFactory;
     private String receiverName = "";
     private String address = "";
     private Date date;
     private List<OrderItem> items = new ArrayList<>();
+
+    public OrderView(ProductViewFactory productViewFactory) {
+        this.productViewFactory = productViewFactory;
+    }
 
     public String getReceiverName() {
         return receiverName;
@@ -66,5 +71,14 @@ public class Order {
             total = total.add(item.getPrice());
         }
         return total;
+    }
+
+    public void addProduct() {
+        ProductsView products = productViewFactory.create();
+        Popup.showModal(products);
+        if (products.getChosenProduct() != null) {
+            OrderItem item = new OrderItem(products.getChosenProduct());
+            items.add(item);
+        }
     }
 }

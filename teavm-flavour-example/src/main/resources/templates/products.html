@@ -1,0 +1,35 @@
+Please, select a product
+<div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>SKU</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <std:foreach var="product" index="i" in="products">
+        <tr>
+          <td><std:text value="i + offset + 1"></td>
+          <td><std:text value="product.sku"></td>
+          <td><std:text value="product.name"></td>
+          <td><std:text value="'$' + product.unitPrice"></td>
+          <td><button event:click="choose(i)">Choose</button></td>
+        </tr>
+      </std:foreach>
+      <std:if condition="products.empty">
+        <tr>
+          <td colspan="5"><i>There are no products satisfying given criteria</i></td>
+        </tr>
+      </std:if>
+    </tbody>
+  </table>
+</div>
+<div>
+  <button event:click="previousPage()" std:enabled="currentPage > 0">Previous</button>
+  Page <std:text value="currentPage + 1"/> of <std:text value="pageCount"/>
+  <button event:click="nextPage()" std:enabled="currentPage < pageCount - 1">Next</button>
+</div>

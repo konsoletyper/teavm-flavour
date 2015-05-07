@@ -22,34 +22,17 @@ import java.math.BigDecimal;
  * @author Alexey Andreev
  */
 public class OrderItem {
-    private String sku;
-    private String productName;
-    private BigDecimal unitPrice;
+    private Product product;
     private int amount;
     private boolean invalidAmountString;
 
-    public String getSku() {
-        return sku;
+    public OrderItem(Product product) {
+        this.product = product;
+        amount = 1;
     }
 
-    public void setSku(String sku) {
-        this.sku = sku;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-
-    public BigDecimal getUnitPrice() {
-        return unitPrice;
-    }
-
-    public void setUnitPrice(BigDecimal unitPrice) {
-        this.unitPrice = unitPrice;
+    public Product getProduct() {
+        return product;
     }
 
     public int getAmount() {
@@ -81,7 +64,7 @@ public class OrderItem {
     }
 
     public BigDecimal getPrice() {
-        return unitPrice.multiply(new BigDecimal(amount));
+        return product.getUnitPrice().multiply(new BigDecimal(amount));
     }
 
     public void more() {

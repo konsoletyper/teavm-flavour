@@ -33,9 +33,9 @@
       <std:foreach var="item" index="index" in="items">
         <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
           <td align="right"><std:text value="index + 1"></std:text></td>
-          <td><std:text value="item.sku"></std:text></td>
-          <td><std:text value="item.productName"></std:text></td>
-          <td align="right"><std:text value="'$' + item.unitPrice"></std:text></td>
+          <td><std:text value="item.product.sku"></td>
+          <td><std:text value="item.product.name"></td>
+          <td align="right"><std:text value="'$' + item.product.unitPrice"></std:text></td>
           <td>
             <span class="action-link" event:click="item.more()">more</span>
             <std:if condition="item.amount > 1">
@@ -51,6 +51,15 @@
           <td><span class="action-link" event:click="items.remove((int)index)">delete</span></td>
         </tr>
       </std:foreach>
+      <tr>
+        <td></td>
+        <td colspan="5">
+          <std:if condition="items.empty">
+            <i>There are not items yet</i>
+          </std:if>
+          <button event:async-click="addProduct()">Add item</button>
+        </td>
+      </tr>
     </tbody>
     <tfoot>
       <tr>

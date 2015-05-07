@@ -22,12 +22,11 @@ table.data thead, table.data tfoot {
     background-color: rgb(230,230,230);
 }
 table.data tr.even {
-  background-color: rgb(250,250,250);
+    background-color: rgb(250,250,250);
 }
 table.data tr.odd {
-  background-color: rgb(240,240,240);
+    background-color: rgb(240,240,240);
 }
-
 
 a, span.action-link {
     color: blue;
@@ -49,4 +48,26 @@ span.action-link:hover {
 }
 input.error {
     background-color: rgb(255,240,240);
+}
+
+.popup-wrapper {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url(popup-background.png);
+    background-repeat: repeat;
+}
+.popup {
+    width: 67%;
+    height: 67%;
+    margin: 0 auto;
+    background-color: white;
+    border-width: 1px;
+    border-color: rgb(160,160,160);
+    border-style: solid;
+    border-radius: 5px;
+    padding: 10px;
+    overflow: auto;
 }

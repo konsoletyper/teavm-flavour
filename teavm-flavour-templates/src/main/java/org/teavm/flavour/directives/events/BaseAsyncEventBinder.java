@@ -26,27 +26,31 @@ import org.teavm.flavour.templates.Renderable;
  *
  * @author Alexey Andreev
  */
-public abstract class BaseEventBinder<T extends Event> implements Renderable {
+public abstract class BaseAsyncEventBinder<T extends Event> implements Renderable {
     private HTMLElement element;
     private String eventName;
     private EventListener<T> action;
     private boolean bound;
 
-    public BaseEventBinder(HTMLElement element) {
+    public BaseAsyncEventBinder(HTMLElement element) {
         this.element = element;
     }
 
     @BindDirectiveName
     public void setEventName(String eventName) {
-        this.eventName = eventName;
+        this.eventName = eventName.substring("async-".length());
     }
 
     @BindContent
     public void setHandler(final EventHandler<T> handler) {
         this.action = new EventListener<T>() {
             @Override
-            public void handleEvent(T evt) {
-                handler.handleEvent(evt);
+            public void handleEvent(final T evt) {
+                new Thread() {
+                    @Override public void run() {
+                        handler.handleEvent(evt);
+                    }
+                }.start();
             }
         };
     }
