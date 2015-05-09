@@ -39,10 +39,11 @@ public abstract class Slot extends Space {
         }
 
         RootSlot root = getRoot();
+        int successorIndex = index < childList.size() ? childList.get(index).upperNode : upperNode;
         if (root != null) {
             List<NodeHolder> nodeHolders = new ArrayList<>();
             space.getNodeHolders(nodeHolders);
-            Node successor = root.domNode.getChildNodes().get(upperNode);
+            Node successor = root.domNode.getChildNodes().get(successorIndex);
             for (NodeHolder nodeHolder : nodeHolders) {
                 root.domNode.insertBefore(nodeHolder.node, successor);
             }
@@ -55,6 +56,7 @@ public abstract class Slot extends Space {
         }
 
         int nodeCount = space.upperNode - space.lowerNode;
+        space.offsetNode(successorIndex);
         space.upperNode -= nodeCount;
         Space ancestor = space;
         while (ancestor != null) {
@@ -67,7 +69,11 @@ public abstract class Slot extends Space {
             ancestor = ancestor.parent;
         }
 
-        space.offsetNode(index == 0 ? lowerNode : childList.get(index - 1).upperNode);
+        if (root != null) {
+            StringBuilder sb = new StringBuilder();
+            root.buildDebugString(sb);
+            System.out.println(sb.toString());
+        }
     }
 
     public Space getChild(int index) {
@@ -98,5 +104,19 @@ public abstract class Slot extends Space {
         for (Space child : childList) {
             child.getNodeHolders(receiver);
         }
+    }
+
+    @Override
+    public void buildDebugString(StringBuilder sb) {
+        sb.append('[').append(lowerNode).append(' ').append('(');
+        if (!childList.isEmpty()) {
+            childList.get(0).buildDebugString(sb);
+            for (int i = 1; i < childList.size(); ++i) {
+                sb.append(' ');
+                childList.get(i).buildDebugString(sb);
+            }
+        }
+        sb.append(')');
+        sb.append(' ').append(upperNode).append(']');
     }
 }

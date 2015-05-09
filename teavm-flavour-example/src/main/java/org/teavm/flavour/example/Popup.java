@@ -16,6 +16,9 @@
 package org.teavm.flavour.example;
 
 import org.teavm.dom.browser.Window;
+import org.teavm.dom.events.EventListener;
+import org.teavm.dom.events.MouseEvent;
+import org.teavm.dom.html.HTMLButtonElement;
 import org.teavm.dom.html.HTMLDocument;
 import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.templates.Component;
@@ -40,10 +43,19 @@ public final class Popup {
 
     private static void showModal(PopupContent content, final AsyncCallback<Void> callback) {
         final HTMLElement wrapper = document.getElementById("popup-wrapper");
+        final HTMLButtonElement closeButton = (HTMLButtonElement)document.getElementById("popup-close-button");
         wrapper.getStyle().removeProperty("display");
         final Component root = Templates.bind(content, "popup");
         content.setDelegate(new PopupDelegate() {
             @Override public void close() {
+                wrapper.getStyle().setProperty("display", "none");
+                root.destroy();
+                callback.complete(null);
+            }
+        });
+        closeButton.addEventListener("click", new EventListener<MouseEvent>() {
+            @Override
+            public void handleEvent(MouseEvent evt) {
                 wrapper.getStyle().setProperty("display", "none");
                 root.destroy();
                 callback.complete(null);

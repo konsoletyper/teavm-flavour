@@ -50,16 +50,16 @@ public final class Client {
 
     private static List<Product> createProducts() {
         List<Product> baseList = Arrays.asList(
-            new Product("00001", "Umbrella", new BigDecimal("5.00")),
-            new Product("00002", "Cup", new BigDecimal("3.00")),
-            new Product("00003", "Brush", new BigDecimal("2.50")),
-            new Product("00004", "Sofa", new BigDecimal("400.00")),
-            new Product("00005", "Pants", new BigDecimal("50.00")),
-            new Product("00006", "Toothpaste", new BigDecimal("4.00")),
-            new Product("00007", "Pan", new BigDecimal("100.00")),
-            new Product("00008", "Refrigerator", new BigDecimal("10000.00")));
+            new Product("001", "Umbrella", new BigDecimal("2.50")),
+            new Product("002", "Cup", new BigDecimal("1.50")),
+            new Product("003", "Brush", new BigDecimal("1.75")),
+            new Product("004", "Sofa", new BigDecimal("200.00")),
+            new Product("005", "Pants", new BigDecimal("25.00")),
+            new Product("006", "Toothpaste", new BigDecimal("2.00")),
+            new Product("007", "Pan", new BigDecimal("50.00")),
+            new Product("008", "Refrigerator", new BigDecimal("500.00")));
         List<String> adjectives = Arrays.asList("Cheap", "Normal", "Expensive", "Exquisite");
-        List<BigDecimal> quotients = Arrays.asList(new BigDecimal("0.5"), new BigDecimal(1), new BigDecimal(2),
+        List<BigDecimal> quotients = Arrays.asList(new BigDecimal("1"), new BigDecimal(2), new BigDecimal(3),
                 new BigDecimal(5));
         List<String> colors = Arrays.asList("Red", "Blue", "Green", "White", "Yellow", "Black", "Silver", "Gray");
         List<Product> list = new ArrayList<>();
@@ -69,7 +69,10 @@ public final class Client {
                 String adjective = adjectives.get(i);
                 BigDecimal quotient = quotients.get(i);
                 for (String color : colors) {
-                    list.add(new Product(String.valueOf(index % 7) + String.valueOf(index % 3) + product.getSku(),
+                    String sku = String.valueOf(index / 100) + String.valueOf((index / 10) % 10) +
+                            String.valueOf(index % 10) + product.getSku();
+                    ++index;
+                    list.add(new Product(sku,
                             adjective + " " +  color + " " + product.getName(),
                             product.getUnitPrice().multiply(quotient)));
                 }

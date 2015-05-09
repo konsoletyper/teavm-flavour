@@ -69,6 +69,21 @@ public class ProductsView implements PopupContent {
         return currentPage;
     }
 
+    public void setCurrentPage(int currentPage) {
+        this.currentPage = currentPage;
+    }
+
+    public void parseCurrentPage(String text) {
+        try {
+            int page = Integer.parseInt(text) - 1;
+            if (page >= 0 && page < pageCount) {
+                setCurrentPage(page);
+            }
+        } catch (NumberFormatException e) {
+            // Do nothing
+        }
+    }
+
     public int getPageCount() {
         return pageCount;
     }

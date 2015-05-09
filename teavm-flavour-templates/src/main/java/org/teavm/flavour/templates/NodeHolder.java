@@ -34,4 +34,9 @@ public class NodeHolder extends Space {
     void getNodeHolders(List<NodeHolder> receiver) {
         receiver.add(this);
     }
+
+    @Override
+    public void buildDebugString(StringBuilder sb) {
+        sb.append('[').append(lowerNode).append(" dom ").append(upperNode).append(']');
+    }
 }

@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-    <title>TeaVM Flavour example app</title>
+    <title>TeaVM Flavour example application</title>
     <script type="text/javascript" charset="UTF-8" src="teavm/runtime.js"></script>
     <script type="text/javascript" charset="UTF-8" src="teavm/classes.js"></script>
     <link rel="stylesheet" type="text/css" href="style.css">
@@ -10,7 +10,14 @@
   <body onload="main()">
     <div id="application-content"></div>
     <div id="popup-wrapper" class="popup-wrapper" style="display: none;">
-      <div id="popup" class="popup"></div>
+      <div class="popup-layout">
+        <div class="popup-header">
+          <div class="popup-close-button-container">
+            <span id="popup-close-button" class="action-link">close</span>
+          </div>
+        </div>
+        <div id="popup" class="popup"></div>
+      </div>
     </div>
   </body>
 </html>

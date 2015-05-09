@@ -74,6 +74,12 @@ public abstract class Space {
         parent = null;
         index = 0;
         offsetNode(-lowerNode);
+
+        if (root != null) {
+            StringBuilder sb = new StringBuilder();
+            root.buildDebugString(sb);
+            System.out.println(sb.toString());
+        }
     }
 
     void offsetNode(int offset) {
@@ -92,4 +98,6 @@ public abstract class Space {
     void getNodeHolders(@SuppressWarnings("unused") List<NodeHolder> receiver) {
         // Do nothing
     }
+
+    public abstract void buildDebugString(StringBuilder sb);
 }

@@ -95,8 +95,8 @@ public class ForEachComponent<T> extends AbstractComponent {
                 childComponents.get(i).render();
             }
         }
-        for (int i = newComputedCollection.size(); i < childComponents.size(); ++i) {
-            childComponents.get(i).destroy();
+        for (int i = childComponents.size() - 1; i >= newComputedCollection.size(); --i) {
+            childComponents.remove(i).destroy();
         }
 
         computedCollection = newComputedCollection;
@@ -105,8 +105,8 @@ public class ForEachComponent<T> extends AbstractComponent {
     @Override
     public void destroy() {
         super.destroy();
-        for (Component renderer : childComponents) {
-            renderer.destroy();
+        for (int i = childComponents.size() - 1; i >= 0; --i) {
+            childComponents.get(i).destroy();
         }
     }
 }
