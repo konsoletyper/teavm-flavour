@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.teavm.dom.browser.Window;
 import org.teavm.dom.html.HTMLElement;
 import org.teavm.jso.JS;
@@ -25,6 +27,7 @@ import org.teavm.jso.JS;
  */
 public final class Templates {
     private static Component root;
+    private static List<RootComponent> rootComponents = new ArrayList<>();
 
     private Templates() {
     }
@@ -35,10 +38,10 @@ public final class Templates {
 
     public static Component bind(Object model, HTMLElement element) {
         Fragment fragment = create(model);
-        Component component = fragment.create();
         Slot root = Slot.root(element);
-        root.append(component.getSlot());
-        renderRoot(component);
+        RootComponent component = new RootComponent(root, fragment.create());
+        rootComponents.add(component);
+        component.render();
         return component;
     }
 
@@ -46,46 +49,33 @@ public final class Templates {
         return createImpl(model, model.getClass().getName());
     }
 
-    public static void renderRoot(Component component) {
-        Component oldRoot = root;
-        try {
-            root = component;
-            component.render();
-        } finally {
-            root = oldRoot;
-        }
-    }
-
     private static native Fragment createImpl(Object model, String modelType);
 
-    public static Component root() {
-        return root;
-    }
-
     public static void update() {
-        if (root == null) {
-            throw new IllegalStateException("This method can be only called during rendering process");
+        for (RootComponent component : rootComponents) {
+            component.render();
         }
-        root.render();
     }
 
-    public static Action wrap(final Action action) {
-        if (root == null) {
-            throw new IllegalStateException("This method can be only called during rendering process");
+    private static class RootComponent extends AbstractComponent {
+        private Component inner;
+
+        public RootComponent(Slot slot, Component inner) {
+            super(slot);
+            this.inner = inner;
+            slot.append(inner.getSlot());
         }
-        final Component savedRoot = root;
-        return new Action() {
-            @Override
-            public void perform() {
-                Component oldRoot = root;
-                try {
-                    root = savedRoot;
-                    action.perform();
-                    update();
-                } finally {
-                    root = oldRoot;
-                }
-            }
-        };
+
+        @Override
+        public void render() {
+            inner.render();
+        }
+
+        @Override
+        public void destroy() {
+            inner.destroy();
+            super.destroy();
+            rootComponents.remove(this);
+        }
     }
 }

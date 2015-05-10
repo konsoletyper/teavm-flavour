@@ -17,7 +17,6 @@ package org.teavm.flavour.templates.emitting;
 
 import java.util.*;
 import org.teavm.flavour.expr.plan.*;
-import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.model.*;
 import org.teavm.model.instructions.*;
@@ -297,7 +296,7 @@ class ExprPlanEmitter implements PlanVisitor {
         pe.jump(joint);
         ValueEmitter trueVar = var;
 
-        BasicBlock elseBlock = pe.getProgram().createBasicBlock();
+        BasicBlock elseBlock = pe.createBlock();
         plan.getAlternative().acceptVisitor(this);
         requireValue();
         pe.jump(joint);
@@ -331,6 +330,7 @@ class ExprPlanEmitter implements PlanVisitor {
         List<ValueType> ctorArgTypes = new ArrayList<>();
         List<ValueEmitter> ctorArgs = new ArrayList<>();
 
+        ctorArgTypes.add(ownerType);
         ctorArgs.add(thisVar.getField(ownerField, ownerType));
         Set<String> localBoundVars = new HashSet<>(plan.getBoundVars());
         for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
@@ -357,7 +357,7 @@ class ExprPlanEmitter implements PlanVisitor {
         MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
         workerMethod.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(workerMethod);
-        thisVar = program.createVariable();
+        thisVar = pe.wrapNew();
         for (ClosureEmitter outerClosure : outerBoundVars.values()) {
             boundVarTypes.put(outerClosure.name, outerClosure.type);
         }
@@ -366,40 +366,24 @@ class ExprPlanEmitter implements PlanVisitor {
             String varName = boundVarList.get(i);
             if (!varName.isEmpty()) {
                 boundVars.put(varName, new ParamEmitter(i + 1));
-                program.createVariable();
+                pe.wrapNew();
                 boundVarTypes.put(varName, workerMethod.parameterType(i));
             }
         }
 
-        BasicBlock entry = program.createBasicBlock();
-        block = program.createBasicBlock();
-        JumpInstruction entryInsn = new JumpInstruction();
-        entryInsn.setTarget(block);
-        entry.getInstructions().add(entryInsn);
-
         thisClassName = cls.getName();
-        Variable oldRoot = null;
-        if (updateTemplates) {
-            oldRoot = emitGetGlobalRoot();
-            emitSetRoot(emitGetRoot());
-        }
         body.acceptVisitor(this);
         requireValue();
 
         if (updateTemplates) {
-            emitSetRoot(emitGetRoot());
-            InvokeInstruction invokeUpdate = new InvokeInstruction();
-            invokeUpdate.setType(InvocationType.SPECIAL);
-            invokeUpdate.setMethod(new MethodReference(Templates.class, "update", void.class));
-            block.getInstructions().add(invokeUpdate);
-            emitSetRoot(oldRoot);
+            pe.invoke(new MethodReference(Templates.class, "update", void.class));
         }
 
-        ExitInstruction exit = new ExitInstruction();
         if (workerMethod.getResultType() != ValueType.VOID) {
-            exit.setValueToReturn(var);
+            var.returnValue();
+        } else {
+            pe.exit();
         }
-        block.getInstructions().add(exit);
 
         /*if (updateTemplates) {
             BasicBlock catchBlock = program.createBasicBlock();
@@ -416,7 +400,6 @@ class ExprPlanEmitter implements PlanVisitor {
             block.getInstructions().add(rethrow);
         }*/
 
-        workerMethod.setProgram(program);
         cls.addMethod(workerMethod);
 
         List<String> closedVars = new ArrayList<>(innerClosureList.size());
@@ -426,41 +409,13 @@ class ExprPlanEmitter implements PlanVisitor {
                 closedVars.add(var);
             }
         }
-        emitLambdaConstructor(cls, closedVars, updateTemplates);
+        emitLambdaConstructor(cls, closedVars);
 
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
-    private void emitSetRoot(Variable value) {
-        PutFieldInstruction insn = new PutFieldInstruction();
-        insn.setField(new FieldReference(Templates.class.getName(), "root"));
-        insn.setValue(value);
-        block.getInstructions().add(insn);
-    }
-
-    private Variable emitGetRoot() {
-        Variable var = program.createVariable();
-        GetFieldInstruction insn = new GetFieldInstruction();
-        insn.setField(new FieldReference(thisClassName, "root"));
-        insn.setFieldType(ValueType.parse(Component.class));
-        insn.setInstance(thisVar);
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
-        return var;
-    }
-
-    private Variable emitGetGlobalRoot() {
-        Variable rootVar = program.createVariable();
-        InvokeInstruction getRoot = new InvokeInstruction();
-        getRoot.setType(InvocationType.SPECIAL);
-        getRoot.setMethod(new MethodReference(Templates.class, "root", Component.class));
-        getRoot.setReceiver(rootVar);
-        block.getInstructions().add(getRoot);
-        return rootVar;
-    }
-
-    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, boolean updateTemplates) {
+    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars) {
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
 
         List<ValueType> ctorArgTypes = new ArrayList<>();
@@ -473,60 +428,26 @@ class ExprPlanEmitter implements PlanVisitor {
 
         MethodHolder ctor = new MethodHolder("<init>", ctorArgTypes.toArray(new ValueType[0]));
         ctor.setLevel(AccessLevel.PUBLIC);
-        program = new Program();
-        block = program.createBasicBlock();
-        thisVar = program.createVariable();
+        pe = ProgramEmitter.create(ctor);
+        thisVar = pe.wrapNew();
+        ValueEmitter ownerVar = pe.wrapNew();
 
-        InvokeInstruction initSuper = new InvokeInstruction();
-        initSuper.setInstance(thisVar);
-        initSuper.setMethod(new MethodReference(Object.class, "<init>", void.class));
-        initSuper.setType(InvocationType.SPECIAL);
-        block.getInstructions().add(initSuper);
-
+        thisVar.invokeSpecial(new MethodReference(Object.class, "<init>", void.class));
         FieldHolder ownerField = new FieldHolder("this$owner");
         ownerField.setLevel(AccessLevel.PUBLIC);
         ownerField.setType(ValueType.object(ownerCls));
         cls.addField(ownerField);
-        Variable ownerVar = program.createVariable();
-        PutFieldInstruction setOwner = new PutFieldInstruction();
-        setOwner.setField(ownerField.getReference());
-        setOwner.setFieldType(ownerField.getType());
-        setOwner.setInstance(thisVar);
-        setOwner.setValue(ownerVar);
-        block.getInstructions().add(setOwner);
-
+        thisVar.setField(ownerField.getReference(), ownerField.getType(), ownerVar);
         for (int i = 0; i < closedVars.size(); ++i) {
             String closedVar = closedVars.get(i);
             FieldHolder closureField = new FieldHolder("closure$" + closedVar);
             closureField.setLevel(AccessLevel.PUBLIC);
             closureField.setType(boundVarTypes.get(closedVar));
             cls.addField(closureField);
-            Variable closureVar = program.createVariable();
-            PutFieldInstruction setClosure = new PutFieldInstruction();
-            setClosure.setField(closureField.getReference());
-            setClosure.setFieldType(closureField.getType());
-            setClosure.setInstance(thisVar);
-            setClosure.setValue(closureVar);
-            block.getInstructions().add(setClosure);
+            thisVar.setField(closureField.getReference(), closureField.getType(), pe.wrapNew());
         }
+        pe.exit();
 
-        if (updateTemplates) {
-            FieldHolder rootField = new FieldHolder("root");
-            rootField.setLevel(AccessLevel.PUBLIC);
-            rootField.setType(ValueType.parse(Component.class));
-            cls.addField(rootField);
-
-            PutFieldInstruction saveRoot = new PutFieldInstruction();
-            saveRoot.setField(new FieldReference(thisClassName, "root"));
-            saveRoot.setFieldType(ValueType.parse(Component.class));
-            saveRoot.setInstance(thisVar);
-            saveRoot.setValue(emitGetGlobalRoot());
-            block.getInstructions().add(saveRoot);
-        }
-
-        block.getInstructions().add(new ExitInstruction());
-
-        ctor.setProgram(program);
         cls.addMethod(ctor);
     }
 
@@ -535,17 +456,7 @@ class ExprPlanEmitter implements PlanVisitor {
             return;
         }
 
-        Variable constVar = program.createVariable();
-        IntegerConstantInstruction constant = new IntegerConstantInstruction();
-        constant.setConstant(0);
-        constant.setReceiver(constVar);
-        block.getInstructions().add(constant);
-
-        final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(BinaryBranchingCondition.NOT_EQUAL);
-        insn.setFirstOperand(var);
-        insn.setSecondOperand(constVar);
-        block.getInstructions().add(insn);
-        branching = new BinaryInstructionBranchingConsumer(insn);
+        branching = var.fork(BinaryBranchingCondition.NOT_EQUAL, pe.constant(0));
     }
 
     void requireValue() {
@@ -553,44 +464,22 @@ class ExprPlanEmitter implements PlanVisitor {
             return;
         }
 
-        block = program.createBasicBlock();
+        ForkEmitter branching = this.branching;
+        this.branching = null;
+        BasicBlock joint = pe.getProgram().createBasicBlock();
 
-        BasicBlock thenBlock = program.createBasicBlock();
-        Variable trueVar = program.createVariable();
-        IntegerConstantInstruction insn = new IntegerConstantInstruction();
-        insn.setConstant(1);
-        insn.setReceiver(trueVar);
-        thenBlock.getInstructions().add(insn);
-        JumpInstruction jump = new JumpInstruction();
-        jump.setTarget(block);
-        thenBlock.getInstructions().add(jump);
+        BasicBlock thenBlock = pe.createBlock();
+        ValueEmitter trueVar = pe.constant(1);
+        pe.jump(joint);
 
-        BasicBlock elseBlock = program.createBasicBlock();
-        Variable falseVar = program.createVariable();
-        insn = new IntegerConstantInstruction();
-        insn.setConstant(0);
-        insn.setReceiver(falseVar);
-        elseBlock.getInstructions().add(insn);
-        jump = new JumpInstruction();
-        jump.setTarget(block);
-        elseBlock.getInstructions().add(jump);
-
-        var = program.createVariable();
-        Phi phi = new Phi();
-        Incoming trueIncoming = new Incoming();
-        trueIncoming.setSource(thenBlock);
-        trueIncoming.setValue(trueVar);
-        phi.getIncomings().add(trueIncoming);
-        Incoming falseIncoming = new Incoming();
-        falseIncoming.setSource(elseBlock);
-        falseIncoming.setValue(falseVar);
-        phi.getIncomings().add(falseIncoming);
-        phi.setReceiver(var);
-        block.getPhis().add(phi);
+        BasicBlock elseBlock = pe.createBlock();
+        ValueEmitter falseVar = pe.constant(0);
+        pe.jump(joint);
 
         branching.setThen(thenBlock);
         branching.setElse(elseBlock);
-        branching = null;
+        pe.setBlock(joint);
+        var = trueVar.join(falseVar);
     }
 
     private NumericOperandType mapArithmetic(ArithmeticType type) {
@@ -737,7 +626,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         @Override
         public void emit() {
-            var = program.variableAt(index);
+            var = pe.wrap(pe.getProgram().variableAt(index));
         }
     }
 
@@ -752,13 +641,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         @Override
         public void emit() {
-            var = program.createVariable();
-            GetFieldInstruction insn = new GetFieldInstruction();
-            insn.setInstance(thisVar);
-            insn.setField(new FieldReference(thisClassName, "closure$" + name));
-            insn.setFieldType(type);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = thisVar.getField(new FieldReference(thisClassName, "closure$" + name), type);
         }
     }
 }

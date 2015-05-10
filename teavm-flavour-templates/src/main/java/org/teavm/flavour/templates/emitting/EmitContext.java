@@ -22,21 +22,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
-import org.teavm.flavour.templates.DomFragment;
 import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;
 import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
-import org.teavm.model.Program;
 import org.teavm.model.ValueType;
-import org.teavm.model.Variable;
-import org.teavm.model.instructions.ExitInstruction;
-import org.teavm.model.instructions.InvocationType;
-import org.teavm.model.instructions.InvokeInstruction;
-import org.teavm.model.instructions.PutFieldInstruction;
 
 /**
  *
@@ -97,28 +89,14 @@ class EmitContext {
 
         MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
-        Program prog = new Program();
-        Variable thisVar = prog.createVariable();
-        Variable ownerVar = prog.createVariable();
-        BasicBlock block = prog.createBasicBlock();
+        ProgramEmitter pe = ProgramEmitter.create(ctor);
+        ValueEmitter thisVar = pe.wrapNew();
+        ValueEmitter ownerVar = pe.wrapNew();
 
-        InvokeInstruction invokeSuper = new InvokeInstruction();
-        invokeSuper.setInstance(thisVar);
-        invokeSuper.setMethod(new MethodReference(DomFragment.class.getName(), "<init>", ValueType.VOID));
-        invokeSuper.setType(InvocationType.SPECIAL);
-        block.getInstructions().add(invokeSuper);
+        thisVar.invokeSpecial(new MethodReference(cls.getParent(), "<init>", ValueType.VOID));
+        thisVar.setField(new FieldReference(cls.getName(), "this$owner"), ValueType.object(ownerType), ownerVar);
+        pe.exit();
 
-        PutFieldInstruction putOwner = new PutFieldInstruction();
-        putOwner.setInstance(thisVar);
-        putOwner.setField(new FieldReference(cls.getName(), "this$owner"));
-        putOwner.setFieldType(ValueType.object(ownerType));
-        putOwner.setValue(ownerVar);
-        block.getInstructions().add(putOwner);
-
-        ExitInstruction exit = new ExitInstruction();
-        block.getInstructions().add(exit);
-
-        ctor.setProgram(prog);
         cls.addMethod(ctor);
     }
 }

@@ -166,7 +166,9 @@ final class ProgramEmitter {
         insn.setReceiver(var);
         insn.setType(method.getClassName());
         block.getInstructions().add(insn);
-        return wrap(var).invokeSpecial(method, arguments);
+        ValueEmitter instance = wrap(var);
+        instance.invokeSpecial(method, arguments);
+        return instance;
     }
 
     public ProgramEmitter jump(BasicBlock block) {

@@ -77,6 +77,7 @@ class ValueEmitter {
         insn.setField(field);
         insn.setFieldType(type);
         insn.setReceiver(var);
+        insn.setInstance(variable);
         pe.getBlock().getInstructions().add(insn);
         return pe.wrap(var);
     }
@@ -173,6 +174,7 @@ class ValueEmitter {
         incoming.setSource(other.block);
         incoming.setValue(other.variable);
         phi.getIncomings().add(incoming);
+        pe.getBlock().getPhis().add(phi);
         return new ValueEmitter(pe, pe.getBlock(), var);
     }
 
