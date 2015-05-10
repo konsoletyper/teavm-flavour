@@ -43,6 +43,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.teavm.flavour</groupId>
+      <artifactId>teavm-flavour-widgets</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
       <version>3.1.0</version>
@@ -80,8 +85,8 @@
               <runtime>SEPARATE</runtime>
               <minifying>false</minifying>
               <debugInformationGenerated>true</debugInformationGenerated>
-              <sourceMapsGenerated>true</sourceMapsGenerated>
-              <sourceFilesCopied>true</sourceFilesCopied>
+              <sourceMapsGenerated>false</sourceMapsGenerated>
+              <sourceFilesCopied>false</sourceFilesCopied>
             </configuration>
           </execution>
         </executions>

@@ -28,24 +28,6 @@ table.data tr.odd {
     background-color: rgb(240,240,240);
 }
 
-a, span.action-link {
-    color: blue;
-    cursor: pointer;
-}
-a:hover, span.action-link:hover {
-    color: red;
-}
-a {
-    text-decoration: underline;
-}
-span.action-link {
-    border-bottom-color: blue;
-    border-bottom-width: 1px;
-    border-bottom-style: dashed;
-}
-span.action-link:hover {
-    border-bottom-color: red;
-}
 input.error {
     background-color: rgb(255,240,240);
 }

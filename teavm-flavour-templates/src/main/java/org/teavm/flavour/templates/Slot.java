@@ -68,12 +68,6 @@ public abstract class Slot extends Space {
             ancestor.upperNode += nodeCount;
             ancestor = ancestor.parent;
         }
-
-        if (root != null) {
-            StringBuilder sb = new StringBuilder();
-            root.buildDebugString(sb);
-            System.out.println(sb.toString());
-        }
     }
 
     public Space getChild(int index) {

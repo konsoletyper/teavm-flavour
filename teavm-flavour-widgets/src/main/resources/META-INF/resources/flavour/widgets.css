@@ -1,0 +1,24 @@
+a, span.action-link {
+    color: blue;
+    cursor: pointer;
+}
+a:hover, span.action-link:hover {
+    color: red;
+}
+a {
+    text-decoration: underline;
+}
+span.action-link, span.disabled-action-link {
+    border-bottom-color: blue;
+    border-bottom-width: 1px;
+    border-bottom-style: dashed;
+}
+span.disabled-action-link {
+    cursor: default;
+}
+span.action-link:hover {
+    border-bottom-color: red;
+}
+span.hidden-action-link {
+    display: none;
+}

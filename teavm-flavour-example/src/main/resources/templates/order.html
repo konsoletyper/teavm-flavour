@@ -1,4 +1,5 @@
 <?import org.teavm.flavour.templates.util.Formatter?>
+<?use w:org.teavm.flavour.widgets?>
 <div>
   <table class="form">
     <tbody>
@@ -37,10 +38,8 @@
           <td><std:text value="item.product.name"/></td>
           <td align="right"><std:text value="'$' + item.product.unitPrice"/></td>
           <td>
-            <span class="action-link" event:click="item.more()">more</span>
-            <std:if condition="item.amount > 1">
-              <span class="action-link" event:click="item.less()">less</span>
-            </std:if>
+            <w:action-link onclick="item.more()">more</w:action-link>
+            <w:action-link visible="item.amount > 1" onclick="item.less()">less</w:action-link>
           </td>
           <td align="right">
             <input type="text" std:value="item.amount" size="3"
@@ -48,7 +47,7 @@
                 std:change="val -> item.parseAmount(val)">
           </td>
           <td align="right"><std:text value="'$' + item.price"/></td>
-          <td><span class="action-link" event:click="items.remove((int)index)">delete</span></td>
+          <td><w:action-link onclick="items.remove((int)index)">delete</w:action-link></td>
         </tr>
       </std:foreach>
       <tr>
