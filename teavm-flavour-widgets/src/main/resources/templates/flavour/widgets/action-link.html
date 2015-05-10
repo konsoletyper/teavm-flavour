@@ -1,5 +1,5 @@
 <?import org.teavm.dom.events.MouseEvent?>
 <span
-  attr:class="visible ? (enabled ? 'action-link' : 'disabled-action-link') : 'hidden-action-link'"
+  attr:class="'flavour-' + (visible ? (enabled ? 'action-link' : 'disabled-action-link') : 'hidden-action-link')"
   event:click="MouseEvent e -> clickListener.handleEvent(e)"
 ><std:insert fragment="content"/></span>

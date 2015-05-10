@@ -529,7 +529,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             if (isStatic == field.getDescriber().isStatic()) {
                 expr.setAttribute(new TypedPlan(new FieldPlan(instance != null ? instance.plan : null,
                         field.getDescriber().getOwner().getName(), field.getDescriber().getName(),
-                        "()" + typeToString(field.getDescriber().getRawType())), field.getActualType()));
+                        typeToString(field.getDescriber().getRawType())), field.getActualType()));
                 return;
             } else {
                 error(expr, "Field " + propertyName + " should " + (!isStatic ? "not " : "") + "be static");

@@ -17,16 +17,13 @@ package org.teavm.flavour.widgets;
 
 import org.teavm.dom.events.EventListener;
 import org.teavm.dom.events.MouseEvent;
-import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.Templates;
 
 /**
  *
@@ -34,8 +31,7 @@ import org.teavm.flavour.templates.Templates;
  */
 @BindDirective(name = "action-link")
 @BindTemplate("templates/flavour/widgets/action-link.html")
-public class ActionLink extends AbstractComponent {
-    private Component body;
+public class ActionLink extends AbstractWidget {
     private Computation<Boolean> enabled;
     private Computation<Boolean> visible;
     private EventListener<MouseEvent> clickListener;
@@ -79,22 +75,5 @@ public class ActionLink extends AbstractComponent {
     @BindContent
     public void setContent(Fragment content) {
         this.content = content;
-    }
-
-    @Override
-    public void render() {
-        if (body == null) {
-            body = Templates.create(this).create();
-            getSlot().append(body.getSlot());
-        }
-        body.render();
-    }
-
-    @Override
-    public void destroy() {
-        if (body != null) {
-            body.destroy();
-        }
-        super.destroy();
     }
 }

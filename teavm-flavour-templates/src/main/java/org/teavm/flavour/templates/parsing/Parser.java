@@ -84,18 +84,33 @@ public class Parser {
             Tag tag = source.getNextTag(position);
             if (tag == null || tag.getBegin() > limit) {
                 if (position < limit) {
-                    result.add(new DOMText(source.subSequence(position, limit).toString()));
+                    result.add(new DOMText(parseText(position, limit)));
                 }
                 position = limit;
                 break;
             }
 
             if (position < tag.getBegin()) {
-                result.add(new DOMText(source.subSequence(position, tag.getBegin()).toString()));
+                result.add(new DOMText(parseText(position, tag.getBegin())));
             }
             position = tag.getEnd();
             parseTag(tag, result);
         }
+    }
+
+    private String parseText(int start, int end) {
+        StringBuilder sb = new StringBuilder();
+        while (start < end) {
+            CharacterReference ref = source.getNextCharacterReference(start);
+            if (ref == null || ref.getBegin() >= end) {
+                break;
+            }
+            sb.append(source.subSequence(start, ref.getBegin()));
+            sb.append(ref.getChar());
+            start = ref.getEnd();
+        }
+        sb.append(source.subSequence(start, end));
+        return sb.toString();
     }
 
     private void parseTag(Tag tag, List<TemplateNode> result) {
