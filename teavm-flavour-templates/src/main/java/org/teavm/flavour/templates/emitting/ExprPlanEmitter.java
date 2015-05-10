@@ -30,11 +30,10 @@ import org.teavm.model.instructions.IntegerSubtype;
 class ExprPlanEmitter implements PlanVisitor {
     private EmitContext context;
     String thisClassName;
-    Program program;
-    Variable var;
-    BasicBlock block;
-    private BranchingConsumer branching;
-    Variable thisVar;
+    ProgramEmitter pe;
+    ValueEmitter var;
+    private ForkEmitter branching;
+    ValueEmitter thisVar;
     Set<String> innerClosure = new HashSet<>();
     List<String> innerClosureList = new ArrayList<>();
     private Map<String, BoundVariableEmitter> boundVars = new HashMap<>();
@@ -46,52 +45,27 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(ConstantPlan plan) {
-        var = program.createVariable();
         Object value = plan.getValue();
         if (value == null) {
-            NullConstantInstruction insn = new NullConstantInstruction();
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constantNull();
         } else if (value instanceof Boolean) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Boolean)value ? 1 : 0);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant((Boolean)value ? 1 : 0);
         } else if (value instanceof Byte) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant(((Byte)value).intValue());
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant(((Byte)value).intValue());
         } else if (value instanceof Short) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant(((Short)value).intValue());
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant(((Short)value).intValue());
         } else if (value instanceof Character) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant(((Character)value).charValue());
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant(((Character)value).charValue());
         } else if (value instanceof Integer) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Integer)value);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant((Integer)value);
+        } else if (value instanceof Long) {
+            var = pe.constant((Long)value);
         } else if (value instanceof Float) {
-            FloatConstantInstruction insn = new FloatConstantInstruction();
-            insn.setConstant((Float)value);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant((Float)value);
         } else if (value instanceof Double) {
-            DoubleConstantInstruction insn = new DoubleConstantInstruction();
-            insn.setConstant((Double)value);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant((Double)value);
         } else if (value instanceof String) {
-            StringConstantInstruction insn = new StringConstantInstruction();
-            insn.setConstant((String)value);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = pe.constant((String)value);
         }
     }
 
@@ -120,107 +94,52 @@ class ExprPlanEmitter implements PlanVisitor {
         var = thisVar;
         int bottom = context.classStack.size() - 1;
         for (int i = context.classStack.size() - 1; i >= bottom; --i) {
-            GetFieldInstruction insn = new GetFieldInstruction();
-            insn.setFieldType(ValueType.object(context.classStack.get(i)));
-            insn.setInstance(var);
-            insn.setField(new FieldReference(lastClass, "this$owner"));
-            var = program.createVariable();
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = var.getField(new FieldReference(lastClass, "this$owner"),
+                    ValueType.object(context.classStack.get(i)));
             lastClass = context.classStack.get(i);
         }
-
-        GetFieldInstruction getVarInsn = new GetFieldInstruction();
-        getVarInsn.setField(new FieldReference(lastClass, "cache$" + name));
-        getVarInsn.setInstance(var);
-        getVarInsn.setFieldType(emitVar.type);
-        var = program.createVariable();
-        getVarInsn.setReceiver(var);
-        block.getInstructions().add(getVarInsn);
+        var = var.getField(new FieldReference(lastClass, "cache$" + name), emitVar.type);
     }
 
     @Override
     public void visit(BinaryPlan plan) {
         plan.getFirstOperand().acceptVisitor(this);
         requireValue();
-        Variable first = var;
+        ValueEmitter first = var;
         plan.getSecondOperand().acceptVisitor(this);
         requireValue();
-        Variable second = var;
+        ValueEmitter second = var;
 
         BinaryOperation op = mapBinary(plan.getType());
         if (op != null) {
-            var = program.createVariable();
-            BinaryInstruction insn = new BinaryInstruction(op, mapArithmetic(plan.getValueType()));
-            insn.setFirstOperand(first);
-            insn.setSecondOperand(second);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
+            var = first.binary(op, mapArithmetic(plan.getValueType()), second);
             return;
         }
         BinaryBranchingCondition binaryCond = mapBinaryCondition(plan.getType());
         if (binaryCond != null) {
-            final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(binaryCond);
-            insn.setFirstOperand(first);
-            insn.setSecondOperand(second);
-            block.getInstructions().add(insn);
-            branching = new BinaryInstructionBranchingConsumer(insn);
+            branching = first.fork(binaryCond, second);
             return;
         }
-        BinaryInstruction comparison = new BinaryInstruction(BinaryOperation.COMPARE,
-                mapArithmetic(plan.getValueType()));
-        comparison.setFirstOperand(first);
-        comparison.setSecondOperand(second);
-        var = program.createVariable();
-        comparison.setReceiver(var);
-        block.getInstructions().add(comparison);
-
-        final BranchingInstruction insn = new BranchingInstruction(mapCondition(plan.getType()));
-        insn.setOperand(var);
-        block.getInstructions().add(insn);
-        branching = new BranchingConsumer() {
-            @Override public void setThen(BasicBlock block) {
-                insn.setConsequent(block);
-            }
-            @Override public void setElse(BasicBlock block) {
-                insn.setAlternative(block);
-            }
-        };
+        branching = first.compare(mapArithmetic(plan.getValueType()), second).fork(mapCondition(plan.getType()));
     }
 
     @Override
     public void visit(NegatePlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-
-        NegateInstruction insn = new NegateInstruction(mapArithmetic(plan.getValueType()));
-        insn.setOperand(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.neg(mapArithmetic(plan.getValueType()));
     }
 
     @Override
     public void visit(ReferenceEqualityPlan plan) {
         plan.getFirstOperand().acceptVisitor(this);
         requireValue();
-        Variable first = var;
+        ValueEmitter first = var;
         plan.getSecondOperand().acceptVisitor(this);
         requireValue();
-        Variable second = var;
+        ValueEmitter second = var;
 
-        final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(mapBinaryCondition(plan.getType()));
-        insn.setFirstOperand(first);
-        insn.setSecondOperand(second);
-        block.getInstructions().add(insn);
-        branching = new BranchingConsumer() {
-            @Override public void setThen(BasicBlock block) {
-                insn.setConsequent(block);
-            }
-            @Override public void setElse(BasicBlock block) {
-                insn.setAlternative(block);
-            }
-        };
+        branching = first.fork(mapBinaryCondition(plan.getType()), second);
     }
 
     @Override
@@ -229,41 +148,23 @@ class ExprPlanEmitter implements PlanVisitor {
             case AND: {
                 plan.getFirstOperand().acceptVisitor(this);
                 valueToBranching();
-                final BranchingConsumer firstBranching = branching;
-                block = program.createBasicBlock();
-                firstBranching.setThen(block);
+                ForkEmitter first = branching;
+                BasicBlock block = pe.createBlock();
                 plan.getSecondOperand().acceptVisitor(this);
                 valueToBranching();
-                final BranchingConsumer secondBranching = branching;
-                branching = new BranchingConsumer() {
-                    @Override public void setThen(BasicBlock block) {
-                        secondBranching.setThen(block);
-                    }
-                    @Override public void setElse(BasicBlock block) {
-                        firstBranching.setElse(block);
-                        secondBranching.setElse(block);
-                    }
-                };
+                ForkEmitter second = branching;
+                branching = first.and(block, second);
                 break;
             }
             case OR: {
                 plan.getFirstOperand().acceptVisitor(this);
                 valueToBranching();
-                final BranchingConsumer firstBranching = branching;
-                block = program.createBasicBlock();
-                firstBranching.setElse(block);
+                ForkEmitter first = branching;
+                BasicBlock block = pe.createBlock();
                 plan.getSecondOperand().acceptVisitor(this);
                 valueToBranching();
-                final BranchingConsumer secondBranching = branching;
-                branching = new BranchingConsumer() {
-                    @Override public void setThen(BasicBlock block) {
-                        firstBranching.setThen(block);
-                        secondBranching.setThen(block);
-                    }
-                    @Override public void setElse(BasicBlock block) {
-                        secondBranching.setElse(block);
-                    }
-                };
+                ForkEmitter second = branching;
+                branching = first.or(block, second);
                 break;
             }
         }
@@ -273,224 +174,140 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(NotPlan plan) {
         plan.getOperand().acceptVisitor(this);
         valueToBranching();
-        final BranchingConsumer oldBranching = branching;
-        branching = new BranchingConsumer() {
-            @Override public void setThen(BasicBlock block) {
-                oldBranching.setElse(block);
-            }
-            @Override public void setElse(BasicBlock block) {
-                oldBranching.setThen(block);
-            }
-        };
+        branching = branching.not();
     }
 
     @Override
     public void visit(CastPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-        CastInstruction insn = new CastInstruction();
-        insn.setTargetType(ValueType.parse(plan.getTargetType()));
-        insn.setValue(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.cast(ValueType.parse(plan.getTargetType()));
     }
 
     @Override
     public void visit(ArithmeticCastPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-        CastNumberInstruction insn = new CastNumberInstruction(mapArithmetic(plan.getSourceType()),
-                mapArithmetic(plan.getTargetType()));
-        insn.setValue(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.cast(mapArithmetic(plan.getSourceType()), mapArithmetic(plan.getTargetType()));
     }
 
     @Override
     public void visit(CastFromIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-        CastIntegerInstruction insn = new CastIntegerInstruction(mapInteger(plan.getType()),
-                CastIntegerDirection.FROM_INTEGER);
-        insn.setValue(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.fromInteger(mapInteger(plan.getType()));
     }
 
     @Override
     public void visit(CastToIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-        CastIntegerInstruction insn = new CastIntegerInstruction(mapInteger(plan.getType()),
-                CastIntegerDirection.TO_INTEGER);
-        insn.setValue(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.toInteger(mapInteger(plan.getType()));
     }
 
     @Override
     public void visit(GetArrayElementPlan plan) {
         plan.getArray().acceptVisitor(this);
         requireValue();
-        Variable array = var;
+        ValueEmitter array = var;
         plan.getIndex().acceptVisitor(this);
         requireValue();
-        Variable index = var;
-
-        GetElementInstruction insn = new GetElementInstruction();
-        insn.setArray(array);
-        insn.setIndex(index);
-        var = program.createVariable();
-        insn.setReceiver(index);
-        block.getInstructions().add(insn);
+        ValueEmitter index = var;
+        var = array.getElement(index);
     }
 
     @Override
     public void visit(ArrayLengthPlan plan) {
         plan.getArray().acceptVisitor(this);
         requireValue();
-
-        ArrayLengthInstruction insn = new ArrayLengthInstruction();
-        insn.setArray(var);
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.arrayLength();
     }
 
     @Override
     public void visit(FieldPlan plan) {
-        Variable instance = null;
+        FieldReference field = new FieldReference(plan.getClassName(), plan.getFieldName());
+        ValueType type = ValueType.parse(plan.getFieldDesc());
+
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             requireValue();
-            instance = var;
+            var = var.getField(field, type);
+        } else {
+            var = pe.getField(field, type);
         }
-
-        GetFieldInstruction insn = new GetFieldInstruction();
-        insn.setInstance(instance);
-        insn.setField(new FieldReference(plan.getClassName(), plan.getFieldName()));
-        insn.setFieldType(ValueType.parse(plan.getFieldDesc()));
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
     }
 
     @Override
     public void visit(InstanceOfPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
-
-        IsInstanceInstruction insn = new IsInstanceInstruction();
-        insn.setValue(var);
-        insn.setType(ValueType.parse(plan.getClassName()));
-        var = program.createVariable();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        var = var.instanceOf(ValueType.parse(plan.getClassName()));
     }
 
     @Override
     public void visit(InvocationPlan plan) {
-        Variable instance = null;
+        ValueEmitter instance = null;
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             requireValue();
             instance = var;
         }
 
-        List<Variable> arguments = new ArrayList<>();
-        for (Plan argPlan : plan.getArguments()) {
-            argPlan.acceptVisitor(this);
+        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
+        for (int i = 0; i < plan.getArguments().size(); ++i) {
+            plan.getArguments().get(i).acceptVisitor(this);
             requireValue();
-            arguments.add(var);
+            arguments[i] = var;
         }
 
-        InvokeInstruction insn = new InvokeInstruction();
-        insn.setInstance(instance);
-        insn.getArguments().addAll(arguments);
-        insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
-                plan.getMethodName() + plan.getMethodDesc())));
-        insn.setType(plan.getInstance() != null ? InvocationType.VIRTUAL : InvocationType.SPECIAL);
-        if (insn.getMethod().getReturnType() != ValueType.VOID) {
-            var = program.createVariable();
-            insn.setReceiver(var);
+        MethodReference method = new MethodReference(plan.getClassName(), MethodDescriptor.parse(
+                plan.getMethodName() + plan.getMethodDesc()));
+
+        if (instance != null) {
+            var = instance.invokeVirtual(method, arguments);
         } else {
-            var = null;
+            var = pe.invoke(method, arguments);
         }
-        block.getInstructions().add(insn);
     }
 
     @Override
     public void visit(ConstructionPlan plan) {
-        Variable result = program.createVariable();
-        ConstructInstruction constructInsn = new ConstructInstruction();
-        constructInsn.setReceiver(result);
-        constructInsn.setType(plan.getClassName());
-        block.getInstructions().add(constructInsn);
-
-        List<Variable> arguments = new ArrayList<>();
-        for (Plan argPlan : plan.getArguments()) {
-            argPlan.acceptVisitor(this);
+        MethodReference ctor = new MethodReference(plan.getClassName(), MethodDescriptor.parse(
+                "<init>" + plan.getMethodDesc()));
+        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
+        for (int i = 0; i < plan.getArguments().size(); ++i) {
+            plan.getArguments().get(i).acceptVisitor(this);
             requireValue();
-            arguments.add(var);
+            arguments[i] = var;
         }
-        InvokeInstruction insn = new InvokeInstruction();
-        insn.setInstance(result);
-        insn.setMethod(new MethodReference(plan.getClassName(), MethodDescriptor.parse(
-                "<init>" + plan.getMethodDesc())));
-        insn.setType(InvocationType.SPECIAL);
-        insn.getArguments().addAll(arguments);
-
-        block.getInstructions().add(insn);
-        var = result;
+        var = pe.construct(ctor, arguments);
     }
 
     @Override
     public void visit(ConditionalPlan plan) {
         plan.getCondition().acceptVisitor(this);
         valueToBranching();
-        BranchingConsumer branching = this.branching;
+        ForkEmitter branching = this.branching;
         this.branching = null;
+        BasicBlock joint = pe.getProgram().createBasicBlock();
 
-        BasicBlock thenBlock = program.createBasicBlock();
-        BasicBlock elseBlock = program.createBasicBlock();
-        BasicBlock joint = program.createBasicBlock();
-
-        block = thenBlock;
+        BasicBlock thenBlock = pe.createBlock();
         plan.getConsequent().acceptVisitor(this);
         requireValue();
-        JumpInstruction jump = new JumpInstruction();
-        jump.setTarget(joint);
-        block.getInstructions().add(jump);
-        Variable trueVar = var;
+        pe.jump(joint);
+        ValueEmitter trueVar = var;
 
-        block = elseBlock;
+        BasicBlock elseBlock = pe.getProgram().createBasicBlock();
         plan.getAlternative().acceptVisitor(this);
         requireValue();
-        jump = new JumpInstruction();
-        jump.setTarget(joint);
-        block.getInstructions().add(jump);
-        Variable falseVar = var;
+        pe.jump(joint);
+        ValueEmitter falseVar = var;
 
         branching.setThen(thenBlock);
         branching.setElse(elseBlock);
 
-        block = joint;
-        var = program.createVariable();
-        Phi phi = new Phi();
-        Incoming trueIncoming = new Incoming();
-        trueIncoming.setSource(thenBlock);
-        trueIncoming.setValue(trueVar);
-        phi.getIncomings().add(trueIncoming);
-        Incoming falseIncoming = new Incoming();
-        falseIncoming.setSource(elseBlock);
-        falseIncoming.setValue(falseVar);
-        phi.getIncomings().add(falseIncoming);
-        phi.setReceiver(var);
-        block.getPhis().add(phi);
+        pe.setBlock(joint);
+        var = trueVar.join(falseVar);
     }
 
     @Override
@@ -509,26 +326,12 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, updateTemplates);
 
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
-
-        Variable lambda = program.createVariable();
-        ConstructInstruction constructLambda = new ConstructInstruction();
-        constructLambda.setType(lambdaClass);
-        constructLambda.setReceiver(lambda);
-        block.getInstructions().add(constructLambda);
-
+        FieldReference ownerField = new FieldReference(thisClassName, "this$owner");
+        ValueType ownerType = ValueType.object(ownerCls);
         List<ValueType> ctorArgTypes = new ArrayList<>();
-        List<Variable> ctorArgs = new ArrayList<>();
+        List<ValueEmitter> ctorArgs = new ArrayList<>();
 
-        ctorArgTypes.add(ValueType.object(ownerCls));
-        Variable ownerVar = program.createVariable();
-        GetFieldInstruction getOwner = new GetFieldInstruction();
-        getOwner.setField(new FieldReference(thisClassName, "this$owner"));
-        getOwner.setFieldType(ValueType.object(ownerCls));
-        getOwner.setInstance(thisVar);
-        getOwner.setReceiver(ownerVar);
-        block.getInstructions().add(getOwner);
-        ctorArgs.add(ownerVar);
-
+        ctorArgs.add(thisVar.getField(ownerField, ownerType));
         Set<String> localBoundVars = new HashSet<>(plan.getBoundVars());
         for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
             String closedVar = innerEmitter.innerClosureList.get(i);
@@ -539,15 +342,9 @@ class ExprPlanEmitter implements PlanVisitor {
             }
         }
         ctorArgTypes.add(ValueType.VOID);
+        MethodReference ctor = new MethodReference(lambdaClass, "<init>", ctorArgTypes.toArray(new ValueType[0]));
 
-        InvokeInstruction initLambda = new InvokeInstruction();
-        initLambda.setInstance(lambda);
-        initLambda.setType(InvocationType.SPECIAL);
-        initLambda.setMethod(new MethodReference(lambdaClass, "<init>", ctorArgTypes.toArray(new ValueType[0])));
-        initLambda.getArguments().addAll(ctorArgs);
-        block.getInstructions().add(initLambda);
-
-        var = lambda;
+        var = pe.construct(ctor, ctorArgs.toArray(new ValueEmitter[0]));
     }
 
     private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
@@ -559,7 +356,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
         workerMethod.setLevel(AccessLevel.PUBLIC);
-        program = new Program();
+        pe = ProgramEmitter.create(workerMethod);
         thisVar = program.createVariable();
         for (ClosureEmitter outerClosure : outerBoundVars.values()) {
             boundVarTypes.put(outerClosure.name, outerClosure.type);
