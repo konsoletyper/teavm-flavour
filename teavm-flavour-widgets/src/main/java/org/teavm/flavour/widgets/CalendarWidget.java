@@ -39,7 +39,6 @@ public class CalendarWidget extends AbstractWidget {
     private List<Day> days = new ArrayList<>();
     private int displayYear;
     private int displayMonth;
-    private int displayFirstWeek;
     private Computation<String> currentLocale;
     private Computation<Date> currentDate;
     private ValueChangeListener<Date> changeListener;
@@ -49,6 +48,7 @@ public class CalendarWidget extends AbstractWidget {
     private int selectedDay;
     private DateFormatSymbols dateFormatSymbols = new DateFormatSymbols();
     private String cachedLocale;
+    private List<Weekday> weekdays = new ArrayList<>();
 
     public CalendarWidget(Slot slot) {
         super(slot);
@@ -56,6 +56,10 @@ public class CalendarWidget extends AbstractWidget {
 
     public List<Day> getDays() {
         return days;
+    }
+
+    public List<Weekday> getWeekdays() {
+        return weekdays;
     }
 
     public int getDisplayYear() {
@@ -80,10 +84,6 @@ public class CalendarWidget extends AbstractWidget {
 
     public int getSelectedDay() {
         return selectedDay;
-    }
-
-    public int getDisplayFirstWeek() {
-        return displayFirstWeek;
     }
 
     @BindAttribute(name = "locale", optional = true)
@@ -125,10 +125,15 @@ public class CalendarWidget extends AbstractWidget {
             rebuildCurrentDate();
         }
         String newLocale = currentLocale != null ? currentLocale.perform() : null;
+        boolean localeChanged = false;
         if (!Objects.equals(newLocale, cachedLocale)) {
             cachedLocale = newLocale;
             dateFormatSymbols = newLocale != null ? new DateFormatSymbols(new Locale(newLocale)) :
                     new DateFormatSymbols();
+            localeChanged = true;
+        }
+        if (localeChanged || weekdays.isEmpty()) {
+            rebuildWeekdays();
         }
         super.render();
     }
@@ -155,24 +160,36 @@ public class CalendarWidget extends AbstractWidget {
         c.set(Calendar.DATE, 1);
         c.set(Calendar.MONTH, displayMonth);
         c.set(Calendar.YEAR, displayYear);
-        displayFirstWeek = c.get(Calendar.WEEK_OF_YEAR);
-        c.add(Calendar.MONTH, 1);
-        c.add(Calendar.DATE, -1);
-        int currentLastWeek = c.get(Calendar.WEEK_OF_YEAR);
-
         days.clear();
-        c.set(Calendar.YEAR, displayYear);
-        c.set(Calendar.MONTH, displayMonth);
-        c.set(Calendar.DATE, 1);
-        while (c.getFirstDayOfWeek() != c.get(Calendar.DAY_OF_WEEK)) {
-            c.add(Calendar.DATE, -1);
+        int offset = c.get(Calendar.DAY_OF_WEEK) - c.getFirstDayOfWeek();
+        if (offset < 0) {
+            offset += 7;
         }
-        for (int i = displayFirstWeek; i <= currentLastWeek; ++i) {
+        c.add(Calendar.DATE, -offset);
+        for (int i = 0; i < 5; ++i) {
             for (int j = 0; j < 7; ++j) {
                 days.add(new Day(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DATE),
-                        c.get(Calendar.WEEK_OF_YEAR), c.get(Calendar.DAY_OF_WEEK), j));
+                        i, c.get(Calendar.DAY_OF_WEEK), j));
                 c.add(Calendar.DATE, 1);
             }
+        }
+        int i = 0;
+        while (c.get(Calendar.MONTH) == displayMonth) {
+            days.set(i, new Day(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DATE),
+                    0, c.get(Calendar.DAY_OF_WEEK), i));
+            c.add(Calendar.DATE, 1);
+        }
+    }
+
+    private void rebuildWeekdays() {
+        weekdays.clear();
+        String[] names = dateFormatSymbols.getShortWeekdays();
+        Calendar c = Calendar.getInstance();
+        int offset = c.getFirstDayOfWeek() - 1;
+        for (int i = 0; i < 7; ++i) {
+            int weekdayNumber = (offset + i) % 7;
+            Weekday weekday = new Weekday(weekdayNumber + 1, i, names[weekdayNumber]);
+            weekdays.add(weekday);
         }
     }
 
@@ -214,6 +231,18 @@ public class CalendarWidget extends AbstractWidget {
             c.set(Calendar.SECOND, 0);
             c.set(Calendar.MILLISECOND, 0);
             changeListener.changed(c.getTime());
+        }
+    }
+
+    public class Weekday {
+        public final int weekDay;
+        public final int weekDayIndex;
+        public final String name;
+
+        public Weekday(int weekDay, int weekDayIndex, String name) {
+            this.weekDay = weekDay;
+            this.weekDayIndex = weekDayIndex;
+            this.name = name;
         }
     }
 }

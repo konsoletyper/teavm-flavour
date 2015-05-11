@@ -1,20 +1,24 @@
 <div class="flavour-calendar">
-  <div class="flavour-calendar-previous-month">
-    <button event:click="previousMonth()">&lt;</button>
-  </div>
+  <button class="flavour-calendar-previous-month" event:click="previousMonth()"><span></span></button>
   <div class="flavour-calendar-month">
     <std:text value="displayMonthName"/>
     <std:text value="displayYear"/>
   </div>
-  <div class="flavour-calendar-next-month">
-    <button event:click="nextMonth()">&gt;</button>
-  </div>
+  <button class="flavour-calendar-next-month" event:click="nextMonth()"><span></span></button>
 
   <div class="flavour-calendar-sheet">
+    <std:foreach var="weekday" in="weekdays">
+      <div attr:class="
+            'flavour-calendar-day flavour-calendar-weekdays' +
+            ' flavour-calendar-weekday-index-' + weekday.weekDayIndex +
+            ' flavour-calendar-weekday-' + weekday.weekDay">
+        <std:text value="weekday.name"/>
+      </div>
+    </std:foreach>
     <std:foreach var="day" in="days">
       <div attr:class="
             'flavour-calendar-day' +
-            ' flavour-calendar-week-' + (day.week - displayFirstWeek) +
+            ' flavour-calendar-week-' + day.week +
             ' flavour-calendar-weekday-index-' + day.weekDayIndex +
             ' flavour-calendar-weekday-' + day.weekDay +
             (not day.available ? ' flavour-calendar-inactive-day' : '') + 

@@ -24,16 +24,19 @@ span.flavour-hidden-action-link {
 }
 
 .flavour-calendar {
-    width: 162px;
-    height: 126px;
+    width: 220px;
+    height: 150px;
     display: inline-block;
     position: relative;
     border-color: rgb(160,160,160);
     border-width: 1px;
     border-style: solid;
+    font-family: sans-serif;
+    font-size: 9pt;
 }
 .flavour-calendar-previous-month, .flavour-calendar-month, .flavour-calendar-next-month {
     position: absolute;
+    display: block;
     top: 0;
     height: 20px;
     line-height: 20px;
@@ -53,22 +56,47 @@ span.flavour-hidden-action-link {
     text-align: center;
     cursor: default;
 }
-.flavour-calendar-previous-month > button, .flavour-calendar-next-month > button {
+.flavour-calendar-previous-month, .flavour-calendar-next-month {
+    background: none;
+    border-style: none;
+    outline-style: none;
+    cursor: pointer;
+}
+.flavour-calendar-previous-month > span, .flavour-calendar-next-month > span {
     position: absolute;
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 7px;
+    height: 13px;
+    top: 3px;
+    left: 6px;
+    background-image: url(arrows.png);
+    background-repeat: no-repeat;
+}
+.flavour-calendar-previous-month > span {
+    background-position: 0px -13px;
+}
+.flavour-calendar-previous-month:hover > span {
+    background-position: -7px -13px;
+}
+.flavour-calendar-next-month > span {
+    background-position: 0px 0px;
+}
+.flavour-calendar-next-month:hover > span {
+    background-position: -7px 0px;
 }
 .flavour-calendar-sheet {
     position: absolute;
     left: 4px;
     right: 4px;
-    top: 22px;
+    top: 24px;
     bottom: 4px;
+    border-top-color: rgb(210,210,210);
+    border-top-style: solid;
+    border-top-width: 1px;
 }
 .flavour-calendar-day {
     position: absolute;
-    width: 22px;
+    width: 28px;
     height: 20px;
     line-height: 20px;
     vertical-align: middle;
@@ -80,41 +108,45 @@ span.flavour-hidden-action-link {
     border-right-style: solid;
     border-right-width: 1px;
 }
+.flavour-calendar-weekdays {
+    top: 2px;
+    cursor: default;
+}
 .flavour-calendar-week-0 {
-    top: 0px;
+    top: 22px;
 }
 .flavour-calendar-week-1 {
-    top: 20px;
+    top: 42px;
 }
 .flavour-calendar-week-2 {
-    top: 40px;
+    top: 62px;
 }
 .flavour-calendar-week-3 {
-    top: 60px;
+    top: 82px;
 }
 .flavour-calendar-week-4 {
-    top: 80px;
+    top: 102px;
 }
 .flavour-calendar-weekday-index-0 {
-    left: 0px;
+    left: 0;
 }
 .flavour-calendar-weekday-index-1 {
-    left: 22px;
+    left: 14.28%;
 }
 .flavour-calendar-weekday-index-2 {
-    left: 44px;
+    left: 28.57%;
 }
 .flavour-calendar-weekday-index-3 {
-    left: 66px;
+    left: 42.86%;
 }
 .flavour-calendar-weekday-index-4 {
-    left: 88px;
+    left: 57.14%;
 }
 .flavour-calendar-weekday-index-5 {
-    left: 110px;
+    left: 71.43%;
 }
 .flavour-calendar-weekday-index-6 {
-    left: 132px;
+    left: 85.71%;
     border-right-style: none;
 }
 .flavour-calendar-weekday-1, .flavour-calendar-weekday-7 {
@@ -130,4 +162,9 @@ span.flavour-hidden-action-link {
 .flavour-calendar-current-day {
     color: blue;
     font-weight: bold;
+}
+
+.flavour-dropdown {
+    display: block;
+    position: absolute;
 }
