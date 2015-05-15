@@ -85,8 +85,8 @@
               <runtime>SEPARATE</runtime>
               <minifying>false</minifying>
               <debugInformationGenerated>true</debugInformationGenerated>
-              <sourceMapsGenerated>false</sourceMapsGenerated>
-              <sourceFilesCopied>false</sourceFilesCopied>
+              <sourceMapsGenerated>true</sourceMapsGenerated>
+              <sourceFilesCopied>true</sourceFilesCopied>
             </configuration>
           </execution>
         </executions>

@@ -66,9 +66,10 @@ class TemplatingDependencyListener implements DependencyListener {
             method.getVariable(1).addConsumer(new DependencyConsumer() {
                 @Override public void consume(DependencyType type) {
                     TemplateEmitter emitter = new TemplateEmitter(agent);
-                    List<TemplateNode> fragment = parseForModel(agent, type.getName(), location);
-                    if (fragment != null) {
-                        String templateClass = emitter.emitTemplate(type.getName(), fragment);
+                    TemplateInfo template = parseForModel(agent, type.getName(), location);
+                    if (template != null) {
+                        String templateClass = emitter.emitTemplate(type.getName(), template.sourceFileName,
+                                template.body);
                         agent.linkClass(templateClass, location);
                         MethodDependency ctor = agent.linkMethod(new MethodReference(templateClass, "<init>",
                                 ValueType.object(type.getName()), ValueType.VOID), location);
@@ -83,7 +84,7 @@ class TemplatingDependencyListener implements DependencyListener {
         }
     }
 
-    private List<TemplateNode> parseForModel(DependencyAgent agent, String typeName, CallLocation location) {
+    private TemplateInfo parseForModel(DependencyAgent agent, String typeName, CallLocation location) {
         ClassReader cls = agent.getClassSource().get(typeName);
         if (cls == null) {
             return null;
@@ -127,7 +128,15 @@ class TemplatingDependencyListener implements DependencyListener {
                 agent.getDiagnostics().error(diagnosticLocation, diagnostic.getMessage());
             }
         }
-        return fragment;
+        TemplateInfo info = new TemplateInfo();
+        info.sourceFileName = path;
+        info.body = fragment;
+        return info;
+    }
+
+    static class TemplateInfo {
+        String sourceFileName;
+        List<TemplateNode> body;
     }
 
     @Override

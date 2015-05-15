@@ -17,12 +17,14 @@ package org.teavm.flavour.templates.tree;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.teavm.flavour.expr.Location;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class AttributeDirectiveBinding {
+    private Location location;
     private String className;
     private String name;
     private String directiveNameMethodName;
@@ -32,6 +34,14 @@ public class AttributeDirectiveBinding {
     public AttributeDirectiveBinding(String className, String name) {
         this.className = className;
         this.name = name;
+    }
+
+    public Location getLocation() {
+        return location;
+    }
+
+    public void setLocation(Location location) {
+        this.location = location;
     }
 
     public String getClassName() {

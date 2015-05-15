@@ -16,6 +16,7 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.*;
+import org.teavm.flavour.expr.Location;
 import org.teavm.flavour.expr.plan.*;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.model.*;
@@ -44,6 +45,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(ConstantPlan plan) {
+        context.location(pe, plan.getLocation());
         Object value = plan.getValue();
         if (value == null) {
             var = pe.constantNull();
@@ -70,11 +72,13 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(VariablePlan plan) {
+        context.location(pe, plan.getLocation());
         emitVariable(plan.getName());
     }
 
     @Override
     public void visit(ThisPlan plan) {
+        context.location(pe, plan.getLocation());
         emitVariable("this");
     }
 
@@ -111,14 +115,17 @@ class ExprPlanEmitter implements PlanVisitor {
 
         BinaryOperation op = mapBinary(plan.getType());
         if (op != null) {
+            context.location(pe, plan.getLocation());
             var = first.binary(op, mapArithmetic(plan.getValueType()), second);
             return;
         }
         BinaryBranchingCondition binaryCond = mapBinaryCondition(plan.getType());
         if (binaryCond != null) {
+            context.location(pe, plan.getLocation());
             branching = first.fork(binaryCond, second);
             return;
         }
+        context.location(pe, plan.getLocation());
         branching = first.compare(mapArithmetic(plan.getValueType()), second).fork(mapCondition(plan.getType()));
     }
 
@@ -126,6 +133,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(NegatePlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.neg(mapArithmetic(plan.getValueType()));
     }
 
@@ -138,11 +146,13 @@ class ExprPlanEmitter implements PlanVisitor {
         requireValue();
         ValueEmitter second = var;
 
+        context.location(pe, plan.getLocation());
         branching = first.fork(mapBinaryCondition(plan.getType()), second);
     }
 
     @Override
     public void visit(LogicalBinaryPlan plan) {
+        context.location(pe, plan.getLocation());
         switch (plan.getType()) {
             case AND: {
                 plan.getFirstOperand().acceptVisitor(this);
@@ -152,6 +162,7 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getSecondOperand().acceptVisitor(this);
                 valueToBranching();
                 ForkEmitter second = branching;
+                context.location(pe, plan.getLocation());
                 branching = first.and(block, second);
                 break;
             }
@@ -163,6 +174,7 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getSecondOperand().acceptVisitor(this);
                 valueToBranching();
                 ForkEmitter second = branching;
+                context.location(pe, plan.getLocation());
                 branching = first.or(block, second);
                 break;
             }
@@ -171,22 +183,28 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(NotPlan plan) {
+        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
         valueToBranching();
+        context.location(pe, plan.getLocation());
         branching = branching.not();
     }
 
     @Override
     public void visit(CastPlan plan) {
+        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.cast(ValueType.parse(plan.getTargetType()));
     }
 
     @Override
     public void visit(ArithmeticCastPlan plan) {
+        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.cast(mapArithmetic(plan.getSourceType()), mapArithmetic(plan.getTargetType()));
     }
 
@@ -194,6 +212,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(CastFromIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.fromInteger(mapInteger(plan.getType()));
     }
 
@@ -201,6 +220,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(CastToIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.toInteger(mapInteger(plan.getType()));
     }
 
@@ -212,6 +232,7 @@ class ExprPlanEmitter implements PlanVisitor {
         plan.getIndex().acceptVisitor(this);
         requireValue();
         ValueEmitter index = var;
+        context.location(pe, plan.getLocation());
         var = array.getElement(index);
     }
 
@@ -219,6 +240,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(ArrayLengthPlan plan) {
         plan.getArray().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.arrayLength();
     }
 
@@ -230,8 +252,10 @@ class ExprPlanEmitter implements PlanVisitor {
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             requireValue();
+            context.location(pe, plan.getLocation());
             var = var.getField(field, type);
         } else {
+            context.location(pe, plan.getLocation());
             var = pe.getField(field, type);
         }
     }
@@ -240,6 +264,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(InstanceOfPlan plan) {
         plan.getOperand().acceptVisitor(this);
         requireValue();
+        context.location(pe, plan.getLocation());
         var = var.instanceOf(ValueType.parse(plan.getClassName()));
     }
 
@@ -263,8 +288,10 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getMethodName() + plan.getMethodDesc()));
 
         if (instance != null) {
+            context.location(pe, plan.getLocation());
             var = instance.invokeVirtual(method, arguments);
         } else {
+            context.location(pe, plan.getLocation());
             var = pe.invoke(method, arguments);
         }
     }
@@ -279,6 +306,7 @@ class ExprPlanEmitter implements PlanVisitor {
             requireValue();
             arguments[i] = var;
         }
+        context.location(pe, plan.getLocation());
         var = pe.construct(ctor, arguments);
     }
 
@@ -322,7 +350,8 @@ class ExprPlanEmitter implements PlanVisitor {
 
         ExprPlanEmitter innerEmitter = new ExprPlanEmitter(context);
         String lambdaClass = innerEmitter.emitLambdaClass(plan.getClassName(), plan.getMethodName(),
-                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, updateTemplates);
+                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, updateTemplates,
+                plan.getLocation());
 
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
         FieldReference ownerField = new FieldReference(thisClassName, "this$owner");
@@ -344,11 +373,13 @@ class ExprPlanEmitter implements PlanVisitor {
         ctorArgTypes.add(ValueType.VOID);
         MethodReference ctor = new MethodReference(lambdaClass, "<init>", ctorArgTypes.toArray(new ValueType[0]));
 
+        context.location(pe, plan.getLocation());
         var = pe.construct(ctor, ctorArgs.toArray(new ValueEmitter[0]));
     }
 
     private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
-            List<String> boundVarList, Map<String, ClosureEmitter> outerBoundVars, boolean updateTemplates) {
+            List<String> boundVarList, Map<String, ClosureEmitter> outerBoundVars, boolean updateTemplates,
+            Location location) {
         ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
@@ -376,6 +407,7 @@ class ExprPlanEmitter implements PlanVisitor {
         requireValue();
 
         if (updateTemplates) {
+            context.location(pe, location);
             pe.invoke(new MethodReference(Templates.class, "update", void.class));
         }
 
@@ -409,13 +441,13 @@ class ExprPlanEmitter implements PlanVisitor {
                 closedVars.add(var);
             }
         }
-        emitLambdaConstructor(cls, closedVars);
+        emitLambdaConstructor(cls, closedVars, location);
 
         context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
-    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars) {
+    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, Location location) {
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
 
         List<ValueType> ctorArgTypes = new ArrayList<>();
@@ -432,6 +464,7 @@ class ExprPlanEmitter implements PlanVisitor {
         thisVar = pe.wrapNew();
         ValueEmitter ownerVar = pe.wrapNew();
 
+        context.location(pe, location);
         thisVar.invokeSpecial(new MethodReference(Object.class, "<init>", void.class));
         FieldHolder ownerField = new FieldHolder("this$owner");
         ownerField.setLevel(AccessLevel.PUBLIC);

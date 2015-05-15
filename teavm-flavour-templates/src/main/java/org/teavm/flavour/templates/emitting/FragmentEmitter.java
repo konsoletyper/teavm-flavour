@@ -47,7 +47,7 @@ class FragmentEmitter {
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(Fragment.class.getName());
-        context.addConstructor(cls);
+        context.addConstructor(cls, null);
 
         MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
         method.setLevel(AccessLevel.PUBLIC);
@@ -71,7 +71,7 @@ class FragmentEmitter {
     private String emitWorkerClass(List<TemplateNode> fragment) {
         ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
         cls.setParent(DomFragment.class.getName());
-        context.addConstructor(cls);
+        context.addConstructor(cls, null);
         context.pushBoundVars();
         emitBuildDomMethod(cls, fragment);
         Map<String, EmittedVariable> vars = context.popBoundVars();

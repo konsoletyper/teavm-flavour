@@ -78,7 +78,7 @@ class ValueEmitter {
         insn.setFieldType(type);
         insn.setReceiver(var);
         insn.setInstance(variable);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(var);
     }
 
@@ -88,7 +88,7 @@ class ValueEmitter {
         insn.setFieldType(type);
         insn.setInstance(variable);
         insn.setValue(value.getVariable());
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
     }
 
     public ValueEmitter binary(BinaryOperation op, NumericOperandType type, ValueEmitter other) {
@@ -97,7 +97,7 @@ class ValueEmitter {
         insn.setFirstOperand(variable);
         insn.setSecondOperand(other.variable);
         insn.setReceiver(var);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(var);
     }
 
@@ -150,7 +150,7 @@ class ValueEmitter {
         for (ValueEmitter arg : arguments) {
             insn.getArguments().add(arg.variable);
         }
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return result != null ? pe.wrap(result) : null;
     }
 
@@ -182,7 +182,7 @@ class ValueEmitter {
         final BinaryBranchingInstruction insn = new BinaryBranchingInstruction(condition);
         insn.setFirstOperand(variable);
         insn.setSecondOperand(other.variable);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return new ForkEmitter() {
             @Override public void setThen(BasicBlock block) {
                 insn.setConsequent(block);
@@ -196,7 +196,7 @@ class ValueEmitter {
     public ForkEmitter fork(BranchingCondition condition) {
         final BranchingInstruction insn = new BranchingInstruction(condition);
         insn.setOperand(variable);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return new ForkEmitter() {
             @Override public void setThen(BasicBlock block) {
                 insn.setConsequent(block);
@@ -210,7 +210,7 @@ class ValueEmitter {
     public void returnValue() {
         ExitInstruction insn = new ExitInstruction();
         insn.setValueToReturn(variable);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
     }
 
     public ValueEmitter cast(ValueType type) {
@@ -219,7 +219,7 @@ class ValueEmitter {
         insn.setValue(variable);
         insn.setReceiver(result);
         insn.setTargetType(type);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 
@@ -228,7 +228,7 @@ class ValueEmitter {
         CastNumberInstruction insn = new CastNumberInstruction(from, to);
         insn.setValue(variable);
         insn.setReceiver(result);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 
@@ -237,7 +237,7 @@ class ValueEmitter {
         CastIntegerInstruction insn = new CastIntegerInstruction(subtype, dir);
         insn.setValue(variable);
         insn.setReceiver(result);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 
@@ -255,7 +255,7 @@ class ValueEmitter {
         insn.setArray(variable);
         insn.setIndex(index.variable);
         insn.setReceiver(variable);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 
@@ -264,7 +264,7 @@ class ValueEmitter {
         ArrayLengthInstruction insn = new ArrayLengthInstruction();
         insn.setArray(variable);
         insn.setReceiver(result);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 
@@ -274,7 +274,7 @@ class ValueEmitter {
         insn.setValue(variable);
         insn.setReceiver(result);
         insn.setType(type);
-        pe.getBlock().getInstructions().add(insn);
+        pe.addInstruction(insn);
         return pe.wrap(result);
     }
 }

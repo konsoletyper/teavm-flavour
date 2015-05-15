@@ -18,6 +18,7 @@ package org.teavm.flavour.templates.tree;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.expr.Location;
 
 /**
  *
@@ -56,9 +57,14 @@ public class DOMElement extends TemplateNode {
     }
 
     public DOMAttribute createAttribute(String name) {
+        return createAttribute(name, null);
+    }
+
+    public DOMAttribute createAttribute(String name, Location location) {
         DOMAttribute attribute = getAttribute(name);
         if (attribute == null) {
             attribute = new DOMAttribute(name, "");
+            attribute.setLocation(location);
             attributes.add(attribute);
         }
         return attribute;
@@ -75,6 +81,10 @@ public class DOMElement extends TemplateNode {
 
     public void setAttribute(String name, String value) {
         createAttribute(name).setValue(value);
+    }
+
+    public void setAttribute(String name, String value, Location location) {
+        createAttribute(name, location).setValue(value);
     }
 
     public List<DOMAttribute> getAttributes() {

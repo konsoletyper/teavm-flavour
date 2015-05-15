@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates.tree;
 
+import org.teavm.flavour.expr.Location;
+
 /**
  *
  * @author Alexey Andreev
@@ -22,6 +24,7 @@ package org.teavm.flavour.templates.tree;
 public class DOMAttribute {
     private String name;
     private String value;
+    private Location location;
 
     DOMAttribute(String name, String value) {
         this.name = name;
@@ -38,5 +41,13 @@ public class DOMAttribute {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    public Location getLocation() {
+        return location;
+    }
+
+    public void setLocation(Location location) {
+        this.location = location;
     }
 }

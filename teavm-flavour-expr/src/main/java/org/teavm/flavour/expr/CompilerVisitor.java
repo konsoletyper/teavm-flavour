@@ -140,6 +140,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 compileAdd(expr);
                 break;
         }
+        copyLocation(expr);
     }
 
     private void compileAdd(BinaryExpr<TypedPlan> expr) {
@@ -160,6 +161,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                             secondOperand.getAttribute().plan);
                     invocation.setInstance(append);
                     expr.setAttribute(new TypedPlan(invocation, stringClass));
+                    copyLocation(expr);
                     return;
                 }
             }
@@ -181,6 +183,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     BinaryPlanType.ADD, type);
             expr.setAttribute(new TypedPlan(plan, getType(type)));
         }
+        copyLocation(expr);
     }
 
     private void compileGetElement(BinaryExpr<TypedPlan> expr) {
@@ -194,6 +197,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             GetArrayElementPlan plan = new GetArrayElementPlan(firstOperand.getAttribute().plan,
                     secondOperand.getAttribute().plan);
             expr.setAttribute(new TypedPlan(plan, arrayType.getElementType()));
+            copyLocation(expr);
             return;
         } else if (firstType instanceof GenericClass) {
             GenericClass mapClass = navigator.getGenericClass("java.util.Map");
@@ -206,6 +210,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                         "(Ljava/lang/Object;)Ljava/lang/Object;",
                         firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
                 expr.setAttribute(new TypedPlan(plan, returnType));
+                copyLocation(expr);
                 return;
             } else if (unifier.unify(listClass, (GenericType)firstType, false)) {
                 TypeVar var = ((GenericReference)listClass.getArguments().get(0)).getVar();
@@ -214,10 +219,12 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 InvocationPlan plan = new InvocationPlan("java.util.List", "get", "(I)Ljava/lang/Object;",
                         firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
                 expr.setAttribute(new TypedPlan(plan, returnType));
+                copyLocation(expr);
                 return;
             }
         }
         expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
+        copyLocation(expr);
         error(expr, "Can't apply subscript operator to " + firstType + " with argument of "  + secondType);
     }
 
@@ -231,9 +238,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (plan == null) {
             error(expr, "Can't cast " + value.getAttribute().type + " to " + expr.getTargetType());
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), expr.getTargetType()));
+            copyLocation(expr);
             return;
         }
         expr.setAttribute(plan);
+        copyLocation(expr);
     }
 
     private TypedPlan tryCast(TypedPlan plan, ValueType targetType) {
@@ -278,6 +287,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!(value.getAttribute().type instanceof GenericClass)) {
             error(expr, "Can't check against " + checkedType);
             expr.setAttribute(new TypedPlan(new ConstantPlan(false), Primitive.BOOLEAN));
+            copyLocation(expr);
             return;
         }
 
@@ -290,6 +300,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             InstanceOfPlan plan = new InstanceOfPlan(value.getAttribute().plan, typeToString(erasure));
             expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
         }
+        copyLocation(expr);
     }
 
     @Override
@@ -305,16 +316,19 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!(instance.type instanceof GenericClass)) {
             error(expr, "Can't call method of non-class value: " + instance.type);
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
+            copyLocation(expr);
             return;
         }
 
         compileInvocation(expr, instance, (GenericClass)instance.type, expr.getMethodName(), expr.getArguments());
+        copyLocation(expr);
     }
 
     @Override
     public void visit(StaticInvocationExpr<TypedPlan> expr) {
         compileInvocation(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getMethodName(),
                 expr.getArguments());
+        copyLocation(expr);
     }
 
     private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls, String methodName,
@@ -484,17 +498,20 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
         if (instance.type instanceof GenericArray && expr.getPropertyName().equals("length")) {
             expr.setAttribute(new TypedPlan(new ArrayLengthPlan(instance.plan), Primitive.INT));
+            copyLocation(expr);
             return;
         }
 
         if (!(instance.type instanceof GenericClass)) {
             error(expr, "Can't get property of non-class value: " + instance.type);
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
+            copyLocation(expr);
             return;
         }
 
         GenericClass cls = (GenericClass)instance.type;
         compilePropertyAccess(expr, instance, cls, expr.getPropertyName());
+        copyLocation(expr);
     }
 
     private GenericMethod findGetter(GenericClass cls, String name) {
@@ -519,6 +536,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     @Override
     public void visit(StaticPropertyExpr<TypedPlan> expr) {
         compilePropertyAccess(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getPropertyName());
+        copyLocation(expr);
     }
 
     private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls,
@@ -567,12 +585,14 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 ArithmeticType type = getArithmeticType(expr.getOperand());
                 NegatePlan plan = new NegatePlan(expr.getOperand().getAttribute().plan, type);
                 expr.setAttribute(new TypedPlan(plan, getType(type)));
+                copyLocation(expr);
                 break;
             }
             case NOT: {
                 ensureBooleanType(expr.getOperand());
                 NotPlan plan = new NotPlan(expr.getOperand().getAttribute().plan);
                 expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
+                copyLocation(expr);
                 break;
             }
         }
@@ -590,15 +610,18 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (type == null) {
             type = scope.variableType("this");
             compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass)type, expr.getName());
+            copyLocation(expr);
             return;
         }
         expr.setAttribute(new TypedPlan(new VariablePlan(expr.getName()), type));
+        copyLocation(expr);
     }
 
     @Override
     public void visit(ThisExpr<TypedPlan> expr) {
         ValueType type = scope.variableType("this");
         expr.setAttribute(new TypedPlan(new ThisPlan(), type));
+        copyLocation(expr);
     }
 
     @Override
@@ -606,6 +629,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (lambdaSam == null) {
             error(expr, "Unexpected lambda here. Lambdas can only be passed for SAM classes");
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+            copyLocation(expr);
             return;
         }
         GenericMethod lambdaSam = this.lambdaSam;
@@ -671,6 +695,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 boundVarRenamings.put(boundVar.getName(), oldRenamings[i]);
             }
         }
+        copyLocation(expr);
     }
 
     @Override
@@ -700,6 +725,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             throw new IllegalArgumentException("Don't know how to compile constant: " + expr.getValue());
         }
         expr.setAttribute(new TypedPlan(new ConstantPlan(expr.getValue()), type));
+        copyLocation(expr);
     }
 
     @Override
@@ -718,6 +744,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             ValueTypeFormatter formatter = new ValueTypeFormatter();
             error(expr, "Clauses of ternary conditional operator are not compatible: " +
                     formatter.format(a) + " vs. " + formatter.format(b));
+            copyLocation(expr);
             return;
         }
         convert(expr.getConsequent(), type);
@@ -725,6 +752,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         TypedPlan plan = new TypedPlan(new ConditionalPlan(expr.getCondition().getAttribute().plan,
                 expr.getConsequent().getAttribute().plan, expr.getAlternative().getAttribute().plan), type);
         expr.setAttribute(plan);
+        copyLocation(expr);
     }
 
     private void ensureBooleanType(Expr<TypedPlan> expr) {
@@ -1228,5 +1256,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void error(Expr<TypedPlan> expr, String message) {
         diagnostics.add(new Diagnostic(expr.getStart(), expr.getEnd(), message));
+    }
+
+    private void copyLocation(Expr<? extends TypedPlan> expr) {
+        expr.getAttribute().plan.setLocation(new Location(expr.getStart(), expr.getEnd()));
     }
 }

@@ -15,13 +15,7 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import org.teavm.model.BasicBlock;
-import org.teavm.model.FieldReference;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.Program;
-import org.teavm.model.ValueType;
-import org.teavm.model.Variable;
+import org.teavm.model.*;
 import org.teavm.model.instructions.ConstructInstruction;
 import org.teavm.model.instructions.DoubleConstantInstruction;
 import org.teavm.model.instructions.ExitInstruction;
@@ -43,6 +37,7 @@ import org.teavm.model.instructions.StringConstantInstruction;
 final class ProgramEmitter {
     private Program program;
     private BasicBlock block;
+    private InstructionLocation currentLocation;
 
     private ProgramEmitter(Program program, BasicBlock block) {
         this.program = program;
@@ -72,7 +67,7 @@ final class ProgramEmitter {
         StringConstantInstruction insn = new StringConstantInstruction();
         insn.setReceiver(var);
         insn.setConstant(value);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -81,7 +76,7 @@ final class ProgramEmitter {
         IntegerConstantInstruction insn = new IntegerConstantInstruction();
         insn.setReceiver(var);
         insn.setConstant(value);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -90,7 +85,7 @@ final class ProgramEmitter {
         LongConstantInstruction insn = new LongConstantInstruction();
         insn.setReceiver(var);
         insn.setConstant(value);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -99,7 +94,7 @@ final class ProgramEmitter {
         FloatConstantInstruction insn = new FloatConstantInstruction();
         insn.setReceiver(var);
         insn.setConstant(value);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -108,7 +103,7 @@ final class ProgramEmitter {
         DoubleConstantInstruction insn = new DoubleConstantInstruction();
         insn.setReceiver(var);
         insn.setConstant(value);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -116,7 +111,7 @@ final class ProgramEmitter {
         Variable var = program.createVariable();
         NullConstantInstruction insn = new NullConstantInstruction();
         insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -126,7 +121,7 @@ final class ProgramEmitter {
         insn.setField(field);
         insn.setFieldType(type);
         insn.setReceiver(var);
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return wrap(var);
     }
 
@@ -135,7 +130,7 @@ final class ProgramEmitter {
         insn.setField(field);
         insn.setFieldType(type);
         insn.setValue(value.getVariable());
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return this;
     }
 
@@ -151,7 +146,7 @@ final class ProgramEmitter {
         for (ValueEmitter arg : arguments) {
             insn.getArguments().add(arg.variable);
         }
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         return result != null ? wrap(result) : null;
     }
 
@@ -165,7 +160,7 @@ final class ProgramEmitter {
         ConstructInstruction insn = new ConstructInstruction();
         insn.setReceiver(var);
         insn.setType(method.getClassName());
-        block.getInstructions().add(insn);
+        addInstruction(insn);
         ValueEmitter instance = wrap(var);
         instance.invokeSpecial(method, arguments);
         return instance;
@@ -174,14 +169,14 @@ final class ProgramEmitter {
     public ProgramEmitter jump(BasicBlock block) {
         JumpInstruction insn = new JumpInstruction();
         insn.setTarget(block);
-        this.block.getInstructions().add(insn);
+        addInstruction(insn);
         this.block = block;
         return this;
     }
 
     public void exit() {
         ExitInstruction insn = new ExitInstruction();
-        block.getInstructions().add(insn);
+        addInstruction(insn);
     }
 
     public ValueEmitter wrap(Variable var) {
@@ -190,6 +185,21 @@ final class ProgramEmitter {
 
     public ValueEmitter wrapNew() {
         return wrap(program.createVariable());
+    }
+
+    public InstructionLocation getCurrentLocation() {
+        return currentLocation;
+    }
+
+    public void setCurrentLocation(InstructionLocation currentLocation) {
+        this.currentLocation = currentLocation;
+    }
+
+    public void addInstruction(Instruction insn) {
+        if (currentLocation != null) {
+            insn.setLocation(currentLocation);
+        }
+        block.getInstructions().add(insn);
     }
 
     public static ProgramEmitter create(MethodHolder method) {

@@ -22,19 +22,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.ValueType;
+import org.teavm.flavour.expr.Location;
+import org.teavm.model.*;
 
 /**
  *
  * @author Alexey Andreev
  */
 class EmitContext {
+    String sourceFileName;
     DependencyAgent dependencyAgent;
     List<String> classStack = new ArrayList<>();
     List<Map<String, EmittedVariable>> boundVariableStack = new ArrayList<>();
@@ -80,7 +76,7 @@ class EmitContext {
         }
     }
 
-    void addConstructor(ClassHolder cls) {
+    void addConstructor(ClassHolder cls, Location location) {
         String ownerType = classStack.get(classStack.size() - 1);
         FieldHolder ownerField = new FieldHolder("this$owner");
         ownerField.setType(ValueType.object(ownerType));
@@ -90,6 +86,7 @@ class EmitContext {
         MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(ctor);
+        location(pe, location);
         ValueEmitter thisVar = pe.wrapNew();
         ValueEmitter ownerVar = pe.wrapNew();
 
@@ -98,5 +95,11 @@ class EmitContext {
         pe.exit();
 
         cls.addMethod(ctor);
+    }
+
+    void location(ProgramEmitter pe, Location location) {
+        if (location != null) {
+            pe.setCurrentLocation(new InstructionLocation(sourceFileName, location.getStart()));
+        }
     }
 }

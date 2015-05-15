@@ -78,14 +78,17 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
                 DomBuilder.class);
         MethodReference closeMethod = new MethodReference(DomBuilder.class, "close", DomBuilder.class);
 
+        context.location(pe, node.getLocation());
         builderVar = builderVar.invokeVirtual(openMethod, pe.constant(node.getName()));
 
         for (DOMAttribute attr : node.getAttributes()) {
+            context.location(pe, attr.getLocation());
             builderVar = builderVar.invokeVirtual(attrMethod,
                     pe.constant(attr.getName()), pe.constant(attr.getValue()));
         }
 
         for (AttributeDirectiveBinding binding : node.getAttributeDirectives()) {
+            context.location(pe, node.getLocation());
             emitAttributeDirective(binding);
         }
 
@@ -98,6 +101,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
     @Override
     public void visit(DOMText node) {
+        context.location(pe, node.getLocation());
         builderVar = builderVar.invokeVirtual(new MethodReference(DomBuilder.class, "text", String.class,
                 DomBuilder.class), pe.constant(node.getValue()));
     }
@@ -107,6 +111,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         String className = emitComponentFragmentClass(node);
         String ownerType = context.classStack.get(context.classStack.size() - 1);
 
+        context.location(pe, node.getLocation());
         ValueEmitter fragment = pe.construct(new MethodReference(className, "<init>",
                 ValueType.object(ownerType), ValueType.VOID), thisVar);
         builderVar = builderVar.invokeVirtual(new MethodReference(DomBuilder.class, "add", Fragment.class,
@@ -117,6 +122,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         String className = emitModifierClass(binding);
 
         String ownerType = context.classStack.get(context.classStack.size() - 1);
+        context.location(pe, binding.getLocation());
         ValueEmitter directive = pe.construct(new MethodReference(className, "<init>", ValueType.object(ownerType),
                 ValueType.VOID), thisVar);
         builderVar = builderVar.invokeVirtual(new MethodReference(DomBuilder.class, "add", Modifier.class,
@@ -130,7 +136,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         fragmentCls.getInterfaces().add(Fragment.class.getName());
 
         emitDirectiveFields(fragmentCls, node.getVariables());
-        context.addConstructor(fragmentCls);
+        context.addConstructor(fragmentCls, node.getLocation());
         emitDirectiveWorker(fragmentCls, node);
 
         context.dependencyAgent.submitClass(fragmentCls);
@@ -144,7 +150,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         fragmentCls.getInterfaces().add(Modifier.class.getName());
 
         emitDirectiveFields(fragmentCls, node.getVariables());
-        context.addConstructor(fragmentCls);
+        context.addConstructor(fragmentCls, node.getLocation());
         emitAttributeDirectiveWorker(fragmentCls, node);
 
         context.dependencyAgent.submitClass(fragmentCls);
@@ -167,6 +173,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         ValueEmitter thisVar = pe.wrapNew();
 
         MethodReference createSlotMethod = new MethodReference(Slot.class, "create", Slot.class);
+        context.location(pe, directive.getLocation());
         ValueEmitter componentVar = pe.construct(new MethodReference(directive.getClassName(), "<init>",
                 ValueType.parse(Slot.class), ValueType.VOID), pe.invoke(createSlotMethod));
 
@@ -203,6 +210,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
                 ValueType.parse(Renderable.class));
         method.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(method);
+        context.location(pe, directive.getLocation());
         ValueEmitter thisVar = pe.wrapNew();
         ValueEmitter elemVar = pe.wrapNew();
 
@@ -253,7 +261,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(org.teavm.flavour.templates.Variable.class.getName());
 
-        context.addConstructor(cls);
+        context.addConstructor(cls, null);
 
         MethodHolder setMethod = new MethodHolder("set", ValueType.parse(Object.class), ValueType.VOID);
         setMethod.setLevel(AccessLevel.PUBLIC);

@@ -48,13 +48,13 @@ public class TemplateEmitter {
         this.dependencyAgent = dependencyAgent;
     }
 
-    public String emitTemplate(String modelClassName, List<TemplateNode> fragment) {
+    public String emitTemplate(String modelClassName, String sourceFileName, List<TemplateNode> fragment) {
         ClassHolder cls = new ClassHolder(dependencyAgent.generateClassName());
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(Fragment.class.getName());
 
-        String innerName = emitInnerFragment(cls, modelClassName, fragment);
+        String innerName = emitInnerFragment(sourceFileName, cls, modelClassName, fragment);
         emitConstructor(cls, modelClassName, innerName);
         emitWorker(cls, innerName);
 
@@ -62,8 +62,10 @@ public class TemplateEmitter {
         return cls.getName();
     }
 
-    private String emitInnerFragment(ClassHolder cls, String modelClassName, List<TemplateNode> fragment) {
+    private String emitInnerFragment(String sourceFileName, ClassHolder cls, String modelClassName,
+            List<TemplateNode> fragment) {
         EmitContext context = new EmitContext();
+        context.sourceFileName = sourceFileName;
         context.addVariable("this", ValueType.object(modelClassName));
         context.classStack.add(cls.getName());
         context.dependencyAgent = dependencyAgent;

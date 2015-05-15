@@ -13,32 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.plan;
-
-import org.teavm.flavour.expr.Location;
+package org.teavm.flavour.expr;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class Plan {
-    private Location location;
+public class Location {
+    private int start;
+    private int end;
 
-    public Location getLocation() {
-        return location;
+    public Location(int start, int end) {
+        if (start < 0 || end < 0) {
+            throw new IllegalArgumentException("Both start and end must be non-negative, actual values are " +
+                    start + ", " + end);
+        }
+        this.start = start;
+        this.end = end;
     }
 
-    public void setLocation(Location location) {
-        this.location = location;
+    public int getStart() {
+        return start;
     }
 
-    public abstract void acceptVisitor(PlanVisitor visitor);
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        PlanFormatter formatter = new PlanFormatter(sb);
-        acceptVisitor(formatter);
-        return sb.toString();
+    public int getEnd() {
+        return end;
     }
 }

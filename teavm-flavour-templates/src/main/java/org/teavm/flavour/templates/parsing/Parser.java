@@ -84,14 +84,18 @@ public class Parser {
             Tag tag = source.getNextTag(position);
             if (tag == null || tag.getBegin() > limit) {
                 if (position < limit) {
-                    result.add(new DOMText(parseText(position, limit)));
+                    DOMText text = new DOMText(parseText(position, limit));
+                    text.setLocation(new Location(position, limit));
+                    result.add(text);
                 }
                 position = limit;
                 break;
             }
 
             if (position < tag.getBegin()) {
-                result.add(new DOMText(parseText(position, tag.getBegin())));
+                DOMText text = new DOMText(parseText(position, tag.getBegin()));
+                text.setLocation(new Location(position, tag.getBegin()));
+                result.add(text);
             }
             position = tag.getEnd();
             parseTag(tag, result);
@@ -137,6 +141,7 @@ public class Parser {
 
     private TemplateNode parseDomElement(Element elem) {
         DOMElement templateElem = new DOMElement(elem.getName());
+        templateElem.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         for (int i = 0; i < elem.getAttributes().size(); ++i) {
             Attribute attr = elem.getAttributes().get(i);
             if (attr.getName().indexOf(':') > 0) {
@@ -145,7 +150,8 @@ public class Parser {
                     templateElem.getAttributeDirectives().add(directive);
                 }
             } else {
-                templateElem.setAttribute(attr.getName(), attr.getValue());
+                templateElem.setAttribute(attr.getName(), attr.getValue(),
+                        new Location(attr.getBegin(), attr.getEnd()));
             }
         }
 
@@ -178,6 +184,7 @@ public class Parser {
         }
 
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
+        directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
@@ -262,6 +269,7 @@ public class Parser {
         }
 
         AttributeDirectiveBinding directive = new AttributeDirectiveBinding(directiveMeta.cls.getName(), name);
+        directive.setLocation(new Location(attr.getBegin(), attr.getEnd()));
         if (directiveMeta.nameSetter != null) {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
@@ -299,6 +307,8 @@ public class Parser {
         }
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
         TypedPlan result = compiler.compileLambda(expr, type);
+        PlanOffsetVisitor offsetVisitor = new PlanOffsetVisitor(segment.getBegin());
+        result.getPlan().acceptVisitor(offsetVisitor);
         for (Diagnostic diagnostic : compiler.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
                     diagnostic.getMessage());
