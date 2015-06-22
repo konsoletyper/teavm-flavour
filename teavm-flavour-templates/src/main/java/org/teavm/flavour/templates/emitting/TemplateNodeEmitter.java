@@ -46,6 +46,8 @@ import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -170,7 +172,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
         method.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(method);
-        ValueEmitter thisVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
 
         MethodReference createSlotMethod = new MethodReference(Slot.class, "create", Slot.class);
         context.location(pe, directive.getLocation());
@@ -211,8 +213,8 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         method.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(method);
         context.location(pe, directive.getLocation());
-        ValueEmitter thisVar = pe.wrapNew();
-        ValueEmitter elemVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
+        ValueEmitter elemVar = pe.newVar();
 
         MethodReference constructor = new MethodReference(directive.getClassName(), "<init>",
                 ValueType.parse(HTMLElement.class), ValueType.VOID);
@@ -266,8 +268,8 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         MethodHolder setMethod = new MethodHolder("set", ValueType.parse(Object.class), ValueType.VOID);
         setMethod.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(setMethod);
-        ValueEmitter thisVar = pe.wrapNew();
-        ValueEmitter valueVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
+        ValueEmitter valueVar = pe.newVar();
         ValueType varType = convertValueType(varBinding.getValueType());
 
         FieldReference ownerField = new FieldReference(cls.getName(), "this$owner");

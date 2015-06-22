@@ -23,7 +23,16 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.expr.Location;
-import org.teavm.model.*;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldHolder;
+import org.teavm.model.FieldReference;
+import org.teavm.model.InstructionLocation;
+import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
+import org.teavm.model.ValueType;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -87,8 +96,8 @@ class EmitContext {
         ctor.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(ctor);
         location(pe, location);
-        ValueEmitter thisVar = pe.wrapNew();
-        ValueEmitter ownerVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
+        ValueEmitter ownerVar = pe.newVar();
 
         thisVar.invokeSpecial(new MethodReference(cls.getParent(), "<init>", ValueType.VOID));
         thisVar.setField(new FieldReference(cls.getName(), "this$owner"), ValueType.object(ownerType), ownerVar);

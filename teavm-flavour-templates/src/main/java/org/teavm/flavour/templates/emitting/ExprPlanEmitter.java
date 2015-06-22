@@ -15,13 +15,57 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.teavm.flavour.expr.Location;
-import org.teavm.flavour.expr.plan.*;
+import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
+import org.teavm.flavour.expr.plan.ArithmeticType;
+import org.teavm.flavour.expr.plan.ArrayLengthPlan;
+import org.teavm.flavour.expr.plan.BinaryPlan;
+import org.teavm.flavour.expr.plan.BinaryPlanType;
+import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
+import org.teavm.flavour.expr.plan.CastPlan;
+import org.teavm.flavour.expr.plan.CastToIntegerPlan;
+import org.teavm.flavour.expr.plan.ConditionalPlan;
+import org.teavm.flavour.expr.plan.ConstantPlan;
+import org.teavm.flavour.expr.plan.ConstructionPlan;
+import org.teavm.flavour.expr.plan.FieldPlan;
+import org.teavm.flavour.expr.plan.GetArrayElementPlan;
+import org.teavm.flavour.expr.plan.InstanceOfPlan;
+import org.teavm.flavour.expr.plan.InvocationPlan;
+import org.teavm.flavour.expr.plan.LambdaPlan;
+import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
+import org.teavm.flavour.expr.plan.NegatePlan;
+import org.teavm.flavour.expr.plan.NotPlan;
+import org.teavm.flavour.expr.plan.Plan;
+import org.teavm.flavour.expr.plan.PlanVisitor;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
+import org.teavm.flavour.expr.plan.ReferenceEqualityPlanType;
+import org.teavm.flavour.expr.plan.ThisPlan;
+import org.teavm.flavour.expr.plan.VariablePlan;
 import org.teavm.flavour.templates.Templates;
-import org.teavm.model.*;
-import org.teavm.model.instructions.*;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldHolder;
+import org.teavm.model.FieldReference;
+import org.teavm.model.MethodDescriptor;
+import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
+import org.teavm.model.ValueType;
+import org.teavm.model.emit.ForkEmitter;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.instructions.BinaryBranchingCondition;
+import org.teavm.model.instructions.BinaryBranchingInstruction;
+import org.teavm.model.instructions.BinaryOperation;
+import org.teavm.model.instructions.BranchingCondition;
 import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.instructions.NumericOperandType;
 
 /**
  *
@@ -388,7 +432,7 @@ class ExprPlanEmitter implements PlanVisitor {
         MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
         workerMethod.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(workerMethod);
-        thisVar = pe.wrapNew();
+        thisVar = pe.newVar();
         for (ClosureEmitter outerClosure : outerBoundVars.values()) {
             boundVarTypes.put(outerClosure.name, outerClosure.type);
         }
@@ -397,7 +441,7 @@ class ExprPlanEmitter implements PlanVisitor {
             String varName = boundVarList.get(i);
             if (!varName.isEmpty()) {
                 boundVars.put(varName, new ParamEmitter(i + 1));
-                pe.wrapNew();
+                pe.newVar();
                 boundVarTypes.put(varName, workerMethod.parameterType(i));
             }
         }
@@ -461,8 +505,8 @@ class ExprPlanEmitter implements PlanVisitor {
         MethodHolder ctor = new MethodHolder("<init>", ctorArgTypes.toArray(new ValueType[0]));
         ctor.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(ctor);
-        thisVar = pe.wrapNew();
-        ValueEmitter ownerVar = pe.wrapNew();
+        thisVar = pe.newVar();
+        ValueEmitter ownerVar = pe.newVar();
 
         context.location(pe, location);
         thisVar.invokeSpecial(new MethodReference(Object.class, "<init>", void.class));
@@ -477,7 +521,7 @@ class ExprPlanEmitter implements PlanVisitor {
             closureField.setLevel(AccessLevel.PUBLIC);
             closureField.setType(boundVarTypes.get(closedVar));
             cls.addField(closureField);
-            thisVar.setField(closureField.getReference(), closureField.getType(), pe.wrapNew());
+            thisVar.setField(closureField.getReference(), closureField.getType(), pe.newVar());
         }
         pe.exit();
 
@@ -659,7 +703,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         @Override
         public void emit() {
-            var = pe.wrap(pe.getProgram().variableAt(index));
+            var = pe.var(pe.getProgram().variableAt(index));
         }
     }
 

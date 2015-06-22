@@ -22,11 +22,10 @@ import java.io.Reader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
-import org.teavm.dependency.DependencyListener;
 import org.teavm.dependency.DependencyType;
-import org.teavm.dependency.FieldDependency;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
@@ -47,19 +46,11 @@ import org.teavm.model.ValueType;
  *
  * @author Alexey Andreev
  */
-class TemplatingDependencyListener implements DependencyListener {
+class TemplatingDependencyListener extends AbstractDependencyListener {
     Map<String, String> templateMapping = new HashMap<>();
 
     @Override
-    public void started(DependencyAgent agent) {
-    }
-
-    @Override
-    public void classAchieved(DependencyAgent agent, String className, CallLocation location) {
-    }
-
-    @Override
-    public void methodAchieved(final DependencyAgent agent, final MethodDependency method,
+    public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
         if (method.getReference().getClassName().equals(Templates.class.getName()) &&
                 method.getReference().getName().equals("createImpl")) {
@@ -137,9 +128,5 @@ class TemplatingDependencyListener implements DependencyListener {
     static class TemplateInfo {
         String sourceFileName;
         List<TemplateNode> body;
-    }
-
-    @Override
-    public void fieldAchieved(DependencyAgent agent, FieldDependency field, CallLocation location) {
     }
 }

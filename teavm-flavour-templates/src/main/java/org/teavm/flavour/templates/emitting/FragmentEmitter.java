@@ -29,6 +29,8 @@ import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -52,7 +54,7 @@ class FragmentEmitter {
         MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
         method.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(method);
-        ValueEmitter thisVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
 
         String workerCls = emitWorkerClass(fragment);
         FieldReference ownerField = new FieldReference(cls.getName(), "this$owner");
@@ -87,8 +89,8 @@ class FragmentEmitter {
                 ValueType.VOID);
         buildDomMethod.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(buildDomMethod);
-        ValueEmitter thisVar = pe.wrapNew();
-        ValueEmitter builderVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
+        ValueEmitter builderVar = pe.newVar();
 
         TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, pe, thisVar, builderVar);
         context.classStack.add(cls.getName());
@@ -105,7 +107,7 @@ class FragmentEmitter {
         MethodHolder updateMethod = new MethodHolder("update", ValueType.VOID);
         updateMethod.setLevel(AccessLevel.PUBLIC);
         ProgramEmitter pe = ProgramEmitter.create(updateMethod);
-        ValueEmitter thisVar = pe.wrapNew();
+        ValueEmitter thisVar = pe.newVar();
 
         for (EmittedVariable var : vars.values()) {
             FieldHolder field = new FieldHolder("cache$" + var.name);
