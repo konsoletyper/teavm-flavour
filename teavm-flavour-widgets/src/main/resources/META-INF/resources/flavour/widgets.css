@@ -167,4 +167,5 @@ span.flavour-hidden-action-link {
 .flavour-dropdown {
     display: block;
     position: absolute;
+    background: white;
 }

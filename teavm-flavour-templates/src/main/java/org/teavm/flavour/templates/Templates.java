@@ -27,6 +27,7 @@ import org.teavm.jso.JS;
  */
 public final class Templates {
     private static Component root;
+    private static boolean updating;
     private static List<RootComponent> rootComponents = new ArrayList<>();
 
     private Templates() {
@@ -52,8 +53,16 @@ public final class Templates {
     private static native Fragment createImpl(Object model, String modelType);
 
     public static void update() {
-        for (RootComponent component : rootComponents) {
-            component.render();
+        if (updating) {
+            return;
+        }
+        updating = true;
+        try {
+            for (RootComponent component : rootComponents) {
+                component.render();
+            }
+        } finally {
+            updating = false;
         }
     }
 

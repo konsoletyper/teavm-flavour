@@ -5,3 +5,4 @@ InsertComponent
 ValueBinder
 ValueChangeBinder
 EnabledBinder
+ExposeElementComponent

@@ -21,7 +21,11 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
 import org.teavm.dom.browser.Window;
+import org.teavm.dom.events.EventListener;
+import org.teavm.dom.events.MouseEvent;
 import org.teavm.dom.html.HTMLElement;
+import org.teavm.dom.html.HTMLInputElement;
+import org.teavm.dom.html.TextRectangle;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
@@ -45,6 +49,7 @@ public class DateField extends AbstractWidget {
     private String cachedLocale;
     private DateFormat cachedFormatObject;
     private HTMLElement dropDownElement;
+    private HTMLInputElement inputElement;
 
     public DateField(Slot slot) {
         super(slot);
@@ -101,7 +106,7 @@ public class DateField extends AbstractWidget {
         }
 
         if (formatChanged || localeChanged || cachedFormatObject == null) {
-            Locale locale = cachedLocale != null ? Locale.getDefault() : new Locale(newLocale);
+            Locale locale = cachedLocale == null ? Locale.getDefault() : new Locale(cachedLocale);
             if (cachedFormat == null || cachedFormat.equals("medium")) {
                 cachedFormatObject = DateFormat.getDateInstance(DateFormat.MEDIUM, locale);
             } else if (cachedFormat.equals("short")) {
@@ -117,12 +122,43 @@ public class DateField extends AbstractWidget {
         super.render();
     }
 
+    public void setInputElement(HTMLInputElement inputElement) {
+        this.inputElement = inputElement;
+    }
+
     public void dropDown() {
         if (dropDownElement != null) {
             return;
         }
         dropDownElement = window.getDocument().createElement("div");
         dropDownElement.setAttribute("class", "flavour-dropdown");
-        dropDownElement.getStyle().setProperty("left", "");
+
+        TextRectangle windowRect = window.getDocument().getBody().getBoundingClientRect();
+        TextRectangle inputRect = inputElement.getBoundingClientRect();
+        dropDownElement.getStyle().setProperty("right", inputRect.getLeft() + "px");
+        dropDownElement.getStyle().setProperty("top", (windowRect.getWidth() - inputRect.getBottom()) + "px");
+        dropDownElement.getStyle().setProperty("width", "220px");
+        dropDownElement.getStyle().setProperty("height", "150px");
+
+        Slot dropDownSlot = Slot.root(dropDownElement);
+        CalendarWidget calendar = new CalendarWidget(dropDownSlot);
+        calendar.render();
+
+        window.getDocument().getBody().appendChild(dropDownElement);
+        window.getDocument().getBody().addEventListener("click", bodyListener);
     }
+
+    private EventListener<MouseEvent> bodyListener = new EventListener<MouseEvent>() {
+        @Override
+        public void handleEvent(MouseEvent evt) {
+            HTMLElement clickedElement = (HTMLElement)evt.getTarget();
+            while (clickedElement != null) {
+                if (clickedElement == dropDownElement) {
+                    return;
+                }
+            }
+            window.getDocument().getBody().removeChild(dropDownElement);
+            window.getDocument().getBody().removeEventListener("click", bodyListener);
+        }
+    };
 }
