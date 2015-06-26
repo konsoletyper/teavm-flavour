@@ -169,3 +169,7 @@ span.flavour-hidden-action-link {
     position: absolute;
     background: white;
 }
+.flavour-dropdown-calendar {
+    width: 222px;
+    height: 152px;
+}

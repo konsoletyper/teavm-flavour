@@ -26,7 +26,6 @@ import org.teavm.jso.JS;
  * @author Alexey Andreev
  */
 public final class Templates {
-    private static Component root;
     private static boolean updating;
     private static List<RootComponent> rootComponents = new ArrayList<>();
 
@@ -42,8 +41,13 @@ public final class Templates {
         Slot root = Slot.root(element);
         RootComponent component = new RootComponent(root, fragment.create());
         rootComponents.add(component);
-        component.render();
-        return component;
+        updating = true;
+        try {
+            component.render();
+            return component;
+        } finally {
+            updating = false;
+        }
     }
 
     public static Fragment create(Object model) {

@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import org.teavm.dom.browser.TimerHandler;
 import org.teavm.dom.browser.Window;
 import org.teavm.dom.events.EventListener;
 import org.teavm.dom.events.MouseEvent;
@@ -29,8 +30,11 @@ import org.teavm.dom.html.TextRectangle;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Templates;
+import org.teavm.flavour.templates.ValueChangeListener;
 import org.teavm.jso.JS;
 
 /**
@@ -45,10 +49,12 @@ public class DateField extends AbstractWidget {
     private Computation<Date> value;
     private Computation<String> locale;
     private Computation<String> format;
+    private ValueChangeListener<Date> changeListener;
     private String cachedFormat;
     private String cachedLocale;
     private DateFormat cachedFormatObject;
     private HTMLElement dropDownElement;
+    private Component dropDownComponent;
     private HTMLInputElement inputElement;
 
     public DateField(Slot slot) {
@@ -87,6 +93,11 @@ public class DateField extends AbstractWidget {
     @BindAttribute(name = "format", optional = true)
     public void setFormat(Computation<String> format) {
         this.format = format;
+    }
+
+    @BindAttribute(name = "onchange", optional = true)
+    public void setChangeListener(ValueChangeListener<Date> changeListener) {
+        this.changeListener = changeListener;
     }
 
     @Override
@@ -131,21 +142,36 @@ public class DateField extends AbstractWidget {
             return;
         }
         dropDownElement = window.getDocument().createElement("div");
-        dropDownElement.setAttribute("class", "flavour-dropdown");
+        dropDownElement.setAttribute("class", "flavour-dropdown flavour-dropdown-calendar");
 
         TextRectangle windowRect = window.getDocument().getBody().getBoundingClientRect();
         TextRectangle inputRect = inputElement.getBoundingClientRect();
-        dropDownElement.getStyle().setProperty("right", inputRect.getLeft() + "px");
-        dropDownElement.getStyle().setProperty("top", (windowRect.getWidth() - inputRect.getBottom()) + "px");
-        dropDownElement.getStyle().setProperty("width", "220px");
-        dropDownElement.getStyle().setProperty("height", "150px");
+        dropDownElement.getStyle().setProperty("right", windowRect.getWidth() - inputRect.getRight() + "px");
+        dropDownElement.getStyle().setProperty("top", inputRect.getBottom() + "px");
 
-        Slot dropDownSlot = Slot.root(dropDownElement);
-        CalendarWidget calendar = new CalendarWidget(dropDownSlot);
-        calendar.render();
+        CalendarDropDown dropDown = new CalendarDropDown(value, new ValueChangeListener<Date>() {
+            @Override
+            public void changed(Date newValue) {
+                closeDropDown();
+                changeListener.changed(newValue);
+            }
+        });
+        dropDownComponent = Templates.bind(dropDown, dropDownElement);
 
         window.getDocument().getBody().appendChild(dropDownElement);
-        window.getDocument().getBody().addEventListener("click", bodyListener);
+        window.setTimeout(new TimerHandler() {
+            @Override public void onTimer() {
+                window.getDocument().addEventListener("click", bodyListener);
+            }
+        }, 0);
+    }
+
+    private void closeDropDown() {
+        window.getDocument().getBody().removeChild(dropDownElement);
+        window.getDocument().removeEventListener("click", bodyListener);
+        dropDownComponent.destroy();
+        dropDownElement = null;
+        dropDownComponent = null;
     }
 
     private EventListener<MouseEvent> bodyListener = new EventListener<MouseEvent>() {
@@ -156,9 +182,9 @@ public class DateField extends AbstractWidget {
                 if (clickedElement == dropDownElement) {
                     return;
                 }
+                clickedElement = (HTMLElement)clickedElement.getParentNode();
             }
-            window.getDocument().getBody().removeChild(dropDownElement);
-            window.getDocument().getBody().removeEventListener("click", bodyListener);
+            closeDropDown();
         }
     };
 }
