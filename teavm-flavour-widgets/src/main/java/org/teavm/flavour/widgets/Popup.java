@@ -13,15 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.widgets;
 
 import org.teavm.dom.browser.Window;
-import org.teavm.dom.events.EventListener;
-import org.teavm.dom.events.MouseEvent;
-import org.teavm.dom.html.HTMLButtonElement;
 import org.teavm.dom.html.HTMLDocument;
 import org.teavm.dom.html.HTMLElement;
+import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.javascript.spi.Async;
 import org.teavm.jso.JS;
@@ -31,34 +30,44 @@ import org.teavm.platform.async.AsyncCallback;
  *
  * @author Alexey Andreev
  */
+@BindTemplate("templates/flavour/widgets/popup.html")
 public final class Popup {
     private static Window window = (Window)JS.getGlobal();
     private static HTMLDocument document = window.getDocument();
+    private Fragment content;
+    private Component component;
+    private AsyncCallback<Void> callback;
+    private HTMLElement wrapper;
 
-    private Popup() {
+    private Popup(Fragment content) {
+        this.content = content;
+    }
+
+    public Fragment getContent() {
+        return content;
+    }
+
+    public void close() {
+        component.destroy();
+        wrapper.getParentNode().removeChild(wrapper);
+        wrapper = null;
+        component = null;
+        callback.complete(null);
     }
 
     @Async
     public static native void showModal(PopupContent content);
 
     private static void showModal(PopupContent content, final AsyncCallback<Void> callback) {
-        final HTMLElement wrapper = document.getElementById("popup-wrapper");
-        final HTMLButtonElement closeButton = (HTMLButtonElement)document.getElementById("popup-close-button");
-        wrapper.getStyle().removeProperty("display");
-        final Component root = Templates.bind(content, "popup");
+        final Popup popup = new Popup(Templates.create(content));
+        popup.wrapper = document.createElement("div");
+        popup.wrapper.setAttribute("class", "flavour-popup-wrapper");
+        document.getBody().appendChild(popup.wrapper);
+        popup.component = Templates.bind(popup, popup.wrapper);
+        popup.callback = callback;
         content.setDelegate(new PopupDelegate() {
             @Override public void close() {
-                wrapper.getStyle().setProperty("display", "none");
-                root.destroy();
-                callback.complete(null);
-            }
-        });
-        closeButton.addEventListener("click", new EventListener<MouseEvent>() {
-            @Override
-            public void handleEvent(MouseEvent evt) {
-                wrapper.getStyle().setProperty("display", "none");
-                root.destroy();
-                callback.complete(null);
+                popup.close();
             }
         });
     }

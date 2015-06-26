@@ -13,12 +13,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.widgets;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface PopupContent {
-    void setDelegate(PopupDelegate delegate);
+public interface PopupDelegate {
+    void close();
 }

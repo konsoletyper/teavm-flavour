@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.widgets.Popup;
 
 /**
  *

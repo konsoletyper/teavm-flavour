@@ -173,3 +173,43 @@ span.flavour-hidden-action-link {
     width: 222px;
     height: 152px;
 }
+
+
+.flavour-popup-wrapper {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url(popup-background.png);
+    background-repeat: repeat;
+}
+.flavour-popup-layout {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -400px;
+    margin-top: -400px;
+    width: 800px;
+    height: 800px;
+    background-color: white;
+    border-width: 1px;
+    border-color: rgb(160,160,160);
+    border-style: solid;
+    border-radius: 5px;
+    padding: 10px;
+    overflow: auto;
+}
+.flavour-popup-close-button-container {
+    position: absolute;
+    height: 22px;
+    right: 10px;
+    top: 10px;
+}
+.flavour-popup {
+    position: absolute;
+    top: 32px;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+}

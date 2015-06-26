@@ -18,6 +18,8 @@ package org.teavm.flavour.example;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.widgets.PopupContent;
+import org.teavm.flavour.widgets.PopupDelegate;
 
 /**
  *
