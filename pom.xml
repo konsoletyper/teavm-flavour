@@ -48,6 +48,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.7</slf4j.version>
     <teavm.version>0.3.0</teavm.version>
+    <jackson.version>2.5.4</jackson.version>
   </properties>
 
   <dependencyManagement>
@@ -84,6 +85,11 @@
       </dependency>
       <dependency>
         <groupId>org.teavm</groupId>
+        <artifactId>teavm-jso</artifactId>
+        <version>${teavm.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.teavm</groupId>
         <artifactId>teavm-dom</artifactId>
         <version>${teavm.version}</version>
       </dependency>
@@ -106,6 +112,16 @@
         <groupId>org.parboiled</groupId>
         <artifactId>parboiled-java</artifactId>
         <version>1.1.7</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -192,5 +208,6 @@
     <module>teavm-flavour-expr</module>
     <module>teavm-flavour-example</module>
     <module>teavm-flavour-widgets</module>
+    <module>teavm-flavour-json</module>
   </modules>
 </project>
