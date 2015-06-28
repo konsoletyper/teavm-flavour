@@ -22,10 +22,10 @@ import org.teavm.jso.JSBody;
  * @author Alexey Andreev
  */
 public abstract class NumberNode extends Node {
-    @JSBody(params = {}, script = "return this;")
+    @JSBody(params = { "node" }, script = "return node;")
     static native double getValue(NumberNode node);
 
-    @JSBody(params = {}, script = "return this|0;")
+    @JSBody(params = { "node" }, script = "return node|0;")
     static native int getIntValue(NumberNode node);
 
     public final double getValue() {

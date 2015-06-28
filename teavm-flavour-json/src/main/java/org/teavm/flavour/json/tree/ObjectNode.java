@@ -37,6 +37,9 @@ public abstract class ObjectNode extends Node {
             "return array;")
     public final native Node[] allKeys();
 
+    @JSBody(params = "key", script = "return key in this;")
+    public final native boolean has(String key);
+
     @JSBody(params = {}, script = "return {};")
     public static native ObjectNode create();
 }

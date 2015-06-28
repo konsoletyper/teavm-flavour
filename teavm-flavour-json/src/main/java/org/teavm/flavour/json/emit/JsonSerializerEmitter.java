@@ -17,9 +17,12 @@ package org.teavm.flavour.json.emit;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
+import org.teavm.dependency.DependencyConsumer;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
@@ -30,6 +33,7 @@ import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.model.AccessLevel;
+import org.teavm.model.AnnotationHolder;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
@@ -42,6 +46,7 @@ import org.teavm.model.ValueType;
 import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.instructions.BinaryBranchingCondition;
 import org.teavm.model.instructions.BinaryInstruction;
 import org.teavm.model.instructions.BinaryOperation;
 import org.teavm.model.instructions.BranchingCondition;
@@ -53,7 +58,7 @@ import org.teavm.model.instructions.NumericOperandType;
  *
  * @author Alexey Andreev
  */
-public class JsonSerializerEmitter {
+class JsonSerializerEmitter {
     private DependencyAgent agent;
     private ClassReaderSource classSource;
     private ClassReader serializedClass;
@@ -63,14 +68,30 @@ public class JsonSerializerEmitter {
     private ProgramEmitter pe;
     private Map<String, ClassSerializerInformation> informationStore = new HashMap<>();
     private List<ClassReader> serializableClasses = new ArrayList<>();
+    private DependencyConsumer serializableClassesConsumer;
+    private Set<String> pendingClasses = new HashSet<>();
 
-    public JsonSerializerEmitter(DependencyAgent agent) {
+    public JsonSerializerEmitter(DependencyAgent agent, DependencyConsumer serializableClassesConsumer) {
         this.agent = agent;
         this.classSource = agent.getClassSource();
+        this.serializableClassesConsumer = serializableClassesConsumer;
     }
 
-    public String getClassSerializer(String serializedClassName) {
-        return findClassSerializer(serializedClassName).serializerName;
+    public void addClassSerializer(String serializedClassName) {
+        ClassReader cls = classSource.get(serializedClassName);
+        if (cls != null && cls.getAnnotations().get(NotJsonSerializable.class.getName()) != null) {
+            return;
+        }
+        if (isSerializable(serializedClassName)) {
+            findClassSerializer(serializedClassName);
+        } else {
+            pendingClasses.add(serializedClassName);
+        }
+    }
+
+    public String getClassSerializer(String className) {
+        ClassSerializerInformation information = informationStore.get(className);
+        return information != null ? information.serializerName : null;
     }
 
     private ClassSerializerInformation findClassSerializer(String serializedClassName) {
@@ -78,6 +99,7 @@ public class JsonSerializerEmitter {
         if (information == null) {
             information = emitClassSerializer(serializedClassName);
             informationStore.put(serializedClassName, information);
+            serializableClassesConsumer.consume(agent.getType(serializedClassName));
         }
         return information;
     }
@@ -86,13 +108,29 @@ public class JsonSerializerEmitter {
         ClassHolder cls = new ClassHolder(serializedClassName + "$$__serializer__$$");
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(JsonSerializer.class.getName());
-        agent.submitClass(cls);
+        cls.getAnnotations().add(new AnnotationHolder(NotJsonSerializable.class.getName()));
         ClassSerializerInformation information = emitSerializationMethod(serializedClassName, cls);
+        emitConstructor(cls);
+        agent.submitClass(cls);
+
         if (information == null) {
             information = new ClassSerializerInformation();
             information.serializerName = cls.getName();
         }
+
         return information;
+    }
+
+    private void emitConstructor(ClassHolder cls) {
+        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
+        ctor.setLevel(AccessLevel.PUBLIC);
+
+        ProgramEmitter pe = ProgramEmitter.create(ctor);
+        ValueEmitter thisVar = pe.newVar();
+        thisVar.invokeSpecial(new MethodReference(JsonSerializer.class, "<init>", void.class));
+        pe.exit();
+
+        cls.addMethod(ctor);
     }
 
     private ClassSerializerInformation emitSerializationMethod(String serializedClassName, ClassHolder cls) {
@@ -105,7 +143,7 @@ public class JsonSerializerEmitter {
             ClassSerializerInformation information = new ClassSerializerInformation();
             information.serializerName = cls.getName();
             MethodHolder method = new MethodHolder("serialize", ValueType.parse(JsonSerializerContext.class),
-                    ValueType.parse(Object.class), ValueType.parse(Node.class), ValueType.VOID);
+                    ValueType.parse(Object.class), ValueType.parse(ObjectNode.class), ValueType.VOID);
             method.setLevel(AccessLevel.PUBLIC);
             pe = ProgramEmitter.create(method);
             pe.newVar(); // skip this variable
@@ -152,6 +190,21 @@ public class JsonSerializerEmitter {
         }
     }
 
+    private boolean isGetterName(String name) {
+        return name.startsWith("get") && name.length() > 3 && Character.toUpperCase(name.charAt(3)) == name.charAt(3);
+    }
+
+    private boolean isBooleanName(String name) {
+        return name.startsWith("is") && name.length() > 2 && Character.toUpperCase(name.charAt(2)) == name.charAt(2);
+    }
+
+    private String decapitalize(String name) {
+        if (name.length() > 1 && name.charAt(1) == Character.toUpperCase(name.charAt(1))) {
+            return name;
+        }
+        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+    }
+
     private void addGetter(ClassSerializerInformation information, String propertyName, MethodReader method,
             ValueType type) {
         SerializerPropertyInformation property = information.properties.get(propertyName);
@@ -175,14 +228,38 @@ public class JsonSerializerEmitter {
                 propertyValue);
     }
 
-    private ValueEmitter convertValue(ValueEmitter value, ValueType type) {
+    private ValueEmitter convertValue(ValueEmitter value, final ValueType type) {
         if (type instanceof ValueType.Primitive) {
             return convertPrimitive(value, (ValueType.Primitive)type);
-        } else if (type instanceof ValueType.Array) {
-            return convertArray(value, (ValueType.Array)type);
-        } else if (type instanceof ValueType.Object) {
-            return convertObject(value, (ValueType.Object)type);
+        } else {
+            return convertNullable(value, type);
         }
+    }
+
+    private ValueEmitter convertNullable(ValueEmitter value, ValueType type) {
+        BasicBlock nullBlock = pe.createBlock();
+        BasicBlock notNullBlock = pe.createBlock();
+        BasicBlock resultBlock = pe.createBlock();
+
+        ForkEmitter fork = value.fork(BinaryBranchingCondition.REFERENCE_EQUAL, pe.constantNull());
+        fork.setThen(nullBlock);
+        fork.setElse(notNullBlock);
+
+        pe.setBlock(nullBlock);
+        pe.jump(resultBlock);
+
+        pe.setBlock(notNullBlock);
+        ValueEmitter notNullValue;
+        if (type instanceof ValueType.Array) {
+            notNullValue = convertArray(value, (ValueType.Array)type);
+        } else if (type instanceof ValueType.Object) {
+            notNullValue = convertObject(value, (ValueType.Object)type);
+        } else {
+            notNullValue = value;
+        }
+        pe.jump(resultBlock);
+
+        value = notNullValue.join(value);
         return value;
     }
 
@@ -260,13 +337,12 @@ public class JsonSerializerEmitter {
         if (type.getClassName().equals(String.class)) {
             return pe.invoke(new MethodReference(StringNode.class, "create", String.class, StringNode.class), value);
         } else {
-            addSerializableClass(type.getClassName());
             return pe.invoke(new MethodReference(JSON.class, "serialize",
                     JsonSerializerContext.class, Object.class, Node.class), contextVar, value);
         }
     }
 
-    private void addSerializableClass(String className) {
+    public void addSerializableClass(String className) {
         ClassReader cls = classSource.get(className);
         if (cls == null) {
             return;
@@ -280,6 +356,12 @@ public class JsonSerializerEmitter {
             }
         }
         serializableClasses.add(cls);
+        for (String pendingClass : pendingClasses.toArray(new String[pendingClasses.size()])) {
+            if (isSubtype(cls, pendingClass)) {
+                pendingClasses.remove(pendingClass);
+                findClassSerializer(className);
+            }
+        }
     }
 
     private boolean isSubtype(ClassReader supertype, String subtypeName) {
@@ -307,18 +389,12 @@ public class JsonSerializerEmitter {
         return false;
     }
 
-    private boolean isGetterName(String name) {
-        return name.startsWith("get") && name.length() > 3 && Character.toUpperCase(name.charAt(3)) == name.charAt(3);
-    }
-
-    private boolean isBooleanName(String name) {
-        return name.startsWith("is") && name.length() > 2 && Character.toUpperCase(name.charAt(2)) == name.charAt(2);
-    }
-
-    private String decapitalize(String name) {
-        if (name.length() > 1 && name.charAt(1) == Character.toUpperCase(name.charAt(1))) {
-            return name;
+    private boolean isSerializable(String className) {
+        for (ClassReader serializableClass : serializableClasses) {
+            if (isSubtype(serializableClass, className)) {
+                return true;
+            }
         }
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        return false;
     }
 }

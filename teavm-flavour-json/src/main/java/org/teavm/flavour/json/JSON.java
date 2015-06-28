@@ -32,11 +32,11 @@ public final class JSON {
     private JSON() {
     }
 
-    public Node serialize(Object object) {
+    public static Node serialize(Object object) {
         return serialize(new JsonSerializerContext(), object);
     }
 
-    Node serialize(JsonSerializerContext context, Object object) {
+    static Node serialize(JsonSerializerContext context, Object object) {
         if (object == null) {
             return NullNode.instance();
         } else if (object instanceof Integer) {
@@ -58,10 +58,14 @@ public final class JSON {
             return result;
         } else {
             ObjectNode target = ObjectNode.create();
-            getClassSerializer(object.getClass()).serialize(context, object, target);
+            JsonSerializer serializer = getClassSerializer(object.getClass().getName());
+            if (serializer == null) {
+                throw new IllegalArgumentException("Can't serialize object of type " + object.getClass().getName());
+            }
+            serializer.serialize(context, object, target);
             return target;
         }
     }
 
-    native JsonSerializer getClassSerializer(Class<?> cls);
+    static native JsonSerializer getClassSerializer(String cls);
 }
