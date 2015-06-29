@@ -18,10 +18,10 @@ package org.teavm.flavour.json.emit;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
-import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.model.CallLocation;
 import org.teavm.model.MethodReference;
@@ -32,19 +32,7 @@ import org.teavm.model.ValueType;
  * @author Alexey Andreev
  */
 class SerializerDependencyListener extends AbstractDependencyListener {
-    private DependencyNode serializableClasses;
     private JsonSerializerEmitter emitter;
-
-    @Override
-    public void started(DependencyAgent agent) {
-        serializableClasses = agent.createNode();
-        emitter = new JsonSerializerEmitter(agent, new DependencyConsumer() {
-            @Override
-            public void consume(DependencyType type) {
-                serializableClasses.propagate(type);
-            }
-        });
-    }
 
     public String getSerializer(String className) {
         if (emitter == null) {
@@ -54,27 +42,17 @@ class SerializerDependencyListener extends AbstractDependencyListener {
     }
 
     @Override
-    public void classReached(DependencyAgent agent, String className, CallLocation location) {
-        emitter.addClassSerializer(className);
-    }
-
-    @Override
     public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
         if (method.getReference().getClassName().equals(JSON.class.getName()) &&
                 method.getReference().getName().equals("getClassSerializer")) {
+            emitter = new JsonSerializerEmitter(agent);
             MethodDependency serializeMethod = agent.linkMethod(new MethodReference(JSON.class,
-                    "serialize", Object.class, Node.class), null);
-            serializeMethod.getVariable(1).addConsumer(new DependencyConsumer() {
+                    "serialize", JsonSerializerContext.class, Object.class, Node.class), null);
+            serializeMethod.getVariable(2).addConsumer(new DependencyConsumer() {
                 @Override
                 public void consume(DependencyType type) {
-                    emitter.addSerializableClass(type.getName());
-                }
-            });
-            serializableClasses.addConsumer(new DependencyConsumer() {
-                @Override
-                public void consume(DependencyType type) {
-                    String serializer = emitter.getClassSerializer(type.getName());
+                    String serializer = emitter.addClassSerializer(type.getName());
                     agent.linkClass(serializer, location);
                     agent.linkMethod(new MethodReference(serializer, "<init>", ValueType.VOID), location)
                             .propagate(0, agent.getType(serializer))

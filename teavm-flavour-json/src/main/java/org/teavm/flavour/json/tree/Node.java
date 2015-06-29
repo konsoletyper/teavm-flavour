@@ -36,7 +36,7 @@ public abstract class Node implements JSObject {
     static native boolean isNull(Node node);
 
     @JSBody(params = { "node" }, script = "return typeof node == 'number';")
-    native boolean isNumber(Node node);
+    static native boolean isNumber(Node node);
 
     @JSBody(params = { "node" }, script = "return typeof node == 'boolean';")
     static native boolean isBoolean(Node node);

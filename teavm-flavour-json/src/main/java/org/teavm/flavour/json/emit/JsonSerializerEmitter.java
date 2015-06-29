@@ -15,14 +15,13 @@
  */
 package org.teavm.flavour.json.emit;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
+import org.teavm.dependency.DependencyNode;
+import org.teavm.dependency.DependencyType;
+import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
@@ -67,26 +66,19 @@ class JsonSerializerEmitter {
     private ValueEmitter targetVar;
     private ProgramEmitter pe;
     private Map<String, ClassSerializerInformation> informationStore = new HashMap<>();
-    private List<ClassReader> serializableClasses = new ArrayList<>();
-    private DependencyConsumer serializableClassesConsumer;
-    private Set<String> pendingClasses = new HashSet<>();
 
-    public JsonSerializerEmitter(DependencyAgent agent, DependencyConsumer serializableClassesConsumer) {
+    public JsonSerializerEmitter(DependencyAgent agent) {
         this.agent = agent;
         this.classSource = agent.getClassSource();
-        this.serializableClassesConsumer = serializableClassesConsumer;
     }
 
-    public void addClassSerializer(String serializedClassName) {
+    public String addClassSerializer(String serializedClassName) {
         ClassReader cls = classSource.get(serializedClassName);
         if (cls != null && cls.getAnnotations().get(NotJsonSerializable.class.getName()) != null) {
-            return;
+            return null;
         }
-        if (isSerializable(serializedClassName)) {
-            findClassSerializer(serializedClassName);
-        } else {
-            pendingClasses.add(serializedClassName);
-        }
+        ClassSerializerInformation information = findClassSerializer(serializedClassName);
+        return information != null ? information.serializerName : null;
     }
 
     public String getClassSerializer(String className) {
@@ -99,7 +91,6 @@ class JsonSerializerEmitter {
         if (information == null) {
             information = emitClassSerializer(serializedClassName);
             informationStore.put(serializedClassName, information);
-            serializableClassesConsumer.consume(agent.getType(serializedClassName));
         }
         return information;
     }
@@ -145,14 +136,18 @@ class JsonSerializerEmitter {
             MethodHolder method = new MethodHolder("serialize", ValueType.parse(JsonSerializerContext.class),
                     ValueType.parse(Object.class), ValueType.parse(ObjectNode.class), ValueType.VOID);
             method.setLevel(AccessLevel.PUBLIC);
+
             pe = ProgramEmitter.create(method);
             pe.newVar(); // skip this variable
             contextVar = pe.newVar();
             valueVar = pe.newVar();
             targetVar = pe.newVar();
             valueVar = valueVar.cast(ValueType.object(serializedClassName));
+
             emitSuperSerializer(information);
             scanGetters(information);
+
+            pe.exit();
             cls.addMethod(method);
             return information;
         } finally {
@@ -223,23 +218,25 @@ class JsonSerializerEmitter {
         property.getter = method.getDescriptor();
         information.properties.put(propertyName, property);
 
-        ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method.getReference()), type);
-        targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", int.class, Node.class, void.class),
-                propertyValue);
+        MethodDependency getterDep = agent.linkMethod(method.getReference(), null);
+        ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method.getReference()), type,
+                getterDep.getResult());
+        targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", String.class, Node.class, void.class),
+                pe.constant(propertyName), propertyValue);
     }
 
-    private ValueEmitter convertValue(ValueEmitter value, final ValueType type) {
+    private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {
         if (type instanceof ValueType.Primitive) {
             return convertPrimitive(value, (ValueType.Primitive)type);
         } else {
-            return convertNullable(value, type);
+            return convertNullable(value, type, node);
         }
     }
 
-    private ValueEmitter convertNullable(ValueEmitter value, ValueType type) {
-        BasicBlock nullBlock = pe.createBlock();
-        BasicBlock notNullBlock = pe.createBlock();
-        BasicBlock resultBlock = pe.createBlock();
+    private ValueEmitter convertNullable(ValueEmitter value, ValueType type, DependencyNode node) {
+        BasicBlock nullBlock = pe.getProgram().createBasicBlock();
+        BasicBlock notNullBlock = pe.getProgram().createBasicBlock();
+        BasicBlock resultBlock = pe.getProgram().createBasicBlock();
 
         ForkEmitter fork = value.fork(BinaryBranchingCondition.REFERENCE_EQUAL, pe.constantNull());
         fork.setThen(nullBlock);
@@ -251,9 +248,9 @@ class JsonSerializerEmitter {
         pe.setBlock(notNullBlock);
         ValueEmitter notNullValue;
         if (type instanceof ValueType.Array) {
-            notNullValue = convertArray(value, (ValueType.Array)type);
+            notNullValue = convertArray(value, (ValueType.Array)type, node);
         } else if (type instanceof ValueType.Object) {
-            notNullValue = convertObject(value, (ValueType.Object)type);
+            notNullValue = convertObject(value, (ValueType.Object)type, node);
         } else {
             notNullValue = value;
         }
@@ -299,7 +296,7 @@ class JsonSerializerEmitter {
         }
     }
 
-    private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type) {
+    private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type, DependencyNode node) {
         ValueType itemType = type.getItemType();
 
         BasicBlock loopBody = pe.createBlock();
@@ -320,7 +317,7 @@ class JsonSerializerEmitter {
 
         pe.setBlock(loopBody);
         ValueEmitter item = value.getElement(index);
-        json.setElement(0, convertValue(item, itemType));
+        json.setElement(0, convertValue(item, itemType, node.getArrayItem()));
 
         BinaryInstruction increment = new BinaryInstruction(BinaryOperation.ADD, NumericOperandType.INT);
         increment.setFirstOperand(index.getVariable());
@@ -333,68 +330,19 @@ class JsonSerializerEmitter {
         return json;
     }
 
-    private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type) {
-        if (type.getClassName().equals(String.class)) {
+    private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type, DependencyNode node) {
+        if (type.getClassName().equals(String.class.getName())) {
             return pe.invoke(new MethodReference(StringNode.class, "create", String.class, StringNode.class), value);
         } else {
-            return pe.invoke(new MethodReference(JSON.class, "serialize",
-                    JsonSerializerContext.class, Object.class, Node.class), contextVar, value);
+            final MethodReference serializeRef = new MethodReference(JSON.class, "serialize",
+                    JsonSerializerContext.class, Object.class, Node.class);
+            node.addConsumer(new DependencyConsumer() {
+                @Override
+                public void consume(DependencyType type) {
+                    agent.linkMethod(serializeRef, null).propagate(2, type);
+                }
+            });
+            return pe.invoke(serializeRef, contextVar, value);
         }
-    }
-
-    public void addSerializableClass(String className) {
-        ClassReader cls = classSource.get(className);
-        if (cls == null) {
-            return;
-        }
-        for (int i = 0; i < serializableClasses.size(); ++i) {
-            ClassReader serializableClass = serializableClasses.get(i);
-            if (isSubtype(cls, serializableClass.getName())) {
-                serializableClasses.remove(i--);
-            } else if (isSubtype(serializableClass, cls.getName())) {
-                return;
-            }
-        }
-        serializableClasses.add(cls);
-        for (String pendingClass : pendingClasses.toArray(new String[pendingClasses.size()])) {
-            if (isSubtype(cls, pendingClass)) {
-                pendingClasses.remove(pendingClass);
-                findClassSerializer(className);
-            }
-        }
-    }
-
-    private boolean isSubtype(ClassReader supertype, String subtypeName) {
-        if (supertype.getName().equals(subtypeName)) {
-            return true;
-        }
-
-        ClassReader subtype = classSource.get(subtypeName);
-        if (subtype == null) {
-            return false;
-        }
-
-        if (subtype.getParent() != null && !subtype.getParent().equals(subtype.getName())) {
-            if (isSubtype(supertype, subtype.getParent())) {
-                return true;
-            }
-        }
-
-        for (String iface : subtype.getInterfaces()) {
-            if (isSubtype(supertype, iface)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean isSerializable(String className) {
-        for (ClassReader serializableClass : serializableClasses) {
-            if (isSubtype(serializableClass, className)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

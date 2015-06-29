@@ -37,8 +37,8 @@ public class SerializerTest {
         Node node = JSON.serialize(obj);
 
         assertTrue("Root node shoud be JSON object", node.isObject());
-        ObjectNode objectNode = (ObjectNode)node;
 
+        ObjectNode objectNode = (ObjectNode)node;
         assertTrue("Property `a' exists", objectNode.has("a"));
         Node aNode = objectNode.get("a");
         assertTrue("Property `a' is string", aNode.isString());
@@ -48,6 +48,28 @@ public class SerializerTest {
         Node bNode = objectNode.get("b");
         assertTrue("Property `b' is number", bNode.isNumber());
         assertEquals(23, ((NumberNode)bNode).getIntValue());
+    }
+
+    @Test
+    public void writesReference() {
+        B obj = new B();
+        A ref = new A();
+        ref.setA("foo");
+        ref.setB(23);
+        obj.setFoo(ref);
+        Node node = JSON.serialize(obj);
+
+        assertTrue("Root node should be JSON object", node.isObject());
+
+        ObjectNode objectNode = (ObjectNode)node;
+        assertTrue("Property `foo' exists", objectNode.has("foo"));
+
+        Node fooNode = objectNode.get("foo");
+        assertTrue("Property `foo' must be an object", fooNode.isObject());
+
+        ObjectNode fooObjectNode = (ObjectNode)fooNode;
+        assertTrue("Property `foo.a` expected", fooObjectNode.has("a"));
+        assertTrue("Property `foo.b` expected", fooObjectNode.has("b"));
     }
 
     public static class A {
@@ -68,6 +90,18 @@ public class SerializerTest {
 
         public void setB(int b) {
             this.b = b;
+        }
+    }
+
+    public static class B {
+        private Object foo;
+
+        public Object getFoo() {
+            return foo;
+        }
+
+        public void setFoo(Object foo) {
+            this.foo = foo;
         }
     }
 }
