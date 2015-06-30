@@ -52,6 +52,9 @@ class SerializerDependencyListener extends AbstractDependencyListener {
             serializeMethod.getVariable(2).addConsumer(new DependencyConsumer() {
                 @Override
                 public void consume(DependencyType type) {
+                    if (type.getName().startsWith("[")) {
+                        return;
+                    }
                     String serializer = emitter.addClassSerializer(type.getName());
                     agent.linkClass(serializer, location);
                     agent.linkMethod(new MethodReference(serializer, "<init>", ValueType.VOID), location)

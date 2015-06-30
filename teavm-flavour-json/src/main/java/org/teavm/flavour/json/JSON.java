@@ -53,7 +53,7 @@ public final class JSON {
             ArrayNode result = ArrayNode.create();
             int length = Array.getLength(object);
             for (int i = 0; i < length; ++i) {
-                result.add(serialize(Array.get(object, i)));
+                result.add(serialize(context, Array.get(object, i)));
             }
             return result;
         } else {

@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
@@ -62,7 +63,7 @@ public class SerializerTest {
         assertTrue("Root node should be JSON object", node.isObject());
 
         ObjectNode objectNode = (ObjectNode)node;
-        assertTrue("Property `foo' exists", objectNode.has("foo"));
+        assertTrue("Property `foo' should exist", objectNode.has("foo"));
 
         Node fooNode = objectNode.get("foo");
         assertTrue("Property `foo' must be an object", fooNode.isObject());
@@ -70,6 +71,73 @@ public class SerializerTest {
         ObjectNode fooObjectNode = (ObjectNode)fooNode;
         assertTrue("Property `foo.a` expected", fooObjectNode.has("a"));
         assertTrue("Property `foo.b` expected", fooObjectNode.has("b"));
+    }
+
+    @Test
+    public void writesArray() {
+        int[] array = { 23, 42 };
+        Node node = JSON.serialize(array);
+
+        assertTrue("Root node should be JSON array", node.isArray());
+
+        ArrayNode arrayNode = (ArrayNode)node;
+        assertEquals("Length must be 2", 2, arrayNode.size());
+
+        Node firstNode = arrayNode.get(0);
+        assertTrue("Item must be numeric", firstNode.isNumber());
+
+        NumberNode numberNode = (NumberNode)firstNode;
+        assertEquals(23, numberNode.getIntValue());
+    }
+
+    @Test
+    public void writesArrayProperty() {
+        ArrayProperty o = new ArrayProperty();
+        o.setArray(new int[] { 23, 42 });
+        Node node = JSON.serialize(o);
+
+        assertTrue("Root node should be JSON object", node.isObject());
+
+        ObjectNode objectNode = (ObjectNode)node;
+        assertTrue("Root node should contain `array' property", objectNode.has("array"));
+
+        Node propertyNode = objectNode.get("array");
+        assertTrue("Property `array' should be JSON array", propertyNode.isArray());
+
+        ArrayNode arrayNode = (ArrayNode)propertyNode;
+        assertEquals("Length must be 2", 2, arrayNode.size());
+
+        Node firstNode = arrayNode.get(0);
+        assertTrue("Item must be numeric", firstNode.isNumber());
+
+        NumberNode numberNode = (NumberNode)firstNode;
+        assertEquals(23, numberNode.getIntValue());
+    }
+
+    @Test
+    public void writesArrayOfObjectProperty() {
+        A item = new A();
+        ArrayOfObjectProperty o = new ArrayOfObjectProperty();
+        o.setArray(new A[] { item });
+        Node node = JSON.serialize(o);
+
+        assertTrue("Root node should be JSON object", node.isObject());
+
+        ObjectNode objectNode = (ObjectNode)node;
+        assertTrue("Root node should contain `array' property", objectNode.has("array"));
+
+        Node propertyNode = objectNode.get("array");
+        assertTrue("Property `array' should be JSON array", propertyNode.isArray());
+
+        ArrayNode arrayNode = (ArrayNode)propertyNode;
+        assertEquals("Length must be 1", 1, arrayNode.size());
+
+        Node firstNode = arrayNode.get(0);
+        assertTrue("Item must be object", firstNode.isObject());
+
+        ObjectNode itemObjectNode = (ObjectNode)firstNode;
+        assertTrue(itemObjectNode.has("a"));
+        assertTrue(itemObjectNode.has("b"));
     }
 
     public static class A {
@@ -102,6 +170,30 @@ public class SerializerTest {
 
         public void setFoo(Object foo) {
             this.foo = foo;
+        }
+    }
+
+    public static class ArrayProperty {
+        int[] array;
+
+        public int[] getArray() {
+            return array;
+        }
+
+        public void setArray(int[] array) {
+            this.array = array;
+        }
+    }
+
+    public static class ArrayOfObjectProperty {
+        A[] array;
+
+        public A[] getArray() {
+            return array;
+        }
+
+        public void setArray(A[] array) {
+            this.array = array;
         }
     }
 }

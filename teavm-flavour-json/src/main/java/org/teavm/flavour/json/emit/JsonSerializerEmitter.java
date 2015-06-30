@@ -45,6 +45,7 @@ import org.teavm.model.ValueType;
 import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.instructions.ArrayElementType;
 import org.teavm.model.instructions.BinaryBranchingCondition;
 import org.teavm.model.instructions.BinaryInstruction;
 import org.teavm.model.instructions.BinaryOperation;
@@ -130,6 +131,11 @@ class JsonSerializerEmitter {
             return null;
         }
 
+        ProgramEmitter oldPe = pe;
+        ValueEmitter oldValueVar = valueVar;
+        ValueEmitter oldTagetVar = targetVar;
+        ValueEmitter oldContextVar = contextVar;
+        ClassReader oldSerializedClass = serializedClass;
         try {
             ClassSerializerInformation information = new ClassSerializerInformation();
             information.serializerName = cls.getName();
@@ -151,10 +157,11 @@ class JsonSerializerEmitter {
             cls.addMethod(method);
             return information;
         } finally {
-            pe = null;
-            valueVar = null;
-            contextVar = null;
-            serializedClass = null;
+            pe = oldPe;
+            valueVar = oldValueVar;
+            targetVar = oldTagetVar;
+            contextVar = oldContextVar;
+            serializedClass = oldSerializedClass;
         }
     }
 
@@ -166,7 +173,8 @@ class JsonSerializerEmitter {
         ValueEmitter superSerializer = pe.construct(new MethodReference(information.parentInformation.serializerName,
                 "<init>", ValueType.VOID));
         superSerializer.invokeVirtual(new MethodReference(JsonSerializer.class, "serialize",
-                JsonSerializerContext.class, Object.class, Node.class, void.class), contextVar, valueVar, targetVar);
+                JsonSerializerContext.class, Object.class, ObjectNode.class, void.class),
+                contextVar, valueVar, targetVar);
         information.properties.putAll(information.parentInformation.properties);
         information.getters.putAll(information.parentInformation.getters);
     }
@@ -254,9 +262,10 @@ class JsonSerializerEmitter {
         } else {
             notNullValue = value;
         }
+        notNullBlock = pe.getBlock();
         pe.jump(resultBlock);
 
-        value = notNullValue.join(value);
+        value = notNullValue.join(notNullBlock, value, nullBlock);
         return value;
     }
 
@@ -298,27 +307,33 @@ class JsonSerializerEmitter {
 
     private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type, DependencyNode node) {
         ValueType itemType = type.getItemType();
+        ArrayElementType arrayElementType = getArrayElementType(itemType);
 
-        BasicBlock loopBody = pe.createBlock();
-        BasicBlock loopDecision = pe.createBlock();
-        BasicBlock loopExit = pe.createBlock();
+        BasicBlock loopBody = pe.getProgram().createBasicBlock();
+        BasicBlock loopDecision = pe.getProgram().createBasicBlock();
+        BasicBlock loopExit = pe.getProgram().createBasicBlock();
+        BasicBlock loopEnd = pe.getProgram().createBasicBlock();
 
+        BasicBlock loopEnter = pe.getBlock();
         ValueEmitter json = pe.invoke(new MethodReference(ArrayNode.class, "create", ArrayNode.class));
         ValueEmitter startIndex = pe.constant(0);
         ValueEmitter incIndex = pe.newVar();
         ValueEmitter incStep = pe.constant(1);
+        value = value.unwrapArray(arrayElementType);
         ValueEmitter size = value.arrayLength();
         pe.jump(loopDecision);
 
-        ValueEmitter index = incIndex.join(startIndex);
+        ValueEmitter index = incIndex.join(loopEnd, startIndex, loopEnter);
         ForkEmitter fork = index.compare(NumericOperandType.INT, size).fork(BranchingCondition.LESS);
         fork.setThen(loopBody);
         fork.setElse(loopExit);
 
         pe.setBlock(loopBody);
         ValueEmitter item = value.getElement(index);
-        json.setElement(0, convertValue(item, itemType, node.getArrayItem()));
+        json.invokeVirtual(new MethodReference(ArrayNode.class, "add", Node.class, void.class),
+                convertValue(item, itemType, node.getArrayItem()));
 
+        pe.jump(loopEnd);
         BinaryInstruction increment = new BinaryInstruction(BinaryOperation.ADD, NumericOperandType.INT);
         increment.setFirstOperand(index.getVariable());
         increment.setSecondOperand(incStep.getVariable());
@@ -328,6 +343,29 @@ class JsonSerializerEmitter {
 
         pe.setBlock(loopExit);
         return json;
+    }
+
+    private ArrayElementType getArrayElementType(ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive)type).getKind()) {
+                case BOOLEAN:
+                case BYTE:
+                    return ArrayElementType.BYTE;
+                case CHARACTER:
+                    return ArrayElementType.CHAR;
+                case SHORT:
+                    return ArrayElementType.SHORT;
+                case INTEGER:
+                    return ArrayElementType.INT;
+                case FLOAT:
+                    return ArrayElementType.FLOAT;
+                case DOUBLE:
+                    return ArrayElementType.DOUBLE;
+                case LONG:
+                    return ArrayElementType.LONG;
+            }
+        }
+        return ArrayElementType.OBJECT;
     }
 
     private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type, DependencyNode node) {
