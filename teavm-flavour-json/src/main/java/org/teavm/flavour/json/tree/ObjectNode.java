@@ -31,11 +31,11 @@ public abstract class ObjectNode extends Node {
 
     @JSBody(params = {}, script =
             "var array = [];" +
-            "for (var key : this) {" +
+            "for (var key in this) {" +
                 "array.push(key);" +
             "}" +
             "return array;")
-    public final native Node[] allKeys();
+    public final native String[] allKeys();
 
     @JSBody(params = "key", script = "return key in this;")
     public final native boolean has(String key);

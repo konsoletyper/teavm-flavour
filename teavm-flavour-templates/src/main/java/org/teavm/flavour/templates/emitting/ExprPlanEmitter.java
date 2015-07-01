@@ -378,7 +378,7 @@ class ExprPlanEmitter implements PlanVisitor {
         branching.setElse(elseBlock);
 
         pe.setBlock(joint);
-        var = trueVar.join(falseVar);
+        var = trueVar.join(thenBlock, falseVar, elseBlock);
     }
 
     @Override
@@ -556,7 +556,7 @@ class ExprPlanEmitter implements PlanVisitor {
         branching.setThen(thenBlock);
         branching.setElse(elseBlock);
         pe.setBlock(joint);
-        var = trueVar.join(falseVar);
+        var = trueVar.join(thenBlock, falseVar, elseBlock);
     }
 
     private NumericOperandType mapArithmetic(ArithmeticType type) {
