@@ -15,8 +15,12 @@
  */
 package org.teavm.flavour.json.emit;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyNode;
@@ -32,12 +36,16 @@ import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.model.AccessLevel;
+import org.teavm.model.AnnotationContainerReader;
 import org.teavm.model.AnnotationHolder;
+import org.teavm.model.AnnotationReader;
+import org.teavm.model.AnnotationValue;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
@@ -150,7 +158,6 @@ class JsonSerializerEmitter {
             targetVar = pe.newVar();
             valueVar = valueVar.cast(ValueType.object(serializedClassName));
 
-            emitSuperSerializer(information);
             scanGetters(information);
 
             pe.exit();
@@ -165,31 +172,25 @@ class JsonSerializerEmitter {
         }
     }
 
-    private void emitSuperSerializer(ClassSerializerInformation information) {
-        if (serializedClass.getParent().equals(Object.class.getName())) {
-            return;
-        }
-        information.parentInformation = findClassSerializer(serializedClass.getParent());
-        ValueEmitter superSerializer = pe.construct(new MethodReference(information.parentInformation.serializerName,
-                "<init>", ValueType.VOID));
-        superSerializer.invokeVirtual(new MethodReference(JsonSerializer.class, "serialize",
-                JsonSerializerContext.class, Object.class, ObjectNode.class, void.class),
-                contextVar, valueVar, targetVar);
-        information.properties.putAll(information.parentInformation.properties);
-        information.getters.putAll(information.parentInformation.getters);
-    }
-
     private void scanGetters(ClassSerializerInformation information) {
-        for (MethodReader method : serializedClass.getMethods()) {
-            if (isGetterName(method.getName()) && method.parameterCount() == 0 &&
-                    method.getResultType() != ValueType.VOID) {
-                String propertyName = decapitalize(method.getName().substring(3));
-                addGetter(information, propertyName, method, method.getResultType());
-            } else if (isBooleanName(method.getName()) && method.parameterCount() == 0 &&
-                    method.getResultType() == ValueType.BOOLEAN) {
-                String propertyName = decapitalize(method.getName().substring(2));
-                addGetter(information, propertyName, method, method.getResultType());
+        Set<MethodDescriptor> usedMethods = new HashSet<>();
+        ClassReader cls = serializedClass;
+        while (cls != null && !cls.getName().equals("java.lang.Object")) {
+            for (MethodReader method : cls.getMethods()) {
+                if (!usedMethods.add(method.getDescriptor())) {
+                    continue;
+                }
+                if (isGetterName(method.getName()) && method.parameterCount() == 0 &&
+                        method.getResultType() != ValueType.VOID) {
+                    String propertyName = decapitalize(method.getName().substring(3));
+                    addGetter(information, propertyName, method, method.getResultType());
+                } else if (isBooleanName(method.getName()) && method.parameterCount() == 0 &&
+                        method.getResultType() == ValueType.BOOLEAN) {
+                    String propertyName = decapitalize(method.getName().substring(2));
+                    addGetter(information, propertyName, method, method.getResultType());
+                }
             }
+            cls = cls.getParent() != null ? classSource.get(cls.getParent()) : null;
         }
     }
 
@@ -210,6 +211,10 @@ class JsonSerializerEmitter {
 
     private void addGetter(ClassSerializerInformation information, String propertyName, MethodReader method,
             ValueType type) {
+        if (isIgnored(method.getAnnotations())) {
+            return;
+        }
+        propertyName = getPropertyName(method.getAnnotations(), propertyName);
         SerializerPropertyInformation property = information.properties.get(propertyName);
         duplication: if (property != null) {
             if (property.getter != null && property.getter.equals(method.getDescriptor())) {
@@ -231,6 +236,22 @@ class JsonSerializerEmitter {
                 getterDep.getResult());
         targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", String.class, Node.class, void.class),
                 pe.constant(propertyName), propertyValue);
+    }
+
+    private String getPropertyName(AnnotationContainerReader annotations, String fallbackName) {
+        AnnotationReader annot = annotations.get(JsonProperty.class.getName());
+        if (annot == null) {
+            return fallbackName;
+        }
+        AnnotationValue name = annot.getValue("value");
+        if (name == null) {
+            return fallbackName;
+        }
+        return name.getString();
+    }
+
+    private boolean isIgnored(AnnotationContainerReader annotations) {
+        return annotations.get(JsonIgnore.class.getName()) != null;
     }
 
     private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {

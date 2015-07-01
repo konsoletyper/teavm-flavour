@@ -25,7 +25,7 @@
 
   <artifactId>teavm-flavour-json</artifactId>
 
-  <name>TeaVM Flavour - Expr</name>
+  <name>TeaVM Flavour - Json</name>
   <description>Simple statically typed expression language capable of running inside TeaVM</description>
 
   <dependencies>
@@ -40,6 +40,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -83,9 +84,6 @@
             <phase>process-test-classes</phase>
             <configuration>
               <minifying>false</minifying>
-              <wildcards>
-                <wildcard>org.teavm.flavour.json.teavmtest.*Test</wildcard>
-              </wildcards>
             </configuration>
           </execution>
         </executions>

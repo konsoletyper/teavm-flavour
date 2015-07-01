@@ -16,7 +16,10 @@
 package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -131,6 +134,24 @@ public class SerializerTest {
         assertTrue(itemObjectNode.has("b"));
     }
 
+    @Test
+    public void renamesProperty() {
+        RenamedProperty o = new RenamedProperty();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue(node.has("foo_"));
+        assertFalse(node.has("foo"));
+    }
+
+    @Test
+    public void ignoresProperty() {
+        IgnoredProperty o = new IgnoredProperty();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue(node.has("bar"));
+        assertFalse(node.has("foo"));
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -185,6 +206,41 @@ public class SerializerTest {
 
         public void setArray(A[] array) {
             this.array = array;
+        }
+    }
+
+    public static class RenamedProperty {
+        int foo;
+
+        @JsonProperty("foo_")
+        public int getFoo() {
+            return foo;
+        }
+
+        public void setFoo(int foo) {
+            this.foo = foo;
+        }
+    }
+
+    public static class IgnoredProperty {
+        int foo;
+        String bar;
+
+        @JsonIgnore
+        public int getFoo() {
+            return foo;
+        }
+
+        public void setFoo(int foo) {
+            this.foo = foo;
+        }
+
+        public String getBar() {
+            return bar;
+        }
+
+        public void setBar(String bar) {
+            this.bar = bar;
         }
     }
 }
