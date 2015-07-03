@@ -15,13 +15,11 @@
  */
 package org.teavm.flavour.json.emit;
 
-import org.teavm.model.MethodDescriptor;
-
 /**
  *
  * @author Alexey Andreev
  */
-class SerializerPropertyInformation {
-    MethodDescriptor getter;
-    String className;
+class FieldInformation {
+    boolean ignored;
+    String targetProperty;
 }

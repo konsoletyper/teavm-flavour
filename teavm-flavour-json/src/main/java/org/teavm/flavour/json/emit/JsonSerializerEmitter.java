@@ -15,11 +15,7 @@
  */
 package org.teavm.flavour.json.emit;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
@@ -36,18 +32,11 @@ import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.model.AccessLevel;
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationHolder;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.AnnotationValue;
 import org.teavm.model.BasicBlock;
-import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
-import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ForkEmitter;
@@ -74,51 +63,44 @@ class JsonSerializerEmitter {
     private ValueEmitter valueVar;
     private ValueEmitter targetVar;
     private ProgramEmitter pe;
-    private Map<String, ClassSerializerInformation> informationStore = new HashMap<>();
+    private ClassInformationProvider informationProvider;
+    private Set<String> serializableClasses = new HashSet<>();
 
     public JsonSerializerEmitter(DependencyAgent agent) {
         this.agent = agent;
         this.classSource = agent.getClassSource();
+        informationProvider = new ClassInformationProvider(classSource, agent.getDiagnostics());
     }
 
     public String addClassSerializer(String serializedClassName) {
         ClassReader cls = classSource.get(serializedClassName);
-        if (cls != null && cls.getAnnotations().get(NotJsonSerializable.class.getName()) != null) {
+        if (cls == null) {
             return null;
         }
-        ClassSerializerInformation information = findClassSerializer(serializedClassName);
-        return information != null ? information.serializerName : null;
+        if (serializableClasses.add(serializedClassName)) {
+            emitClassSerializer(serializedClassName);
+        }
+        return getClassSerializer(serializedClassName);
     }
 
     public String getClassSerializer(String className) {
-        ClassSerializerInformation information = informationStore.get(className);
-        return information != null ? information.serializerName : null;
+        return className + "$$__serializer__$$";
     }
 
-    private ClassSerializerInformation findClassSerializer(String serializedClassName) {
-        ClassSerializerInformation information = informationStore.get(serializedClassName);
+
+    private void emitClassSerializer(String serializedClassName) {
+        ClassInformation information = informationProvider.get(serializedClassName);
         if (information == null) {
-            information = emitClassSerializer(serializedClassName);
-            informationStore.put(serializedClassName, information);
+            return;
         }
-        return information;
-    }
 
-    private ClassSerializerInformation emitClassSerializer(String serializedClassName) {
         ClassHolder cls = new ClassHolder(serializedClassName + "$$__serializer__$$");
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(JsonSerializer.class.getName());
-        cls.getAnnotations().add(new AnnotationHolder(NotJsonSerializable.class.getName()));
-        ClassSerializerInformation information = emitSerializationMethod(serializedClassName, cls);
+
+        emitSerializationMethod(information, cls);
         emitConstructor(cls);
         agent.submitClass(cls);
-
-        if (information == null) {
-            information = new ClassSerializerInformation();
-            information.serializerName = cls.getName();
-        }
-
-        return information;
     }
 
     private void emitConstructor(ClassHolder cls) {
@@ -133,10 +115,10 @@ class JsonSerializerEmitter {
         cls.addMethod(ctor);
     }
 
-    private ClassSerializerInformation emitSerializationMethod(String serializedClassName, ClassHolder cls) {
-        serializedClass = classSource.get(serializedClassName);
+    private void emitSerializationMethod(ClassInformation information, ClassHolder cls) {
+        serializedClass = classSource.get(information.className);
         if (serializedClass == null) {
-            return null;
+            return;
         }
 
         ProgramEmitter oldPe = pe;
@@ -145,8 +127,6 @@ class JsonSerializerEmitter {
         ValueEmitter oldContextVar = contextVar;
         ClassReader oldSerializedClass = serializedClass;
         try {
-            ClassSerializerInformation information = new ClassSerializerInformation();
-            information.serializerName = cls.getName();
             MethodHolder method = new MethodHolder("serialize", ValueType.parse(JsonSerializerContext.class),
                     ValueType.parse(Object.class), ValueType.parse(ObjectNode.class), ValueType.VOID);
             method.setLevel(AccessLevel.PUBLIC);
@@ -156,13 +136,12 @@ class JsonSerializerEmitter {
             contextVar = pe.newVar();
             valueVar = pe.newVar();
             targetVar = pe.newVar();
-            valueVar = valueVar.cast(ValueType.object(serializedClassName));
+            valueVar = valueVar.cast(ValueType.object(information.className));
 
-            scanGetters(information);
+            emitGetters(information);
 
             pe.exit();
             cls.addMethod(method);
-            return information;
         } finally {
             pe = oldPe;
             valueVar = oldValueVar;
@@ -172,86 +151,24 @@ class JsonSerializerEmitter {
         }
     }
 
-    private void scanGetters(ClassSerializerInformation information) {
-        Set<MethodDescriptor> usedMethods = new HashSet<>();
-        ClassReader cls = serializedClass;
-        while (cls != null && !cls.getName().equals("java.lang.Object")) {
-            for (MethodReader method : cls.getMethods()) {
-                if (!usedMethods.add(method.getDescriptor())) {
-                    continue;
-                }
-                if (isGetterName(method.getName()) && method.parameterCount() == 0 &&
-                        method.getResultType() != ValueType.VOID) {
-                    String propertyName = decapitalize(method.getName().substring(3));
-                    addGetter(information, propertyName, method, method.getResultType());
-                } else if (isBooleanName(method.getName()) && method.parameterCount() == 0 &&
-                        method.getResultType() == ValueType.BOOLEAN) {
-                    String propertyName = decapitalize(method.getName().substring(2));
-                    addGetter(information, propertyName, method, method.getResultType());
-                }
+    private void emitGetters(ClassInformation information) {
+        for (GetterInformation getter : information.getters.values()) {
+            if (getter.ignored) {
+                continue;
             }
-            cls = cls.getParent() != null ? classSource.get(cls.getParent()) : null;
+            PropertyInformation property = information.properties.get(getter.targetProperty);
+            emitGetter(property);
         }
     }
 
-    private boolean isGetterName(String name) {
-        return name.startsWith("get") && name.length() > 3 && Character.toUpperCase(name.charAt(3)) == name.charAt(3);
-    }
+    private void emitGetter(PropertyInformation property) {
+        MethodReference method = new MethodReference(property.className, property.getter);
 
-    private boolean isBooleanName(String name) {
-        return name.startsWith("is") && name.length() > 2 && Character.toUpperCase(name.charAt(2)) == name.charAt(2);
-    }
-
-    private String decapitalize(String name) {
-        if (name.length() > 1 && name.charAt(1) == Character.toUpperCase(name.charAt(1))) {
-            return name;
-        }
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
-    }
-
-    private void addGetter(ClassSerializerInformation information, String propertyName, MethodReader method,
-            ValueType type) {
-        if (isIgnored(method.getAnnotations())) {
-            return;
-        }
-        propertyName = getPropertyName(method.getAnnotations(), propertyName);
-        SerializerPropertyInformation property = information.properties.get(propertyName);
-        duplication: if (property != null) {
-            if (property.getter != null && property.getter.equals(method.getDescriptor())) {
-                break duplication;
-            }
-            CallLocation location = new CallLocation(method.getReference());
-            agent.getDiagnostics().error(location, "Duplicate property declaration " + propertyName + ". " +
-                    "Already declared in {{c0}}", property.className);
-            return;
-        }
-
-        property = new SerializerPropertyInformation();
-        property.className = method.getOwnerName();
-        property.getter = method.getDescriptor();
-        information.properties.put(propertyName, property);
-
-        MethodDependency getterDep = agent.linkMethod(method.getReference(), null);
-        ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method.getReference()), type,
+        MethodDependency getterDep = agent.linkMethod(method, null);
+        ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method), method.getReturnType(),
                 getterDep.getResult());
         targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", String.class, Node.class, void.class),
-                pe.constant(propertyName), propertyValue);
-    }
-
-    private String getPropertyName(AnnotationContainerReader annotations, String fallbackName) {
-        AnnotationReader annot = annotations.get(JsonProperty.class.getName());
-        if (annot == null) {
-            return fallbackName;
-        }
-        AnnotationValue name = annot.getValue("value");
-        if (name == null) {
-            return fallbackName;
-        }
-        return name.getString();
-    }
-
-    private boolean isIgnored(AnnotationContainerReader annotations) {
-        return annotations.get(JsonIgnore.class.getName()) != null;
+                pe.constant(property.name), propertyValue);
     }
 
     private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {

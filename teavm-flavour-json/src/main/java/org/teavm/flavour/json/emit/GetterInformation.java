@@ -15,16 +15,11 @@
  */
 package org.teavm.flavour.json.emit;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-@interface NotJsonSerializable {
+class GetterInformation {
+    boolean ignored;
+    String targetProperty;
 }

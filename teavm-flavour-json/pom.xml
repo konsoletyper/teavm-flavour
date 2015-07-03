@@ -61,7 +61,6 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>../checkstyle.xml</configLocation>
-          <excludes>org/teavm/flavour/expr/ExprParser.java</excludes>
         </configuration>
       </plugin>
       <plugin>

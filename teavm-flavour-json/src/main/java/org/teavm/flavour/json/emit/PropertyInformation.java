@@ -15,17 +15,15 @@
  */
 package org.teavm.flavour.json.emit;
 
-import java.util.HashMap;
-import java.util.Map;
 import org.teavm.model.MethodDescriptor;
 
 /**
  *
  * @author Alexey Andreev
  */
-class ClassSerializerInformation {
-    String serializerName;
-    ClassSerializerInformation parentInformation;
-    Map<String, SerializerPropertyInformation> properties = new HashMap<>();
-    Map<MethodDescriptor, SerializerGetterInformation> getters = new HashMap<>();
+class PropertyInformation {
+    String name;
+    MethodDescriptor getter;
+    String fieldName;
+    String className;
 }
