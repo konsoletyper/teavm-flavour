@@ -21,8 +21,6 @@ import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
-import org.teavm.flavour.json.tree.NumberNode;
-import org.teavm.flavour.json.tree.ObjectNode;
 
 /**
  *
@@ -36,19 +34,9 @@ public final class JSON {
         return serialize(new JsonSerializerContext(), object);
     }
 
-    static Node serialize(JsonSerializerContext context, Object object) {
+    public static Node serialize(JsonSerializerContext context, Object object) {
         if (object == null) {
             return NullNode.instance();
-        } else if (object instanceof Integer) {
-            return NumberNode.create((Integer)object);
-        } else if (object instanceof Byte) {
-            return NumberNode.create((Byte)object);
-        } else if (object instanceof Short) {
-            return NumberNode.create((Short)object);
-        } else if (object instanceof Float) {
-            return NumberNode.create((Float)object);
-        } else if (object instanceof Double) {
-            return NumberNode.create((Double)object);
         } else if (object.getClass().isArray()) {
             ArrayNode result = ArrayNode.create();
             int length = Array.getLength(object);
@@ -57,13 +45,11 @@ public final class JSON {
             }
             return result;
         } else {
-            ObjectNode target = ObjectNode.create();
             JsonSerializer serializer = getClassSerializer(object.getClass().getName());
             if (serializer == null) {
                 throw new IllegalArgumentException("Can't serialize object of type " + object.getClass().getName());
             }
-            serializer.serialize(context, object, target);
-            return target;
+            return serializer.serialize(context, object);
         }
     }
 

@@ -15,7 +15,12 @@
  */
 package org.teavm.flavour.json.emit;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
@@ -24,8 +29,16 @@ import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.FieldDependency;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.serializer.BooleanSerializer;
+import org.teavm.flavour.json.serializer.CharacterSerializer;
+import org.teavm.flavour.json.serializer.DoubleSerializer;
+import org.teavm.flavour.json.serializer.EnumSerializer;
+import org.teavm.flavour.json.serializer.IntegerSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
+import org.teavm.flavour.json.serializer.ListSerializer;
+import org.teavm.flavour.json.serializer.MapSerializer;
+import org.teavm.flavour.json.serializer.StringSerializer;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
@@ -67,6 +80,21 @@ class JsonSerializerEmitter {
     private ProgramEmitter pe;
     private ClassInformationProvider informationProvider;
     private Set<String> serializableClasses = new HashSet<>();
+    private static Map<String, String> predefinedSerializers = new HashMap<>();
+
+    static {
+        predefinedSerializers.put(Boolean.class.getName(), BooleanSerializer.class.getName());
+        predefinedSerializers.put(Byte.class.getName(), IntegerSerializer.class.getName());
+        predefinedSerializers.put(Short.class.getName(), IntegerSerializer.class.getName());
+        predefinedSerializers.put(Character.class.getName(), CharacterSerializer.class.getName());
+        predefinedSerializers.put(Integer.class.getName(), IntegerSerializer.class.getName());
+        predefinedSerializers.put(Long.class.getName(), DoubleSerializer.class.getName());
+        predefinedSerializers.put(Float.class.getName(), DoubleSerializer.class.getName());
+        predefinedSerializers.put(Double.class.getName(), DoubleSerializer.class.getName());
+        predefinedSerializers.put(BigInteger.class.getName(), DoubleSerializer.class.getName());
+        predefinedSerializers.put(BigDecimal.class.getName(), DoubleSerializer.class.getName());
+        predefinedSerializers.put(String.class.getName(), StringSerializer.class.getName());
+    }
 
     public JsonSerializerEmitter(DependencyAgent agent) {
         this.agent = agent;
@@ -80,13 +108,58 @@ class JsonSerializerEmitter {
             return null;
         }
         if (serializableClasses.add(serializedClassName)) {
-            emitClassSerializer(serializedClassName);
+            if (tryGetPredefinedSerializer(serializedClassName) == null) {
+                emitClassSerializer(serializedClassName);
+            }
         }
         return getClassSerializer(serializedClassName);
     }
 
     public String getClassSerializer(String className) {
-        return serializableClasses.contains(className) ? className + "$$__serializer__$$" : null;
+        String serializer = tryGetPredefinedSerializer(className);
+        if (serializer == null) {
+            serializer = serializableClasses.contains(className) ? className + "$$__serializer__$$" : null;
+        }
+        return serializer;
+    }
+
+    private String tryGetPredefinedSerializer(String className) {
+        String serializer = predefinedSerializers.get(className);
+        if (serializer == null) {
+            if (isSuperType(Enum.class.getName(), className)) {
+                serializer = EnumSerializer.class.getName();
+            } else if (isSuperType(Map.class.getName(), className)) {
+                serializer = MapSerializer.class.getName();
+            } else if (isSuperType(Collection.class.getName(), className)) {
+                serializer = ListSerializer.class.getName();
+            }
+        }
+        return serializer;
+    }
+
+    private boolean isSuperType(String superType, String subType) {
+        if (superType.equals(subType)) {
+            return true;
+        }
+
+        ClassReader cls = classSource.get(subType);
+        if (cls == null) {
+            return false;
+        }
+
+        if (cls.getParent() != null && !cls.getParent().equals(cls.getName())) {
+            if (isSuperType(superType, cls.getParent())) {
+                return true;
+            }
+        }
+
+        for (String iface : cls.getInterfaces()) {
+            if (isSuperType(superType, iface)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void emitClassSerializer(String serializedClassName) {
@@ -129,19 +202,19 @@ class JsonSerializerEmitter {
         ClassReader oldSerializedClass = serializedClass;
         try {
             MethodHolder method = new MethodHolder("serialize", ValueType.parse(JsonSerializerContext.class),
-                    ValueType.parse(Object.class), ValueType.parse(ObjectNode.class), ValueType.VOID);
+                    ValueType.parse(Object.class), ValueType.parse(Node.class));
             method.setLevel(AccessLevel.PUBLIC);
 
             pe = ProgramEmitter.create(method);
             pe.newVar(); // skip this variable
             contextVar = pe.newVar();
             valueVar = pe.newVar();
-            targetVar = pe.newVar();
+            targetVar = pe.invoke(new MethodReference(ObjectNode.class, "create", ObjectNode.class));
             valueVar = valueVar.cast(ValueType.object(information.className));
 
             emitProperties(information);
 
-            pe.exit();
+            targetVar.returnValue();
             cls.addMethod(method);
         } finally {
             pe = oldPe;

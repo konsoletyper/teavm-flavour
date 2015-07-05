@@ -24,6 +24,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 
 /**
@@ -167,6 +175,45 @@ public class SerializerTest {
         assertEquals(23, node.get("foo").asInt());
     }
 
+    @Test
+    public void serializesBuiltInTypes() {
+        BuiltInTypes o = new BuiltInTypes();
+        o.boolField = true;
+        o.byteField = 1;
+        o.charField = '0';
+        o.shortField = 2;
+        o.intField = 3;
+        o.longField = 4L;
+        o.floatField = 5F;
+        o.doubleField = 6.0;
+        o.bigIntField = BigInteger.valueOf(7);
+        o.bigDecimalField = BigDecimal.valueOf(8);
+        o.list = Arrays.<Object>asList("foo", 1);
+        o.map = new HashMap<>();
+        o.map.put("key1", "value");
+        o.map.put("key2", 23);
+        o.set = new HashSet<>(Arrays.<Object>asList("bar", 2));
+
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertEquals(true, node.get("boolField").asBoolean());
+        assertEquals(1, node.get("byteField").asInt());
+        assertEquals("0", node.get("charField").asText());
+        assertEquals(2, node.get("shortField").asInt());
+        assertEquals(3, node.get("intField").asInt());
+        assertEquals(4, node.get("longField").asInt());
+        assertEquals(5, node.get("floatField").asInt());
+        assertEquals(6, node.get("doubleField").asInt());
+        assertEquals(7, node.get("bigIntField").asInt());
+        assertEquals(8, node.get("bigDecimalField").asInt());
+        assertEquals(2, node.get("list").size());
+        assertEquals("foo", node.get("list").get(0).textValue());
+        assertEquals(1, node.get("list").get(1).intValue());
+        assertEquals("value", node.get("map").get("key1").asText());
+        assertEquals(23, node.get("map").get("key2").asInt());
+        assertEquals(2, node.get("set").size());
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -280,5 +327,23 @@ public class SerializerTest {
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class BuiltInTypes {
+        public Boolean boolField;
+        public Byte byteField;
+        public Character charField;
+        public Short shortField;
+        public Integer intField;
+        public Long longField;
+        public Float floatField;
+        public Double doubleField;
+        public BigInteger bigIntField;
+        public BigDecimal bigDecimalField;
+        public List<Object> list;
+        public Set<Object> set;
+        public Map<Object, Object> map;
+        public Visibility visibility;
     }
 }

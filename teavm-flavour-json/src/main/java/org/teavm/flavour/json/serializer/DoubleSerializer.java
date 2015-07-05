@@ -13,25 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.json.tree;
+package org.teavm.flavour.json.serializer;
 
-import org.teavm.jso.JSBody;
+import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.NumberNode;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class BooleanNode extends Node {
-    public static final BooleanNode TRUE = get(true);
-    public static final BooleanNode FALSE = get(false);
-
-    @JSBody(params = "value", script = "return !!value;")
-    public static native BooleanNode get(boolean value);
-
-    @JSBody(params = "node", script = "return !!node;")
-    private static native boolean getValue(BooleanNode node);
-
-    public final boolean getValue() {
-        return getValue(this);
+public class DoubleSerializer extends NullableSerializer {
+    @Override
+    public Node serializeNonNull(JsonSerializerContext context, Object value) {
+        return NumberNode.create(((Number)value).doubleValue());
     }
 }
