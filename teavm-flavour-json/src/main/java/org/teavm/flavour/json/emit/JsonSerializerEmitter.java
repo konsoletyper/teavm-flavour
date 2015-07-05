@@ -21,6 +21,7 @@ import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.DependencyType;
+import org.teavm.dependency.FieldDependency;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.serializer.JsonSerializer;
@@ -36,6 +37,7 @@ import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
@@ -84,9 +86,8 @@ class JsonSerializerEmitter {
     }
 
     public String getClassSerializer(String className) {
-        return className + "$$__serializer__$$";
+        return serializableClasses.contains(className) ? className + "$$__serializer__$$" : null;
     }
-
 
     private void emitClassSerializer(String serializedClassName) {
         ClassInformation information = informationProvider.get(serializedClassName);
@@ -138,7 +139,7 @@ class JsonSerializerEmitter {
             targetVar = pe.newVar();
             valueVar = valueVar.cast(ValueType.object(information.className));
 
-            emitGetters(information);
+            emitProperties(information);
 
             pe.exit();
             cls.addMethod(method);
@@ -151,13 +152,16 @@ class JsonSerializerEmitter {
         }
     }
 
-    private void emitGetters(ClassInformation information) {
-        for (GetterInformation getter : information.getters.values()) {
-            if (getter.ignored) {
+    private void emitProperties(ClassInformation information) {
+        for (PropertyInformation property : information.properties.values()) {
+            if (property.ignored) {
                 continue;
             }
-            PropertyInformation property = information.properties.get(getter.targetProperty);
-            emitGetter(property);
+            if (property.getter != null) {
+                emitGetter(property);
+            } else {
+                emitField(property);
+            }
         }
     }
 
@@ -168,7 +172,17 @@ class JsonSerializerEmitter {
         ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method), method.getReturnType(),
                 getterDep.getResult());
         targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", String.class, Node.class, void.class),
-                pe.constant(property.name), propertyValue);
+                pe.constant(property.outputName), propertyValue);
+    }
+
+    private void emitField(PropertyInformation property) {
+        FieldReference field = new FieldReference(property.className, property.fieldName);
+
+        FieldDependency dep = agent.linkField(field, null);
+        ValueEmitter propertyValue = convertValue(valueVar.getField(field, dep.getField().getType()),
+                dep.getField().getType(), dep.getValue());
+        targetVar.invokeSpecial(new MethodReference(ObjectNode.class, "set", String.class, Node.class, void.class),
+                pe.constant(property.outputName), propertyValue);
     }
 
     private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {

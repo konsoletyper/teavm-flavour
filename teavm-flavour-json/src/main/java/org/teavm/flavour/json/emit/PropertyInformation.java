@@ -21,9 +21,20 @@ import org.teavm.model.MethodDescriptor;
  *
  * @author Alexey Andreev
  */
-class PropertyInformation {
+class PropertyInformation implements Cloneable {
     String name;
+    String outputName;
     MethodDescriptor getter;
     String fieldName;
     String className;
+    boolean ignored;
+
+    @Override
+    public PropertyInformation clone() {
+        try {
+            return (PropertyInformation)super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError("Unexpected exception caught", e);
+        }
+    }
 }

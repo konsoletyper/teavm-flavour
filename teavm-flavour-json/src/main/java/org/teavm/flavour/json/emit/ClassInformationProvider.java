@@ -67,13 +67,16 @@ class ClassInformationProvider {
         if (cls.getParent() != null && !cls.getParent().equals("java.lang.Object")) {
             ClassInformation parent = get(cls.getParent());
             information.parentInformation = parent;
-            information.getters.putAll(parent.getters);
-            information.properties.putAll(parent.properties);
+            for (PropertyInformation property : parent.properties.values()) {
+                property = property.clone();
+                information.properties.put(property.name, property);
+                information.propertiesByOutputName.put(property.outputName, property);
+            }
         }
 
         getAutoDetectModes(information, cls);
-        scanGetters(information, cls);
         scanFields(information, cls);
+        scanGetters(information, cls);
 
         return information;
     }
@@ -90,11 +93,12 @@ class ClassInformationProvider {
 
         AnnotationReader annot = cls.getAnnotations().get(JsonAutoDetect.class.getName());
         if (annot != null) {
-            information.getterVisibility = getVisibility(annot, "getterVisibility", parent.getterVisibility);
-            information.isGetterVisibility = getVisibility(annot, "isGetterVisibility", parent.isGetterVisibility);
-            information.setterVisibility = getVisibility(annot, "setterVisibility", parent.setterVisibility);
-            information.fieldVisibility = getVisibility(annot, "fieldVisibility", parent.fieldVisibility);
-            information.creatorVisibility = getVisibility(annot, "creatorVisibility", parent.creatorVisibility);
+            information.getterVisibility = getVisibility(annot, "getterVisibility", information.getterVisibility);
+            information.isGetterVisibility = getVisibility(annot, "isGetterVisibility",
+                    information.isGetterVisibility);
+            information.setterVisibility = getVisibility(annot, "setterVisibility", information.setterVisibility);
+            information.fieldVisibility = getVisibility(annot, "fieldVisibility", information.fieldVisibility);
+            information.creatorVisibility = getVisibility(annot, "creatorVisibility", information.creatorVisibility);
         }
     }
 
@@ -117,13 +121,15 @@ class ClassInformationProvider {
             }
             if (isGetterName(method.getName()) && method.parameterCount() == 0 &&
                     method.getResultType() != ValueType.VOID) {
-                if (information.getterVisibility.match(method.getLevel())) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
+                        information.getterVisibility.match(method.getLevel())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addGetter(information, propertyName, method);
                 }
             } else if (isBooleanName(method.getName()) && method.parameterCount() == 0 &&
                     method.getResultType() == ValueType.BOOLEAN) {
-                if (information.isGetterVisibility.match(method.getLevel())) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
+                        information.isGetterVisibility.match(method.getLevel())) {
                     String propertyName = decapitalize(method.getName().substring(2));
                     addGetter(information, propertyName, method);
                 }
@@ -132,37 +138,34 @@ class ClassInformationProvider {
     }
 
     private void addGetter(ClassInformation information, String propertyName, MethodReader method) {
-        GetterInformation getter = information.getters.get(method.getDescriptor());
-        if (getter != null) {
-            if (getter.ignored) {
-                return;
-            } else {
-                information.properties.remove(getter.targetProperty);
-            }
-        }
-
-        propertyName = getPropertyName(method.getAnnotations(), propertyName);
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
+            information.propertiesByOutputName.remove(property.outputName);
+        } else {
+            property = new PropertyInformation();
+            property.name = propertyName;
+            property.outputName = propertyName;
+            property.className = information.className;
+            information.properties.put(propertyName, property);
+        }
+
+        if (property.ignored || isIgnored(method.getAnnotations())) {
+            property.ignored = true;
+            return;
+        }
+
+        property.outputName = getPropertyName(method.getAnnotations(), property.outputName);
+        PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
+        if (conflictingProperty != null) {
             CallLocation location = new CallLocation(method.getReference());
             diagnostics.error(location, "Duplicate property declaration " + propertyName + ". " +
                     "Already declared in {{c0}}", property.className);
             return;
+        } else {
+            information.propertiesByOutputName.put(property.outputName, property);
         }
 
-        getter = new GetterInformation();
-        getter.targetProperty = propertyName;
-        getter.ignored = isIgnored(method.getAnnotations());
-        information.getters.put(method.getDescriptor(), getter);
-        if (getter.ignored) {
-            return;
-        }
-
-        property = new PropertyInformation();
-        property.name = propertyName;
-        property.className = method.getOwnerName();
         property.getter = method.getDescriptor();
-        information.properties.put(propertyName, property);
     }
 
     private void scanFields(ClassInformation information, ClassReader cls) {
@@ -170,43 +173,41 @@ class ClassInformationProvider {
             if (field.hasModifier(ElementModifier.STATIC)) {
                 continue;
             }
-            if (information.getterVisibility.match(field.getLevel())) {
+            if (hasExplicitPropertyDeclaration(field.getAnnotations()) ||
+                    information.getterVisibility.match(field.getLevel())) {
                 addField(information, field.getName(), field);
             }
         }
     }
 
-    private void addField(ClassInformation information, String propertyName, FieldReader method) {
-        FieldInformation getter = information.fields.get(method.getName());
-        if (getter != null) {
-            if (getter.ignored) {
-                return;
-            } else {
-                information.properties.remove(getter.targetProperty);
-            }
-        }
-
-        propertyName = getPropertyName(method.getAnnotations(), propertyName);
+    private void addField(ClassInformation information, String propertyName, FieldReader field) {
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
+            information.propertiesByOutputName.remove(property.outputName);
+        } else {
+            property = new PropertyInformation();
+            property.name = propertyName;
+            property.outputName = propertyName;
+            property.className = information.className;
+            information.properties.put(propertyName, property);
+        }
+
+        if (property.ignored || isIgnored(field.getAnnotations())) {
+            property.ignored = true;
+            return;
+        }
+
+        property.outputName = getPropertyName(field.getAnnotations(), property.outputName);
+        PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
+        if (conflictingProperty != null) {
             diagnostics.error(null, "Duplicate property declaration " + propertyName + ". " +
                     "Already declared in {{c0}}", property.className);
             return;
+        } else {
+            information.propertiesByOutputName.put(property.outputName, property);
         }
 
-        getter = new FieldInformation();
-        getter.targetProperty = propertyName;
-        getter.ignored = isIgnored(method.getAnnotations());
-        information.fields.put(method.getName(), getter);
-        if (getter.ignored) {
-            return;
-        }
-
-        property = new PropertyInformation();
-        property.name = propertyName;
-        property.className = method.getOwnerName();
-        property.fieldName = method.getName();
-        information.properties.put(propertyName, property);
+        property.fieldName = field.getName();
     }
 
     private boolean isIgnored(AnnotationContainerReader annotations) {
@@ -238,5 +239,9 @@ class ClassInformationProvider {
             return fallbackName;
         }
         return name.getString();
+    }
+
+    private boolean hasExplicitPropertyDeclaration(AnnotationContainerReader annotations) {
+        return annotations.get(JsonProperty.class.getName()) != null;
     }
 }

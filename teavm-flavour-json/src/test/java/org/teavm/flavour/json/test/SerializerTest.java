@@ -18,11 +18,12 @@ package org.teavm.flavour.json.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.Test;
 
 /**
@@ -39,15 +40,12 @@ public class SerializerTest {
 
         assertTrue("Root node shoud be JSON object", node.isObject());
 
-        ObjectNode objectNode = (ObjectNode)node;
-        assertTrue("Property `a' exists", objectNode.has("a"));
-        JsonNode aNode = objectNode.get("a");
-        assertTrue("Property `a' is string", aNode.isTextual());
+        assertTrue("Property `a' exists", node.has("a"));
+        JsonNode aNode = node.get("a");
         assertEquals("foo", aNode.asText());
 
-        assertTrue("Property `b' exists", objectNode.has("b"));
-        JsonNode bNode = objectNode.get("b");
-        assertTrue("Property `b' is number", bNode.isNumber());
+        assertTrue("Property `b' exists", node.has("b"));
+        JsonNode bNode = node.get("b");
         assertEquals(23, bNode.asInt());
     }
 
@@ -62,15 +60,11 @@ public class SerializerTest {
 
         assertTrue("Root node should be JSON object", node.isObject());
 
-        ObjectNode objectNode = (ObjectNode)node;
-        assertTrue("Property `foo' should exist", objectNode.has("foo"));
-
-        JsonNode fooNode = objectNode.get("foo");
+        assertTrue("Property `foo' should exist", node.has("foo"));
+        JsonNode fooNode = node.get("foo");
         assertTrue("Property `foo' must be an object", fooNode.isObject());
-
-        ObjectNode fooObjectNode = (ObjectNode)fooNode;
-        assertTrue("Property `foo.a` expected", fooObjectNode.has("a"));
-        assertTrue("Property `foo.b` expected", fooObjectNode.has("b"));
+        assertTrue("Property `foo.a` expected", fooNode.has("a"));
+        assertTrue("Property `foo.b` expected", fooNode.has("b"));
     }
 
     @Test
@@ -85,7 +79,6 @@ public class SerializerTest {
 
         JsonNode firstNode = arrayNode.get(0);
         assertTrue("Item must be numeric", firstNode.isNumber());
-
         assertEquals(23, firstNode.asInt());
     }
 
@@ -99,12 +92,10 @@ public class SerializerTest {
         assertTrue("Root node should contain `array' property", node.has("array"));
         JsonNode propertyNode = node.get("array");
         assertTrue("Property `array' should be JSON array", propertyNode.isArray());
-        ArrayNode arrayNode = (ArrayNode)propertyNode;
-        assertEquals("Length must be 2", 2, arrayNode.size());
+        assertEquals("Length must be 2", 2, propertyNode.size());
 
-        JsonNode firstNode = arrayNode.get(0);
+        JsonNode firstNode = propertyNode.get(0);
         assertTrue("Item must be numeric", firstNode.isNumber());
-
         assertEquals(23, firstNode.asInt());
     }
 
@@ -116,22 +107,16 @@ public class SerializerTest {
         JsonNode node = JSONRunner.serialize(o);
 
         assertTrue("Root node should be JSON object", node.isObject());
+        assertTrue("Root node should contain `array' property", node.has("array"));
 
-        ObjectNode objectNode = (ObjectNode)node;
-        assertTrue("Root node should contain `array' property", objectNode.has("array"));
-
-        JsonNode propertyNode = objectNode.get("array");
+        JsonNode propertyNode = node.get("array");
         assertTrue("Property `array' should be JSON array", propertyNode.isArray());
+        assertEquals("Length must be 1", 1, propertyNode.size());
 
-        ArrayNode arrayNode = (ArrayNode)propertyNode;
-        assertEquals("Length must be 1", 1, arrayNode.size());
-
-        JsonNode firstNode = arrayNode.get(0);
-        assertTrue("Item must be object", firstNode.isObject());
-
-        ObjectNode itemObjectNode = (ObjectNode)firstNode;
-        assertTrue(itemObjectNode.has("a"));
-        assertTrue(itemObjectNode.has("b"));
+        JsonNode itemNode = propertyNode.get(0);
+        assertTrue("Item must be object", itemNode.isObject());
+        assertTrue(itemNode.has("a"));
+        assertTrue(itemNode.has("b"));
     }
 
     @Test
@@ -139,8 +124,8 @@ public class SerializerTest {
         RenamedProperty o = new RenamedProperty();
         JsonNode node = JSONRunner.serialize(o);
 
-        assertTrue(node.has("foo_"));
-        assertFalse(node.has("foo"));
+        assertTrue("Should have `foo_' property", node.has("foo_"));
+        assertFalse("Shouldn't have `foo' property", node.has("foo"));
     }
 
     @Test
@@ -148,8 +133,38 @@ public class SerializerTest {
         IgnoredProperty o = new IgnoredProperty();
         JsonNode node = JSONRunner.serialize(o);
 
-        assertTrue(node.has("bar"));
-        assertFalse(node.has("foo"));
+        assertTrue("Should have `bar' property", node.has("bar"));
+        assertFalse("Shouldn't have `foo' property", node.has("foo"));
+    }
+
+    @Test
+    public void getterHasPriorityOverField() {
+        FieldAndGetter o = new FieldAndGetter();
+        o.foo = 23;
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `foo' property", node.has("foo"));
+        assertEquals(25, node.get("foo").asInt());
+    }
+
+    @Test
+    public void fieldRenamesGetter() {
+        NamedFieldAndGetter o = new NamedFieldAndGetter();
+        o.foo = 23;
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `foo_' property", node.has("foo_"));
+        assertEquals("23!", node.get("foo_").asText());
+    }
+
+    @Test
+    public void emitsField() {
+        FieldVisible o = new FieldVisible();
+        o.foo = 23;
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `foo' property", node.has("foo"));
+        assertEquals(23, node.get("foo").asInt());
     }
 
     public static class A {
@@ -242,5 +257,28 @@ public class SerializerTest {
         public void setBar(String bar) {
             this.bar = bar;
         }
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class FieldAndGetter {
+        public int foo;
+
+        public int getFoo() {
+            return foo + 2;
+        }
+    }
+
+    public static class NamedFieldAndGetter {
+        @JsonProperty("foo_")
+        public int foo;
+
+        public String getFoo() {
+            return foo + "!";
+        }
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class FieldVisible {
+        public int foo;
     }
 }

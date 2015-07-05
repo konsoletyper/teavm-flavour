@@ -17,7 +17,6 @@ package org.teavm.flavour.json.emit;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.teavm.model.MethodDescriptor;
 
 /**
  *
@@ -27,8 +26,7 @@ class ClassInformation {
     String className;
     ClassInformation parentInformation;
     Map<String, PropertyInformation> properties = new HashMap<>();
-    Map<MethodDescriptor, GetterInformation> getters = new HashMap<>();
-    Map<String, FieldInformation> fields = new HashMap<>();
+    Map<String, PropertyInformation> propertiesByOutputName = new HashMap<>();
     Visibility getterVisibility = Visibility.PUBLIC_ONLY;
     Visibility isGetterVisibility = Visibility.PUBLIC_ONLY;
     Visibility setterVisibility = Visibility.ANY;
