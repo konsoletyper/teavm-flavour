@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -173,6 +174,15 @@ public class SerializerTest {
 
         assertTrue("Should have `foo' property", node.has("foo"));
         assertEquals(23, node.get("foo").asInt());
+    }
+
+    @Test
+    public void ignoresByList() {
+        IgnoredProperties o = new IgnoredProperties();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertFalse("Should not have `foo' property", node.has("foo"));
+        assertTrue("Should have `bar' property", node.has("bar"));
     }
 
     @Test
@@ -345,5 +355,12 @@ public class SerializerTest {
         public Set<Object> set;
         public Map<Object, Object> map;
         public Visibility visibility;
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    @JsonIgnoreProperties("foo")
+    public static class IgnoredProperties {
+        public int foo;
+        public int bar;
     }
 }

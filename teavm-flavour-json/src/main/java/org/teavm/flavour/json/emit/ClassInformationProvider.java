@@ -17,6 +17,7 @@ package org.teavm.flavour.json.emit;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,6 +76,7 @@ class ClassInformationProvider {
         }
 
         getAutoDetectModes(information, cls);
+        getIgnoredProperties(information, cls);
         scanFields(information, cls);
         scanGetters(information, cls);
 
@@ -99,6 +101,29 @@ class ClassInformationProvider {
             information.setterVisibility = getVisibility(annot, "setterVisibility", information.setterVisibility);
             information.fieldVisibility = getVisibility(annot, "fieldVisibility", information.fieldVisibility);
             information.creatorVisibility = getVisibility(annot, "creatorVisibility", information.creatorVisibility);
+        }
+    }
+
+    private void getIgnoredProperties(ClassInformation information, ClassReader cls) {
+        AnnotationReader annot = cls.getAnnotations().get(JsonIgnoreProperties.class.getName());
+        if (annot == null) {
+            return;
+        }
+
+        AnnotationValue value = annot.getValue("value");
+        if (value == null) {
+            return;
+        }
+
+        for (AnnotationValue nameAnnot : value.getList()) {
+            String name = nameAnnot.getString();
+            PropertyInformation property = information.properties.get(name);
+            if (property == null) {
+                property = new PropertyInformation();
+                property.name = name;
+                information.properties.put(name, property);
+            }
+            property.ignored = true;
         }
     }
 
