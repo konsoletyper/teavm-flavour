@@ -15,23 +15,12 @@
  */
 package org.teavm.flavour.json.emit;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  *
  * @author Alexey Andreev
  */
-class ClassInformation {
-    String className;
-    String typeName;
-    ClassInformation parent;
-    InheritanceInformation inheritance = new InheritanceInformation();
-    Map<String, PropertyInformation> properties = new HashMap<>();
-    Map<String, PropertyInformation> propertiesByOutputName = new HashMap<>();
-    Visibility getterVisibility = Visibility.PUBLIC_ONLY;
-    Visibility isGetterVisibility = Visibility.PUBLIC_ONLY;
-    Visibility setterVisibility = Visibility.ANY;
-    Visibility creatorVisibility = Visibility.NONE;
-    Visibility fieldVisibility = Visibility.NONE;
+enum InheritanceKey {
+    PROPERTY,
+    WRAPPER_ARRAY,
+    WRAPPER_OBJECT
 }

@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import java.util.HashMap;
 import java.util.Map;
 import org.teavm.diagnostics.Diagnostics;
@@ -67,15 +69,18 @@ class ClassInformationProvider {
 
         if (cls.getParent() != null && !cls.getParent().equals("java.lang.Object")) {
             ClassInformation parent = get(cls.getParent());
-            information.parentInformation = parent;
+            information.parent = parent;
             for (PropertyInformation property : parent.properties.values()) {
                 property = property.clone();
                 information.properties.put(property.name, property);
                 information.propertiesByOutputName.put(property.outputName, property);
             }
+            information.inheritance = information.parent.inheritance.clone();
+            information.typeName = information.parent.typeName;
         }
 
         getAutoDetectModes(information, cls);
+        getInheritance(information, cls);
         getIgnoredProperties(information, cls);
         scanFields(information, cls);
         scanGetters(information, cls);
@@ -84,7 +89,7 @@ class ClassInformationProvider {
     }
 
     private void getAutoDetectModes(ClassInformation information, ClassReader cls) {
-        ClassInformation parent = information.parentInformation;
+        ClassInformation parent = information.parent;
         if (parent != null) {
             information.getterVisibility = parent.getterVisibility;
             information.isGetterVisibility = parent.isGetterVisibility;
@@ -102,6 +107,78 @@ class ClassInformationProvider {
             information.fieldVisibility = getVisibility(annot, "fieldVisibility", information.fieldVisibility);
             information.creatorVisibility = getVisibility(annot, "creatorVisibility", information.creatorVisibility);
         }
+    }
+
+    private void getInheritance(ClassInformation information, ClassReader cls) {
+        AnnotationReader annot = cls.getAnnotations().get(JsonTypeName.class.getName());
+        if (annot != null) {
+            AnnotationValue typeNameValue = annot.getValue("value");
+            if (typeNameValue != null) {
+                information.typeName = typeNameValue.getString();
+            } else {
+                information.typeName = getUnqualifiedName(cls.getName());
+            }
+        }
+
+        annot = cls.getAnnotations().get(JsonTypeInfo.class.getName());
+        if (annot != null) {
+            String defaultProperty = "";
+            String use = annot.getValue("use").getEnumValue().getFieldName();
+            switch (use) {
+                case "CLASS":
+                    information.inheritance.value = InheritanceValue.CLASS;
+                    defaultProperty = "@class";
+                    break;
+                case "MINIMAL_CLASS":
+                    information.inheritance.value = InheritanceValue.MINIMAL_CLASS;
+                    defaultProperty = "@c";
+                    break;
+                case "NAME":
+                    information.inheritance.value = InheritanceValue.NAME;
+                    defaultProperty = "@type";
+                    break;
+                case "NONE":
+                    information.inheritance.value = InheritanceValue.NONE;
+                    break;
+                default:
+                    diagnostics.warning(null, "{{c0}}: unsupported value " + use + " in {{c1}}",
+                            cls.getName(), JsonTypeInfo.Id.class.getName());
+                    break;
+            }
+
+            if (information.inheritance.value != InheritanceValue.NONE) {
+                AnnotationValue includeValue = annot.getValue("include");
+                String include = includeValue != null ? includeValue.getEnumValue().getFieldName() : "PROPERTY";
+                switch (include) {
+                    case "PROPERTY":
+                        information.inheritance.key = InheritanceKey.PROPERTY;
+                        break;
+                    case "WRAPPER_ARRAY":
+                        information.inheritance.key = InheritanceKey.WRAPPER_ARRAY;
+                        break;
+                    case "WRAPPER_OBJECT":
+                        information.inheritance.key = InheritanceKey.WRAPPER_OBJECT;
+                        break;
+                    default:
+                        diagnostics.warning(null, "{{c0}}: unsupported value " + includeValue.getString() +
+                                " in {{c1}}", cls.getName(), JsonTypeInfo.As.class.getName());
+                        break;
+                }
+            }
+
+            if (information.inheritance.key == InheritanceKey.PROPERTY) {
+                AnnotationValue propertyValue = annot.getValue("property");
+                String property = propertyValue != null ? propertyValue.getString() : "";
+                if (property.isEmpty()) {
+                    property = defaultProperty;
+                }
+                information.inheritance.propertyName = property;
+            }
+        }
+    }
+
+    static String getUnqualifiedName(String className) {
+        return className.substring(Math.max(0, className.lastIndexOf('.')));
     }
 
     private void getIgnoredProperties(ClassInformation information, ClassReader cls) {

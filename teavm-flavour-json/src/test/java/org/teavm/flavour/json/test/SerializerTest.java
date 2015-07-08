@@ -23,6 +23,10 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.math.BigDecimal;
@@ -224,6 +228,99 @@ public class SerializerTest {
         assertEquals(2, node.get("set").size());
     }
 
+    @Test
+    public void serializesTypeInfo() {
+        InheritanceBase o = new InheritanceBase();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@c' property", node.has("@c"));
+        assertTrue("Should have `foo' property", node.has("foo"));
+        assertFalse("Should not have `bar' property", node.has("bar"));
+        assertEquals(".SerializerTest$InheritanceBase", node.get("@c").asText());
+
+        o = new Inheritance();
+        node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@c' property", node.has("@c"));
+        assertTrue("Should have `foo' property", node.has("foo"));
+        assertTrue("Should have `bar' property", node.has("bar"));
+        assertEquals(".SerializerTest$Inheritance", node.get("@c").asText());
+    }
+
+    @Test
+    public void serializesTypeInfoByName() {
+        InheritanceByTypeNameBase o = new InheritanceByTypeNameBase();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@type' property", node.has("@type"));
+        assertEquals("basetype", node.get("@type").asText());
+
+        o = new InheritanceByTypeName();
+        node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@type' property", node.has("@type"));
+        assertEquals("subtype", node.get("@type").asText());
+
+        o = new InheritanceByExplicitTypeName();
+        node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@type' property", node.has("@type"));
+        assertEquals("basetype", node.get("@type").asText());
+    }
+
+    @Test
+    public void serializesTypeInfoByFullClass() {
+        InheritanceByFullNameBase o = new InheritanceByFullNameBase();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@class' property", node.has("@class"));
+        assertEquals(InheritanceByFullNameBase.class.getName(), node.get("@class").asText());
+
+        o = new InheritanceByFullName();
+        node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `@class' property", node.has("@class"));
+        assertEquals(InheritanceByFullName.class.getName(), node.get("@class").asText());
+    }
+
+    @Test
+    public void serializedTypeInfoAsWrapperObject() {
+        InheritanceAsWrapperObjectBase o = new InheritanceAsWrapperObjectBase();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `base' property", node.has("base"));
+        assertTrue("root.base should be an object", node.get("base").isObject());
+        assertTrue("Should have root.base.foo", node.get("base").has("foo"));
+        assertFalse("Should not have root.base.bar", node.get("base").has("bar"));
+
+        o = new InheritanceAsWrapperObject();
+        node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `subtype' property", node.has("subtype"));
+        assertTrue("root.subtype should be an object", node.get("subtype").isObject());
+        assertTrue("Should have root.subtype.foo", node.get("subtype").has("foo"));
+        assertTrue("Should have root.subtype.bar", node.get("subtype").has("bar"));
+    }
+
+    @Test
+    public void serializedTypeInfoAsWrapperArray() {
+        InheritanceAsWrapperArrayBase o = new InheritanceAsWrapperArrayBase();
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertEquals("base", node.get(0).asText());
+        assertTrue("Second item should be an object", node.get(1).isObject());
+        assertTrue("Should have root[1].foo", node.get(1).has("foo"));
+        assertFalse("Should not have root[1].bar", node.get(1).has("bar"));
+
+        o = new InheritanceAsWrapperArray();
+        node = JSONRunner.serialize(o);
+
+        assertEquals("subtype", node.get(0).asText());
+        assertTrue("Second item should be an object", node.get(1).isObject());
+        assertTrue("Should have root[1].foo", node.get(1).has("foo"));
+        assertTrue("Should have root[1].bar", node.get(1).has("bar"));
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -361,6 +458,64 @@ public class SerializerTest {
     @JsonIgnoreProperties("foo")
     public static class IgnoredProperties {
         public int foo;
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.MINIMAL_CLASS)
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class InheritanceBase {
+        public int foo;
+    }
+
+    public static class Inheritance extends InheritanceBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME)
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    @JsonTypeName("basetype")
+    public static class InheritanceByTypeNameBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
+        public int bar;
+    }
+
+    public static class InheritanceByExplicitTypeName extends InheritanceByTypeNameBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.CLASS)
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class InheritanceByFullNameBase {
+        public int foo;
+    }
+
+    public static class InheritanceByFullName extends InheritanceByFullNameBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT)
+    @JsonTypeName("base")
+    public static class InheritanceAsWrapperObjectBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceAsWrapperObject extends InheritanceAsWrapperObjectBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_ARRAY)
+    @JsonTypeName("base")
+    public static class InheritanceAsWrapperArrayBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
     }
 }

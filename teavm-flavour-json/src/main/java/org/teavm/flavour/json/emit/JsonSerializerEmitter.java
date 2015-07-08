@@ -213,6 +213,7 @@ class JsonSerializerEmitter {
             valueVar = valueVar.cast(ValueType.object(information.className));
 
             emitProperties(information);
+            emitInheritance(information);
 
             targetVar.returnValue();
             cls.addMethod(method);
@@ -234,6 +235,56 @@ class JsonSerializerEmitter {
                 emitGetter(property);
             } else {
                 emitField(property);
+            }
+        }
+    }
+
+    private void emitInheritance(ClassInformation information) {
+        if (information.inheritance.key == null) {
+            return;
+        }
+
+        String typeName;
+        switch (information.inheritance.value) {
+            case CLASS:
+                typeName = information.className;
+                break;
+            case MINIMAL_CLASS:
+                typeName = ClassInformationProvider.getUnqualifiedName(information.className);
+                break;
+            case NAME:
+                typeName = information.typeName != null ? information.typeName :
+                        ClassInformationProvider.getUnqualifiedName(information.className);
+                break;
+            default:
+                return;
+        }
+
+        switch (information.inheritance.key) {
+            case PROPERTY: {
+                ValueEmitter key = pe.constant(information.inheritance.propertyName);
+                ValueEmitter value = pe.invoke(new MethodReference(StringNode.class,
+                        "create", String.class, StringNode.class), pe.constant(typeName));
+                targetVar.invokeVirtual(new MethodReference(ObjectNode.class, "set", String.class,
+                        Node.class, void.class), key, value);
+                break;
+            }
+            case WRAPPER_OBJECT: {
+                ValueEmitter wrapper = pe.invoke(new MethodReference(ObjectNode.class, "create", ObjectNode.class));
+                ValueEmitter key = pe.constant(typeName);
+                wrapper.invokeVirtual(new MethodReference(ObjectNode.class, "set", String.class,
+                        Node.class, void.class), key, targetVar);
+                targetVar = wrapper;
+                break;
+            }
+            case WRAPPER_ARRAY: {
+                ValueEmitter wrapper = pe.invoke(new MethodReference(ArrayNode.class, "create", ArrayNode.class));
+                ValueEmitter key = pe.invoke(new MethodReference(StringNode.class,
+                        "create", String.class, StringNode.class), pe.constant(typeName));
+                wrapper.invokeVirtual(new MethodReference(ArrayNode.class, "add", Node.class, void.class), key);
+                wrapper.invokeVirtual(new MethodReference(ArrayNode.class, "add", Node.class, void.class), targetVar);
+                targetVar = wrapper;
+                break;
             }
         }
     }
