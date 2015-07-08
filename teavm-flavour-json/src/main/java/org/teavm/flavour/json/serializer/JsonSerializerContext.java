@@ -15,9 +15,36 @@
  */
 package org.teavm.flavour.json.serializer;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class JsonSerializerContext {
+    private int lastId;
+    private Map<Object, Integer> ids = new HashMap<>();
+    private Set<Object> touchedObjects = new HashSet<>();
+
+    public boolean hasId(Object object) {
+        return ids.containsKey(object);
+    }
+
+    public int getId(Object object) {
+        Integer id = ids.get(object);
+        if (id == null) {
+            id = lastId++;
+            ids.put(object, id);
+        }
+        return id;
+    }
+
+    public void touch(Object object) {
+        if (!touchedObjects.add(object)) {
+            throw new IllegalArgumentException("Object has already been serialzied: " + object);
+        }
+    }
 }

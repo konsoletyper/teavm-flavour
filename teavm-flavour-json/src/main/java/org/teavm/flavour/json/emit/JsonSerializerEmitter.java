@@ -212,6 +212,7 @@ class JsonSerializerEmitter {
             targetVar = pe.invoke(new MethodReference(ObjectNode.class, "create", ObjectNode.class));
             valueVar = valueVar.cast(ValueType.object(information.className));
 
+            emitIdentity(information);
             emitProperties(information);
             emitInheritance(information);
 
@@ -224,6 +225,45 @@ class JsonSerializerEmitter {
             contextVar = oldContextVar;
             serializedClass = oldSerializedClass;
         }
+    }
+
+    private void emitIdentity(ClassInformation information) {
+        switch (information.idGenerator) {
+            case NONE:
+                contextVar.invokeVirtual(new MethodReference(JsonSerializerContext.class, "touch",
+                        Object.class, void.class), valueVar);
+                break;
+            case INTEGER: {
+                emitIntegerIdentity(information);
+                break;
+            }
+            case PROPERTY:
+                break;
+        }
+    }
+
+    private void emitIntegerIdentity(ClassInformation information) {
+        BasicBlock full = pe.getProgram().createBasicBlock();
+        BasicBlock skip = pe.getProgram().createBasicBlock();
+
+        ValueEmitter hasId = contextVar.invokeVirtual(new MethodReference(JsonSerializerContext.class, "hasId",
+                Object.class, boolean.class), valueVar);
+
+        ValueEmitter id = contextVar.invokeVirtual(new MethodReference(JsonSerializerContext.class,
+                "getId", Object.class, int.class), valueVar);
+        id = pe.invoke(new MethodReference(NumberNode.class, "create", int.class, NumberNode.class), id);
+
+        ForkEmitter fork = hasId.fork(BranchingCondition.NOT_EQUAL);
+        fork.setThen(skip);
+        fork.setElse(full);
+
+        pe.setBlock(skip);
+        id.returnValue();
+
+        pe.setBlock(full);
+        ValueEmitter property = pe.constant(information.idProperty);
+        targetVar.invokeVirtual(new MethodReference(ObjectNode.class, "set", String.class, Node.class,
+                void.class), property, id);
     }
 
     private void emitProperties(ClassInformation information) {

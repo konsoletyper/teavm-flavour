@@ -17,9 +17,11 @@ package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,10 +29,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -321,6 +325,37 @@ public class SerializerTest {
         assertTrue("Should have root[1].bar", node.get(1).has("bar"));
     }
 
+    @Test
+    public void generatesIds() {
+        GraphNode a = new GraphNode();
+        GraphNode b = new GraphNode();
+        a.successors.add(a);
+        a.successors.add(b);
+        b.successors.add(a);
+        JsonNode node = JSONRunner.serialize(a);
+
+        assertTrue("Should have `@id' property", node.has("@id"));
+        int aId = node.get("@id").intValue();
+
+        JsonNode successors = node.get("successors");
+        assertEquals(2, successors.size());
+
+        JsonNode firstSuccessor = successors.get(0);
+        assertTrue("`successors[0].successors' should be integer", firstSuccessor.isInt());
+        assertEquals(aId, firstSuccessor.asInt());
+
+        JsonNode secondSuccessor = successors.get(1);
+        assertTrue("Should have `successors[1].successors'", secondSuccessor.has("successors"));
+        assertNotEquals(aId, secondSuccessor.get("@id").asInt());
+
+        successors = secondSuccessor.get("successors");
+        assertEquals(1, successors.size());
+
+        firstSuccessor = successors.get(0);
+        assertTrue("`successors[1].successors[0]' should be integer", firstSuccessor.isInt());
+        assertEquals(aId, firstSuccessor.asInt());
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -517,5 +552,14 @@ public class SerializerTest {
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
+    }
+
+    @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
+    public static class GraphNode {
+        private List<GraphNode> successors = new ArrayList<>();
+
+        public List<GraphNode> getSuccessors() {
+            return successors;
+        }
     }
 }

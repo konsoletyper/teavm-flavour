@@ -34,4 +34,6 @@ class ClassInformation {
     Visibility setterVisibility = Visibility.ANY;
     Visibility creatorVisibility = Visibility.NONE;
     Visibility fieldVisibility = Visibility.NONE;
+    IdGeneratorType idGenerator = IdGeneratorType.NONE;
+    String idProperty;
 }

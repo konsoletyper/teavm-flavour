@@ -45,7 +45,11 @@ public final class TeaVMJSONRunner {
             return nf.booleanNode(booleanNode.getValue());
         } else if (node.isNumber()) {
             NumberNode numberNode = (NumberNode)node;
-            return nf.numberNode(numberNode.getValue());
+            if (numberNode.isInt()) {
+                return nf.numberNode(numberNode.getIntValue());
+            } else {
+                return nf.numberNode(numberNode.getValue());
+            }
         } else if (node.isString()) {
             StringNode stringNode = (StringNode)node;
             return nf.textNode(stringNode.getValue());

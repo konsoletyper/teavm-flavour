@@ -71,10 +71,13 @@ class ClassInformationProvider {
             }
             information.inheritance = information.parent.inheritance.clone();
             information.typeName = information.parent.typeName;
+            information.idGenerator = information.parent.idGenerator;
+            information.idProperty = information.parent.idProperty;
         }
 
         getAutoDetectModes(information, cls);
         getInheritance(information, cls);
+        getIdentityInfo(information, cls);
         getIgnoredProperties(information, cls);
         scanFields(information, cls);
         scanGetters(information, cls);
@@ -168,6 +171,32 @@ class ClassInformationProvider {
                 }
                 information.inheritance.propertyName = property;
             }
+        }
+    }
+
+    private void getIdentityInfo(ClassInformation information, ClassReader cls) {
+        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonIdentityInfo");
+        if (annot == null) {
+            return;
+        }
+
+        ValueType generator = annot.getValue("generator").getJavaClass();
+        if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$IntSequenceGenerator")) {
+            information.idGenerator = IdGeneratorType.INTEGER;
+        } else if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$PropertyGenerator")) {
+            information.idGenerator = IdGeneratorType.PROPERTY;
+        } else if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$None")) {
+            information.idGenerator = IdGeneratorType.NONE;
+        } else {
+            information.idGenerator = IdGeneratorType.NONE;
+            diagnostics.warning(null, "{{c0}}: unsupported identity generator {{t1}}", cls.getName(), generator);
+        }
+
+        if (information.idGenerator == IdGeneratorType.NONE) {
+            information.idProperty = null;
+        } else {
+            AnnotationValue propertyValue = annot.getValue("property");
+            information.idProperty = propertyValue != null ? propertyValue.getString() : "@id";
         }
     }
 
