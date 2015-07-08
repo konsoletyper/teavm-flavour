@@ -16,6 +16,8 @@
 package org.teavm.flavour.json;
 
 import java.lang.reflect.Array;
+import org.teavm.flavour.json.deserializer.JsonDeserializer;
+import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.tree.ArrayNode;
@@ -54,4 +56,14 @@ public final class JSON {
     }
 
     static native JsonSerializer getClassSerializer(String cls);
+
+    public static Object deserialize(Node node, Class<?> type) {
+        JsonDeserializer deserializer = getClassDeserializer(type.getName());
+        if (deserializer == null) {
+            throw new IllegalArgumentException("Don't know how to deserialize " + type.getName());
+        }
+        return deserializer.deserialize(new JsonDeserializerContext(), node);
+    }
+
+    static native JsonDeserializer getClassDeserializer(String cls);
 }

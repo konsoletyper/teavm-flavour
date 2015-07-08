@@ -64,4 +64,14 @@ public abstract class Node implements JSObject {
     public final boolean isBoolean() {
         return isBoolean(this);
     }
+
+    public final String stringify() {
+        return stringify(this);
+    }
+
+    @JSBody(params = { "node" }, script = "return JSON.stringify(node);")
+    static native String stringify(Node node);
+
+    @JSBody(params = { "text" }, script = "return JSON.parse(text);")
+    public static native Node parse(String text);
 }
