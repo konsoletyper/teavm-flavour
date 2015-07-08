@@ -15,12 +15,6 @@
  */
 package org.teavm.flavour.json.emit;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import java.util.HashMap;
 import java.util.Map;
 import org.teavm.diagnostics.Diagnostics;
@@ -98,7 +92,7 @@ class ClassInformationProvider {
             information.creatorVisibility = parent.creatorVisibility;
         }
 
-        AnnotationReader annot = cls.getAnnotations().get(JsonAutoDetect.class.getName());
+        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonAutoDetect");
         if (annot != null) {
             information.getterVisibility = getVisibility(annot, "getterVisibility", information.getterVisibility);
             information.isGetterVisibility = getVisibility(annot, "isGetterVisibility",
@@ -110,7 +104,7 @@ class ClassInformationProvider {
     }
 
     private void getInheritance(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get(JsonTypeName.class.getName());
+        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonTypeName");
         if (annot != null) {
             AnnotationValue typeNameValue = annot.getValue("value");
             if (typeNameValue != null) {
@@ -120,7 +114,7 @@ class ClassInformationProvider {
             }
         }
 
-        annot = cls.getAnnotations().get(JsonTypeInfo.class.getName());
+        annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonTypeInfo");
         if (annot != null) {
             String defaultProperty = "";
             String use = annot.getValue("use").getEnumValue().getFieldName();
@@ -142,7 +136,7 @@ class ClassInformationProvider {
                     break;
                 default:
                     diagnostics.warning(null, "{{c0}}: unsupported value " + use + " in {{c1}}",
-                            cls.getName(), JsonTypeInfo.Id.class.getName());
+                            cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$Id");
                     break;
             }
 
@@ -161,7 +155,7 @@ class ClassInformationProvider {
                         break;
                     default:
                         diagnostics.warning(null, "{{c0}}: unsupported value " + includeValue.getString() +
-                                " in {{c1}}", cls.getName(), JsonTypeInfo.As.class.getName());
+                                " in {{c1}}", cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$As");
                         break;
                 }
             }
@@ -182,7 +176,7 @@ class ClassInformationProvider {
     }
 
     private void getIgnoredProperties(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get(JsonIgnoreProperties.class.getName());
+        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonIgnoreProperties");
         if (annot == null) {
             return;
         }
@@ -313,7 +307,7 @@ class ClassInformationProvider {
     }
 
     private boolean isIgnored(AnnotationContainerReader annotations) {
-        return annotations.get(JsonIgnore.class.getName()) != null;
+        return annotations.get("com.fasterxml.jackson.annotation.JsonIgnore") != null;
     }
 
     private boolean isGetterName(String name) {
@@ -332,7 +326,7 @@ class ClassInformationProvider {
     }
 
     private String getPropertyName(AnnotationContainerReader annotations, String fallbackName) {
-        AnnotationReader annot = annotations.get(JsonProperty.class.getName());
+        AnnotationReader annot = annotations.get("com.fasterxml.jackson.annotation.JsonProperty");
         if (annot == null) {
             return fallbackName;
         }
@@ -344,6 +338,6 @@ class ClassInformationProvider {
     }
 
     private boolean hasExplicitPropertyDeclaration(AnnotationContainerReader annotations) {
-        return annotations.get(JsonProperty.class.getName()) != null;
+        return annotations.get("com.fasterxml.jackson.annotation.JsonProperty") != null;
     }
 }
