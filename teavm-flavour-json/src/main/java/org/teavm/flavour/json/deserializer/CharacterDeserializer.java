@@ -15,28 +15,25 @@
  */
 package org.teavm.flavour.json.deserializer;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.StringNode;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class JsonDeserializerContext {
-    private Map<Object, Object> objects = new HashMap<>();
-
-    public void register(Object id, Object object) {
-        if (objects.containsKey(id)) {
-            throw new IllegalArgumentException("Two objects with the same id were found");
+public class CharacterDeserializer extends NullableDeserializer {
+    @Override
+    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+        if (!node.isString()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-string node as a char");
         }
-        objects.put(id, object);
-    }
 
-    public Object get(Object id) {
-        Object object = objects.get(id);
-        if (object == null) {
-            throw new IllegalArgumentException("Object with id " + id + " was not found");
+        String value = ((StringNode)node).getValue();
+        if (value.length() != 1) {
+            throw new IllegalArgumentException("String must be exactly one char length to be deserialized as a char");
         }
-        return object;
+
+        return value.charAt(0);
     }
 }

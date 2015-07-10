@@ -15,28 +15,20 @@
  */
 package org.teavm.flavour.json.deserializer;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.NumberNode;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class JsonDeserializerContext {
-    private Map<Object, Object> objects = new HashMap<>();
-
-    public void register(Object id, Object object) {
-        if (objects.containsKey(id)) {
-            throw new IllegalArgumentException("Two objects with the same id were found");
+public class DoubleDeserializer extends NullableDeserializer {
+    @Override
+    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte");
         }
-        objects.put(id, object);
-    }
-
-    public Object get(Object id) {
-        Object object = objects.get(id);
-        if (object == null) {
-            throw new IllegalArgumentException("Object with id " + id + " was not found");
-        }
-        return object;
+        NumberNode number = (NumberNode)node;
+        return number.getValue();
     }
 }
