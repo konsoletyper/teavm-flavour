@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.json.deserializer;
 
+import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.json.tree.StringNode;
 
 /**
  *
@@ -25,15 +25,6 @@ import org.teavm.flavour.json.tree.StringNode;
 public class CharacterDeserializer extends NullableDeserializer {
     @Override
     public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
-        if (!node.isString()) {
-            throw new IllegalArgumentException("Don't know how to deserialize non-string node as a char");
-        }
-
-        String value = ((StringNode)node).getValue();
-        if (value.length() != 1) {
-            throw new IllegalArgumentException("String must be exactly one char length to be deserialized as a char");
-        }
-
-        return value.charAt(0);
+        return JSON.deserializeChar(node);
     }
 }

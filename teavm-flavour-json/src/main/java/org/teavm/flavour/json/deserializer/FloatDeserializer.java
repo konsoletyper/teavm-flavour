@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.json.deserializer;
 
+import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.json.tree.NumberNode;
 
 /**
  *
@@ -25,10 +25,6 @@ import org.teavm.flavour.json.tree.NumberNode;
 public class FloatDeserializer extends NullableDeserializer {
     @Override
     public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
-        if (!node.isNumber()) {
-            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte");
-        }
-        NumberNode number = (NumberNode)node;
-        return (float)number.getValue();
+        return JSON.deserializeFloat(node);
     }
 }

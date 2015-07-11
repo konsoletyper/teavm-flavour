@@ -333,6 +333,7 @@ class ClassInformationProvider {
         }
 
         property.fieldName = field.getName();
+        property.type = field.getType();
     }
 
     private boolean isIgnored(AnnotationContainerReader annotations) {

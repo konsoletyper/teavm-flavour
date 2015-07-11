@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.json.deserializer;
 
-import org.teavm.flavour.json.tree.BooleanNode;
+import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
 
 /**
@@ -25,9 +25,6 @@ import org.teavm.flavour.json.tree.Node;
 public class BooleanDeserializer extends NullableDeserializer {
     @Override
     public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
-        if (!node.isBoolean()) {
-            throw new IllegalArgumentException("Can't deserialize non-boolean not as a boolean");
-        }
-        return ((BooleanNode)node).getValue();
+        return JSON.deserializeBoolean(node);
     }
 }

@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
+import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.BooleanDeserializer;
 import org.teavm.flavour.json.deserializer.ByteDeserializer;
 import org.teavm.flavour.json.deserializer.CharacterDeserializer;
@@ -34,6 +35,7 @@ import org.teavm.flavour.json.deserializer.LongDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
+import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
@@ -44,11 +46,16 @@ import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
+import org.teavm.model.PrimitiveType;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.instructions.ArrayElementType;
+import org.teavm.model.instructions.BinaryInstruction;
+import org.teavm.model.instructions.BinaryOperation;
 import org.teavm.model.instructions.BranchingCondition;
+import org.teavm.model.instructions.NumericOperandType;
 import org.teavm.model.instructions.RaiseInstruction;
 
 /**
@@ -87,7 +94,7 @@ class JsonDeserializerEmitter {
         informationProvider = new ClassInformationProvider(classSource, agent.getDiagnostics());
     }
 
-    public String addClassSerializer(String serializedClassName) {
+    public String addClassDeserializer(String serializedClassName) {
         ClassReader cls = classSource.get(serializedClassName);
         if (cls == null) {
             return null;
@@ -189,8 +196,10 @@ class JsonDeserializerEmitter {
             contextVar = pe.newVar();
             nodeVar = pe.newVar();
 
-            emitIdCheck(information, cls);
-            emitNodeTypeCheck(information, cls);
+            BasicBlock nonObjectBlock = pe.createBlock();
+            emitNodeTypeCheck(nonObjectBlock);
+
+            emitIdCheck(information);
 
             targetVar.returnValue();
             cls.addMethod(method);
@@ -203,29 +212,32 @@ class JsonDeserializerEmitter {
         }
     }
 
-    private void emitIdCheck(ClassInformation information, ClassHolder cls) {
+    private void emitIdCheck(ClassInformation information) {
         switch (information.idGenerator) {
             case INTEGER:
-                emitIntegerIdCheck(information, cls);
+                emitIntegerIdCheck(information);
                 break;
             case PROPERTY:
-                emitIntegerIdCheck(information, cls);
+                emitPropertyIdCheck(information);
+                break;
+            case NONE:
+                emitNoId(information);
                 break;
             default:
                 break;
         }
     }
 
-    private void emitIntegerIdCheck(ClassInformation information, ClassHolder cls) {
-        BasicBlock solidObject = pe.getProgram().createBasicBlock();
-        BasicBlock thinObject = pe.getProgram().createBasicBlock();
+    private void emitIntegerIdCheck(ClassInformation information) {
+        BasicBlock errorBlock = pe.getProgram().createBasicBlock();
+        BasicBlock okBlock = pe.getProgram().createBasicBlock();
 
         ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isInt()", boolean.class))
                 .fork(BranchingCondition.NOT_EQUAL);
-        fork.setThen(thinObject);
-        fork.setElse(solidObject);
+        fork.setThen(okBlock);
+        fork.setElse(errorBlock);
 
-        pe.setBlock(thinObject);
+        pe.setBlock(okBlock);
         ValueEmitter id = nodeVar.cast(ValueType.parse(NumberNode.class))
                 .invokeVirtual(new MethodReference(NumberNode.class, "getIntValue", int.class));
         id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class), id);
@@ -233,30 +245,191 @@ class JsonDeserializerEmitter {
                 Object.class, Object.class), id)
                 .returnValue();
 
-        pe.setBlock(solidObject);
+        pe.setBlock(errorBlock);
+        emitNoId(information);
     }
 
-    private void emitPropertyIdCheck(ClassInformation information, ClassHolder cls) {
+    private void emitPropertyIdCheck(ClassInformation information) {
+        PropertyInformation property = information.properties.get(information.idProperty);
+        if (property == null) {
+            emitNoId(information);
+            return;
+        }
+
+        ValueType type = property.getType();
+        if (type == null) {
+            emitNoId(information);
+            return;
+        }
+
 
     }
 
-    private void emitNodeTypeCheck(ClassInformation information, ClassHolder cls) {
-        BasicBlock errorBlock = pe.getProgram().createBasicBlock();
+    private void emitNoId(ClassInformation information) {
+        ValueEmitter ex = pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class),
+                pe.constant("Can't deserialize node to an instance of " + information.className));
+        RaiseInstruction raise = new RaiseInstruction();
+        raise.setException(ex.getVariable());
+        pe.addInstruction(raise);
+    }
+
+    private void emitNodeTypeCheck(BasicBlock errorBlock) {
         BasicBlock okBlock = pe.getProgram().createBasicBlock();
 
-        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject()", boolean.class))
+        ForkEmitter okFork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject()", boolean.class))
+                .fork(BranchingCondition.NOT_EQUAL);
+
+        pe.createBlock();
+        okFork.or(pe.getBlock(), nodeVar.invokeVirtual(new MethodReference(Node.class, "isArray()", boolean.class))
+                .fork(BranchingCondition.NOT_EQUAL));
+
+        okFork.setThen(okBlock);
+        okFork.setElse(errorBlock);
+
+        pe.setBlock(okBlock);
+        nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
+    }
+
+    private ValueEmitter convert(ValueEmitter node, ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            return convertPrimitive(node, ((ValueType.Primitive)type).getKind());
+        } else {
+            return convertNullable(node, type);
+        }
+    }
+
+    private ValueEmitter convertNullable(ValueEmitter node, ValueType type) {
+        BasicBlock nullBlock = pe.getProgram().createBasicBlock();
+        BasicBlock notNullBlock = pe.getProgram().createBasicBlock();
+        BasicBlock endBlock = pe.getProgram().createBasicBlock();
+
+        ForkEmitter fork = node.invokeVirtual(new MethodReference(Node.class, "isNull", boolean.class))
+            .fork(BranchingCondition.NOT_EQUAL);
+        fork.setThen(notNullBlock);
+        fork.setElse(nullBlock);
+
+        pe.setBlock(nullBlock);
+        ValueEmitter nullValue = pe.constantNull();
+        pe.jump(endBlock);
+
+        pe.setBlock(notNullBlock);
+        ValueEmitter value;
+        if (type instanceof ValueType.Array) {
+            value = convertArray(node, (ValueType.Array)type);
+        } else if (type instanceof ValueType.Object) {
+            value = convertObject(node, (ValueType.Object)type);
+        } else {
+            value = node;
+        }
+        BasicBlock notNullEndBlock = pe.getBlock();
+        pe.jump(endBlock);
+
+        pe.setBlock(endBlock);
+        return value.join(notNullEndBlock, nullValue, nullBlock);
+    }
+
+    private ValueEmitter convertPrimitive(ValueEmitter node, PrimitiveType type) {
+        switch (type) {
+            case BOOLEAN:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeBoolean",
+                        Node.class, boolean.class), node);
+            case BYTE:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeByte", Node.class, byte.class), node);
+            case SHORT:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeShort", Node.class, short.class), node);
+            case INTEGER:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeInt", Node.class, int.class), node);
+            case LONG:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeLong", Node.class, long.class), node);
+            case FLOAT:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeFloat", Node.class, float.class), node);
+            case DOUBLE:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeDouble", Node.class, double.class), node);
+            case CHARACTER:
+                return pe.invoke(new MethodReference(JSON.class, "deserializeChar", Node.class, char.class), node);
+        }
+        throw new AssertionError("Unknown primitive type: " + type);
+    }
+
+    private ValueEmitter convertArray(ValueEmitter node, ValueType.Array type) {
+        BasicBlock okBlock = pe.getProgram().createBasicBlock();
+        BasicBlock errorBlock = pe.getProgram().createBasicBlock();
+
+        ForkEmitter fork = node.invokeVirtual(new MethodReference(Node.class, "isArray", boolean.class))
                 .fork(BranchingCondition.NOT_EQUAL);
         fork.setThen(okBlock);
         fork.setElse(errorBlock);
 
         pe.setBlock(errorBlock);
         ValueEmitter ex = pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class),
-                pe.constant("Can't deserialize non-object node to an instance of " + information.className));
+                pe.constant("Can't deserialize non-array node as an array"));
         RaiseInstruction raise = new RaiseInstruction();
         raise.setException(ex.getVariable());
         pe.addInstruction(raise);
 
+        BasicBlock head = pe.getProgram().createBasicBlock();
+        BasicBlock body = pe.getProgram().createBasicBlock();
+        BasicBlock incrementBlock = pe.getProgram().createBasicBlock();
+        BasicBlock exit = pe.getProgram().createBasicBlock();
         pe.setBlock(okBlock);
-        nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
+        node = node.cast(ValueType.parse(ArrayNode.class));
+        ValueEmitter size = node.invokeVirtual(new MethodReference(ArrayNode.class, "size", int.class));
+        ValueEmitter result = pe.constructArray(type, size);
+        ValueEmitter initialIndex = pe.constant(0);
+        ValueEmitter increment = pe.constant(1);
+        ValueEmitter nextIndex = pe.newVar();
+        pe.jump(head);
+
+        ValueEmitter index = initialIndex.join(okBlock, nextIndex, incrementBlock);
+        fork = index.compare(NumericOperandType.INT, size).fork(BranchingCondition.LESS);
+        fork.setThen(body);
+        fork.setElse(incrementBlock);
+
+        pe.setBlock(body);
+        ValueEmitter itemNode = node.invokeVirtual(new MethodReference(ArrayNode.class, "get",
+                int.class, Node.class), index);
+        result.unwrapArray(getArrayElementType(type.getItemType()))
+                .setElement(index, convert(itemNode, type.getItemType()));
+        pe.jump(incrementBlock);
+
+        BinaryInstruction incrementInsn = new BinaryInstruction(BinaryOperation.ADD, NumericOperandType.INT);
+        incrementInsn.setFirstOperand(index.getVariable());
+        incrementInsn.setSecondOperand(increment.getVariable());
+        incrementInsn.setReceiver(nextIndex.getVariable());
+        pe.addInstruction(incrementInsn);
+        pe.jump(head);
+
+        pe.setBlock(exit);
+        return result;
+    }
+
+    private ValueEmitter convertObject(ValueEmitter node, ValueType.Object type) {
+        String deserializerClass = addClassDeserializer(type.getClassName());
+        return pe.construct(new MethodReference(deserializerClass, "<init>", ValueType.VOID))
+                .invokeVirtual(new MethodReference(JsonDeserializer.class, "deserialize",
+                JsonDeserializerContext.class, Node.class, Object.class), contextVar, node);
+    }
+
+    private ArrayElementType getArrayElementType(ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive)type).getKind()) {
+                case BOOLEAN:
+                case BYTE:
+                    return ArrayElementType.BYTE;
+                case SHORT:
+                    return ArrayElementType.SHORT;
+                case CHARACTER:
+                    return ArrayElementType.CHAR;
+                case INTEGER:
+                    return ArrayElementType.INT;
+                case LONG:
+                    return ArrayElementType.LONG;
+                case FLOAT:
+                    return ArrayElementType.FLOAT;
+                case DOUBLE:
+                    return ArrayElementType.DOUBLE;
+            }
+        }
+        return ArrayElementType.OBJECT;
     }
 }

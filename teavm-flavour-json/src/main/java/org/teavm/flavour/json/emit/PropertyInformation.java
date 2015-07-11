@@ -16,6 +16,7 @@
 package org.teavm.flavour.json.emit;
 
 import org.teavm.model.MethodDescriptor;
+import org.teavm.model.ValueType;
 
 /**
  *
@@ -25,8 +26,10 @@ class PropertyInformation implements Cloneable {
     String name;
     String outputName;
     MethodDescriptor getter;
+    MethodDescriptor setter;
     String fieldName;
     String className;
+    ValueType type;
     boolean ignored;
 
     @Override
@@ -36,5 +39,12 @@ class PropertyInformation implements Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new AssertionError("Unexpected exception caught", e);
         }
+    }
+
+    public ValueType getType() {
+        if (getter != null) {
+            return getter.getResultType();
+        }
+        return type;
     }
 }

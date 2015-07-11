@@ -40,8 +40,11 @@ import org.teavm.flavour.json.deserializer.StringDeserializer;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.tree.ArrayNode;
+import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
+import org.teavm.flavour.json.tree.NumberNode;
+import org.teavm.flavour.json.tree.StringNode;
 
 /**
  *
@@ -129,4 +132,72 @@ public final class JSON {
     }
 
     static native JsonDeserializer findClassDeserializer(String cls);
+
+    public static boolean deserializeBoolean(Node node) {
+        if (!node.isBoolean()) {
+            throw new IllegalArgumentException("Can't deserialize non-boolean not as a boolean primitive");
+        }
+        return ((BooleanNode)node).getValue();
+    }
+
+    public static byte deserializeByte(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return (byte)number.getIntValue();
+    }
+
+    public static short deserializeShort(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a short primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return (short)number.getIntValue();
+    }
+
+    public static int deserializeInt(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as an int primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return number.getIntValue();
+    }
+
+    public static long deserializeLong(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a long primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return (long)number.getValue();
+    }
+
+    public static float deserializeFloat(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a float primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return (float)number.getValue();
+    }
+
+    public static double deserializeDouble(Node node) {
+        if (!node.isNumber()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a double primitive");
+        }
+        NumberNode number = (NumberNode)node;
+        return number.getValue();
+    }
+
+    public static char deserializeChar(Node node) {
+        if (!node.isString()) {
+            throw new IllegalArgumentException("Don't know how to deserialize non-string node as a char");
+        }
+
+        String value = ((StringNode)node).getValue();
+        if (value.length() != 1) {
+            throw new IllegalArgumentException("String must be exactly one char length to be deserialized as a char");
+        }
+
+        return value.charAt(0);
+    }
 }
