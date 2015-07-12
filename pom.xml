@@ -192,5 +192,6 @@
     <module>expr</module>
     <module>example</module>
     <module>widgets</module>
+    <module>regex</module>
   </modules>
 </project>
