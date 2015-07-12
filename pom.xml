@@ -188,9 +188,9 @@
   </build>
 
   <modules>
-    <module>teavm-flavour-templates</module>
-    <module>teavm-flavour-expr</module>
-    <module>teavm-flavour-example</module>
-    <module>teavm-flavour-widgets</module>
+    <module>templates</module>
+    <module>expr</module>
+    <module>example</module>
+    <module>widgets</module>
   </modules>
 </project>
