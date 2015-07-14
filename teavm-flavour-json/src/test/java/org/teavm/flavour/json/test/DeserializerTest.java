@@ -15,27 +15,39 @@
  */
 package org.teavm.flavour.json.test;
 
-import java.io.IOException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /**
  *
  * @author Alexey Andreev
  */
-public final class JSONRunner {
-    private JSONRunner() {
+public class DeserializerTest {
+    @Test
+    public void readsProperty() {
+        A obj = JSONRunner.deserialize("{ \"a\" : \"foo\", \"b\": 23 }", A.class);
+        assertEquals("foo", obj.getA());
+        assertEquals(23, obj.getB());
     }
 
-    public static JsonNode serialize(Object value) {
-        return new ObjectMapper().valueToTree(value);
-    }
+    public static class A {
+        private String a;
+        private int b;
 
-    public static <T> T deserialize(String json, Class<T> type) {
-        try {
-            return new ObjectMapper().readValue(json, type);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        public String getA() {
+            return a;
+        }
+
+        public void setA(String a) {
+            this.a = a;
+        }
+
+        public int getB() {
+            return b;
+        }
+
+        public void setB(int b) {
+            this.b = b;
         }
     }
 }

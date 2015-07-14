@@ -33,8 +33,13 @@ public final class TeaVMJSONRunner {
     private TeaVMJSONRunner() {
     }
 
-    public static final JsonNode serialize(Object value) {
+    public static JsonNode serialize(Object value) {
         return convert(new JsonNodeFactory(false), JSON.serialize(value));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T deserialize(String json, Class<T> type) {
+        return (T)JSON.deserialize(Node.parse(json), type);
     }
 
     public static final JsonNode convert(JsonNodeFactory nf, Node node) {

@@ -67,6 +67,11 @@ public class TeaVMJSONTestHack implements ClassHolderTransformer, TeaVMPlugin {
                 invocation.setMethod(new MethodReference(TeaVMJSONRunner.class.getName(),
                         invocation.getMethod().getDescriptor()));
             }
+            if (invocation.getMethod().getClassName().equals(JSONRunner.class.getName()) &&
+                    invocation.getMethod().getName().equals("deserialize")) {
+                invocation.setMethod(new MethodReference(TeaVMJSONRunner.class.getName(),
+                        invocation.getMethod().getDescriptor()));
+            }
         }
     }
 }

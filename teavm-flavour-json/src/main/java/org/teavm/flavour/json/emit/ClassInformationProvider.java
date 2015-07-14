@@ -81,6 +81,7 @@ class ClassInformationProvider {
         getIgnoredProperties(information, cls);
         scanFields(information, cls);
         scanGetters(information, cls);
+        scanSetters(information, cls);
 
         return information;
     }
@@ -262,6 +263,22 @@ class ClassInformationProvider {
         }
     }
 
+    private void scanSetters(ClassInformation information, ClassReader cls) {
+        for (MethodReader method : cls.getMethods()) {
+            if (method.hasModifier(ElementModifier.STATIC)) {
+                continue;
+            }
+            if (isSetterName(method.getName()) && method.parameterCount() == 1 &&
+                    method.getResultType() == ValueType.VOID) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
+                        information.setterVisibility.match(method.getLevel())) {
+                    String propertyName = decapitalize(method.getName().substring(3));
+                    addSetter(information, propertyName, method);
+                }
+            }
+        }
+    }
+
     private void addGetter(ClassInformation information, String propertyName, MethodReader method) {
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
@@ -291,6 +308,37 @@ class ClassInformationProvider {
         }
 
         property.getter = method.getDescriptor();
+    }
+
+    private void addSetter(ClassInformation information, String propertyName, MethodReader method) {
+        PropertyInformation property = information.properties.get(propertyName);
+        if (property != null) {
+            information.propertiesByOutputName.remove(property.outputName);
+        } else {
+            property = new PropertyInformation();
+            property.name = propertyName;
+            property.outputName = propertyName;
+            property.className = information.className;
+            information.properties.put(propertyName, property);
+        }
+
+        if (property.ignored || isIgnored(method.getAnnotations())) {
+            property.ignored = true;
+            return;
+        }
+
+        property.outputName = getPropertyName(method.getAnnotations(), property.outputName);
+        PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
+        if (conflictingProperty != null) {
+            CallLocation location = new CallLocation(method.getReference());
+            diagnostics.error(location, "Duplicate property declaration " + propertyName + ". " +
+                    "Already declared in {{c0}}", property.className);
+            return;
+        } else {
+            information.propertiesByOutputName.put(property.outputName, property);
+        }
+
+        property.setter = method.getDescriptor();
     }
 
     private void scanFields(ClassInformation information, ClassReader cls) {
@@ -346,6 +394,10 @@ class ClassInformationProvider {
 
     private boolean isBooleanName(String name) {
         return name.startsWith("is") && name.length() > 2 && Character.toUpperCase(name.charAt(2)) == name.charAt(2);
+    }
+
+    private boolean isSetterName(String name) {
+        return name.startsWith("set") && name.length() > 3 && Character.toUpperCase(name.charAt(3)) == name.charAt(3);
     }
 
     private String decapitalize(String name) {

@@ -207,14 +207,15 @@ class JsonDeserializerEmitter {
             contextVar = pe.newVar();
             nodeVar = pe.newVar();
 
-            BasicBlock nonObjectBlock = pe.createBlock();
+            BasicBlock nonObjectBlock = pe.getProgram().createBasicBlock();
             emitNodeTypeCheck(nonObjectBlock);
 
-            emitIdCheck(information);
             emitConstructor(information);
             emitIdRegistration(information);
-
+            emitProperties(information);
             targetVar.returnValue();
+            pe.setBlock(nonObjectBlock);
+            emitIdCheck(information);
             cls.addMethod(method);
         } finally {
             pe = null;
@@ -269,20 +270,7 @@ class JsonDeserializerEmitter {
             return;
         }
 
-        Type type = null;
-        if (property.getter != null) {
-            Method getter = findMethod(new MethodReference(property.className, property.getter));
-            if (getter != null) {
-                type = getter.getGenericReturnType();
-            }
-        }
-        if (type == null && property.fieldName != null) {
-            Field field = findField(new FieldReference(property.className, property.fieldName));
-            if (field != null) {
-                type = field.getGenericType();
-            }
-        }
-
+        Type type = getPropertyGenericType(property);
         if (type != null) {
             ValueEmitter id = convert(nodeVar, type);
             contextVar.invokeVirtual(new MethodReference(JsonDeserializerContext.class, "get", Object.class,
@@ -293,8 +281,8 @@ class JsonDeserializerEmitter {
     }
 
     private void emitNoId(ClassInformation information) {
-        ValueEmitter ex = pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class),
-                pe.constant("Can't deserialize node to an instance of " + information.className));
+        ValueEmitter ex = pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class,
+                void.class), pe.constant("Can't deserialize node to an instance of " + information.className));
         RaiseInstruction raise = new RaiseInstruction();
         raise.setException(ex.getVariable());
         pe.addInstruction(raise);
@@ -303,12 +291,12 @@ class JsonDeserializerEmitter {
     private void emitNodeTypeCheck(BasicBlock errorBlock) {
         BasicBlock okBlock = pe.getProgram().createBasicBlock();
 
-        ForkEmitter okFork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject()", boolean.class))
+        ForkEmitter okFork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject", boolean.class))
                 .fork(BranchingCondition.NOT_EQUAL);
 
         pe.createBlock();
-        okFork.or(pe.getBlock(), nodeVar.invokeVirtual(new MethodReference(Node.class, "isArray()", boolean.class))
-                .fork(BranchingCondition.NOT_EQUAL));
+        okFork = okFork.or(pe.getBlock(), nodeVar.invokeVirtual(new MethodReference(Node.class, "isArray",
+                boolean.class)).fork(BranchingCondition.NOT_EQUAL));
 
         okFork.setThen(okBlock);
         okFork.setElse(errorBlock);
@@ -349,7 +337,73 @@ class JsonDeserializerEmitter {
     }
 
     private ValueEmitter emitPropertyIdRegistration(ClassInformation information) {
-        return null;
+        PropertyInformation property = information.properties.get(information.idProperty);
+        if (property == null) {
+            return null;
+        }
+
+        ValueEmitter id = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get",
+                String.class, Node.class), pe.constant(information.idProperty));
+        Type type = getPropertyGenericType(property);
+
+        if (type == null) {
+            return null;
+        }
+        return convert(id, type);
+    }
+
+    private void emitProperties(ClassInformation information) {
+        for (PropertyInformation property : information.properties.values()) {
+            if (property.ignored) {
+                continue;
+            }
+            if (property.setter != null) {
+                emitSetter(property);
+            } else {
+                emitField(property);
+            }
+        }
+    }
+
+    private void emitSetter(PropertyInformation property) {
+        MethodReference method = new MethodReference(property.className, property.setter);
+        Method javaMethod = findMethod(method);
+        Type type = javaMethod.getGenericParameterTypes()[0];
+        agent.linkMethod(method, null);
+
+        ValueEmitter value = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
+                Node.class), pe.constant(property.outputName));
+        value = convert(value, type);
+        targetVar.invokeVirtual(method, value);
+    }
+
+    private void emitField(PropertyInformation property) {
+        FieldReference method = new FieldReference(property.className, property.fieldName);
+        Field javaMethod = findField(method);
+        Type type = javaMethod.getGenericType();
+        ValueType fieldType = agent.linkField(method, null).getField().getType();
+
+        ValueEmitter value = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
+                Node.class), pe.constant(property.outputName));
+        value = convert(value, type);
+        targetVar.setField(method, fieldType, value);
+    }
+
+    private Type getPropertyGenericType(PropertyInformation property) {
+        Type type = null;
+        if (property.getter != null) {
+            Method getter = findMethod(new MethodReference(property.className, property.getter));
+            if (getter != null) {
+                type = getter.getGenericReturnType();
+            }
+        }
+        if (type == null && property.fieldName != null) {
+            Field field = findField(new FieldReference(property.className, property.fieldName));
+            if (field != null) {
+                type = field.getGenericType();
+            }
+        }
+        return type;
     }
 
     private ValueEmitter convert(ValueEmitter node, Type type) {
@@ -364,7 +418,7 @@ class JsonDeserializerEmitter {
 
     private ValueEmitter convertNullable(ValueEmitter node, Type type) {
         ValueEmitter deserializer = createDeserializer(type);
-        return deserializer.invokeVirtual(new MethodReference(JsonDeserializer.class, "deserializer",
+        return deserializer.invokeVirtual(new MethodReference(JsonDeserializer.class, "deserialize",
                 JsonDeserializerContext.class, Node.class, Object.class), contextVar, node);
     }
 
