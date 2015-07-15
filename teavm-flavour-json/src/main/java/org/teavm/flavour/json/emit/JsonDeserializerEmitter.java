@@ -498,7 +498,7 @@ class JsonDeserializerEmitter {
     private ValueEmitter createArrayDeserializer(Class<?> type) {
         if (type.getComponentType().isPrimitive()) {
             String name = type.getComponentType().getName();
-            String deserializerClass = BooleanArrayDeserializer.class.getPackage().getName() +
+            String deserializerClass = BooleanArrayDeserializer.class.getPackage().getName() + "." +
                     Character.toUpperCase(name.charAt(0)) + name.substring(1) + "ArrayDeserializer";
             return pe.construct(new MethodReference(deserializerClass, "<init>", ValueType.VOID));
         } else {

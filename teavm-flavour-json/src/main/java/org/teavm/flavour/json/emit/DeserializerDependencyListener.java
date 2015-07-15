@@ -58,26 +58,28 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             while (resources.hasMoreElements()) {
                 URL res = resources.nextElement();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(res.openStream()))) {
-                    String line = reader.readLine();
-                    if (line == null) {
-                        break;
-                    }
-                    line = line.trim();
-                    if (line.isEmpty() || line.startsWith("#")) {
-                        continue;
-                    }
+                    while (true) {
+                        String line = reader.readLine();
+                        if (line == null) {
+                            break;
+                        }
+                        line = line.trim();
+                        if (line.isEmpty() || line.startsWith("#")) {
+                            continue;
+                        }
 
-                    ClassReader cls = agent.getClassSource().get(line);
-                    if (cls == null) {
-                        agent.getDiagnostics().warning(location, "Can't find class {{c0}} declared by " +
-                                res.toString(), line);
-                    }
+                        ClassReader cls = agent.getClassSource().get(line);
+                        if (cls == null) {
+                            agent.getDiagnostics().warning(location, "Can't find class {{c0}} declared by " +
+                                    res.toString(), line);
+                        }
 
-                    String deserializerName = emitter.addClassDeserializer(line);
-                    agent.linkMethod(new MethodReference(deserializerName, "<init>", ValueType.VOID), location)
-                            .propagate(0, deserializerName)
-                            .use();
-                    caller.getResult().propagate(agent.getType(deserializerName));
+                        String deserializerName = emitter.addClassDeserializer(line);
+                        agent.linkMethod(new MethodReference(deserializerName, "<init>", ValueType.VOID), location)
+                                .propagate(0, deserializerName)
+                                .use();
+                        caller.getResult().propagate(agent.getType(deserializerName));
+                    }
                 }
             }
         } catch (IOException e) {

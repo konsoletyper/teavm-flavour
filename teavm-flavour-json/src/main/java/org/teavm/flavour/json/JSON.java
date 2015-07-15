@@ -21,20 +21,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
+import org.teavm.flavour.json.deserializer.BooleanArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanDeserializer;
+import org.teavm.flavour.json.deserializer.ByteArrayDeserializer;
 import org.teavm.flavour.json.deserializer.ByteDeserializer;
+import org.teavm.flavour.json.deserializer.CharArrayDeserializer;
 import org.teavm.flavour.json.deserializer.CharacterDeserializer;
+import org.teavm.flavour.json.deserializer.DoubleArrayDeserializer;
 import org.teavm.flavour.json.deserializer.DoubleDeserializer;
+import org.teavm.flavour.json.deserializer.FloatArrayDeserializer;
 import org.teavm.flavour.json.deserializer.FloatDeserializer;
+import org.teavm.flavour.json.deserializer.IntArrayDeserializer;
 import org.teavm.flavour.json.deserializer.IntegerDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
 import org.teavm.flavour.json.deserializer.ListDeserializer;
+import org.teavm.flavour.json.deserializer.LongArrayDeserializer;
 import org.teavm.flavour.json.deserializer.LongDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.NumberDeserializer;
 import org.teavm.flavour.json.deserializer.ObjectDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
+import org.teavm.flavour.json.deserializer.ShortArrayDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
 import org.teavm.flavour.json.serializer.JsonSerializer;
@@ -116,6 +124,26 @@ public final class JSON {
         }
 
         if (cls.isArray()) {
+            if (cls.getComponentType().isPrimitive()) {
+                switch (cls.getComponentType().getName()) {
+                    case "boolean":
+                        return new BooleanArrayDeserializer();
+                    case "byte":
+                        return new ByteArrayDeserializer();
+                    case "char":
+                        return new CharArrayDeserializer();
+                    case "short":
+                        return new ShortArrayDeserializer();
+                    case "int":
+                        return new IntArrayDeserializer();
+                    case "long":
+                        return new LongArrayDeserializer();
+                    case "float":
+                        return new FloatArrayDeserializer();
+                    case "double":
+                        return new DoubleArrayDeserializer();
+                }
+            }
             return new ArrayDeserializer(cls.getComponentType(), getClassDeserializer(cls.getComponentType()));
         }
         if (List.class.isAssignableFrom(cls)) {

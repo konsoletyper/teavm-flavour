@@ -1,1 +1,8 @@
 org.teavm.flavour.json.test.DeserializerTest$A
+org.teavm.flavour.json.test.DeserializerTest$B
+org.teavm.flavour.json.test.DeserializerTest$ArrayProperty
+org.teavm.flavour.json.test.DeserializerTest$ArrayOfObjectProperty
+org.teavm.flavour.json.test.DeserializerTest$RenamedProperty
+org.teavm.flavour.json.test.DeserializerTest$IgnoredProperty
+org.teavm.flavour.json.test.DeserializerTest$FieldAndSetter
+org.teavm.flavour.json.test.DeserializerTest$FieldVisible
