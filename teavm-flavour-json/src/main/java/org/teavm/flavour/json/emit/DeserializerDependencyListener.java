@@ -22,6 +22,9 @@ import java.net.URL;
 import java.util.Enumeration;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
+import org.teavm.dependency.DependencyConsumer;
+import org.teavm.dependency.DependencyNode;
+import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
 import org.teavm.model.CallLocation;
@@ -36,18 +39,34 @@ import org.teavm.model.ValueType;
 class DeserializerDependencyListener extends AbstractDependencyListener {
     private JsonDeserializerEmitter emitter;
     private boolean generated;
+    private DependencyNode deserializableClasses;
+
+    @Override
+    public void started(DependencyAgent agent) {
+        deserializableClasses = agent.createNode();
+        emitter = new JsonDeserializerEmitter(agent, deserializableClasses);
+    }
 
     @Override
     public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
         if (method.getReference().getClassName().equals(JSON.class.getName()) &&
                 method.getReference().getName().equals("findClassDeserializer")) {
-            emitter = new JsonDeserializerEmitter(agent);
-            generateDeserializers(agent, method, location);
+            deserializableClasses.addConsumer(new DependencyConsumer() {
+                @Override
+                public void consume(DependencyType type) {
+                    String deserializerName = emitter.addClassDeserializer(type.getName());
+                    agent.linkMethod(new MethodReference(deserializerName, "<init>", ValueType.VOID), location)
+                            .propagate(0, deserializerName)
+                            .use();
+                    method.getResult().propagate(agent.getType(deserializerName));
+                }
+            });
+            generateDeserializers(agent, location);
         }
     }
 
-    private void generateDeserializers(DependencyAgent agent, MethodDependency caller, CallLocation location) {
+    private void generateDeserializers(DependencyAgent agent, CallLocation location) {
         if (generated) {
             return;
         }
@@ -74,11 +93,8 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
                                     res.toString(), line);
                         }
 
-                        String deserializerName = emitter.addClassDeserializer(line);
-                        agent.linkMethod(new MethodReference(deserializerName, "<init>", ValueType.VOID), location)
-                                .propagate(0, deserializerName)
-                                .use();
-                        caller.getResult().propagate(agent.getType(deserializerName));
+                        deserializableClasses.propagate(agent.getType(line));
+
                     }
                 }
             }

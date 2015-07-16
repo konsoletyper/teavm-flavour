@@ -16,6 +16,10 @@
 package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -89,6 +93,39 @@ public class DeserializerTest {
     public void setsViaField() {
         FieldVisible obj = JSONRunner.deserialize("{ \"foo\" : 3 }", FieldVisible.class);
         assertEquals(3, obj.foo);
+    }
+
+    @Test
+    public void readsBuiltInTypes() {
+        BuiltInTypes obj = JSONRunner.deserialize("{ " +
+                "\"boolField\" : true," +
+                "\"byteField\" : 1," +
+                "\"charField\" : \"a\"," +
+                "\"shortField\" : 2," +
+                "\"intField\" : 3," +
+                "\"longField\" : 4," +
+                "\"floatField\" : 5.1," +
+                "\"doubleField\" : 6.1," +
+                "\"list\" : [ { \"a\" : \"q\", \"b\" : 7 } ]," +
+                "\"set\" : [ { \"a\" : \"w\", \"b\" : 8 } ]," +
+                "\"map\" : { \"e\" : { \"a\" : \"r\", \"b\" : 8 } }," +
+                "\"visibility\" : \"ANY\" }",
+                BuiltInTypes.class);
+        assertTrue(obj.boolField);
+        assertEquals('a', (char)obj.charField);
+        assertEquals(2, (short)obj.shortField);
+        assertEquals(3, (int)obj.intField);
+        assertEquals(4, (long)obj.longField);
+        assertEquals(5.1, obj.floatField, 0.01);
+        assertEquals(6.1, obj.doubleField, 0.01);
+        assertEquals(1, obj.list.size());
+        assertEquals("q", obj.list.get(0).a);
+        assertEquals(1, obj.set.size());
+        assertEquals("w", obj.set.iterator().next().a);
+        assertEquals(1, obj.map.size());
+        assertTrue(obj.map.containsKey("e"));
+        assertEquals("r", obj.map.get("e").a);
+        assertEquals(Visibility.ANY, obj.visibility);
     }
 
     public static class A {
@@ -187,5 +224,21 @@ public class DeserializerTest {
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    public static class BuiltInTypes {
+        public Boolean boolField;
+        public Byte byteField;
+        public Character charField;
+        public Short shortField;
+        public Integer intField;
+        public Long longField;
+        public Float floatField;
+        public Double doubleField;
+        public List<A> list;
+        public Set<A> set;
+        public Map<String, A> map;
+        public Visibility visibility;
     }
 }

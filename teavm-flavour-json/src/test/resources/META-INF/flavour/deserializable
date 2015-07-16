@@ -6,3 +6,4 @@ org.teavm.flavour.json.test.DeserializerTest$RenamedProperty
 org.teavm.flavour.json.test.DeserializerTest$IgnoredProperty
 org.teavm.flavour.json.test.DeserializerTest$FieldAndSetter
 org.teavm.flavour.json.test.DeserializerTest$FieldVisible
+org.teavm.flavour.json.test.DeserializerTest$BuiltInTypes

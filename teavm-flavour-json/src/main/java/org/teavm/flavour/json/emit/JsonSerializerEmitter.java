@@ -273,7 +273,7 @@ class JsonSerializerEmitter {
             }
             if (property.getter != null) {
                 emitGetter(property);
-            } else {
+            } else if (property.fieldName != null) {
                 emitField(property);
             }
         }
