@@ -218,8 +218,10 @@ class JsonDeserializerEmitter {
                 emitEnumDeserializer(information);
             } else {
                 BasicBlock nonObjectBlock = pe.getProgram().createBasicBlock();
+                BasicBlock mainBlock = pe.getProgram().createBasicBlock();
                 emitNodeTypeCheck(nonObjectBlock);
-
+                emitSubTypes(information, mainBlock);
+                pe.setBlock(mainBlock);
                 emitConstructor(information);
                 emitIdRegistration(information);
                 emitProperties(information);
@@ -238,21 +240,15 @@ class JsonDeserializerEmitter {
     }
 
     private void emitEnumDeserializer(ClassInformation information) {
-        Map<Integer, Set<String>> enumValues = new HashMap<>();
         ClassReader cls = classSource.get(information.className);
+        Set<String> valueSet = new HashSet<>();
         for (FieldReader field : cls.getFields()) {
             if (!field.hasModifier(ElementModifier.STATIC) || !field.getType().isObject(information.className)) {
                 continue;
             }
-            String fieldName = field.getName();
-            int hash = fieldName.hashCode();
-            Set<String> hashValues = enumValues.get(hash);
-            if (hashValues == null) {
-                hashValues = new HashSet<>();
-                enumValues.put(hash, hashValues);
-            }
-            hashValues.add(fieldName);
+            valueSet.add(field.getName());
         }
+        Map<Integer, Set<String>> enumValues = groupByHashCode(valueSet);
 
         BasicBlock controlBlock = pe.getProgram().createBasicBlock();
         BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
@@ -385,6 +381,45 @@ class JsonDeserializerEmitter {
 
         pe.setBlock(okBlock);
         nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
+    }
+
+    private void emitSubTypes(ClassInformation information, BasicBlock mainBlock) {
+        if (information.inheritance.subTypes.isEmpty()) {
+            pe.jump(mainBlock);
+            return;
+        }
+
+        Map<String, ClassInformation> subTypes = new HashMap<>();
+        for (ClassInformation subType : information.inheritance.subTypes) {
+            String typeName = subType.typeName != null ? subType.typeName :
+                    ClassInformationProvider.getUnqualifiedName(information.className);
+            subTypes.put(typeName, subType);
+        }
+        String rootTypeName = information.typeName != null ? information.typeName :
+                ClassInformationProvider.getUnqualifiedName(information.className);
+        subTypes.put(rootTypeName, information);
+
+        BasicBlock controlBlock = pe.getProgram().createBasicBlock();
+        BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
+        Map<Integer, Set<String>> typeNames = groupByHashCode(subTypes.keySet());
+        pe.setBlock(controlBlock);
+    }
+
+    private void emitTypeNameExtractor(ClassInformation information, BasicBlock defaultBlock, BasicBlock errorBlock) {
+        switch (information.inheritance.key) {
+            case PROPERTY:
+                emitPropertyTypeNameExtractor(information, defaultBlock, errorBlock);
+        }
+    }
+
+    private void emitPropertyTypeNameExtractor(ClassInformation information, BasicBlock defaultBlock,
+            BasicBlock errorBlock) {
+        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject", boolean.class))
+                .fork(BranchingCondition.NOT_EQUAL);
+        fork.setElse(defaultBlock);
+        fork.setThen(pe.createBlock());
+
+        nodeVar.cast(ValueType.parse(ObjectNode.class));
     }
 
     private void emitConstructor(ClassInformation information) {
@@ -686,5 +721,19 @@ class JsonDeserializerEmitter {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Can't find class " + name, e);
         }
+    }
+
+    private Map<Integer, Set<String>> groupByHashCode(Collection<String> strings) {
+        Map<Integer, Set<String>> result = new HashMap<>();
+        for (String str : strings) {
+            int hash = str.hashCode();
+            Set<String> hashValues = result.get(hash);
+            if (hashValues == null) {
+                hashValues = new HashSet<>();
+                result.put(hash, hashValues);
+            }
+            hashValues.add(str);
+        }
+        return result;
     }
 }

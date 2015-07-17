@@ -16,6 +16,7 @@
 package org.teavm.flavour.json.emit;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.model.AnnotationContainerReader;
@@ -49,6 +50,10 @@ class ClassInformationProvider {
         }
         ClassInformation info = createClassInformation(className);
         cache.put(className, info);
+        ClassReader cls = classSource.get(className);
+        if (cls != null) {
+            getSubTypes(info, cls);
+        }
         return info;
     }
 
@@ -238,6 +243,30 @@ class ClassInformationProvider {
             return defaultVisibility;
         }
         return visibility;
+    }
+
+    private void getSubTypes(ClassInformation information, ClassReader cls) {
+        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonSubTypes");
+        if (annot == null) {
+            return;
+        }
+
+        List<AnnotationValue> subTypes = annot.getValue("value").getList();
+        for (AnnotationValue subTypeItem : subTypes) {
+            AnnotationReader subTypeAnnot = subTypeItem.getAnnotation();
+            ValueType.Object subclass = (ValueType.Object)subTypeAnnot.getValue("value").getJavaClass();
+            // TODO check whether subclass is actually a subclass
+            ClassInformation subtypeInformation = get(subclass.getClassName());
+            if (subtypeInformation == null) {
+                continue;
+            }
+            information.inheritance.subTypes.add(subtypeInformation);
+            AnnotationValue nameVal = subTypeAnnot.getValue("name");
+            if (nameVal != null) {
+                // TODO check whether name conflicts with one got from JsonTypeName
+                subtypeInformation.typeName = nameVal.getString();
+            }
+        }
     }
 
     private void scanGetters(ClassInformation information, ClassReader cls) {
