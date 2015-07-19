@@ -16,14 +16,20 @@
 package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import org.junit.Test;
 
 /**
@@ -126,6 +132,33 @@ public class DeserializerTest {
         assertTrue(obj.map.containsKey("e"));
         assertEquals("r", obj.map.get("e").a);
         assertEquals(Visibility.ANY, obj.visibility);
+    }
+
+    @Test
+    public void readsPolymorhic() {
+        InheritanceBase obj = JSONRunner.deserialize("{ \"@c\" : \".DeserializerTest$Inheritance\"," +
+                "\"foo\" : 2, \"bar\": 3 }", InheritanceBase.class);
+        assertTrue("Must be instance of " + Inheritance.class.getName(), obj instanceof Inheritance);
+        Inheritance poly = (Inheritance)obj;
+        assertEquals(2, poly.foo);
+        assertEquals(3, poly.bar);
+    }
+
+    @Test
+    public void readsPolymorhicByTypeName() {
+        InheritanceByTypeNameBase obj = JSONRunner.deserialize("{ \"@type\" : \"subtype\"," +
+                "\"foo\" : 2, \"bar\": 3 }", InheritanceByTypeNameBase.class);
+
+        assertTrue("Must be instance of " + InheritanceByTypeName.class.getName(),
+                obj instanceof InheritanceByTypeName);
+        InheritanceByTypeName poly = (InheritanceByTypeName)obj;
+        assertEquals(2, poly.foo);
+        assertEquals(3, poly.bar);
+
+        obj = JSONRunner.deserialize("{ \"@type\" : \"basetype\", \"foo\" : 4 }", InheritanceByTypeNameBase.class);
+        assertFalse("Must not be instance of " + InheritanceByTypeName.class.getName(),
+                obj instanceof InheritanceByTypeName);
+        assertEquals(4, obj.foo);
     }
 
     public static class A {
@@ -240,5 +273,29 @@ public class DeserializerTest {
         public Set<A> set;
         public Map<String, A> map;
         public Visibility visibility;
+    }
+
+    @JsonTypeInfo(use = Id.MINIMAL_CLASS)
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    @JsonSubTypes({ @Type(Inheritance.class) })
+    public static class InheritanceBase {
+        public int foo;
+    }
+
+    public static class Inheritance extends InheritanceBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME)
+    @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
+    @JsonTypeName("basetype")
+    @JsonSubTypes({ @Type(InheritanceByTypeName.class) })
+    public static class InheritanceByTypeNameBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
+        public int bar;
     }
 }

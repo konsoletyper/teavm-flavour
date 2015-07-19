@@ -49,6 +49,7 @@ import org.teavm.flavour.json.deserializer.NullableDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
+import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
@@ -384,42 +385,147 @@ class JsonDeserializerEmitter {
     }
 
     private void emitSubTypes(ClassInformation information, BasicBlock mainBlock) {
-        if (information.inheritance.subTypes.isEmpty()) {
+        if (information.inheritance.subTypes.isEmpty() || information.inheritance.value == InheritanceValue.NONE) {
             pe.jump(mainBlock);
             return;
         }
 
+        ObjectWithTag taggedObject = emitTypeNameExtractor(information);
+        if (taggedObject == null) {
+            pe.jump(mainBlock);
+            return;
+        }
+        nodeVar = taggedObject.object;
+
         Map<String, ClassInformation> subTypes = new HashMap<>();
         for (ClassInformation subType : information.inheritance.subTypes) {
-            String typeName = subType.typeName != null ? subType.typeName :
-                    ClassInformationProvider.getUnqualifiedName(information.className);
+            String typeName = getTypeName(information, subType);
             subTypes.put(typeName, subType);
         }
-        String rootTypeName = information.typeName != null ? information.typeName :
-                ClassInformationProvider.getUnqualifiedName(information.className);
+        String rootTypeName = getTypeName(information, information);
         subTypes.put(rootTypeName, information);
 
-        BasicBlock controlBlock = pe.getProgram().createBasicBlock();
         BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
         Map<Integer, Set<String>> typeNames = groupByHashCode(subTypes.keySet());
-        pe.setBlock(controlBlock);
+
+        ValueEmitter tag = taggedObject.tag;
+        tag = tag.cast(ValueType.parse(StringNode.class));
+        tag = tag.invokeVirtual(new MethodReference(StringNode.class, "getValue", String.class));
+        ValueEmitter hashVar = tag.invokeVirtual(new MethodReference(Object.class, "hashCode", int.class));
+        SwitchInstruction switchInsn = new SwitchInstruction();
+        switchInsn.setCondition(hashVar.getVariable());
+        pe.addInstruction(switchInsn);
+
+        for (Map.Entry<Integer, Set<String>> entry : typeNames.entrySet()) {
+            SwitchTableEntry switchEntry = new SwitchTableEntry();
+            switchEntry.setTarget(pe.createBlock());
+            switchEntry.setCondition(entry.getKey());
+            BasicBlock next = pe.getProgram().createBasicBlock();
+            for (String typeName : entry.getValue()) {
+                ForkEmitter fork = tag.invokeVirtual(new MethodReference(Object.class, "equals",
+                        Object.class, boolean.class), pe.constant(typeName))
+                        .fork(BranchingCondition.NOT_EQUAL);
+                fork.setThen(pe.createBlock());
+                ClassInformation type = subTypes.get(typeName);
+                if (type == information) {
+                    pe.jump(mainBlock);
+                } else {
+                    ValueEmitter deserializer = createObjectDeserializer(type.className);
+                    deserializer.invokeVirtual(new MethodReference(JsonDeserializer.class, "deserialize",
+                            JsonDeserializerContext.class, Node.class, Object.class), contextVar, nodeVar)
+                            .returnValue();
+                }
+                fork.setElse(next);
+                pe.setBlock(next);
+            }
+            pe.jump(invalidValueBlock);
+            switchInsn.getEntries().add(switchEntry);
+        }
+
+        switchInsn.setDefaultTarget(pe.createBlock());
+        pe.jump(invalidValueBlock);
+
+        pe.setBlock(invalidValueBlock);
+        RaiseInstruction raiseInsn = new RaiseInstruction();
+        ValueEmitter errorVar = pe.construct(new MethodReference(StringBuilder.class, "<init>", void.class));
+        MethodReference appendMethod = new MethodReference(StringBuilder.class, "append", String.class,
+                StringBuilder.class);
+        MethodReference stringifyMethod = new MethodReference(Node.class, "stringify", String.class);
+        errorVar = errorVar.invokeVirtual(appendMethod, pe.constant("Invalid type tag: "))
+                .invokeVirtual(appendMethod, nodeVar.invokeVirtual(stringifyMethod))
+                .invokeVirtual(new MethodReference(StringBuilder.class, "toString", String.class));
+        raiseInsn.setException(pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class,
+                void.class), errorVar).getVariable());
+        pe.addInstruction(raiseInsn);
     }
 
-    private void emitTypeNameExtractor(ClassInformation information, BasicBlock defaultBlock, BasicBlock errorBlock) {
+    private ObjectWithTag emitTypeNameExtractor(ClassInformation information) {
         switch (information.inheritance.key) {
             case PROPERTY:
-                emitPropertyTypeNameExtractor(information, defaultBlock, errorBlock);
+                return emitPropertyTypeNameExtractor(information);
+            case WRAPPER_ARRAY:
+                return emitArrayTypeNameExtractor();
+            case WRAPPER_OBJECT:
+                return emitObjectTypeNameExtractor();
         }
+        return null;
     }
 
-    private void emitPropertyTypeNameExtractor(ClassInformation information, BasicBlock defaultBlock,
-            BasicBlock errorBlock) {
-        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject", boolean.class))
-                .fork(BranchingCondition.NOT_EQUAL);
-        fork.setElse(defaultBlock);
-        fork.setThen(pe.createBlock());
+    private ObjectWithTag emitPropertyTypeNameExtractor(ClassInformation information) {
+        BasicBlock exit = pe.getProgram().createBasicBlock();
 
-        nodeVar.cast(ValueType.parse(ObjectNode.class));
+        ValueEmitter node = nodeVar.cast(ValueType.parse(ObjectNode.class));
+        ForkEmitter fork = node.invokeVirtual(new MethodReference(ObjectNode.class, "has",
+                String.class, boolean.class), pe.constant(information.inheritance.propertyName))
+                .fork(BranchingCondition.EQUAL);
+
+        BasicBlock defaultBlock = pe.createBlock();
+        fork.setThen(defaultBlock);
+        String typeName = getTypeName(information, information);
+        ValueEmitter defaultTypeTag = pe.constant(typeName);
+        pe.jump(exit);
+
+        BasicBlock workerBlock = pe.createBlock();
+        fork.setElse(workerBlock);
+        ValueEmitter typeTag = getJsonProperty(node, information.inheritance.propertyName);
+        pe.jump(exit);
+
+        pe.setBlock(exit);
+        defaultTypeTag.join(defaultBlock, typeTag, workerBlock);
+        return new ObjectWithTag(typeTag.cast(ValueType.parse(StringNode.class)), nodeVar);
+    }
+
+    private ObjectWithTag emitArrayTypeNameExtractor() {
+        ValueEmitter node = nodeVar.cast(ValueType.parse(ArrayNode.class));
+        ValueEmitter tag = node.invokeVirtual(new MethodReference(ArrayNode.class, "get", int.class, Node.class),
+                pe.constant(0));
+        ValueEmitter object = node.invokeVirtual(new MethodReference(ArrayNode.class, "get", int.class, Node.class),
+                pe.constant(1));
+        return new ObjectWithTag(tag, object);
+    }
+
+    private ObjectWithTag emitObjectTypeNameExtractor() {
+        ValueEmitter node = nodeVar.cast(ValueType.parse(ObjectNode.class));
+        ValueEmitter tag = node.invokeVirtual(new MethodReference(ObjectNode.class, "allKeys", String[].class));
+        tag = node.getElement(0);
+        ValueEmitter object = node.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
+                Node.class), tag);
+        return new ObjectWithTag(tag, object);
+    }
+
+    private String getTypeName(ClassInformation baseType, ClassInformation type) {
+        switch (baseType.inheritance.value) {
+            case CLASS:
+                return type.className;
+            case MINIMAL_CLASS:
+                return ClassInformationProvider.getUnqualifiedName(type.className);
+            case NAME:
+                return type.typeName != null ? type.typeName :
+                        ClassInformationProvider.getUnqualifiedName(type.className);
+            case NONE:
+                break;
+        }
+        return "";
     }
 
     private void emitConstructor(ClassInformation information) {
@@ -446,8 +552,7 @@ class JsonDeserializerEmitter {
     }
 
     private ValueEmitter emitIntegerIdRegistration(ClassInformation information) {
-        ValueEmitter id = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get",
-                String.class, Node.class), pe.constant(information.idProperty));
+        ValueEmitter id = getJsonProperty(nodeVar, information.idProperty);
         id = pe.invoke(new MethodReference(JSON.class, "deserializeInt", Node.class, int.class), id);
         id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class, Integer.class), id);
         return id;
@@ -459,8 +564,7 @@ class JsonDeserializerEmitter {
             return null;
         }
 
-        ValueEmitter id = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get",
-                String.class, Node.class), pe.constant(information.idProperty));
+        ValueEmitter id = getJsonProperty(nodeVar, information.idProperty);
         Type type = getPropertyGenericType(property);
 
         if (type == null) {
@@ -488,8 +592,7 @@ class JsonDeserializerEmitter {
         Type type = javaMethod.getGenericParameterTypes()[0];
         agent.linkMethod(method, null);
 
-        ValueEmitter value = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
-                Node.class), pe.constant(property.outputName));
+        ValueEmitter value = getJsonProperty(nodeVar, property.outputName);
         value = convert(value, type);
         targetVar.invokeVirtual(method, value);
     }
@@ -500,8 +603,7 @@ class JsonDeserializerEmitter {
         Type type = javaField.getGenericType();
         ValueType fieldType = agent.linkField(field, null).getField().getType();
 
-        ValueEmitter value = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
-                Node.class), pe.constant(property.outputName));
+        ValueEmitter value = getJsonProperty(nodeVar, property.outputName);
         value = convert(value, type);
         targetVar.setField(field, fieldType, value);
     }
@@ -636,6 +738,17 @@ class JsonDeserializerEmitter {
         return pe.construct(new MethodReference(deserializerName, "<init>", ValueType.VOID));
     }
 
+    private ValueEmitter createObjectDeserializer(String type) {
+        String deserializerName;
+        if (predefinedDeserializers.containsKey(type)) {
+            deserializerName = predefinedDeserializers.get(type);
+        } else {
+            deserializableClassesNode.propagate(agent.getType(type));
+            deserializerName = type + "$$__deserializer__$$";
+        }
+        return pe.construct(new MethodReference(deserializerName, "<init>", ValueType.VOID));
+    }
+
     private ValueEmitter createMapDeserializer(Type keyType, Type valueType) {
         ValueEmitter keyDeserializer = createDeserializer(keyType);
         ValueEmitter valueDeserializer = createDeserializer(valueType);
@@ -735,5 +848,20 @@ class JsonDeserializerEmitter {
             hashValues.add(str);
         }
         return result;
+    }
+
+    private ValueEmitter getJsonProperty(ValueEmitter object, String property) {
+        return object.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class, Node.class),
+                pe.constant(property));
+    }
+
+    static class ObjectWithTag {
+        ValueEmitter tag;
+        ValueEmitter object;
+
+        public ObjectWithTag(ValueEmitter tag, ValueEmitter object) {
+            this.tag = tag;
+            this.object = object;
+        }
     }
 }
