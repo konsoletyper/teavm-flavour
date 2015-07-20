@@ -23,10 +23,11 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,6 +159,40 @@ public class DeserializerTest {
         obj = JSONRunner.deserialize("{ \"@type\" : \"basetype\", \"foo\" : 4 }", InheritanceByTypeNameBase.class);
         assertFalse("Must not be instance of " + InheritanceByTypeName.class.getName(),
                 obj instanceof InheritanceByTypeName);
+        assertEquals(4, obj.foo);
+    }
+
+    @Test
+    public void readsPolymorhicAsWrappedObject() {
+        InheritanceAsWrapperObjectBase obj = JSONRunner.deserialize("{ \"subtype\" : { " +
+                "\"foo\" : 2, \"bar\": 3 } }", InheritanceAsWrapperObjectBase.class);
+
+        assertTrue("Must be instance of " + InheritanceAsWrapperObject.class.getName(),
+                obj instanceof InheritanceAsWrapperObject);
+        InheritanceAsWrapperObject poly = (InheritanceAsWrapperObject)obj;
+        assertEquals(2, poly.foo);
+        assertEquals(3, poly.bar);
+
+        obj = JSONRunner.deserialize("{ \"base\" : { \"foo\" : 4 } }", InheritanceAsWrapperObjectBase.class);
+        assertFalse("Must not be instance of " + InheritanceAsWrapperObject.class.getName(),
+                obj instanceof InheritanceAsWrapperObject);
+        assertEquals(4, obj.foo);
+    }
+
+    @Test
+    public void readsPolymorhicAsWrappedArray() {
+        InheritanceAsWrapperArrayBase obj = JSONRunner.deserialize("[ \"subtype\", { " +
+                "\"foo\" : 2, \"bar\": 3 } ]", InheritanceAsWrapperArrayBase.class);
+
+        assertTrue("Must be instance of " + InheritanceAsWrapperArray.class.getName(),
+                obj instanceof InheritanceAsWrapperArray);
+        InheritanceAsWrapperArray poly = (InheritanceAsWrapperArray)obj;
+        assertEquals(2, poly.foo);
+        assertEquals(3, poly.bar);
+
+        obj = JSONRunner.deserialize("[ \"base\", { \"foo\" : 4 } ]", InheritanceAsWrapperArrayBase.class);
+        assertFalse("Must not be instance of " + InheritanceAsWrapperObject.class.getName(),
+                obj instanceof InheritanceAsWrapperArray);
         assertEquals(4, obj.foo);
     }
 
@@ -296,6 +331,30 @@ public class DeserializerTest {
 
     @JsonTypeName("subtype")
     public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT)
+    @JsonTypeName("base")
+    @JsonSubTypes({ @Type(InheritanceAsWrapperObject.class) })
+    public static class InheritanceAsWrapperObjectBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceAsWrapperObject extends InheritanceAsWrapperObjectBase {
+        public int bar;
+    }
+
+    @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_ARRAY)
+    @JsonTypeName("base")
+    @JsonSubTypes({ @Type(InheritanceAsWrapperArray.class) })
+    public static class InheritanceAsWrapperArrayBase {
+        public int foo;
+    }
+
+    @JsonTypeName("subtype")
+    public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
     }
 }

@@ -31,7 +31,9 @@ class InheritanceInformation implements Cloneable {
     @Override
     protected InheritanceInformation clone() {
         try {
-            return (InheritanceInformation)super.clone();
+            InheritanceInformation copy = (InheritanceInformation)super.clone();
+            copy.subTypes = new HashSet<>(subTypes);
+            return copy;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError("Unexpected exception caught", e);
         }

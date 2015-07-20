@@ -68,6 +68,7 @@ import org.teavm.model.ValueType;
 import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.instructions.ArrayElementType;
 import org.teavm.model.instructions.BranchingCondition;
 import org.teavm.model.instructions.RaiseInstruction;
 import org.teavm.model.instructions.SwitchInstruction;
@@ -409,8 +410,6 @@ class JsonDeserializerEmitter {
         Map<Integer, Set<String>> typeNames = groupByHashCode(subTypes.keySet());
 
         ValueEmitter tag = taggedObject.tag;
-        tag = tag.cast(ValueType.parse(StringNode.class));
-        tag = tag.invokeVirtual(new MethodReference(StringNode.class, "getValue", String.class));
         ValueEmitter hashVar = tag.invokeVirtual(new MethodReference(Object.class, "hashCode", int.class));
         SwitchInstruction switchInsn = new SwitchInstruction();
         switchInsn.setCondition(hashVar.getVariable());
@@ -488,6 +487,8 @@ class JsonDeserializerEmitter {
         BasicBlock workerBlock = pe.createBlock();
         fork.setElse(workerBlock);
         ValueEmitter typeTag = getJsonProperty(node, information.inheritance.propertyName);
+        typeTag = typeTag.cast(ValueType.parse(StringNode.class));
+        typeTag = typeTag.invokeVirtual(new MethodReference(StringNode.class, "getValue", String.class));
         pe.jump(exit);
 
         pe.setBlock(exit);
@@ -501,13 +502,15 @@ class JsonDeserializerEmitter {
                 pe.constant(0));
         ValueEmitter object = node.invokeVirtual(new MethodReference(ArrayNode.class, "get", int.class, Node.class),
                 pe.constant(1));
+        tag = tag.cast(ValueType.parse(StringNode.class));
+        tag = tag.invokeVirtual(new MethodReference(StringNode.class, "getValue", String.class));
         return new ObjectWithTag(tag, object);
     }
 
     private ObjectWithTag emitObjectTypeNameExtractor() {
         ValueEmitter node = nodeVar.cast(ValueType.parse(ObjectNode.class));
         ValueEmitter tag = node.invokeVirtual(new MethodReference(ObjectNode.class, "allKeys", String[].class));
-        tag = node.getElement(0);
+        tag = tag.unwrapArray(ArrayElementType.OBJECT).getElement(0);
         ValueEmitter object = node.invokeVirtual(new MethodReference(ObjectNode.class, "get", String.class,
                 Node.class), tag);
         return new ObjectWithTag(tag, object);
