@@ -19,7 +19,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.teavm.common.GraphBuilder;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyConsumer;
@@ -27,10 +32,28 @@ import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
+import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
+import org.teavm.model.FieldReference;
+import org.teavm.model.IncomingReader;
+import org.teavm.model.InstructionLocation;
+import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
+import org.teavm.model.PhiReader;
+import org.teavm.model.ProgramReader;
 import org.teavm.model.ValueType;
+import org.teavm.model.VariableReader;
+import org.teavm.model.instructions.ArrayElementType;
+import org.teavm.model.instructions.BinaryBranchingCondition;
+import org.teavm.model.instructions.BinaryOperation;
+import org.teavm.model.instructions.BranchingCondition;
+import org.teavm.model.instructions.CastIntegerDirection;
+import org.teavm.model.instructions.InstructionReader;
+import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.instructions.InvocationType;
+import org.teavm.model.instructions.NumericOperandType;
+import org.teavm.model.instructions.SwitchTableEntryReader;
 
 /**
  *
@@ -63,6 +86,11 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
                 }
             });
             generateDeserializers(agent, location);
+        } else if (method.getMethod() != null) {
+            MethodReader methodReader = method.getMethod();
+            if (methodReader.getProgram() != null) {
+                findDeserializableClasses(methodReader.getProgram());
+            }
         }
     }
 
@@ -94,7 +122,6 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
                         }
 
                         deserializableClasses.propagate(agent.getType(line));
-
                     }
                 }
             }
@@ -108,5 +135,208 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             return null;
         }
         return emitter.getClassDeserializer(className);
+    }
+
+    private void findDeserializableClasses(ProgramReader program) {
+        VariableGraphBuilder builder = new VariableGraphBuilder(program.variableCount());
+        for (int i = 0; i < program.basicBlockCount(); ++i) {
+            BasicBlockReader block = program.basicBlockAt(i);
+            block.readAllInstructions(builder);
+            for (PhiReader phi : block.readPhis()) {
+                for (IncomingReader incoming : phi.readIncomings()) {
+                    builder.edge(incoming.getValue().getIndex(), phi.getReceiver().getIndex());
+                }
+            }
+        }
+
+    }
+
+    static class Step {
+        int variable;
+        ValueType type;
+    }
+
+    static class VariableGraphBuilder implements InstructionReader {
+        private GraphBuilder graphBuilder;
+        private List<Set<ValueType>> sets = new ArrayList<>();
+        private Set<Integer> interestingVariables = new HashSet<>();
+        private List<Step> initialSteps = new ArrayList<>();
+
+        public VariableGraphBuilder(int sz) {
+            graphBuilder = new GraphBuilder(sz);
+            for (int i = 0; i < sz; ++i) {
+                sets.add(new HashSet<ValueType>());
+            }
+        }
+
+        public void edge(int from, int to) {
+            graphBuilder.addEdge(from, to);
+        }
+
+        @Override
+        public void location(InstructionLocation location) {
+        }
+
+        @Override
+        public void nop() {
+        }
+
+        @Override
+        public void classConstant(VariableReader receiver, ValueType cst) {
+            sets.get(receiver.getIndex()).add(cst);
+        }
+
+        @Override
+        public void nullConstant(VariableReader receiver) {
+        }
+
+        @Override
+        public void integerConstant(VariableReader receiver, int cst) {
+        }
+
+        @Override
+        public void longConstant(VariableReader receiver, long cst) {
+        }
+
+        @Override
+        public void floatConstant(VariableReader receiver, float cst) {
+        }
+
+        @Override
+        public void doubleConstant(VariableReader receiver, double cst) {
+        }
+
+        @Override
+        public void stringConstant(VariableReader receiver, String cst) {
+        }
+
+        @Override
+        public void binary(BinaryOperation op, VariableReader receiver, VariableReader first, VariableReader second,
+                NumericOperandType type) {
+        }
+
+        @Override
+        public void negate(VariableReader receiver, VariableReader operand, NumericOperandType type) {
+        }
+
+        @Override
+        public void assign(VariableReader receiver, VariableReader assignee) {
+            if (receiver != null) {
+                graphBuilder.addEdge(assignee.getIndex(), receiver.getIndex());
+            }
+        }
+
+        @Override
+        public void cast(VariableReader receiver, VariableReader value, ValueType targetType) {
+            graphBuilder.addEdge(value.getIndex(), receiver.getIndex());
+        }
+
+        @Override
+        public void cast(VariableReader receiver, VariableReader value, NumericOperandType sourceType,
+                NumericOperandType targetType) {
+        }
+
+        @Override
+        public void cast(VariableReader receiver, VariableReader value, IntegerSubtype type,
+                CastIntegerDirection targetType) {
+        }
+
+        @Override
+        public void jumpIf(BranchingCondition cond, VariableReader operand, BasicBlockReader consequent,
+                BasicBlockReader alternative) {
+        }
+
+        @Override
+        public void jumpIf(BinaryBranchingCondition cond, VariableReader first, VariableReader second,
+                BasicBlockReader consequent, BasicBlockReader alternative) {
+        }
+
+        @Override
+        public void jump(BasicBlockReader target) {
+        }
+
+        @Override
+        public void choose(VariableReader condition, List<? extends SwitchTableEntryReader> table,
+                BasicBlockReader defaultTarget) {
+        }
+
+        @Override
+        public void exit(VariableReader valueToReturn) {
+        }
+
+        @Override
+        public void raise(VariableReader exception) {
+        }
+
+        @Override
+        public void createArray(VariableReader receiver, ValueType itemType, VariableReader size) {
+        }
+
+        @Override
+        public void createArray(VariableReader receiver, ValueType itemType,
+                List<? extends VariableReader> dimensions) {
+        }
+
+        @Override
+        public void create(VariableReader receiver, String type) {
+        }
+
+        @Override
+        public void getField(VariableReader receiver, VariableReader instance, FieldReference field,
+                ValueType fieldType) {
+        }
+
+        @Override
+        public void putField(VariableReader instance, FieldReference field, VariableReader value,
+                ValueType fieldType) {
+        }
+
+        @Override
+        public void arrayLength(VariableReader receiver, VariableReader array) {
+        }
+
+        @Override
+        public void cloneArray(VariableReader receiver, VariableReader array) {
+        }
+
+        @Override
+        public void unwrapArray(VariableReader receiver, VariableReader array, ArrayElementType elementType) {
+        }
+
+        @Override
+        public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
+        }
+
+        @Override
+        public void putElement(VariableReader array, VariableReader index, VariableReader value) {
+        }
+
+        @Override
+        public void invoke(VariableReader receiver, VariableReader instance, MethodReference method,
+                List<? extends VariableReader> arguments, InvocationType type) {
+            if (method.getClassName().equals(JSON.class.getName()) && method.getName().equals("deserialize")) {
+                interestingVariables.add(arguments.get(1).getIndex());
+            }
+        }
+
+        @Override
+        public void isInstance(VariableReader receiver, VariableReader value, ValueType type) {
+        }
+
+        @Override
+        public void initClass(String className) {
+        }
+
+        @Override
+        public void nullCheck(VariableReader receiver, VariableReader value) {
+        }
+
+        @Override
+        public void monitorEnter(VariableReader objectRef) {
+        }
+
+        @Override
+        public void monitorExit(VariableReader objectRef) {
+        }
     }
 }

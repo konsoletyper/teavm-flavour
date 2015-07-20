@@ -89,7 +89,7 @@ public final class JSON {
 
     static native JsonSerializer getClassSerializer(String cls);
 
-    public static Object deserialize(Node node, Class<?> type) {
+    public static Object deserialize(Node node, @JSONClassArgument Class<?> type) {
         JsonDeserializer deserializer = getClassDeserializer(type);
         if (deserializer == null) {
             throw new IllegalArgumentException("Don't know how to deserialize " + type.getName());

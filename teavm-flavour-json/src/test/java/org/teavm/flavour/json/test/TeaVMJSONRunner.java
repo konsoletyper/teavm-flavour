@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.JSONClassArgument;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
@@ -38,7 +39,7 @@ public final class TeaVMJSONRunner {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T deserialize(String json, Class<T> type) {
+    public static <T> T deserialize(String json, @JSONClassArgument Class<T> type) {
         return (T)JSON.deserialize(Node.parse(json), type);
     }
 
