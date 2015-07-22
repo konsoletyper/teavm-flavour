@@ -19,11 +19,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import org.teavm.common.Graph;
 import org.teavm.common.GraphBuilder;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
@@ -31,6 +36,7 @@ import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
+import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.json.JSON;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
@@ -63,6 +69,8 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
     private JsonDeserializerEmitter emitter;
     private boolean generated;
     private DependencyNode deserializableClasses;
+    private Map<MethodReference, Integer> deserializeMethods;
+    private Set<MethodReference> processedMethods = new HashSet<>();
 
     @Override
     public void started(DependencyAgent agent) {
@@ -87,9 +95,13 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             });
             generateDeserializers(agent, location);
         } else if (method.getMethod() != null) {
+            if (!processedMethods.add(method.getReference())) {
+                return;
+            }
             MethodReader methodReader = method.getMethod();
             if (methodReader.getProgram() != null) {
-                findDeserializableClasses(methodReader.getProgram());
+                findDeserializeMethods(agent.getClassLoader(), agent.getDiagnostics());
+                findDeserializableClasses(agent, methodReader.getProgram());
             }
         }
     }
@@ -137,7 +149,7 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
         return emitter.getClassDeserializer(className);
     }
 
-    private void findDeserializableClasses(ProgramReader program) {
+    private void findDeserializableClasses(DependencyAgent agent, ProgramReader program) {
         VariableGraphBuilder builder = new VariableGraphBuilder(program.variableCount());
         for (int i = 0; i < program.basicBlockCount(); ++i) {
             BasicBlockReader block = program.basicBlockAt(i);
@@ -149,14 +161,75 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             }
         }
 
+        for (ValueType valueType : builder.build()) {
+            if (valueType instanceof ValueType.Object) {
+                ValueType.Object objType = (ValueType.Object)valueType;
+                deserializableClasses.propagate(agent.getType(objType.getClassName()));
+            }
+        }
+    }
+
+    private void findDeserializeMethods(ClassLoader classLoader, Diagnostics diagnostics) {
+        if (deserializeMethods != null) {
+            return;
+        }
+        deserializeMethods = new HashMap<>();
+        try {
+            Enumeration<URL> resources = classLoader.getResources("META-INF/flavour/deserialize-methods");
+            while (resources.hasMoreElements()) {
+                URL res = resources.nextElement();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(res.openStream()))) {
+                    while (true) {
+                        String line = reader.readLine();
+                        if (line == null) {
+                            break;
+                        }
+                        line = line.trim();
+                        if (line.isEmpty() || line.startsWith("#")) {
+                            continue;
+                        }
+
+                        int colonIndex = line.lastIndexOf(':');
+                        if (colonIndex < 0) {
+                            diagnostics.error(null, "Invalid deserializer method: " + line);
+                            continue;
+                        }
+
+                        MethodReference methodRef;
+                        try {
+                            methodRef = MethodReference.parse(line.substring(0, colonIndex));
+                        } catch (RuntimeException e) {
+                            diagnostics.error(null, "Invalid deserializer method: " + line);
+                            continue;
+                        }
+
+                        int argIndex;
+                        try {
+                            argIndex = Integer.parseInt(line.substring(colonIndex + 1));
+                        } catch (RuntimeException e) {
+                            diagnostics.error(null, "Invalid deserializer method: " + line);
+                            continue;
+                        }
+
+                        deserializeMethods.put(methodRef, argIndex);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            diagnostics.error(null, "IO error occured getting deserializer method list");
+        }
     }
 
     static class Step {
         int variable;
         ValueType type;
+        public Step(int variable, ValueType type) {
+            this.variable = variable;
+            this.type = type;
+        }
     }
 
-    static class VariableGraphBuilder implements InstructionReader {
+    class VariableGraphBuilder implements InstructionReader {
         private GraphBuilder graphBuilder;
         private List<Set<ValueType>> sets = new ArrayList<>();
         private Set<Integer> interestingVariables = new HashSet<>();
@@ -173,6 +246,27 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             graphBuilder.addEdge(from, to);
         }
 
+        public Set<ValueType> build() {
+            Graph graph = graphBuilder.build();
+            Set<ValueType> types = new HashSet<>();
+            Queue<Step> queue = new ArrayDeque<>();
+            queue.addAll(initialSteps);
+
+            while (!queue.isEmpty()) {
+                Step step = queue.remove();
+                if (!sets.get(step.variable).add(step.type)) {
+                    continue;
+                }
+                if (interestingVariables.contains(step.variable)) {
+                    types.add(step.type);
+                }
+                for (int succ : graph.outgoingEdges(step.variable)) {
+                    queue.add(new Step(succ, step.type));
+                }
+            }
+            return types;
+        }
+
         @Override
         public void location(InstructionLocation location) {
         }
@@ -183,7 +277,7 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
 
         @Override
         public void classConstant(VariableReader receiver, ValueType cst) {
-            sets.get(receiver.getIndex()).add(cst);
+            initialSteps.add(new Step(receiver.getIndex(), cst));
         }
 
         @Override
@@ -312,11 +406,13 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
         }
 
         @Override
-        public void invoke(VariableReader receiver, VariableReader instance, MethodReference method,
+        public void invoke(VariableReader receiver, VariableReader instance, MethodReference methodRef,
                 List<? extends VariableReader> arguments, InvocationType type) {
-            if (method.getClassName().equals(JSON.class.getName()) && method.getName().equals("deserialize")) {
-                interestingVariables.add(arguments.get(1).getIndex());
+            Integer argIndex = deserializeMethods.get(methodRef);
+            if (argIndex == null) {
+                return;
             }
+            interestingVariables.add(arguments.get(argIndex).getIndex());
         }
 
         @Override
