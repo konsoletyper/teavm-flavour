@@ -215,6 +215,7 @@ class JsonDeserializerEmitter {
             pe.newVar(); // skip this variable
             contextVar = pe.newVar();
             nodeVar = pe.newVar();
+            ValueEmitter nodeVarBackup = nodeVar;
 
             if (isSuperType(Enum.class.getName(), information.className)) {
                 emitEnumDeserializer(information);
@@ -229,6 +230,7 @@ class JsonDeserializerEmitter {
                 emitProperties(information);
                 targetVar.returnValue();
                 pe.setBlock(nonObjectBlock);
+                nodeVar = nodeVarBackup;
                 emitIdCheck(information);
             }
             cls.addMethod(method);
@@ -326,7 +328,7 @@ class JsonDeserializerEmitter {
         BasicBlock errorBlock = pe.getProgram().createBasicBlock();
         BasicBlock okBlock = pe.getProgram().createBasicBlock();
 
-        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isInt()", boolean.class))
+        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isNumber", boolean.class))
                 .fork(BranchingCondition.NOT_EQUAL);
         fork.setThen(okBlock);
         fork.setElse(errorBlock);
@@ -334,7 +336,7 @@ class JsonDeserializerEmitter {
         pe.setBlock(okBlock);
         ValueEmitter id = nodeVar.cast(ValueType.parse(NumberNode.class))
                 .invokeVirtual(new MethodReference(NumberNode.class, "getIntValue", int.class));
-        id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class), id);
+        id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class, Integer.class), id);
         contextVar.invokeVirtual(new MethodReference(JsonDeserializerContext.class, "get",
                 Object.class, Object.class), id)
                 .returnValue();

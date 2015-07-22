@@ -89,12 +89,13 @@ public final class JSON {
 
     static native JsonSerializer getClassSerializer(String cls);
 
-    public static Object deserialize(Node node, @JSONClassArgument Class<?> type) {
+    @SuppressWarnings("unchecked")
+    public static <T> T deserialize(Node node, @JSONClassArgument Class<T> type) {
         JsonDeserializer deserializer = getClassDeserializer(type);
         if (deserializer == null) {
             throw new IllegalArgumentException("Don't know how to deserialize " + type.getName());
         }
-        return deserializer.deserialize(new JsonDeserializerContext(), node);
+        return (T)deserializer.deserialize(new JsonDeserializerContext(), node);
     }
 
     private static void ensureStandardDeserializers() {

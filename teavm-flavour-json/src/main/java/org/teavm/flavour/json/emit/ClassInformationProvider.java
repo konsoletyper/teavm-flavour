@@ -87,6 +87,7 @@ class ClassInformationProvider {
         scanFields(information, cls);
         scanGetters(information, cls);
         scanSetters(information, cls);
+        scanPropertyFields(information);
 
         return information;
     }
@@ -378,6 +379,24 @@ class ClassInformationProvider {
             if (hasExplicitPropertyDeclaration(field.getAnnotations()) ||
                     information.getterVisibility.match(field.getLevel())) {
                 addField(information, field.getName(), field);
+            }
+        }
+    }
+
+    private void scanPropertyFields(ClassInformation information) {
+        for (PropertyInformation property : information.properties.values()) {
+            if (property.fieldName != null) {
+                continue;
+            }
+            ClassInformation ancestorInfo = information;
+            while (ancestorInfo != null && ancestorInfo.properties.containsKey(property.name)) {
+                ClassReader ancestor = classSource.get(ancestorInfo.className);
+                FieldReader field = ancestor.getField(property.name);
+                if (field != null) {
+                    addField(information, property.name, field);
+                    break;
+                }
+                ancestorInfo = ancestorInfo.parent;
             }
         }
     }

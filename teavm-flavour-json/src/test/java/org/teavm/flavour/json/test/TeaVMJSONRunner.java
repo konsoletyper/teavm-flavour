@@ -38,9 +38,8 @@ public final class TeaVMJSONRunner {
         return convert(new JsonNodeFactory(false), JSON.serialize(value));
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T deserialize(String json, @JSONClassArgument Class<T> type) {
-        return (T)JSON.deserialize(Node.parse(json), type);
+        return JSON.deserialize(Node.parse(json), type);
     }
 
     public static final JsonNode convert(JsonNodeFactory nf, Node node) {

@@ -17,9 +17,11 @@ package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -28,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -196,6 +199,16 @@ public class DeserializerTest {
         assertEquals(4, obj.foo);
     }
 
+    @Test
+    public void readsCircularReferences() {
+        GraphNode node = JSONRunner.deserialize("{ \"@id\" : 1, \"successors\" : [ " +
+                "1, { \"@id\" : 2, \"successors\" : [ 1 ] } ] }", GraphNode.class);
+        assertEquals(2, node.successors.size());
+        assertSame(node, node.successors.get(0));
+        assertEquals(1, node.successors.get(1).successors.size());
+        assertSame(node, node.successors.get(1).successors.get(0));
+    }
+
     public static class A {
         String a;
         int b;
@@ -210,10 +223,6 @@ public class DeserializerTest {
 
         public int getB() {
             return b;
-        }
-
-        public void setB(int b) {
-            this.b = b;
         }
     }
 
@@ -356,5 +365,14 @@ public class DeserializerTest {
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
+    }
+
+    @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
+    public static class GraphNode {
+        private List<GraphNode> successors;
+
+        public List<GraphNode> getSuccessors() {
+            return successors;
+        }
     }
 }
