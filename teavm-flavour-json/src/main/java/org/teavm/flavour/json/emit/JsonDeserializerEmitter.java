@@ -538,13 +538,15 @@ class JsonDeserializerEmitter {
     }
 
     private void emitIdRegistration(ClassInformation information) {
+        BasicBlock skip = pe.getProgram().createBasicBlock();
+
         ValueEmitter id;
         switch (information.idGenerator) {
             case INTEGER:
-                id = emitIntegerIdRegistration(information);
+                id = emitIntegerIdRegistration(information, skip);
                 break;
             case PROPERTY:
-                id = emitPropertyIdRegistration(information);
+                id = emitPropertyIdRegistration(information, skip);
                 break;
             default:
                 id = null;
@@ -554,21 +556,24 @@ class JsonDeserializerEmitter {
             contextVar.invokeVirtual(new MethodReference(JsonDeserializerContext.class, "register", Object.class,
                     Object.class, void.class), id, targetVar);
         }
+        pe.jump(skip);
     }
 
-    private ValueEmitter emitIntegerIdRegistration(ClassInformation information) {
+    private ValueEmitter emitIntegerIdRegistration(ClassInformation information, BasicBlock skip) {
+        checkIdPropertyExistence(information, skip);
         ValueEmitter id = getJsonProperty(nodeVar, information.idProperty);
         id = pe.invoke(new MethodReference(JSON.class, "deserializeInt", Node.class, int.class), id);
         id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class, Integer.class), id);
         return id;
     }
 
-    private ValueEmitter emitPropertyIdRegistration(ClassInformation information) {
+    private ValueEmitter emitPropertyIdRegistration(ClassInformation information, BasicBlock skip) {
         PropertyInformation property = information.properties.get(information.idProperty);
         if (property == null) {
             return null;
         }
 
+        checkIdPropertyExistence(information, skip);
         ValueEmitter id = getJsonProperty(nodeVar, information.idProperty);
         Type type = getPropertyGenericType(property);
 
@@ -576,6 +581,14 @@ class JsonDeserializerEmitter {
             return null;
         }
         return convert(id, type);
+    }
+
+    private void checkIdPropertyExistence(ClassInformation information, BasicBlock skip) {
+        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(ObjectNode.class, "has",
+                String.class, boolean.class), pe.constant(information.idProperty))
+                .fork(BranchingCondition.NOT_EQUAL);
+        fork.setElse(skip);
+        fork.setThen(pe.createBlock());
     }
 
     private void emitProperties(ClassInformation information) {

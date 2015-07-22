@@ -202,8 +202,8 @@ public class DeserializerTest {
     @Test
     public void readsCircularReferences() {
         GraphNode node = JSONRunner.deserialize("{ \"@id\" : 1, \"successors\" : [ " +
-                "1, { \"@id\" : 2, \"successors\" : [ 1 ] } ] }", GraphNode.class);
-        assertEquals(2, node.successors.size());
+                "1, { \"@id\" : 2, \"successors\" : [ 1 ] }, { \"successors\" : [] } ] }", GraphNode.class);
+        assertEquals(3, node.successors.size());
         assertSame(node, node.successors.get(0));
         assertEquals(1, node.successors.get(1).successors.size());
         assertSame(node, node.successors.get(1).successors.get(0));
