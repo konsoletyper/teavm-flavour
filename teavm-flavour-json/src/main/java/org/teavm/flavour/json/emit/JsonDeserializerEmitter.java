@@ -191,10 +191,10 @@ class JsonDeserializerEmitter {
         MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
 
-        ProgramEmitter pe = ProgramEmitter.create(ctor);
-        ValueEmitter thisVar = pe.newVar();
-        thisVar.invokeSpecial(new MethodReference(JsonDeserializer.class, "<init>", void.class));
-        pe.exit();
+        ProgramEmitter.create(ctor)
+                .newVar(cls)
+                .invokeSpecial(JsonDeserializer.class, "<init>")
+                .exit();
 
         cls.addMethod(ctor);
     }
@@ -212,9 +212,9 @@ class JsonDeserializerEmitter {
             method.setLevel(AccessLevel.PUBLIC);
 
             pe = ProgramEmitter.create(method);
-            pe.newVar(); // skip this variable
-            contextVar = pe.newVar();
-            nodeVar = pe.newVar();
+            pe.newVar(cls); // skip this variable
+            contextVar = pe.newVar(JsonDeserializerContext.class);
+            nodeVar = pe.newVar(Node.class);
             ValueEmitter nodeVarBackup = nodeVar;
 
             if (isSuperType(Enum.class.getName(), information.className)) {
@@ -256,7 +256,7 @@ class JsonDeserializerEmitter {
 
         BasicBlock controlBlock = pe.getProgram().createBasicBlock();
         BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
-        ForkEmitter typeFork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isString", boolean.class))
+        ForkEmitter typeFork = nodeVar.invokeVirtual("isString", boolean.class)
                 .fork(BranchingCondition.NOT_EQUAL);
         typeFork.setThen(controlBlock);
         typeFork.setElse(invalidValueBlock);
@@ -325,24 +325,13 @@ class JsonDeserializerEmitter {
     }
 
     private void emitIntegerIdCheck(ClassInformation information) {
-        BasicBlock errorBlock = pe.getProgram().createBasicBlock();
-        BasicBlock okBlock = pe.getProgram().createBasicBlock();
-
-        ForkEmitter fork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isNumber", boolean.class))
-                .fork(BranchingCondition.NOT_EQUAL);
-        fork.setThen(okBlock);
-        fork.setElse(errorBlock);
-
-        pe.setBlock(okBlock);
-        ValueEmitter id = nodeVar.cast(ValueType.parse(NumberNode.class))
-                .invokeVirtual(new MethodReference(NumberNode.class, "getIntValue", int.class));
-        id = pe.invoke(new MethodReference(Integer.class, "valueOf", int.class, Integer.class), id);
-        contextVar.invokeVirtual(new MethodReference(JsonDeserializerContext.class, "get",
-                Object.class, Object.class), id)
-                .returnValue();
-
-        pe.setBlock(errorBlock);
-        emitNoId(information);
+        pe.when(pe -> nodeVar.invokeVirtual("isNumber", boolean.class))
+                .thenDo(pe -> {
+                    ValueEmitter id = nodeVar.cast(NumberNode.class).invokeVirtual("getIntValue", int.class);
+                    id = pe.invoke(Integer.class, "valueOf", Integer.class, id);
+                    contextVar.invokeVirtual("get", Object.class, id.cast(Object.class)).returnValue();
+                })
+                .elseDo(pe -> emitNoId(information));
     }
 
     private void emitPropertyIdCheck(ClassInformation information) {
@@ -355,30 +344,27 @@ class JsonDeserializerEmitter {
         Type type = getPropertyGenericType(property);
         if (type != null) {
             ValueEmitter id = convert(nodeVar, type);
-            contextVar.invokeVirtual(new MethodReference(JsonDeserializerContext.class, "get", Object.class,
-                    Object.class), id).returnValue();
+            contextVar.invokeVirtual("get", Object.class, id.cast(Object.class)).returnValue();
         } else {
             emitNoId(information);
         }
     }
 
     private void emitNoId(ClassInformation information) {
-        ValueEmitter ex = pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class,
-                void.class), pe.constant("Can't deserialize node to an instance of " + information.className));
-        RaiseInstruction raise = new RaiseInstruction();
-        raise.setException(ex.getVariable());
-        pe.addInstruction(raise);
+        pe.construct(IllegalArgumentException.class, pe.constant(
+                "Can't deserialize node to an instance of " + information.className))
+                .raise();
     }
 
     private void emitNodeTypeCheck(BasicBlock errorBlock) {
         BasicBlock okBlock = pe.getProgram().createBasicBlock();
 
-        ForkEmitter okFork = nodeVar.invokeVirtual(new MethodReference(Node.class, "isObject", boolean.class))
+        ForkEmitter okFork = nodeVar.invokeVirtual("isObject", boolean.class)
                 .fork(BranchingCondition.NOT_EQUAL);
 
         pe.createBlock();
-        okFork = okFork.or(pe.getBlock(), nodeVar.invokeVirtual(new MethodReference(Node.class, "isArray",
-                boolean.class)).fork(BranchingCondition.NOT_EQUAL));
+        okFork = okFork.or(pe.getBlock(), nodeVar.invokeVirtual("isArray", boolean.class).
+                fork(BranchingCondition.NOT_EQUAL));
 
         okFork.setThen(okBlock);
         okFork.setElse(errorBlock);
@@ -412,7 +398,7 @@ class JsonDeserializerEmitter {
         Map<Integer, Set<String>> typeNames = groupByHashCode(subTypes.keySet());
 
         ValueEmitter tag = taggedObject.tag;
-        ValueEmitter hashVar = tag.invokeVirtual(new MethodReference(Object.class, "hashCode", int.class));
+        ValueEmitter hashVar = tag.invokeVirtual("hashCode", int.class);
         SwitchInstruction switchInsn = new SwitchInstruction();
         switchInsn.setCondition(hashVar.getVariable());
         pe.addInstruction(switchInsn);
@@ -423,8 +409,8 @@ class JsonDeserializerEmitter {
             switchEntry.setCondition(entry.getKey());
             BasicBlock next = pe.getProgram().createBasicBlock();
             for (String typeName : entry.getValue()) {
-                ForkEmitter fork = tag.invokeVirtual(new MethodReference(Object.class, "equals",
-                        Object.class, boolean.class), pe.constant(typeName))
+                ForkEmitter fork = tag.invokeVirtual("equals", boolean.class,
+                        pe.constant(typeName).cast(Object.class))
                         .fork(BranchingCondition.NOT_EQUAL);
                 fork.setThen(pe.createBlock());
                 ClassInformation type = subTypes.get(typeName);
@@ -432,8 +418,7 @@ class JsonDeserializerEmitter {
                     pe.jump(mainBlock);
                 } else {
                     ValueEmitter deserializer = createObjectDeserializer(type.className);
-                    deserializer.invokeVirtual(new MethodReference(JsonDeserializer.class, "deserialize",
-                            JsonDeserializerContext.class, Node.class, Object.class), contextVar, nodeVar)
+                    deserializer.invokeVirtual("deserialize", Object.class, contextVar, nodeVar.cast(Node.class))
                             .returnValue();
                 }
                 fork.setElse(next);
@@ -447,17 +432,11 @@ class JsonDeserializerEmitter {
         pe.jump(invalidValueBlock);
 
         pe.setBlock(invalidValueBlock);
-        RaiseInstruction raiseInsn = new RaiseInstruction();
-        ValueEmitter errorVar = pe.construct(new MethodReference(StringBuilder.class, "<init>", void.class));
-        MethodReference appendMethod = new MethodReference(StringBuilder.class, "append", String.class,
-                StringBuilder.class);
-        MethodReference stringifyMethod = new MethodReference(Node.class, "stringify", String.class);
-        errorVar = errorVar.invokeVirtual(appendMethod, pe.constant("Invalid type tag: "))
-                .invokeVirtual(appendMethod, nodeVar.invokeVirtual(stringifyMethod))
-                .invokeVirtual(new MethodReference(StringBuilder.class, "toString", String.class));
-        raiseInsn.setException(pe.construct(new MethodReference(IllegalArgumentException.class, "<init>", String.class,
-                void.class), errorVar).getVariable());
-        pe.addInstruction(raiseInsn);
+        ValueEmitter errorVar = pe.construct(StringBuilder.class)
+                .invokeVirtual("append", StringBuilder.class, pe.constant("Invalid type tag: "))
+                .invokeVirtual("append", StringBuilder.class, nodeVar.invokeVirtual("stringify", String.class))
+                .invokeVirtual("toString", String.class);
+        pe.construct(IllegalArgumentException.class, errorVar).raise();
     }
 
     private ObjectWithTag emitTypeNameExtractor(ClassInformation information) {
@@ -655,8 +634,7 @@ class JsonDeserializerEmitter {
 
     private ValueEmitter convertNullable(ValueEmitter node, Type type) {
         ValueEmitter deserializer = createDeserializer(type);
-        return deserializer.invokeVirtual(new MethodReference(JsonDeserializer.class, "deserialize",
-                JsonDeserializerContext.class, Node.class, Object.class), contextVar, node);
+        return deserializer.invokeVirtual("deserialize", Object.class, contextVar, node.cast(Node.class));
     }
 
     private ValueEmitter createDeserializer(Type type) {
@@ -706,10 +684,9 @@ class JsonDeserializerEmitter {
     private ValueEmitter convertPrimitive(ValueEmitter node, Class<?> type) {
         switch (type.getName()) {
             case "boolean":
-                return pe.invoke(new MethodReference(JSON.class, "deserializeBoolean",
-                        Node.class, boolean.class), node);
+                return pe.invoke(JSON.class, "deserializeBoolean", boolean.class, node);
             case "byte":
-                return pe.invoke(new MethodReference(JSON.class, "deserializeByte", Node.class, byte.class), node);
+                return pe.invoke(JSON.class, "deserializeByte", byte.class, node);
             case "short":
                 return pe.invoke(new MethodReference(JSON.class, "deserializeShort", Node.class, short.class), node);
             case "int":
