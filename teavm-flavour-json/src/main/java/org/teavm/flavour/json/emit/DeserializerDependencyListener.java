@@ -44,10 +44,13 @@ import org.teavm.model.ClassReader;
 import org.teavm.model.FieldReference;
 import org.teavm.model.IncomingReader;
 import org.teavm.model.InstructionLocation;
+import org.teavm.model.MethodDescriptor;
+import org.teavm.model.MethodHandle;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.PhiReader;
 import org.teavm.model.ProgramReader;
+import org.teavm.model.RuntimeConstant;
 import org.teavm.model.ValueType;
 import org.teavm.model.VariableReader;
 import org.teavm.model.instructions.ArrayElementType;
@@ -413,6 +416,12 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
                 return;
             }
             interestingVariables.add(arguments.get(argIndex).getIndex());
+        }
+
+        @Override
+        public void invokeDynamic(VariableReader receiver, VariableReader instance, MethodDescriptor method,
+                List<? extends VariableReader> arguments, MethodHandle bootstrapMethod,
+                List<RuntimeConstant> bootstrapArguments) {
         }
 
         @Override

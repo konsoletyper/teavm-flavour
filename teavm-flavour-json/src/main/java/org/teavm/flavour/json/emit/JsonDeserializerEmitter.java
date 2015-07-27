@@ -191,7 +191,7 @@ class JsonDeserializerEmitter {
         MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
 
-        ProgramEmitter.create(ctor)
+        ProgramEmitter.create(ctor, classSource)
                 .newVar(cls)
                 .invokeSpecial(JsonDeserializer.class, "<init>")
                 .exit();
@@ -211,10 +211,9 @@ class JsonDeserializerEmitter {
                     ValueType.parse(Node.class), ValueType.parse(Object.class));
             method.setLevel(AccessLevel.PUBLIC);
 
-            pe = ProgramEmitter.create(method);
-            pe.newVar(cls); // skip this variable
-            contextVar = pe.newVar(JsonDeserializerContext.class);
-            nodeVar = pe.newVar(Node.class);
+            pe = ProgramEmitter.create(method, classSource);
+            contextVar = pe.var(1, JsonDeserializerContext.class);
+            nodeVar = pe.var(2, Node.class);
             ValueEmitter nodeVarBackup = nodeVar;
 
             if (isSuperType(Enum.class.getName(), information.className)) {
@@ -224,12 +223,12 @@ class JsonDeserializerEmitter {
                 BasicBlock mainBlock = pe.getProgram().createBasicBlock();
                 emitNodeTypeCheck(nonObjectBlock);
                 emitSubTypes(information, mainBlock);
-                pe.setBlock(mainBlock);
+                pe.enter(mainBlock);
                 emitConstructor(information);
                 emitIdRegistration(information);
                 emitProperties(information);
                 targetVar.returnValue();
-                pe.setBlock(nonObjectBlock);
+                pe.enter(nonObjectBlock);
                 nodeVar = nodeVarBackup;
                 emitIdCheck(information);
             }
@@ -255,7 +254,7 @@ class JsonDeserializerEmitter {
         Map<Integer, Set<String>> enumValues = groupByHashCode(valueSet);
 
         BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
-        pe.when(() -> nodeVar.invokeVirtual("isString", boolean.class)).isFalse()
+        pe.when(nodeVar.invokeVirtual("isString", boolean.class).isFalse())
                 .thenDo(() -> pe.jump(invalidValueBlock));
 
         ValueEmitter textVar = nodeVar.cast(StringNode.class).invokeVirtual("getValue", String.class);
@@ -265,8 +264,8 @@ class JsonDeserializerEmitter {
                 BasicBlock block = pe.getProgram().createBasicBlock();
                 for (String value : entry.getValue()) {
                     final BasicBlock next = block;
-                    pe.when(() -> textVar.invokeVirtual("equals", boolean.class,
-                            pe.constant(value).cast(Object.class))).isTrue()
+                    pe.when(textVar.invokeVirtual("equals", boolean.class,
+                            pe.constant(value).cast(Object.class)).isTrue())
                     .thenDo(() -> {
                         pe.initClass(information.className);
                         pe.getField(information.className, value, ValueType.object(information.className))
@@ -275,16 +274,15 @@ class JsonDeserializerEmitter {
                     .elseDo(() -> {
                         pe.jump(next);
                     });
-                    pe.setBlock(next);
+                    pe.enter(next);
                     block = pe.getProgram().createBasicBlock();
                 }
-                pe.setBlock(block);
                 pe.jump(invalidValueBlock);
+                pe.enter(block);
             });
         }
-        pe.jump(invalidValueBlock);
 
-        pe.setBlock(invalidValueBlock);
+        pe.jump(invalidValueBlock);
         ValueEmitter error = pe.construct(StringBuilder.class)
                 .invokeVirtual("append", StringBuilder.class,
                         pe.constant("Can't convert to " + information.className + ": "))
@@ -311,7 +309,7 @@ class JsonDeserializerEmitter {
     }
 
     private void emitIntegerIdCheck(ClassInformation information) {
-        pe.when(() -> nodeVar.invokeVirtual("isNumber", boolean.class)).isTrue()
+        pe.when(nodeVar.invokeVirtual("isNumber", boolean.class).isTrue())
                 .thenDo(() -> {
                     ValueEmitter id = nodeVar.cast(NumberNode.class).invokeVirtual("getIntValue", int.class);
                     id = pe.invoke(Integer.class, "valueOf", Integer.class, id);
@@ -343,8 +341,8 @@ class JsonDeserializerEmitter {
     }
 
     private void emitNodeTypeCheck(BasicBlock errorBlock) {
-        pe.when(() -> nodeVar.invokeVirtual("isObject", boolean.class)).isTrue()
-                .or(() -> nodeVar.invokeVirtual("isArray", boolean.class)).isTrue()
+        pe.when(nodeVar.invokeVirtual("isObject", boolean.class).isTrue()
+                .or(() -> nodeVar.invokeVirtual("isArray", boolean.class).isTrue()))
                 .thenDo(() -> {
                     nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
                 })
@@ -383,14 +381,16 @@ class JsonDeserializerEmitter {
 
         for (Map.Entry<Integer, Set<String>> entry : typeNames.entrySet()) {
             SwitchTableEntry switchEntry = new SwitchTableEntry();
-            switchEntry.setTarget(pe.createBlock());
+            switchEntry.setTarget(pe.prepareBlock());
             switchEntry.setCondition(entry.getKey());
+
+            pe.enter(switchEntry.getTarget());
             BasicBlock next = pe.getProgram().createBasicBlock();
             for (String typeName : entry.getValue()) {
                 ForkEmitter fork = tag.invokeVirtual("equals", boolean.class,
                         pe.constant(typeName).cast(Object.class))
                         .fork(BranchingCondition.NOT_EQUAL);
-                fork.setThen(pe.createBlock());
+                fork.setThen(pe.prepareBlock());
                 ClassInformation type = subTypes.get(typeName);
                 if (type == information) {
                     pe.jump(mainBlock);
@@ -400,16 +400,15 @@ class JsonDeserializerEmitter {
                             .returnValue();
                 }
                 fork.setElse(next);
-                pe.setBlock(next);
+                pe.enter(next);
             }
             pe.jump(invalidValueBlock);
             switchInsn.getEntries().add(switchEntry);
         }
 
-        switchInsn.setDefaultTarget(pe.createBlock());
-        pe.jump(invalidValueBlock);
+        switchInsn.setDefaultTarget(invalidValueBlock);
 
-        pe.setBlock(invalidValueBlock);
+        pe.enter(invalidValueBlock);
         ValueEmitter errorVar = pe.construct(StringBuilder.class)
                 .invokeVirtual("append", StringBuilder.class, pe.constant("Invalid type tag: "))
                 .invokeVirtual("append", StringBuilder.class, nodeVar.invokeVirtual("stringify", String.class))
@@ -434,8 +433,7 @@ class JsonDeserializerEmitter {
 
         ValueEmitter node = nodeVar.cast(ValueType.parse(ObjectNode.class));
         PhiEmitter result = pe.phi(String.class, exit);
-        pe.when(() -> node.invokeVirtual("has", boolean.class, pe.constant(information.inheritance.propertyName)))
-                .isTrue()
+        pe.when(node.invokeVirtual("has", boolean.class, pe.constant(information.inheritance.propertyName)).isTrue())
                 .thenDo(() -> {
                     getJsonProperty(node, information.inheritance.propertyName)
                             .cast(StringNode.class)
@@ -446,7 +444,7 @@ class JsonDeserializerEmitter {
                             .enter(result)
                             .jump(exit);
                 });
-        pe.setBlock(exit);
+        pe.enter(exit);
         return new ObjectWithTag(result.getValue(), nodeVar);
     }
 
@@ -461,7 +459,7 @@ class JsonDeserializerEmitter {
 
     private ObjectWithTag emitObjectTypeNameExtractor() {
         ValueEmitter node = nodeVar.cast(ObjectNode.class);
-        ValueEmitter tag = node.invokeVirtual("allKeys", String[].class).unwrapArray().getElement(0);
+        ValueEmitter tag = node.invokeVirtual("allKeys", String[].class).getElement(0);
         ValueEmitter object = node.invokeVirtual("get", Node.class, tag);
         return new ObjectWithTag(tag, object);
     }
@@ -530,7 +528,7 @@ class JsonDeserializerEmitter {
     }
 
     private void checkIdPropertyExistence(ClassInformation information, BasicBlock skip) {
-        pe.when(() -> nodeVar.invokeVirtual("has", boolean.class, pe.constant(information.idProperty))).isFalse()
+        pe.when(nodeVar.invokeVirtual("has", boolean.class, pe.constant(information.idProperty)).isFalse())
                 .thenDo(() -> pe.jump(skip));
     }
 
@@ -566,7 +564,7 @@ class JsonDeserializerEmitter {
 
         ValueEmitter value = getJsonProperty(nodeVar, property.outputName);
         value = convert(value, type);
-        targetVar.setField(field.getClassName(), field.getFieldName(), value.cast(fieldType));
+        targetVar.setField(field.getFieldName(), value.cast(fieldType));
     }
 
     private Type getPropertyGenericType(PropertyInformation property) {
