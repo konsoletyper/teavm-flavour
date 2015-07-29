@@ -65,14 +65,10 @@ import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
-import org.teavm.model.emit.ChooseEmitter;
-import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.PhiEmitter;
 import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.StringChooseEmitter;
 import org.teavm.model.emit.ValueEmitter;
-import org.teavm.model.instructions.BranchingCondition;
-import org.teavm.model.instructions.SwitchInstruction;
-import org.teavm.model.instructions.SwitchTableEntry;
 
 /**
  *
@@ -219,8 +215,8 @@ class JsonDeserializerEmitter {
             if (isSuperType(Enum.class.getName(), information.className)) {
                 emitEnumDeserializer(information);
             } else {
-                BasicBlock nonObjectBlock = pe.getProgram().createBasicBlock();
-                BasicBlock mainBlock = pe.getProgram().createBasicBlock();
+                BasicBlock nonObjectBlock = pe.prepareBlock();
+                BasicBlock mainBlock = pe.prepareBlock();
                 emitNodeTypeCheck(nonObjectBlock);
                 emitSubTypes(information, mainBlock);
                 pe.enter(mainBlock);
@@ -251,44 +247,26 @@ class JsonDeserializerEmitter {
             }
             valueSet.add(field.getName());
         }
-        Map<Integer, Set<String>> enumValues = groupByHashCode(valueSet);
 
-        BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
+        BasicBlock invalidValueBlock = pe.prepareBlock();
         pe.when(nodeVar.invokeVirtual("isString", boolean.class).isFalse())
                 .thenDo(() -> pe.jump(invalidValueBlock));
 
         ValueEmitter textVar = nodeVar.cast(StringNode.class).invokeVirtual("getValue", String.class);
-        ChooseEmitter choise = pe.choise(textVar.invokeVirtual("hashCode", int.class));
-        for (Map.Entry<Integer, Set<String>> entry : enumValues.entrySet()) {
-            choise.option(entry.getKey(), () -> {
-                BasicBlock block = pe.getProgram().createBasicBlock();
-                for (String value : entry.getValue()) {
-                    final BasicBlock next = block;
-                    pe.when(textVar.invokeVirtual("equals", boolean.class,
-                            pe.constant(value).cast(Object.class)).isTrue())
-                    .thenDo(() -> {
-                        pe.initClass(information.className);
-                        pe.getField(information.className, value, ValueType.object(information.className))
-                                .returnValue();
-                    })
-                    .elseDo(() -> {
-                        pe.jump(next);
-                    });
-                    pe.enter(next);
-                    block = pe.getProgram().createBasicBlock();
-                }
-                pe.jump(invalidValueBlock);
-                pe.enter(block);
-            });
+        StringChooseEmitter choise = pe.stringChoise(textVar);
+        for (String enumValue : valueSet) {
+            choise.option(enumValue, () -> pe
+                    .initClass(information.className)
+                    .getField(information.className, enumValue, ValueType.object(information.className))
+                    .returnValue());
         }
+        choise.otherwise(() -> pe.jump(invalidValueBlock));
 
         pe.jump(invalidValueBlock);
-        ValueEmitter error = pe.construct(StringBuilder.class)
-                .invokeVirtual("append", StringBuilder.class,
-                        pe.constant("Can't convert to " + information.className + ": "))
-                .invokeVirtual("append", StringBuilder.class,
-                        nodeVar.invokeVirtual("stringify", String.class))
-                .invokeVirtual("toString", String.class);
+        ValueEmitter error = pe.string()
+                .append("Can't convert to " + information.className + ": ")
+                .append(nodeVar.invokeVirtual("stringify", String.class))
+                .build();
         pe.construct(IllegalArgumentException.class, error).raise();
     }
 
@@ -311,8 +289,7 @@ class JsonDeserializerEmitter {
     private void emitIntegerIdCheck(ClassInformation information) {
         pe.when(nodeVar.invokeVirtual("isNumber", boolean.class).isTrue())
                 .thenDo(() -> {
-                    ValueEmitter id = nodeVar.cast(NumberNode.class).invokeVirtual("getIntValue", int.class);
-                    id = pe.invoke(Integer.class, "valueOf", Integer.class, id);
+                    ValueEmitter id = nodeVar.cast(NumberNode.class).invokeVirtual("getIntValue", int.class).box();
                     contextVar.invokeVirtual("get", Object.class, id.cast(Object.class)).returnValue();
                 })
                 .elseDo(() -> emitNoId(information));
@@ -370,50 +347,19 @@ class JsonDeserializerEmitter {
         String rootTypeName = getTypeName(information, information);
         subTypes.put(rootTypeName, information);
 
-        BasicBlock invalidValueBlock = pe.getProgram().createBasicBlock();
-        Map<Integer, Set<String>> typeNames = groupByHashCode(subTypes.keySet());
-
-        ValueEmitter tag = taggedObject.tag;
-        ValueEmitter hashVar = tag.invokeVirtual("hashCode", int.class);
-        SwitchInstruction switchInsn = new SwitchInstruction();
-        switchInsn.setCondition(hashVar.getVariable());
-        pe.addInstruction(switchInsn);
-
-        for (Map.Entry<Integer, Set<String>> entry : typeNames.entrySet()) {
-            SwitchTableEntry switchEntry = new SwitchTableEntry();
-            switchEntry.setTarget(pe.prepareBlock());
-            switchEntry.setCondition(entry.getKey());
-
-            pe.enter(switchEntry.getTarget());
-            BasicBlock next = pe.getProgram().createBasicBlock();
-            for (String typeName : entry.getValue()) {
-                ForkEmitter fork = tag.invokeVirtual("equals", boolean.class,
-                        pe.constant(typeName).cast(Object.class))
-                        .fork(BranchingCondition.NOT_EQUAL);
-                fork.setThen(pe.prepareBlock());
-                ClassInformation type = subTypes.get(typeName);
-                if (type == information) {
-                    pe.jump(mainBlock);
-                } else {
-                    ValueEmitter deserializer = createObjectDeserializer(type.className);
-                    deserializer.invokeVirtual("deserialize", Object.class, contextVar, nodeVar.cast(Node.class))
-                            .returnValue();
-                }
-                fork.setElse(next);
-                pe.enter(next);
-            }
-            pe.jump(invalidValueBlock);
-            switchInsn.getEntries().add(switchEntry);
+        StringChooseEmitter choice = pe.stringChoise(taggedObject.tag);
+        for (ClassInformation classInfo : subTypes.values()) {
+            choice.option(getTypeName(classInfo, information), () -> createObjectDeserializer(classInfo.className)
+                            .invokeVirtual("deserialize", Object.class, contextVar, nodeVar.cast(Node.class))
+                            .returnValue());
         }
-
-        switchInsn.setDefaultTarget(invalidValueBlock);
-
-        pe.enter(invalidValueBlock);
-        ValueEmitter errorVar = pe.construct(StringBuilder.class)
-                .invokeVirtual("append", StringBuilder.class, pe.constant("Invalid type tag: "))
-                .invokeVirtual("append", StringBuilder.class, nodeVar.invokeVirtual("stringify", String.class))
-                .invokeVirtual("toString", String.class);
-        pe.construct(IllegalArgumentException.class, errorVar).raise();
+        choice.otherwise(() -> {
+            ValueEmitter errorVar = pe.string()
+                    .append("Invalid type tag: ")
+                    .append(nodeVar.invokeVirtual("stringify", String.class))
+                    .build();
+            pe.construct(IllegalArgumentException.class, errorVar).raise();
+        });
     }
 
     private ObjectWithTag emitTypeNameExtractor(ClassInformation information) {
@@ -429,21 +375,19 @@ class JsonDeserializerEmitter {
     }
 
     private ObjectWithTag emitPropertyTypeNameExtractor(ClassInformation information) {
-        BasicBlock exit = pe.getProgram().createBasicBlock();
+        BasicBlock exit = pe.prepareBlock();
 
         ValueEmitter node = nodeVar.cast(ValueType.parse(ObjectNode.class));
         PhiEmitter result = pe.phi(String.class, exit);
         pe.when(node.invokeVirtual("has", boolean.class, pe.constant(information.inheritance.propertyName)).isTrue())
-                .thenDo(() -> {
-                    getJsonProperty(node, information.inheritance.propertyName)
-                            .cast(StringNode.class)
-                            .invokeVirtual("getValue", String.class)
-                            .enter(result).jump(exit);
-                }).elseDo(() -> {
-                    pe.constant(getTypeName(information, information))
-                            .enter(result)
-                            .jump(exit);
-                });
+                .thenDo(() -> getJsonProperty(node, information.inheritance.propertyName)
+                        .cast(StringNode.class)
+                        .invokeVirtual("getValue", String.class)
+                        .propagateTo(result).jump(exit))
+                .elseDo(() -> pe
+                        .constant(getTypeName(information, information))
+                        .propagateTo(result)
+                        .jump(exit));
         pe.enter(exit);
         return new ObjectWithTag(result.getValue(), nodeVar);
     }
@@ -484,7 +428,7 @@ class JsonDeserializerEmitter {
     }
 
     private void emitIdRegistration(ClassInformation information) {
-        BasicBlock skip = pe.getProgram().createBasicBlock();
+        BasicBlock skip = pe.prepareBlock();
 
         ValueEmitter id;
         switch (information.idGenerator) {
@@ -787,20 +731,6 @@ class JsonDeserializerEmitter {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Can't find class " + name, e);
         }
-    }
-
-    private Map<Integer, Set<String>> groupByHashCode(Collection<String> strings) {
-        Map<Integer, Set<String>> result = new HashMap<>();
-        for (String str : strings) {
-            int hash = str.hashCode();
-            Set<String> hashValues = result.get(hash);
-            if (hashValues == null) {
-                hashValues = new HashSet<>();
-                result.put(hash, hashValues);
-            }
-            hashValues.add(str);
-        }
-        return result;
     }
 
     private ValueEmitter getJsonProperty(ValueEmitter object, String property) {
