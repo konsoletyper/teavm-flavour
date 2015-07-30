@@ -29,12 +29,12 @@ public abstract class ObjectNode extends Node {
     @JSIndexer
     public abstract void set(String key, Node value);
 
-    @JSBody(params = {}, script =
-            "var array = [];" +
-            "for (var key in this) {" +
-                "array.push(key);" +
-            "}" +
-            "return array;")
+    @JSBody(params = {}, script = ""
+            + "var array = [];"
+            + "for (var key in this) {"
+                + "array.push(key);"
+            + "}"
+            + "return array;")
     public final native String[] allKeys();
 
     @JSBody(params = "key", script = "return key in this;")

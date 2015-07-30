@@ -119,7 +119,7 @@ public class Parser {
 
     private void parseTag(Tag tag, List<TemplateNode> result) {
         if (tag instanceof StartTag) {
-            StartTag startTag = (StartTag)tag;
+            StartTag startTag = (StartTag) tag;
             if (startTag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
                 parseProcessingInstruction(startTag);
             } else if (startTag.getStartTagType() == StartTagType.NORMAL) {
@@ -204,8 +204,8 @@ public class Parser {
                 case VARIABLE: {
                     String varName = attr.getValue();
                     if (declaredVars.containsKey(varName)) {
-                        error(attr.getValueSegment(), "Variable " + varName + " is already used by the same " +
-                                "directive");
+                        error(attr.getValueSegment(), "Variable " + varName + " is already used by the same "
+                                + "directive");
                     } else {
                         declaredVars.put(varName, attrMeta.valueType);
                     }
@@ -215,12 +215,12 @@ public class Parser {
                     break;
                 }
                 case FUNCTION: {
-                    TypedPlan plan = compileExpr(attr.getValueSegment(), (GenericClass)attrMeta.valueType);
+                    TypedPlan plan = compileExpr(attr.getValueSegment(), (GenericClass) attrMeta.valueType);
                     DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
-                            setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
+                            setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                             attrMeta.sam.getActualOwner().getName());
                     directive.getComputations().add(computationBinding);
-                    unifier.unify(attrMeta.sam.getActualOwner(), (GenericType)plan.getType(), false);
+                    unifier.unify(attrMeta.sam.getActualOwner(), (GenericType) plan.getType(), false);
                     break;
                 }
             }
@@ -229,7 +229,7 @@ public class Parser {
         for (Map.Entry<String, ValueType> varEntry : declaredVars.entrySet()) {
             ValueType type = varEntry.getValue();
             if (type instanceof GenericType) {
-                type = ((GenericType)type).substitute(unifier.getSubstitutions());
+                type = ((GenericType) type).substitute(unifier.getSubstitutions());
             }
             pushVar(varEntry.getKey(), type);
         }
@@ -286,7 +286,7 @@ public class Parser {
             case FUNCTION: {
                 TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.sam.getActualOwner());
                 DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
-                        setter.getOwner().getName(), setter.getName(), (LambdaPlan)plan.getPlan(),
+                        setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                         directiveMeta.sam.getDescriber().getOwner().getName());
                 directive.getFunctions().add(functionBinding);
                 break;
@@ -391,8 +391,7 @@ public class Parser {
         }
         String prefix = rule.substring(0, index);
         String suffix = rule.substring(index + 1);
-        return name.startsWith(prefix) && name.endsWith(suffix) &&
-                prefix.length() + suffix.length() < name.length();
+        return name.startsWith(prefix) && name.endsWith(suffix) && prefix.length() + suffix.length() < name.length();
     }
 
     private void parseProcessingInstruction(StartTag tag) {
@@ -459,10 +458,10 @@ public class Parser {
                 DirectiveParser directiveParser = new DirectiveParser(classRepository, diagnostics, segment);
                 Object directiveMetadata = directiveParser.parse(cls);
                 if (directiveMetadata instanceof DirectiveMetadata) {
-                    DirectiveMetadata elemDirectiveMeta = (DirectiveMetadata)directiveMetadata;
+                    DirectiveMetadata elemDirectiveMeta = (DirectiveMetadata) directiveMetadata;
                     directiveList.add(elemDirectiveMeta);
                 } else if (directiveMetadata instanceof AttributeDirectiveMetadata) {
-                    AttributeDirectiveMetadata attrDirectiveMeta = (AttributeDirectiveMetadata)directiveMetadata;
+                    AttributeDirectiveMetadata attrDirectiveMeta = (AttributeDirectiveMetadata) directiveMetadata;
                     attributeDirectiveList.add(attrDirectiveMeta);
                 }
             }

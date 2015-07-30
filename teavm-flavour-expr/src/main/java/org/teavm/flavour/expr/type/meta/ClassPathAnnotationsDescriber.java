@@ -49,7 +49,7 @@ abstract class ClassPathAnnotationsDescriber implements AnnotationsDescriber {
     public AnnotationDescriber getAnnotation(String className) {
         Class<Annotation> cls;
         try {
-            cls = (Class<Annotation>)Class.forName(className, false, getRepository().classLoader);
+            cls = (Class<Annotation>) Class.forName(className, false, getRepository().classLoader);
         } catch (ClassNotFoundException e) {
             return null;
         }

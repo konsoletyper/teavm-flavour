@@ -30,7 +30,7 @@ public class BooleanArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         boolean[] array = new boolean[arrayNode.size()];
         for (int i = 0; i < array.length; ++i) {
             array[i] = JSON.deserializeBoolean(arrayNode.get(i));

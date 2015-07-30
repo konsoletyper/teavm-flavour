@@ -40,7 +40,7 @@ public class MapDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-object node as a map");
         }
 
-        ObjectNode objectNode = (ObjectNode)node;
+        ObjectNode objectNode = (ObjectNode) node;
         Map<Object, Object> map = new HashMap<>();
         for (String key : objectNode.allKeys()) {
             Node valueNode = objectNode.get(key);

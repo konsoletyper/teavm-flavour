@@ -37,7 +37,7 @@ public class SetDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as a list");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         Set<Object> set = new HashSet<>(arrayNode.size());
         for (int i = 0; i < arrayNode.size(); ++i) {
             set.add(itemDeserializer.deserialize(context, arrayNode.get(i)));

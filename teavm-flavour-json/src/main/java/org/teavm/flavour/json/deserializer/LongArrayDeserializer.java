@@ -30,7 +30,7 @@ public class LongArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         long[] array = new long[arrayNode.size()];
         for (int i = 0; i < array.length; ++i) {
             array[i] = JSON.deserializeLong(arrayNode.get(i));

@@ -164,8 +164,8 @@ class ClassInformationProvider {
                         information.inheritance.key = InheritanceKey.WRAPPER_OBJECT;
                         break;
                     default:
-                        diagnostics.warning(null, "{{c0}}: unsupported value " + includeValue.getString() +
-                                " in {{c1}}", cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$As");
+                        diagnostics.warning(null, "{{c0}}: unsupported value " + includeValue.getString()
+                                + " in {{c1}}", cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$As");
                         break;
                 }
             }
@@ -255,7 +255,7 @@ class ClassInformationProvider {
         List<AnnotationValue> subTypes = annot.getValue("value").getList();
         for (AnnotationValue subTypeItem : subTypes) {
             AnnotationReader subTypeAnnot = subTypeItem.getAnnotation();
-            ValueType.Object subclass = (ValueType.Object)subTypeAnnot.getValue("value").getJavaClass();
+            ValueType.Object subclass = (ValueType.Object) subTypeAnnot.getValue("value").getJavaClass();
             // TODO check whether subclass is actually a subclass
             ClassInformation subtypeInformation = get(subclass.getClassName());
             if (subtypeInformation == null) {
@@ -275,17 +275,17 @@ class ClassInformationProvider {
             if (method.hasModifier(ElementModifier.STATIC)) {
                 continue;
             }
-            if (isGetterName(method.getName()) && method.parameterCount() == 0 &&
-                    method.getResultType() != ValueType.VOID) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
-                        information.getterVisibility.match(method.getLevel())) {
+            if (isGetterName(method.getName()) && method.parameterCount() == 0
+                    && method.getResultType() != ValueType.VOID) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations())
+                        || information.getterVisibility.match(method.getLevel())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addGetter(information, propertyName, method);
                 }
-            } else if (isBooleanName(method.getName()) && method.parameterCount() == 0 &&
-                    method.getResultType() == ValueType.BOOLEAN) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
-                        information.isGetterVisibility.match(method.getLevel())) {
+            } else if (isBooleanName(method.getName()) && method.parameterCount() == 0
+                    && method.getResultType() == ValueType.BOOLEAN) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations())
+                        || information.isGetterVisibility.match(method.getLevel())) {
                     String propertyName = decapitalize(method.getName().substring(2));
                     addGetter(information, propertyName, method);
                 }
@@ -298,10 +298,10 @@ class ClassInformationProvider {
             if (method.hasModifier(ElementModifier.STATIC)) {
                 continue;
             }
-            if (isSetterName(method.getName()) && method.parameterCount() == 1 &&
-                    method.getResultType() == ValueType.VOID) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations()) ||
-                        information.setterVisibility.match(method.getLevel())) {
+            if (isSetterName(method.getName()) && method.parameterCount() == 1
+                    && method.getResultType() == ValueType.VOID) {
+                if (hasExplicitPropertyDeclaration(method.getAnnotations())
+                        || information.setterVisibility.match(method.getLevel())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addSetter(information, propertyName, method);
                 }
@@ -330,8 +330,8 @@ class ClassInformationProvider {
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
             CallLocation location = new CallLocation(method.getReference());
-            diagnostics.error(location, "Duplicate property declaration " + propertyName + ". " +
-                    "Already declared in {{c0}}", property.className);
+            diagnostics.error(location, "Duplicate property declaration " + propertyName + ". "
+                    + "Already declared in {{c0}}", property.className);
             return;
         } else {
             information.propertiesByOutputName.put(property.outputName, property);
@@ -361,8 +361,8 @@ class ClassInformationProvider {
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
             CallLocation location = new CallLocation(method.getReference());
-            diagnostics.error(location, "Duplicate property declaration " + propertyName + ". " +
-                    "Already declared in {{c0}}", property.className);
+            diagnostics.error(location, "Duplicate property declaration " + propertyName + ". "
+                    + "Already declared in {{c0}}", property.className);
             return;
         } else {
             information.propertiesByOutputName.put(property.outputName, property);
@@ -376,8 +376,8 @@ class ClassInformationProvider {
             if (field.hasModifier(ElementModifier.STATIC)) {
                 continue;
             }
-            if (hasExplicitPropertyDeclaration(field.getAnnotations()) ||
-                    information.getterVisibility.match(field.getLevel())) {
+            if (hasExplicitPropertyDeclaration(field.getAnnotations())
+                    || information.getterVisibility.match(field.getLevel())) {
                 addField(information, field.getName(), field);
             }
         }
@@ -421,8 +421,8 @@ class ClassInformationProvider {
         property.outputName = getPropertyName(field.getAnnotations(), property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
-            diagnostics.error(null, "Duplicate property declaration " + propertyName + ". " +
-                    "Already declared in {{c0}}", property.className);
+            diagnostics.error(null, "Duplicate property declaration " + propertyName + ". "
+                    + "Already declared in {{c0}}", property.className);
             return;
         } else {
             information.propertiesByOutputName.put(property.outputName, property);

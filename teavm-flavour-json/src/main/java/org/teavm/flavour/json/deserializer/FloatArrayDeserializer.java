@@ -30,7 +30,7 @@ public class FloatArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         float[] array = new float[arrayNode.size()];
         for (int i = 0; i < array.length; ++i) {
             array[i] = JSON.deserializeFloat(arrayNode.get(i));

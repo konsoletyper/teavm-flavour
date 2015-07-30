@@ -44,8 +44,8 @@ class SerializerDependencyListener extends AbstractDependencyListener {
     @Override
     public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
-        if (method.getReference().getClassName().equals(JSON.class.getName()) &&
-                method.getReference().getName().equals("getClassSerializer")) {
+        if (method.getReference().getClassName().equals(JSON.class.getName())
+                && method.getReference().getName().equals("getClassSerializer")) {
             emitter = new JsonSerializerEmitter(agent);
             MethodDependency serializeMethod = agent.linkMethod(new MethodReference(JSON.class,
                     "serialize", JsonSerializerContext.class, Object.class, Node.class), null);

@@ -28,8 +28,8 @@ public class MapSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
         ObjectNode result = ObjectNode.create();
-        for (Map.Entry<?, ?> entry : ((Map<?, ?>)value).entrySet()) {
-            String key = entry.getKey() instanceof String ? (String)entry.getKey() : entry.getKey().toString();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+            String key = entry.getKey() instanceof String ? (String) entry.getKey() : entry.getKey().toString();
             result.set(key, JSON.serialize(context, entry.getValue()));
         }
         return result;

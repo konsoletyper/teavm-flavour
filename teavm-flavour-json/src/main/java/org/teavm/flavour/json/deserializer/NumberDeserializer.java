@@ -28,7 +28,7 @@ public class NumberDeserializer extends NullableDeserializer {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a number");
         }
-        NumberNode number = (NumberNode)node;
+        NumberNode number = (NumberNode) node;
         return number.isInt() ? number.getIntValue() : number.getValue();
     }
 }

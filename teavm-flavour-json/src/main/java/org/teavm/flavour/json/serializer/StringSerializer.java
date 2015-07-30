@@ -25,6 +25,6 @@ import org.teavm.flavour.json.tree.StringNode;
 public class StringSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
-        return StringNode.create((String)value);
+        return StringNode.create((String) value);
     }
 }

@@ -25,6 +25,6 @@ import org.teavm.flavour.json.tree.NumberNode;
 public class DoubleSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
-        return NumberNode.create(((Number)value).doubleValue());
+        return NumberNode.create(((Number) value).doubleValue());
     }
 }

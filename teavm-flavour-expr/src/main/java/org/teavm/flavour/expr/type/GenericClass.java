@@ -80,7 +80,7 @@ public final class GenericClass extends GenericType {
         if (!(obj instanceof GenericClass)) {
             return false;
         }
-        GenericClass other = (GenericClass)obj;
+        GenericClass other = (GenericClass) obj;
         if (!name.equals(other.name)) {
             return false;
         }

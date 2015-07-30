@@ -32,7 +32,7 @@ import org.teavm.platform.async.AsyncCallback;
  */
 @BindTemplate("templates/flavour/widgets/popup.html")
 public final class Popup {
-    private static Window window = (Window)JS.getGlobal();
+    private static Window window = (Window) JS.getGlobal();
     private static HTMLDocument document = window.getDocument();
     private Fragment content;
     private Component component;
@@ -65,10 +65,6 @@ public final class Popup {
         document.getBody().appendChild(popup.wrapper);
         popup.component = Templates.bind(popup, popup.wrapper);
         popup.callback = callback;
-        content.setDelegate(new PopupDelegate() {
-            @Override public void close() {
-                popup.close();
-            }
-        });
+        content.setDelegate(() -> popup.close());
     }
 }

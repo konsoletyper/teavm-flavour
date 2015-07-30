@@ -244,7 +244,7 @@ public class GenericTypeNavigator {
 
         ValueType type = fieldDescriber.getType();
         if (type instanceof GenericType) {
-            type = ((GenericType)type).substitute(substitutions);
+            type = ((GenericType) type).substitute(substitutions);
         }
 
         return new GenericField(fieldDescriber, type);
@@ -301,12 +301,12 @@ public class GenericTypeNavigator {
         ValueType[] argTypes = methodDescriber.getArgumentTypes();
         for (int i = 0; i < argTypes.length; ++i) {
             if (argTypes[i] instanceof GenericType) {
-                argTypes[i] = ((GenericType)argTypes[i]).substitute(substitutions);
+                argTypes[i] = ((GenericType) argTypes[i]).substitute(substitutions);
             }
         }
         ValueType returnType = methodDescriber.getReturnType();
         if (returnType instanceof GenericType) {
-            returnType = ((GenericType)returnType).substitute(substitutions);
+            returnType = ((GenericType) returnType).substitute(substitutions);
         }
 
         return new GenericMethod(methodDescriber, cls, argumentTypes, returnType);
@@ -339,13 +339,13 @@ public class GenericTypeNavigator {
             }
             for (int i = 0; i < paramTypes.length; ++i) {
                 if (paramTypes[i] instanceof GenericType) {
-                    paramTypes[i] = ((GenericType)paramTypes[i]).substitute(substitutions);
+                    paramTypes[i] = ((GenericType) paramTypes[i]).substitute(substitutions);
                 }
             }
 
             ValueType returnType = methodDesc.getReturnType();
             if (returnType instanceof GenericType) {
-                returnType = ((GenericType)returnType).substitute(substitutions);
+                returnType = ((GenericType) returnType).substitute(substitutions);
             }
 
             MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
@@ -403,13 +403,13 @@ public class GenericTypeNavigator {
             ValueType[] paramTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < paramTypes.length; ++i) {
                 if (paramTypes[i] instanceof GenericType) {
-                    paramTypes[i] = ((GenericType)paramTypes[i]).substitute(substitutions);
+                    paramTypes[i] = ((GenericType) paramTypes[i]).substitute(substitutions);
                 }
             }
 
             ValueType returnType = methodDesc.getReturnType();
             if (returnType instanceof GenericType) {
-                returnType = ((GenericType)returnType).substitute(substitutions);
+                returnType = ((GenericType) returnType).substitute(substitutions);
             }
 
             MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
@@ -458,7 +458,7 @@ public class GenericTypeNavigator {
             if (!(obj instanceof MethodSignature)) {
                 return false;
             }
-            MethodSignature other = (MethodSignature)obj;
+            MethodSignature other = (MethodSignature) obj;
             return Arrays.equals(paramTypes, other.paramTypes);
         }
     }

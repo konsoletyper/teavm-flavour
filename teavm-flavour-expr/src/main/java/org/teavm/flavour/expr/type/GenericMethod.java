@@ -63,12 +63,12 @@ public class GenericMethod {
         ValueType[] actualArgumentTypes = this.actualArgumentTypes.clone();
         for (int i = 0; i < actualArgumentTypes.length; ++i) {
             if (actualArgumentTypes[i] instanceof GenericType) {
-                actualArgumentTypes[i] = ((GenericType)actualArgumentTypes[i]).substitute(substitutions);
+                actualArgumentTypes[i] = ((GenericType) actualArgumentTypes[i]).substitute(substitutions);
             }
         }
         ValueType actualReturnType = this.actualReturnType;
         if (actualReturnType instanceof GenericType) {
-            actualReturnType = ((GenericType)actualReturnType).substitute(substitutions);
+            actualReturnType = ((GenericType) actualReturnType).substitute(substitutions);
         }
         return new GenericMethod(describer, actualOwner, actualArgumentTypes, actualReturnType);
     }

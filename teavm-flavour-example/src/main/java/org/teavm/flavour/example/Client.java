@@ -33,14 +33,8 @@ public final class Client {
     }
 
     public static void main(String[] args) {
-        final InMemoryProductDataSet dataSet = new InMemoryProductDataSet(createProducts());
-        ProductViewFactory productViewFactory = new ProductViewFactory() {
-            @Override public ProductsView create() {
-                return new ProductsView(dataSet);
-            }
-        };
-
-        OrderView order = new OrderView(productViewFactory);
+        InMemoryProductDataSet dataSet = new InMemoryProductDataSet(createProducts());
+        OrderView order = new OrderView(() -> new ProductsView(dataSet));
         order.setAddress("Townburgh, Elm street, 123");
         order.setReceiverName("John Doe");
         order.setDate(new Date());
@@ -69,8 +63,8 @@ public final class Client {
                 String adjective = adjectives.get(i);
                 BigDecimal quotient = quotients.get(i);
                 for (String color : colors) {
-                    String sku = String.valueOf(index / 100) + String.valueOf((index / 10) % 10) +
-                            String.valueOf(index % 10) + product.getSku();
+                    String sku = String.valueOf(index / 100) + String.valueOf((index / 10) % 10)
+                            + String.valueOf(index % 10) + product.getSku();
                     ++index;
                     list.add(new Product(sku,
                             adjective + " " +  color + " " + product.getName(),
@@ -78,11 +72,7 @@ public final class Client {
                 }
             }
         }
-        Collections.sort(list, new Comparator<Product>() {
-            @Override public int compare(Product o1, Product o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        });
+        Collections.sort(list, Comparator.comparing(Product::getName));
         return list;
     }
 }

@@ -413,15 +413,13 @@ class ExprParser extends BaseParser<Holder> {
 
     Rule IntNumber() {
         final Var<String> digits = new Var<>();
-        Action<Holder> action = new Action<Holder>() {
-            @Override public boolean run(Context<Holder> context) {
-                try {
-                    int value = Integer.parseInt(digits.get());
-                    context.getValueStack().push(wrap(new ConstantExpr<Void>(value)));
-                    return true;
-                } catch (NumberFormatException e) {
-                    return false;
-                }
+        Action<Holder> action = context -> {
+            try {
+                int value = Integer.parseInt(digits.get());
+                context.getValueStack().push(wrap(new ConstantExpr<Void>(value)));
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
             }
         };
         Var<Integer> start = new Var<>();
@@ -446,11 +444,8 @@ class ExprParser extends BaseParser<Holder> {
         final Var<Character> exponentSign = new Var<>();
         final Var<String> exponent = new Var<>();
         Var<Integer> start = new Var<>();
-        Action<Expr<Void>> action = new Action<Expr<Void>>() {
-            @Override public boolean run(Context<Expr<Void>> context) {
-                return stringToDouble(context, intPart.get(), fracPart.get(), exponentSign.get(), exponent.get());
-            }
-        };
+        Action<Expr<Void>> action = context -> stringToDouble(context, intPart.get(), fracPart.get(),
+                exponentSign.get(), exponent.get());
         return Sequence(
             start.set(currentIndex()),
             FirstOf(
@@ -564,63 +559,51 @@ class ExprParser extends BaseParser<Holder> {
     }
 
     Action<Holder> setLocations(final Var<Integer> start) {
-        return new Action<Holder>() {
-            @Override
-            public boolean run(Context<Holder> context) {
-                Expr<Void> expr = context.getValueStack().peek().expr;
-                if (expr != null) {
-                    expr.setStart(start.get());
-                    expr.setEnd(context.getCurrentIndex());
-                }
-                return true;
+        return context -> {
+            Expr<Void> expr = context.getValueStack().peek().expr;
+            if (expr != null) {
+                expr.setStart(start.get());
+                expr.setEnd(context.getCurrentIndex());
             }
+            return true;
         };
     }
 
     Action<Holder> append(final Var<StringBuilder> sb, final Var<Character> ch) {
-        return new Action<Holder>() {
-            @Override
-            public boolean run(Context<Holder> context) {
-                sb.get().append(ch.get().charValue());
-                return true;
-            }
+        return context -> {
+            sb.get().append(ch.get().charValue());
+            return true;
         };
     }
 
     Action<Holder> qualify(final Var<Expr<Void>> instanceVar, final Var<String> propertyVar,
             final Var<List<Expr<Void>>> argumentsVar) {
-        return new Action<Holder>() {
-            @Override
-            public boolean run(Context<Holder> context) {
-                Expr<Void> instance = instanceVar != null ? instanceVar.get() : null;
-                String className = instance != null ? isClassName(instance) : null;
-                if (argumentsVar.get() == null) {
-                    if (className == null) {
-                        context.getValueStack().push(wrap(new PropertyExpr<>(instance, propertyVar.get())));
-                    } else {
-                        context.getValueStack().push(wrap(new StaticPropertyExpr<Void>(className, propertyVar.get())));
-                    }
+        return context -> {
+            Expr<Void> instance = instanceVar != null ? instanceVar.get() : null;
+            String className = instance != null ? isClassName(instance) : null;
+            if (argumentsVar.get() == null) {
+                if (className == null) {
+                    context.getValueStack().push(wrap(new PropertyExpr<>(instance, propertyVar.get())));
                 } else {
-                    if (className == null) {
-                        context.getValueStack().push(wrap(new InvocationExpr<>(instance, propertyVar.get(),
-                                argumentsVar.get())));
-                    } else {
-                        context.getValueStack().push(wrap(new StaticInvocationExpr<>(className, propertyVar.get(),
-                                argumentsVar.get())));
-                    }
+                    context.getValueStack().push(wrap(new StaticPropertyExpr<Void>(className, propertyVar.get())));
                 }
-                return true;
+            } else {
+                if (className == null) {
+                    context.getValueStack().push(wrap(new InvocationExpr<>(instance, propertyVar.get(),
+                            argumentsVar.get())));
+                } else {
+                    context.getValueStack().push(wrap(new StaticInvocationExpr<>(className, propertyVar.get(),
+                            argumentsVar.get())));
+                }
             }
+            return true;
         };
     }
 
     Action<Holder> append(final Var<List<Expr<Void>>> list) {
-        return new Action<Holder>() {
-            @Override
-            public boolean run(Context<Holder> context) {
-                list.get().add(context.getValueStack().pop().expr);
-                return true;
-            }
+        return context -> {
+            list.get().add(context.getValueStack().pop().expr);
+            return true;
         };
     }
 

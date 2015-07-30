@@ -28,7 +28,7 @@ public class ListSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
         ArrayNode result = ArrayNode.create();
-        Collection<?> collection = (Collection<?>)value;
+        Collection<?> collection = (Collection<?>) value;
         for (Object item : collection) {
             result.add(JSON.serialize(context, item));
         }

@@ -75,8 +75,8 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     @Override
     public GenericClass getSupertype() {
         if (supertype == null) {
-            supertype = cls.getGenericSuperclass() != null ?
-                    (GenericClass)repository.convertGenericType(cls.getGenericSuperclass()) : null;
+            supertype = cls.getGenericSuperclass() != null
+                    ? (GenericClass) repository.convertGenericType(cls.getGenericSuperclass()) : null;
         }
         return supertype;
     }
@@ -87,7 +87,7 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
             Type[] javaInterfaces = cls.getGenericInterfaces();
             interfaces = new GenericClass[javaInterfaces.length];
             for (int i = 0; i < javaInterfaces.length; ++i) {
-                interfaces[i] = (GenericClass)repository.convertGenericType(javaInterfaces[i]);
+                interfaces[i] = (GenericClass) repository.convertGenericType(javaInterfaces[i]);
             }
         }
         return interfaces.clone();

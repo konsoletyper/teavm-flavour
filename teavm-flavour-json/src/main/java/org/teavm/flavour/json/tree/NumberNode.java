@@ -44,6 +44,6 @@ public abstract class NumberNode extends Node {
     public static native NumberNode create(double value);
 
     public static NumberNode create(int value) {
-        return create((double)value);
+        return create((double) value);
     }
 }

@@ -28,6 +28,6 @@ public class StringDeserializer extends NullableDeserializer {
         if (!node.isString()) {
             throw new IllegalArgumentException("Can't deserialize non-string node as a string");
         }
-        return ((StringNode)node).getValue();
+        return ((StringNode) node).getValue();
     }
 }

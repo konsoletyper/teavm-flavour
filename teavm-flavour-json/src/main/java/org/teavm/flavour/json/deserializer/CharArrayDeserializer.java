@@ -30,7 +30,7 @@ public class CharArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         char[] array = new char[arrayNode.size()];
         for (int i = 0; i < array.length; ++i) {
             array[i] = JSON.deserializeChar(arrayNode.get(i));

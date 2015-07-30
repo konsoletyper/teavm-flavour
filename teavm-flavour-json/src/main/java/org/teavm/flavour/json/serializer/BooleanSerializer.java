@@ -25,6 +25,6 @@ import org.teavm.flavour.json.tree.Node;
 public class BooleanSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
-        return BooleanNode.get((Boolean)value);
+        return BooleanNode.get((Boolean) value);
     }
 }

@@ -31,7 +31,7 @@ class InheritanceInformation implements Cloneable {
     @Override
     protected InheritanceInformation clone() {
         try {
-            InheritanceInformation copy = (InheritanceInformation)super.clone();
+            InheritanceInformation copy = (InheritanceInformation) super.clone();
             copy.subTypes = new HashSet<>(subTypes);
             return copy;
         } catch (CloneNotSupportedException e) {

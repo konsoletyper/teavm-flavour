@@ -35,7 +35,7 @@ class PropertyInformation implements Cloneable {
     @Override
     public PropertyInformation clone() {
         try {
-            return (PropertyInformation)super.clone();
+            return (PropertyInformation) super.clone();
         } catch (CloneNotSupportedException e) {
             throw new AssertionError("Unexpected exception caught", e);
         }

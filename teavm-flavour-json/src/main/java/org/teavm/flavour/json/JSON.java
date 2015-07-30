@@ -95,7 +95,7 @@ public final class JSON {
         if (deserializer == null) {
             throw new IllegalArgumentException("Don't know how to deserialize " + type.getName());
         }
-        return (T)deserializer.deserialize(new JsonDeserializerContext(), node);
+        return (T) deserializer.deserialize(new JsonDeserializerContext(), node);
     }
 
     private static void ensureStandardDeserializers() {
@@ -166,30 +166,30 @@ public final class JSON {
         if (!node.isBoolean()) {
             throw new IllegalArgumentException("Can't deserialize non-boolean not as a boolean primitive");
         }
-        return ((BooleanNode)node).getValue();
+        return ((BooleanNode) node).getValue();
     }
 
     public static byte deserializeByte(Node node) {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte primitive");
         }
-        NumberNode number = (NumberNode)node;
-        return (byte)number.getIntValue();
+        NumberNode number = (NumberNode) node;
+        return (byte) number.getIntValue();
     }
 
     public static short deserializeShort(Node node) {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a short primitive");
         }
-        NumberNode number = (NumberNode)node;
-        return (short)number.getIntValue();
+        NumberNode number = (NumberNode) node;
+        return (short) number.getIntValue();
     }
 
     public static int deserializeInt(Node node) {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as an int primitive");
         }
-        NumberNode number = (NumberNode)node;
+        NumberNode number = (NumberNode) node;
         return number.getIntValue();
     }
 
@@ -197,23 +197,23 @@ public final class JSON {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a long primitive");
         }
-        NumberNode number = (NumberNode)node;
-        return (long)number.getValue();
+        NumberNode number = (NumberNode) node;
+        return (long) number.getValue();
     }
 
     public static float deserializeFloat(Node node) {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a float primitive");
         }
-        NumberNode number = (NumberNode)node;
-        return (float)number.getValue();
+        NumberNode number = (NumberNode) node;
+        return (float) number.getValue();
     }
 
     public static double deserializeDouble(Node node) {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a double primitive");
         }
-        NumberNode number = (NumberNode)node;
+        NumberNode number = (NumberNode) node;
         return number.getValue();
     }
 
@@ -222,7 +222,7 @@ public final class JSON {
             throw new IllegalArgumentException("Don't know how to deserialize non-string node as a char");
         }
 
-        String value = ((StringNode)node).getValue();
+        String value = ((StringNode) node).getValue();
         if (value.length() != 1) {
             throw new IllegalArgumentException("String must be exactly one char length to be deserialized as a char");
         }

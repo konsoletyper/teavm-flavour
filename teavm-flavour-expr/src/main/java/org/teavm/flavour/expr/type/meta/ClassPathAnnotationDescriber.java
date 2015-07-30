@@ -53,25 +53,25 @@ class ClassPathAnnotationDescriber implements AnnotationDescriber {
 
     AnnotationValue convertValue(Object javaValue) {
         if (javaValue instanceof Boolean) {
-            return new AnnotationBoolean((Boolean)javaValue);
+            return new AnnotationBoolean((Boolean) javaValue);
         } else if (javaValue instanceof Byte) {
-            return new AnnotationByte((Byte)javaValue);
+            return new AnnotationByte((Byte) javaValue);
         } else if (javaValue instanceof Short) {
-            return new AnnotationShort((Short)javaValue);
+            return new AnnotationShort((Short) javaValue);
         } else if (javaValue instanceof Integer) {
-            return new AnnotationInt((Integer)javaValue);
+            return new AnnotationInt((Integer) javaValue);
         } else if (javaValue instanceof Long) {
-            return new AnnotationLong((Long)javaValue);
+            return new AnnotationLong((Long) javaValue);
         } else if (javaValue instanceof Float) {
-            return new AnnotationFloat((Float)javaValue);
+            return new AnnotationFloat((Float) javaValue);
         } else if (javaValue instanceof Double) {
-            return new AnnotationDouble((Double)javaValue);
+            return new AnnotationDouble((Double) javaValue);
         } else if (javaValue instanceof String) {
-            return new AnnotationString((String)javaValue);
+            return new AnnotationString((String) javaValue);
         } else if (javaValue instanceof Class<?>) {
-            return new AnnotationClass(((Class<?>)javaValue).getName());
+            return new AnnotationClass(((Class<?>) javaValue).getName());
         } else if (javaValue instanceof Enum<?>) {
-            return new AnnotationEnum(javaValue.getClass().getName(), ((Enum<?>)javaValue).name());
+            return new AnnotationEnum(javaValue.getClass().getName(), ((Enum<?>) javaValue).name());
         } else if (javaValue.getClass().isArray()) {
             AnnotationValue[] list = new AnnotationValue[Array.getLength(javaValue)];
             for (int i = 0; i < list.length; ++i) {
@@ -79,7 +79,7 @@ class ClassPathAnnotationDescriber implements AnnotationDescriber {
             }
             return new AnnotationList(Arrays.asList(list));
         } else if (javaValue instanceof Annotation) {
-            return new AnnotationReference(new ClassPathAnnotationDescriber((Annotation)javaValue));
+            return new AnnotationReference(new ClassPathAnnotationDescriber((Annotation) javaValue));
         } else {
             throw new AssertionError("Don't know how to convert " + javaValue + " into annotation value");
         }

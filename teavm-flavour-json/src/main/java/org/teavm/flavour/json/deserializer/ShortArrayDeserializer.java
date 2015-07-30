@@ -30,7 +30,7 @@ public class ShortArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         short[] array = new short[arrayNode.size()];
         for (int i = 0; i < array.length; ++i) {
             array[i] = JSON.deserializeShort(arrayNode.get(i));

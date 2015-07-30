@@ -33,7 +33,7 @@ public final class Templates {
     }
 
     public static Component bind(Object model, String id) {
-        return bind(model, ((Window)JS.getGlobal()).getDocument().getElementById(id));
+        return bind(model, ((Window) JS.getGlobal()).getDocument().getElementById(id));
     }
 
     public static Component bind(Object model, HTMLElement element) {

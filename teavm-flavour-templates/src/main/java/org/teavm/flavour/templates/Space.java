@@ -86,7 +86,7 @@ public abstract class Space {
         while (space.parent != null) {
             space = space.parent;
         }
-        return space instanceof RootSlot ? (RootSlot)space : null;
+        return space instanceof RootSlot ? (RootSlot) space : null;
     }
 
     void getNodeHolders(@SuppressWarnings("unused") List<NodeHolder> receiver) {

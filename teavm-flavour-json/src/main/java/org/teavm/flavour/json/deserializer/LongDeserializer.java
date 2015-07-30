@@ -28,7 +28,7 @@ public class LongDeserializer extends NullableDeserializer {
         if (!node.isNumber()) {
             throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte");
         }
-        NumberNode number = (NumberNode)node;
-        return (long)number.getValue();
+        NumberNode number = (NumberNode) node;
+        return (long) number.getValue();
     }
 }

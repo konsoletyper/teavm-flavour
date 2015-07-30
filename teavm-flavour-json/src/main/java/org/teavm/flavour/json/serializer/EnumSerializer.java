@@ -25,6 +25,6 @@ import org.teavm.flavour.json.tree.StringNode;
 public class EnumSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
-        return StringNode.create(((Enum<?>)value).name());
+        return StringNode.create(((Enum<?>) value).name());
     }
 }

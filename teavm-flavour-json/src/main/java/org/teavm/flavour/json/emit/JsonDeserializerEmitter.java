@@ -412,8 +412,8 @@ class JsonDeserializerEmitter {
             case MINIMAL_CLASS:
                 return ClassInformationProvider.getUnqualifiedName(type.className);
             case NAME:
-                return type.typeName != null ? type.typeName :
-                        ClassInformationProvider.getUnqualifiedName(type.className);
+                return type.typeName != null ? type.typeName
+                        : ClassInformationProvider.getUnqualifiedName(type.className);
             case NONE:
                 break;
         }
@@ -528,7 +528,7 @@ class JsonDeserializerEmitter {
 
     private ValueEmitter convert(ValueEmitter node, Type type) {
         if (type instanceof Class<?>) {
-            Class<?> cls = (Class<?>)type;
+            Class<?> cls = (Class<?>) type;
             if (cls.isPrimitive()) {
                 return convertPrimitive(node, cls);
             }
@@ -544,14 +544,14 @@ class JsonDeserializerEmitter {
 
     private ValueEmitter createDeserializer(Type type) {
         if (type instanceof Class<?>) {
-            Class<?> cls = (Class<?>)type;
+            Class<?> cls = (Class<?>) type;
             if (cls.isArray()) {
                 return createArrayDeserializer(cls);
             } else {
                 return createObjectDeserializer(cls);
             }
         } else if (type instanceof ParameterizedType) {
-            ParameterizedType paramType = (ParameterizedType)type;
+            ParameterizedType paramType = (ParameterizedType) type;
             Type[] typeArgs = paramType.getActualTypeArguments();
             if (paramType.getRawType().equals(Map.class)) {
                 return createMapDeserializer(typeArgs[0], typeArgs[1]);
@@ -563,23 +563,23 @@ class JsonDeserializerEmitter {
                 return createDeserializer(paramType.getRawType());
             }
         } else if (type instanceof WildcardType) {
-            WildcardType wildcard = (WildcardType)type;
+            WildcardType wildcard = (WildcardType) type;
             Type upperBound = wildcard.getUpperBounds()[0];
             Class<?> upperCls = Object.class;
             if (upperBound instanceof Class<?>) {
-                upperCls = (Class<?>)upperBound;
+                upperCls = (Class<?>) upperBound;
             }
             return createObjectDeserializer(upperCls);
         } else if (type instanceof TypeVariable<?>) {
-            TypeVariable<?> tyvar = (TypeVariable<?>)type;
+            TypeVariable<?> tyvar = (TypeVariable<?>) type;
             Type upperBound = tyvar.getBounds()[0];
             Class<?> upperCls = Object.class;
             if (upperBound instanceof Class<?>) {
-                upperCls = (Class<?>)upperBound;
+                upperCls = (Class<?>) upperBound;
             }
             return createObjectDeserializer(upperCls);
         } else if (type instanceof GenericArrayType) {
-            GenericArrayType array = (GenericArrayType)type;
+            GenericArrayType array = (GenericArrayType) type;
             return createArrayDeserializer(array);
         } else {
             return createObjectDeserializer(Object.class);
@@ -617,8 +617,8 @@ class JsonDeserializerEmitter {
     private ValueEmitter createArrayDeserializer(Class<?> type) {
         if (type.getComponentType().isPrimitive()) {
             String name = type.getComponentType().getName();
-            String deserializerClass = BooleanArrayDeserializer.class.getPackage().getName() + "." +
-                    Character.toUpperCase(name.charAt(0)) + name.substring(1) + "ArrayDeserializer";
+            String deserializerClass = BooleanArrayDeserializer.class.getPackage().getName() + "."
+                    + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "ArrayDeserializer";
             return pe.construct(deserializerClass);
         } else {
             ValueEmitter itemDeserializer = createDeserializer(type.getComponentType()).cast(JsonDeserializer.class);
@@ -694,7 +694,7 @@ class JsonDeserializerEmitter {
 
     private Class<?> convertType(ValueType type) {
         if (type instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive)type).getKind()) {
+            switch (((ValueType.Primitive) type).getKind()) {
                 case BOOLEAN:
                     return boolean.class;
                 case BYTE:
@@ -713,12 +713,12 @@ class JsonDeserializerEmitter {
                     return double.class;
             }
         } else if (type instanceof ValueType.Array) {
-            Class<?> itemCls = convertType(((ValueType.Array)type).getItemType());
+            Class<?> itemCls = convertType(((ValueType.Array) type).getItemType());
             return Array.newInstance(itemCls, 0).getClass();
         } else if (type instanceof ValueType.Void) {
             return void.class;
         } else if (type instanceof ValueType.Object) {
-            String className = ((ValueType.Object)type).getClassName();
+            String className = ((ValueType.Object) type).getClassName();
             return findClass(className);
         }
         throw new AssertionError("Can't convert type: " + type);
@@ -748,15 +748,15 @@ class JsonDeserializerEmitter {
 
     private ValueType rawType(Type type) {
         if (type instanceof Class<?>) {
-            return ValueType.parse((Class<?>)type);
+            return ValueType.parse((Class<?>) type);
         } else if (type instanceof ParameterizedType) {
-            return rawType(((ParameterizedType)type).getRawType());
+            return rawType(((ParameterizedType) type).getRawType());
         } else if (type instanceof GenericArrayType) {
-            return ValueType.arrayOf(rawType(((GenericArrayType)type).getGenericComponentType()));
+            return ValueType.arrayOf(rawType(((GenericArrayType) type).getGenericComponentType()));
         } else if (type instanceof TypeVariable<?>) {
-            return rawType(((TypeVariable<?>)type).getBounds()[0]);
+            return rawType(((TypeVariable<?>) type).getBounds()[0]);
         } else if (type instanceof WildcardType) {
-            return rawType(((WildcardType)type).getUpperBounds()[0]);
+            return rawType(((WildcardType) type).getUpperBounds()[0]);
         } else {
             throw new IllegalArgumentException("Don't know how to convert generic type: " + type);
         }

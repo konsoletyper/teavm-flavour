@@ -38,8 +38,8 @@ public class ArrayDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
-        Object[] array = (Object[])Array.newInstance(itemType, arrayNode.size());
+        ArrayNode arrayNode = (ArrayNode) node;
+        Object[] array = (Object[]) Array.newInstance(itemType, arrayNode.size());
         for (int i = 0; i < array.length; ++i) {
             array[i] = itemDeserializer.deserialize(context, arrayNode.get(i));
         }

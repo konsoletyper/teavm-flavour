@@ -84,8 +84,8 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
     @Override
     public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
-        if (method.getReference().getClassName().equals(JSON.class.getName()) &&
-                method.getReference().getName().equals("findClassDeserializer")) {
+        if (method.getReference().getClassName().equals(JSON.class.getName())
+                && method.getReference().getName().equals("findClassDeserializer")) {
             deserializableClasses.addConsumer(new DependencyConsumer() {
                 @Override
                 public void consume(DependencyType type) {
@@ -132,8 +132,8 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
 
                         ClassReader cls = agent.getClassSource().get(line);
                         if (cls == null) {
-                            agent.getDiagnostics().warning(location, "Can't find class {{c0}} declared by " +
-                                    res.toString(), line);
+                            agent.getDiagnostics().warning(location, "Can't find class {{c0}} declared by "
+                                    + res.toString(), line);
                         }
 
                         deserializableClasses.propagate(agent.getType(line));
@@ -166,7 +166,7 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
 
         for (ValueType valueType : builder.build()) {
             if (valueType instanceof ValueType.Object) {
-                ValueType.Object objType = (ValueType.Object)valueType;
+                ValueType.Object objType = (ValueType.Object) valueType;
                 deserializableClasses.propagate(agent.getType(objType.getClassName()));
             }
         }

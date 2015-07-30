@@ -108,8 +108,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             case EQUAL:
             case NOT_EQUAL: {
-                if (classesSuitableForComparison.contains(firstOperand.getAttribute().type) &&
-                        classesSuitableForComparison.contains(secondOperand.getAttribute().type)) {
+                if (classesSuitableForComparison.contains(firstOperand.getAttribute().type)
+                        && classesSuitableForComparison.contains(secondOperand.getAttribute().type)) {
                     ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
                     BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan,
                             secondOperand.getAttribute().plan, getPlanType(expr.getOperation()), type);
@@ -117,8 +117,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 } else {
                     ReferenceEqualityPlan plan = new ReferenceEqualityPlan(firstOperand.getAttribute().plan,
                             secondOperand.getAttribute().plan,
-                            expr.getOperation() == BinaryOperation.EQUAL ? ReferenceEqualityPlanType.EQUAL :
-                                    ReferenceEqualityPlanType.NOT_EQUAL);
+                            expr.getOperation() == BinaryOperation.EQUAL ? ReferenceEqualityPlanType.EQUAL
+                                    : ReferenceEqualityPlanType.NOT_EQUAL);
                     expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
                 }
                 break;
@@ -151,9 +151,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (firstType.equals(stringClass) || secondType.equals(stringClass)) {
             Plan firstPlan = firstOperand.getAttribute().plan;
             if (firstPlan instanceof InvocationPlan) {
-                InvocationPlan invocation = (InvocationPlan)firstPlan;
-                if (invocation.getClassName().equals("java.lang.StringBuilder") &&
-                        invocation.getMethodName().equals("toString")) {
+                InvocationPlan invocation = (InvocationPlan) firstPlan;
+                if (invocation.getClassName().equals("java.lang.StringBuilder")
+                        && invocation.getMethodName().equals("toString")) {
                     convertToString(secondOperand);
                     Plan instance = invocation.getInstance();
                     InvocationPlan append = new InvocationPlan("java.lang.StringBuilder", "append",
@@ -192,7 +192,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         Expr<TypedPlan> secondOperand = expr.getSecondOperand();
         ValueType secondType = secondOperand.getAttribute().type;
         if (firstType instanceof GenericArray) {
-            GenericArray arrayType = (GenericArray)firstType;
+            GenericArray arrayType = (GenericArray) firstType;
             ensureIntType(secondOperand);
             GetArrayElementPlan plan = new GetArrayElementPlan(firstOperand.getAttribute().plan,
                     secondOperand.getAttribute().plan);
@@ -203,8 +203,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             GenericClass mapClass = navigator.getGenericClass("java.util.Map");
             GenericClass listClass = navigator.getGenericClass("java.util.List");
             TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
-            if (unifier.unify(mapClass, (GenericType)firstType, true)) {
-                TypeVar var = ((GenericReference)mapClass.getArguments().get(1)).getVar();
+            if (unifier.unify(mapClass, (GenericType) firstType, true)) {
+                TypeVar var = ((GenericReference) mapClass.getArguments().get(1)).getVar();
                 GenericType returnType = unifier.getSubstitutions().get(var);
                 InvocationPlan plan = new InvocationPlan("java.util.Map", "get",
                         "(Ljava/lang/Object;)Ljava/lang/Object;",
@@ -212,8 +212,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 expr.setAttribute(new TypedPlan(plan, returnType));
                 copyLocation(expr);
                 return;
-            } else if (unifier.unify(listClass, (GenericType)firstType, false)) {
-                TypeVar var = ((GenericReference)listClass.getArguments().get(0)).getVar();
+            } else if (unifier.unify(listClass, (GenericType) firstType, false)) {
+                TypeVar var = ((GenericReference) listClass.getArguments().get(0)).getVar();
                 GenericType returnType = unifier.getSubstitutions().get(var);
                 ensureIntType(secondOperand);
                 InvocationPlan plan = new InvocationPlan("java.util.List", "get", "(I)Ljava/lang/Object;",
@@ -257,7 +257,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     return null;
                 }
             }
-            plan = tryCastPrimitive(plan, (Primitive)targetType);
+            plan = tryCastPrimitive(plan, (Primitive) targetType);
             if (plan == null) {
                 return null;
             }
@@ -268,10 +268,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         TypeUnifier unifier = createUnifier();
-        if (!unifier.unify((GenericType)targetType, (GenericType)plan.type, true)) {
-            GenericType erasure = ((GenericType)targetType).erasure();
+        if (!unifier.unify((GenericType) targetType, (GenericType) plan.type, true)) {
+            GenericType erasure = ((GenericType) targetType).erasure();
             plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)),
-                    ((GenericType)targetType).substitute(unifier.getSubstitutions()));
+                    ((GenericType) targetType).substitute(unifier.getSubstitutions()));
         }
 
         return plan;
@@ -279,7 +279,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(InstanceOfExpr<TypedPlan> expr) {
-        expr.setCheckedType((GenericType)resolveType(expr.getCheckedType(), expr));
+        expr.setCheckedType((GenericType) resolveType(expr.getCheckedType(), expr));
         Expr<TypedPlan> value = expr.getValue();
         value.acceptVisitor(this);
         GenericType checkedType = expr.getCheckedType();
@@ -291,7 +291,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return;
         }
 
-        GenericType sourceType = (GenericType)value.getAttribute().type;
+        GenericType sourceType = (GenericType) value.getAttribute().type;
         TypeUnifier unifier = new TypeUnifier(navigator.getClassRepository());
         if (unifier.unify(checkedType, sourceType, true)) {
             expr.setAttribute(new TypedPlan(new ConstantPlan(true), Primitive.BOOLEAN));
@@ -320,7 +320,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return;
         }
 
-        compileInvocation(expr, instance, (GenericClass)instance.type, expr.getMethodName(), expr.getArguments());
+        compileInvocation(expr, instance, (GenericClass) instance.type, expr.getMethodName(), expr.getArguments());
         copyLocation(expr);
     }
 
@@ -337,7 +337,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         for (int i = 0; i < actualArguments.length; ++i) {
             Expr<TypedPlan> arg = argumentExprList.get(i);
             if (arg instanceof LambdaExpr<?>) {
-                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>)arg;
+                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) arg;
                 for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
                     BoundVariable boundVar = lambda.getBoundVariables().get(j);
                     lambda.getBoundVariables().set(j, new BoundVariable(boundVar.getName(),
@@ -372,11 +372,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     if (!(argTypes[i] instanceof GenericClass)) {
                         continue;
                     }
-                    GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass)argTypes[i]);
+                    GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) argTypes[i]);
                     if (sam == null) {
                         continue methods;
                     }
-                    LambdaExpr<TypedPlan> lambdaArg = (LambdaExpr<TypedPlan>)argumentExprList.get(i);
+                    LambdaExpr<TypedPlan> lambdaArg = (LambdaExpr<TypedPlan>) argumentExprList.get(i);
                     if (sam.getActualArgumentTypes().length != lambdaArg.getBoundVariables().size()) {
                         continue methods;
                     }
@@ -397,7 +397,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 if (samArguments[i] == null) {
                     continue;
                 }
-                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>)argumentExprList.get(i);
+                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) argumentExprList.get(i);
                 GenericMethod sam = samArguments[i];
                 sam = sam.substitute(unifier.getSubstitutions());
                 samArguments[i] = sam;
@@ -408,9 +408,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                         declaredLambdaArg = new GenericReference(new TypeVar());
                     }
                     ValueType desiredLambdaArg = desiredLambdaArgs[j];
-                    if (!desiredLambdaArg.equals(declaredLambdaArg) && declaredLambdaArg instanceof GenericType &&
-                            desiredLambdaArg instanceof GenericType) {
-                        if (!unifier.unify((GenericType)declaredLambdaArg, (GenericType)desiredLambdaArg, true)) {
+                    if (!desiredLambdaArg.equals(declaredLambdaArg) && declaredLambdaArg instanceof GenericType
+                            && desiredLambdaArg instanceof GenericType) {
+                        if (!unifier.unify((GenericType) declaredLambdaArg, (GenericType) desiredLambdaArg, true)) {
                             continue methods;
                         }
                     }
@@ -441,7 +441,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (matchedMethods.size() == 1) {
             GenericMethod[] samArgs = samArgumentList.get(0);
             TypedPlan matchedPlan = matchedPlans.get(0);
-            InvocationPlan invocation = (InvocationPlan)matchedPlan.plan;
+            InvocationPlan invocation = (InvocationPlan) matchedPlan.plan;
             for (int i = 0; i < samArgs.length; ++i) {
                 if (samArgs[i] != null) {
                     lambdaSam = samArgs[i];
@@ -451,7 +451,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 }
             }
             if (matchedPlan.type instanceof GenericType) {
-                GenericType type = ((GenericType)matchedPlan.type).substitute(unifiers.get(0).getSubstitutions());
+                GenericType type = ((GenericType) matchedPlan.type).substitute(unifiers.get(0).getSubstitutions());
                 matchedPlan = new TypedPlan(matchedPlan.plan, type);
             }
             expr.setAttribute(matchedPlan);
@@ -472,8 +472,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             } else {
                 String methodDescription = methodToString(methodName, Arrays.asList(
                         wrongContextMethods.get(0).getActualArgumentTypes()));
-                error(expr, "Method " + methodDescription + " should be called from " +
-                        (instance != null ? "class" : "instance"));
+                error(expr, "Method " + methodDescription + " should be called from "
+                        + (instance != null ? "class" : "instance"));
             }
         } else {
             StringBuilder message = new StringBuilder();
@@ -509,7 +509,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return;
         }
 
-        GenericClass cls = (GenericClass)instance.type;
+        GenericClass cls = (GenericClass) instance.type;
         compilePropertyAccess(expr, instance, cls, expr.getPropertyName());
         copyLocation(expr);
     }
@@ -562,8 +562,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                             getter.getActualReturnType()));
                     return;
                 } else {
-                    error(expr, "Method " + getter.getDescriber().getName() + " should " +
-                            (!isStatic ? "not " : "") + "be static");
+                    error(expr, "Method " + getter.getDescriber().getName() + " should "
+                            + (!isStatic ? "not " : "") + "be static");
                 }
             } else {
                 if (instance.plan instanceof ThisPlan) {
@@ -609,7 +609,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         type = scope.variableType(expr.getName());
         if (type == null) {
             type = scope.variableType("this");
-            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass)type, expr.getName());
+            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass) type, expr.getName());
             copyLocation(expr);
             return;
         }
@@ -655,7 +655,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 } else {
                     ValueType boundVarType = actualArgTypes[i];
                     if (boundVarType instanceof GenericReference) {
-                        TypeVar typeVar = ((GenericReference)boundVarType).getVar();
+                        TypeVar typeVar = ((GenericReference) boundVarType).getVar();
                         if (typeVar.getUpperBound() != null) {
                             boundVarType = typeVar.getUpperBound().substitute(unifier.getSubstitutions());
                         } else if (typeVar.getLowerBound() != null) {
@@ -742,8 +742,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (type == null) {
             expr.setAttribute(new TypedPlan(new ConstantPlan(nullType), nullTypeRef));
             ValueTypeFormatter formatter = new ValueTypeFormatter();
-            error(expr, "Clauses of ternary conditional operator are not compatible: " +
-                    formatter.format(a) + " vs. " + formatter.format(b));
+            error(expr, "Clauses of ternary conditional operator are not compatible: "
+                    + formatter.format(a) + " vs. " + formatter.format(b));
             copyLocation(expr);
             return;
         }
@@ -771,8 +771,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         Plan plan = expr.getAttribute().plan;
         if (type instanceof Primitive) {
             GenericClass wrapperClass = primitivesToWrappers.get(type);
-            plan = new InvocationPlan(wrapperClass.getName(), "toString", "(" + typeToString(type) +
-                    ")Ljava/lang/String;", null, plan);
+            plan = new InvocationPlan(wrapperClass.getName(), "toString", "(" + typeToString(type)
+                    + ")Ljava/lang/String;", null, plan);
         } else {
             plan = new InvocationPlan("java.lang.String", "valueOf", "(Ljava/lang/Object;)Ljava/lang/String;",
                     null, plan);
@@ -786,12 +786,12 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             plan = unbox(plan);
         }
         if (plan != null) {
-            PrimitiveKind kind = ((Primitive)plan.type).getKind();
+            PrimitiveKind kind = ((Primitive) plan.type).getKind();
             IntegerSubtype subtype = getIntegerSubtype(kind);
             if (subtype != null) {
                 expr.setAttribute(new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT));
                 plan = expr.getAttribute();
-                kind = ((Primitive)plan.type).getKind();
+                kind = ((Primitive) plan.type).getKind();
             }
             ArithmeticType type = getArithmeticType(kind);
             if (type != null) {
@@ -940,10 +940,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     return null;
                 }
             }
-            if (!hasImplicitConversion(((Primitive)plan.type).getKind(), ((Primitive)targetType).getKind())) {
+            if (!hasImplicitConversion(((Primitive) plan.type).getKind(), ((Primitive) targetType).getKind())) {
                 return null;
             }
-            plan = tryCastPrimitive(plan, (Primitive)targetType);
+            plan = tryCastPrimitive(plan, (Primitive) targetType);
             if (plan == null) {
                 return null;
             }
@@ -956,11 +956,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         }
 
-        if (!unifier.unify((GenericType)targetType, (GenericType)plan.type, true)) {
+        if (!unifier.unify((GenericType) targetType, (GenericType) plan.type, true)) {
             return null;
         }
 
-        return new TypedPlan(plan.plan, ((GenericType)targetType).substitute(unifier.getSubstitutions()));
+        return new TypedPlan(plan.plan, ((GenericType) targetType).substitute(unifier.getSubstitutions()));
     }
 
     private boolean hasImplicitConversion(PrimitiveKind from, PrimitiveKind to) {
@@ -1012,7 +1012,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private TypedPlan tryCastPrimitive(TypedPlan plan, Primitive targetType) {
-        Primitive sourceType = (Primitive)plan.type;
+        Primitive sourceType = (Primitive) plan.type;
         if (sourceType == targetType) {
             return plan;
         }
@@ -1024,7 +1024,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             IntegerSubtype subtype = getIntegerSubtype(sourceType.getKind());
             if (subtype != null) {
                 plan = new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT);
-                sourceType = (Primitive)plan.type;
+                sourceType = (Primitive) plan.type;
             }
             ArithmeticType sourceArithmetic = getArithmeticType(sourceType.getKind());
             if (sourceArithmetic == null) {
@@ -1051,7 +1051,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!(plan.type instanceof GenericClass)) {
             return null;
         }
-        GenericClass wrapper = (GenericClass)plan.type;
+        GenericClass wrapper = (GenericClass) plan.type;
         Primitive primitive = wrappersToPrimitives.get(wrapper);
         if (primitive == null) {
             return null;
@@ -1069,8 +1069,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (wrapper == null) {
             return null;
         }
-        return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type) +
-                ")" + typeToString(wrapper), null, plan.plan), wrapper);
+        return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type)
+                + ")" + typeToString(wrapper), null, plan.plan), wrapper);
     }
 
     private ValueType commonSupertype(ValueType a, ValueType b) {
@@ -1080,8 +1080,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             } else if (a == Primitive.CHAR && b == Primitive.CHAR) {
                 return Primitive.CHAR;
             }
-            int p = numericTypeToOrder(((Primitive)a).getKind());
-            int q = numericTypeToOrder(((Primitive)b).getKind());
+            int p = numericTypeToOrder(((Primitive) a).getKind());
+            int q = numericTypeToOrder(((Primitive) b).getKind());
             if (p < 0 || q < 0) {
                 return null;
             }
@@ -1093,12 +1093,12 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         TypeUnifier unifier = createUnifier();
-        if (unifier.unify((GenericType)a, (GenericType)b, true)) {
-            return ((GenericType)a).substitute(unifier.getSubstitutions());
+        if (unifier.unify((GenericType) a, (GenericType) b, true)) {
+            return ((GenericType) a).substitute(unifier.getSubstitutions());
         }
         unifier = createUnifier();
-        if (unifier.unify((GenericType)b, (GenericType)a, true)) {
-            return ((GenericType)b).substitute(unifier.getSubstitutions());
+        if (unifier.unify((GenericType) b, (GenericType) a, true)) {
+            return ((GenericType) b).substitute(unifier.getSubstitutions());
         }
         return null;
     }
@@ -1128,15 +1128,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private Object getDefaultConstant(ValueType type) {
         if (type instanceof Primitive) {
-            switch (((Primitive)type).getKind()) {
+            switch (((Primitive) type).getKind()) {
                 case BOOLEAN:
                     return false;
                 case CHAR:
                     return '\0';
                 case BYTE:
-                    return (byte)0;
+                    return (byte) 0;
                 case SHORT:
-                    return (short)0;
+                    return (short) 0;
                 case INT:
                     return 0;
                 case LONG:
@@ -1162,7 +1162,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void typeToString(ValueType type, StringBuilder sb) {
         if (type instanceof Primitive) {
-            switch (((Primitive)type).getKind()) {
+            switch (((Primitive) type).getKind()) {
                 case BOOLEAN:
                     sb.append('Z');
                     break;
@@ -1190,15 +1190,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         } else if (type instanceof GenericArray) {
             sb.append('[');
-            typeToString(((GenericArray)type).getElementType(), sb);
+            typeToString(((GenericArray) type).getElementType(), sb);
         } else if (type instanceof GenericClass) {
-            sb.append('L').append(((GenericClass)type).getName().replace('.', '/')).append(';');
+            sb.append('L').append(((GenericClass) type).getName().replace('.', '/')).append(';');
         }
     }
 
     private ValueType resolveType(ValueType type, Expr<TypedPlan> expr) {
         if (type instanceof GenericClass) {
-            GenericClass cls = (GenericClass)type;
+            GenericClass cls = (GenericClass) type;
             String resolvedName = classResolver.findClass(cls.getName());
             if (resolvedName == null) {
                 error(expr, "Class not found: " + cls.getName());
@@ -1207,14 +1207,14 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             boolean changed = !resolvedName.equals(cls.getName());
             List<GenericType> arguments = new ArrayList<>();
             for (GenericType arg : cls.getArguments()) {
-                GenericType resolvedArg = (GenericType)resolveType(arg, expr);
+                GenericType resolvedArg = (GenericType) resolveType(arg, expr);
                 if (resolvedArg != arg) {
                     changed = true;
                 }
             }
             return !changed ? type : new GenericClass(resolvedName, arguments);
         } else if (type instanceof GenericArray) {
-            GenericArray array = (GenericArray)type;
+            GenericArray array = (GenericArray) type;
             ValueType elementType = resolveType(array.getElementType(), expr);
             return elementType == array.getElementType() ? type : new GenericArray(elementType);
         } else {

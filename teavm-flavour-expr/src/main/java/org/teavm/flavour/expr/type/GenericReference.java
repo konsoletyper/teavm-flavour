@@ -56,7 +56,7 @@ public final class GenericReference extends GenericType {
         if (!(obj instanceof GenericReference)) {
             return false;
         }
-        GenericReference other = (GenericReference)obj;
+        GenericReference other = (GenericReference) obj;
         return var == other.var;
     }
 

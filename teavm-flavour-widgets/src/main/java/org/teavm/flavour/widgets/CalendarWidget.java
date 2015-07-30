@@ -128,8 +128,8 @@ public class CalendarWidget extends AbstractWidget {
         boolean localeChanged = false;
         if (!Objects.equals(newLocale, cachedLocale)) {
             cachedLocale = newLocale;
-            dateFormatSymbols = newLocale != null ? new DateFormatSymbols(new Locale(newLocale)) :
-                    new DateFormatSymbols();
+            dateFormatSymbols = newLocale != null ? new DateFormatSymbols(new Locale(newLocale))
+                    : new DateFormatSymbols();
             localeChanged = true;
         }
         if (localeChanged || weekdays.isEmpty()) {

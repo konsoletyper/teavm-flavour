@@ -37,7 +37,7 @@ public class ListDeserializer extends NullableDeserializer {
             throw new IllegalArgumentException("Can't deserialize non-array node as a list");
         }
 
-        ArrayNode arrayNode = (ArrayNode)node;
+        ArrayNode arrayNode = (ArrayNode) node;
         List<Object> list = new ArrayList<>(arrayNode.size());
         for (int i = 0; i < arrayNode.size(); ++i) {
             list.add(itemDeserializer.deserialize(context, arrayNode.get(i)));

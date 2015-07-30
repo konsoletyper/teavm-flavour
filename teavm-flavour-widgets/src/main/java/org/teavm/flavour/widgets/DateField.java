@@ -20,7 +20,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
-import org.teavm.dom.browser.TimerHandler;
 import org.teavm.dom.browser.Window;
 import org.teavm.dom.events.EventListener;
 import org.teavm.dom.events.MouseEvent;
@@ -44,7 +43,7 @@ import org.teavm.jso.JS;
 @BindDirective(name = "date")
 @BindTemplate("templates/flavour/widgets/date-field.html")
 public class DateField extends AbstractWidget {
-    private static final Window window = (Window)JS.getGlobal();
+    private static final Window window = (Window) JS.getGlobal();
     private Computation<Integer> size;
     private Computation<Date> value;
     private Computation<String> locale;
@@ -149,21 +148,14 @@ public class DateField extends AbstractWidget {
         dropDownElement.getStyle().setProperty("right", windowRect.getWidth() - inputRect.getRight() + "px");
         dropDownElement.getStyle().setProperty("top", inputRect.getBottom() + "px");
 
-        CalendarDropDown dropDown = new CalendarDropDown(value, new ValueChangeListener<Date>() {
-            @Override
-            public void changed(Date newValue) {
-                closeDropDown();
-                changeListener.changed(newValue);
-            }
+        CalendarDropDown dropDown = new CalendarDropDown(value, newValue -> {
+            closeDropDown();
+            changeListener.changed(newValue);
         });
         dropDownComponent = Templates.bind(dropDown, dropDownElement);
 
         window.getDocument().getBody().appendChild(dropDownElement);
-        window.setTimeout(new TimerHandler() {
-            @Override public void onTimer() {
-                window.getDocument().addEventListener("click", bodyListener);
-            }
-        }, 0);
+        window.setTimeout(() -> window.getDocument().addEventListener("click", bodyListener), 0);
     }
 
     private void closeDropDown() {
@@ -174,17 +166,14 @@ public class DateField extends AbstractWidget {
         dropDownComponent = null;
     }
 
-    private EventListener<MouseEvent> bodyListener = new EventListener<MouseEvent>() {
-        @Override
-        public void handleEvent(MouseEvent evt) {
-            HTMLElement clickedElement = (HTMLElement)evt.getTarget();
-            while (clickedElement != null) {
-                if (clickedElement == dropDownElement) {
-                    return;
-                }
-                clickedElement = (HTMLElement)clickedElement.getParentNode();
+    private EventListener<MouseEvent> bodyListener = evt -> {
+        HTMLElement clickedElement = (HTMLElement) evt.getTarget();
+        while (clickedElement != null) {
+            if (clickedElement == dropDownElement) {
+                return;
             }
-            closeDropDown();
+            clickedElement = (HTMLElement) clickedElement.getParentNode();
         }
+        closeDropDown();
     };
 }

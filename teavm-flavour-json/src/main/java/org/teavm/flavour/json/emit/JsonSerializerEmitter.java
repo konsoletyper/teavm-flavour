@@ -266,8 +266,8 @@ class JsonSerializerEmitter {
                 typeName = ClassInformationProvider.getUnqualifiedName(information.className);
                 break;
             case NAME:
-                typeName = information.typeName != null ? information.typeName :
-                        ClassInformationProvider.getUnqualifiedName(information.className);
+                typeName = information.typeName != null ? information.typeName
+                        : ClassInformationProvider.getUnqualifiedName(information.className);
                 break;
             default:
                 return;
@@ -318,7 +318,7 @@ class JsonSerializerEmitter {
 
     private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {
         if (type instanceof ValueType.Primitive) {
-            return convertPrimitive(value, (ValueType.Primitive)type);
+            return convertPrimitive(value, (ValueType.Primitive) type);
         } else {
             return convertNullable(value, type, node);
         }
@@ -333,9 +333,9 @@ class JsonSerializerEmitter {
                 .elseDo(() -> {
                     ValueEmitter notNullValue;
                     if (type instanceof ValueType.Array) {
-                        notNullValue = convertArray(value, (ValueType.Array)type, node);
+                        notNullValue = convertArray(value, (ValueType.Array) type, node);
                     } else if (type instanceof ValueType.Object) {
-                        notNullValue = convertObject(value, (ValueType.Object)type, node);
+                        notNullValue = convertObject(value, (ValueType.Object) type, node);
                     } else {
                         notNullValue = value;
                     }

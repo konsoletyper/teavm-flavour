@@ -30,22 +30,22 @@ public class ObjectDeserializer extends NullableDeserializer {
     @Override
     public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
         if (node.isArray()) {
-            ArrayNode arrayNode = (ArrayNode)node;
+            ArrayNode arrayNode = (ArrayNode) node;
             Object[] result = new Object[arrayNode.size()];
             for (int i = 0; i < arrayNode.size(); ++i) {
                 result[i] = JSON.deserialize(arrayNode.get(i), Object.class);
             }
             return result;
         } else if (node.isBoolean()) {
-            return ((BooleanNode)node).getValue();
+            return ((BooleanNode) node).getValue();
         } else if (node.isNumber()) {
-            NumberNode number = (NumberNode)node;
+            NumberNode number = (NumberNode) node;
             return number.isInt() ? number.getIntValue() : number.getValue();
         } else if (node.isString()) {
-            return ((StringNode)node).getValue();
+            return ((StringNode) node).getValue();
         } else {
-            throw new IllegalArgumentException("Don't know how to deserialize given JSON as " +
-                    "a java.lang.Object: " + node.stringify());
+            throw new IllegalArgumentException("Don't know how to deserialize given JSON as "
+                    + "a java.lang.Object: " + node.stringify());
         }
     }
 }
