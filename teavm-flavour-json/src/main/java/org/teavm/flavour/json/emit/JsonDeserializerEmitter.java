@@ -188,7 +188,7 @@ class JsonDeserializerEmitter {
         ctor.setLevel(AccessLevel.PUBLIC);
 
         ProgramEmitter.create(ctor, classSource)
-                .newVar(cls)
+                .var(0, cls)
                 .invokeSpecial(JsonDeserializer.class, "<init>")
                 .exit();
 
@@ -260,12 +260,12 @@ class JsonDeserializerEmitter {
                     .getField(information.className, enumValue, ValueType.object(information.className))
                     .returnValue());
         }
-        choise.otherwise(() -> pe.jump(invalidValueBlock));
-
         pe.jump(invalidValueBlock);
+
+        pe.enter(invalidValueBlock);
         ValueEmitter error = pe.string()
                 .append("Can't convert to " + information.className + ": ")
-                .append(nodeVar.invokeVirtual("stringify", String.class))
+                .append(nodeVar.cast(Node.class).invokeSpecial("stringify", String.class))
                 .build();
         pe.construct(IllegalArgumentException.class, error).raise();
     }
@@ -340,23 +340,20 @@ class JsonDeserializerEmitter {
         nodeVar = taggedObject.object;
 
         Map<String, ClassInformation> subTypes = new HashMap<>();
-        for (ClassInformation subType : information.inheritance.subTypes) {
-            String typeName = getTypeName(information, subType);
-            subTypes.put(typeName, subType);
-        }
         String rootTypeName = getTypeName(information, information);
         subTypes.put(rootTypeName, information);
 
         StringChooseEmitter choice = pe.stringChoise(taggedObject.tag);
-        for (ClassInformation classInfo : subTypes.values()) {
-            choice.option(getTypeName(classInfo, information), () -> createObjectDeserializer(classInfo.className)
+        for (ClassInformation subType : information.inheritance.subTypes) {
+            choice.option(getTypeName(information, subType), () -> createObjectDeserializer(subType.className)
                             .invokeVirtual("deserialize", Object.class, contextVar, nodeVar.cast(Node.class))
                             .returnValue());
         }
+        choice.option(getTypeName(information, information), () -> pe.jump(mainBlock));
         choice.otherwise(() -> {
             ValueEmitter errorVar = pe.string()
                     .append("Invalid type tag: ")
-                    .append(nodeVar.invokeVirtual("stringify", String.class))
+                    .append(taggedObject.tag)
                     .build();
             pe.construct(IllegalArgumentException.class, errorVar).raise();
         });
@@ -443,9 +440,10 @@ class JsonDeserializerEmitter {
                 break;
         }
         if (id != null) {
-            contextVar.invokeVirtual("register", Object.class, id.cast(Object.class), targetVar.cast(Object.class));
+            contextVar.invokeVirtual("register", id.cast(Object.class), targetVar.cast(Object.class));
         }
         pe.jump(skip);
+        pe.enter(skip);
     }
 
     private ValueEmitter emitIntegerIdRegistration(ClassInformation information, BasicBlock skip) {
@@ -540,7 +538,8 @@ class JsonDeserializerEmitter {
 
     private ValueEmitter convertNullable(ValueEmitter node, Type type) {
         ValueEmitter deserializer = createDeserializer(type);
-        return deserializer.invokeVirtual("deserialize", Object.class, contextVar, node.cast(Node.class));
+        return deserializer.invokeVirtual("deserialize", Object.class, contextVar, node.cast(Node.class))
+                .cast(rawType(type));
     }
 
     private ValueEmitter createDeserializer(Type type) {
@@ -734,7 +733,7 @@ class JsonDeserializerEmitter {
     }
 
     private ValueEmitter getJsonProperty(ValueEmitter object, String property) {
-        return object.invokeVirtual("get", Node.class, pe.constant(property));
+        return object.cast(ObjectNode.class).invokeVirtual("get", Node.class, pe.constant(property));
     }
 
     static class ObjectWithTag {
@@ -744,6 +743,22 @@ class JsonDeserializerEmitter {
         public ObjectWithTag(ValueEmitter tag, ValueEmitter object) {
             this.tag = tag;
             this.object = object;
+        }
+    }
+
+    private ValueType rawType(Type type) {
+        if (type instanceof Class<?>) {
+            return ValueType.parse((Class<?>)type);
+        } else if (type instanceof ParameterizedType) {
+            return rawType(((ParameterizedType)type).getRawType());
+        } else if (type instanceof GenericArrayType) {
+            return ValueType.arrayOf(rawType(((GenericArrayType)type).getGenericComponentType()));
+        } else if (type instanceof TypeVariable<?>) {
+            return rawType(((TypeVariable<?>)type).getBounds()[0]);
+        } else if (type instanceof WildcardType) {
+            return rawType(((WildcardType)type).getUpperBounds()[0]);
+        } else {
+            throw new IllegalArgumentException("Don't know how to convert generic type: " + type);
         }
     }
 }
