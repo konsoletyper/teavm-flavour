@@ -54,18 +54,9 @@ import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
-import org.teavm.model.emit.ForkEmitter;
 import org.teavm.model.emit.PhiEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
-import org.teavm.model.instructions.ArrayElementType;
-import org.teavm.model.instructions.BinaryBranchingCondition;
-import org.teavm.model.instructions.BinaryInstruction;
-import org.teavm.model.instructions.BinaryOperation;
-import org.teavm.model.instructions.BranchingCondition;
-import org.teavm.model.instructions.CastIntegerDirection;
-import org.teavm.model.instructions.IntegerSubtype;
-import org.teavm.model.instructions.NumericOperandType;
 
 /**
  *
@@ -228,8 +219,7 @@ class JsonSerializerEmitter {
     private void emitIdentity(ClassInformation information) {
         switch (information.idGenerator) {
             case NONE:
-                contextVar.invokeVirtual(new MethodReference(JsonSerializerContext.class, "touch",
-                        Object.class, void.class), valueVar);
+                contextVar.invokeVirtual("touch", valueVar.cast(Object.class));
                 break;
             case INTEGER: {
                 emitIntegerIdentity(information);
@@ -241,12 +231,12 @@ class JsonSerializerEmitter {
     }
 
     private void emitIntegerIdentity(ClassInformation information) {
+        ValueEmitter has = contextVar.invokeVirtual("hasId", boolean.class, valueVar.cast(Object.class));
         ValueEmitter id = pe.invoke(NumberNode.class, "create", NumberNode.class,
-                contextVar.invokeVirtual("getId", int.class, valueVar));
+                contextVar.invokeVirtual("getId", int.class, valueVar.cast(Object.class)));
 
-        pe.when(contextVar.invokeVirtual("hasId", boolean.class, valueVar).isTrue())
-                .thenDo(() -> id.returnValue())
-                .elseDo(() -> targetVar.invokeVirtual("set", Node.class, pe.constant(information.idProperty), id));
+        pe.when(has.isTrue()).thenDo(() -> id.returnValue());
+        targetVar.invokeVirtual("set", pe.constant(information.idProperty), id.cast(Node.class));
     }
 
     private void emitProperties(ClassInformation information) {
@@ -292,15 +282,15 @@ class JsonSerializerEmitter {
             }
             case WRAPPER_OBJECT: {
                 ValueEmitter wrapper = pe.invoke(ObjectNode.class, "create", ObjectNode.class);
-                wrapper.invokeVirtual("set", pe.constant(typeName), targetVar);
+                wrapper.invokeVirtual("set", pe.constant(typeName), targetVar.cast(Node.class));
                 targetVar = wrapper.cast(Node.class);
                 break;
             }
             case WRAPPER_ARRAY: {
                 ValueEmitter wrapper = pe.invoke(ArrayNode.class, "create", ArrayNode.class);
                 ValueEmitter key = pe.invoke(StringNode.class, "create", StringNode.class, pe.constant(typeName));
-                wrapper.invokeVirtual("add", key);
-                wrapper.invokeVirtual("add", targetVar);
+                wrapper.invokeVirtual("add", key.cast(Node.class));
+                wrapper.invokeVirtual("add", targetVar.cast(Node.class));
                 targetVar = wrapper.cast(Node.class);
                 break;
             }
@@ -323,7 +313,7 @@ class JsonSerializerEmitter {
         FieldDependency dep = agent.linkField(field, null);
         ValueEmitter propertyValue = convertValue(valueVar.getField(property.fieldName, dep.getField().getType()),
                 dep.getField().getType(), dep.getValue());
-        targetVar.invokeVirtual("set", pe.constant(property.outputName), propertyValue);
+        targetVar.invokeVirtual("set", pe.constant(property.outputName), propertyValue.cast(Node.class));
     }
 
     private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {
@@ -336,7 +326,7 @@ class JsonSerializerEmitter {
 
     private ValueEmitter convertNullable(ValueEmitter value, ValueType type, DependencyNode node) {
         BasicBlock exit = pe.prepareBlock();
-        PhiEmitter result = pe.phi(Object.class, exit);
+        PhiEmitter result = pe.phi(Node.class, exit);
 
         pe.when(value.isNull())
                 .thenDo(() -> value.propagateTo(result).jump(exit))
@@ -374,69 +364,33 @@ class JsonSerializerEmitter {
 
     private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type, DependencyNode node) {
         ValueType itemType = type.getItemType();
-        ArrayElementType arrayElementType = getArrayElementType(itemType);
 
-        BasicBlock loopBody = pe.getProgram().createBasicBlock();
-        BasicBlock loopDecision = pe.getProgram().createBasicBlock();
-        BasicBlock loopExit = pe.getProgram().createBasicBlock();
-        BasicBlock loopEnd = pe.getProgram().createBasicBlock();
+        BasicBlock loopDecision = pe.prepareBlock();
+        BasicBlock loopExit = pe.prepareBlock();
 
-        BasicBlock loopEnter = pe.getBlock();
-        ValueEmitter json = pe.invoke(new MethodReference(ArrayNode.class, "create", ArrayNode.class));
-        ValueEmitter startIndex = pe.constant(0);
-        ValueEmitter incIndex = pe.newVar();
-        ValueEmitter incStep = pe.constant(1);
+        PhiEmitter index = pe.phi(int.class, loopDecision);
+        ValueEmitter json = pe.invoke(ArrayNode.class, "create", ArrayNode.class);
         ValueEmitter size = value.arrayLength();
+        pe.constant(0).propagateTo(index);
         pe.jump(loopDecision);
 
-        ValueEmitter index = incIndex.join(loopEnd, startIndex, loopEnter);
-        ForkEmitter fork = index.compare(NumericOperandType.INT, size).fork(BranchingCondition.LESS);
-        fork.setThen(loopBody);
-        fork.setElse(loopExit);
+        pe.enter(loopDecision);
+        pe.when(index.getValue().isLessThan(size))
+                .thenDo(() -> {
+                    ValueEmitter item = value.getElement(index.getValue());
+                    json.invokeVirtual("add", convertValue(item, itemType, node.getArrayItem()).cast(Node.class));
+                    index.getValue().add(1).propagateTo(index);
+                    pe.jump(loopDecision);
+                })
+                .elseDo(() -> pe.jump(loopExit));
 
-        pe.setBlock(loopBody);
-        ValueEmitter item = value.getElement(index);
-        json.invokeVirtual(new MethodReference(ArrayNode.class, "add", Node.class, void.class),
-                convertValue(item, itemType, node.getArrayItem()));
-
-        pe.jump(loopEnd);
-        BinaryInstruction increment = new BinaryInstruction(BinaryOperation.ADD, NumericOperandType.INT);
-        increment.setFirstOperand(index.getVariable());
-        increment.setSecondOperand(incStep.getVariable());
-        increment.setReceiver(incIndex.getVariable());
-        pe.addInstruction(increment);
-        pe.jump(loopDecision);
-
-        pe.setBlock(loopExit);
+        pe.enter(loopExit);
         return json;
-    }
-
-    private ArrayElementType getArrayElementType(ValueType type) {
-        if (type instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive)type).getKind()) {
-                case BOOLEAN:
-                case BYTE:
-                    return ArrayElementType.BYTE;
-                case CHARACTER:
-                    return ArrayElementType.CHAR;
-                case SHORT:
-                    return ArrayElementType.SHORT;
-                case INTEGER:
-                    return ArrayElementType.INT;
-                case FLOAT:
-                    return ArrayElementType.FLOAT;
-                case DOUBLE:
-                    return ArrayElementType.DOUBLE;
-                case LONG:
-                    return ArrayElementType.LONG;
-            }
-        }
-        return ArrayElementType.OBJECT;
     }
 
     private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type, DependencyNode node) {
         if (type.getClassName().equals(String.class.getName())) {
-            return pe.invoke(new MethodReference(StringNode.class, "create", String.class, StringNode.class), value);
+            return pe.invoke(StringNode.class, "create", StringNode.class, value);
         } else {
             final MethodReference serializeRef = new MethodReference(JSON.class, "serialize",
                     JsonSerializerContext.class, Object.class, Node.class);
