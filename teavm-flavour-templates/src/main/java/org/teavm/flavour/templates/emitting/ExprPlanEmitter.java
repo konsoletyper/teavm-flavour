@@ -311,7 +311,7 @@ class ExprPlanEmitter implements PlanVisitor {
             plan.getInstance().acceptVisitor(this);
             requireValue();
             context.location(pe, plan.getLocation());
-            var = var.getField(field.getFieldName(), type);
+            var = var.cast(ValueType.object(field.getClassName())).getField(field.getFieldName(), type);
         } else {
             context.location(pe, plan.getLocation());
             var = pe.getField(field, type);
@@ -332,18 +332,17 @@ class ExprPlanEmitter implements PlanVisitor {
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             requireValue();
-            instance = var;
-        }
-
-        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
-        for (int i = 0; i < plan.getArguments().size(); ++i) {
-            plan.getArguments().get(i).acceptVisitor(this);
-            requireValue();
-            arguments[i] = var;
+            instance = var.cast(ValueType.object(plan.getClassName()));
         }
 
         MethodReference method = new MethodReference(plan.getClassName(), MethodDescriptor.parse(
                 plan.getMethodName() + plan.getMethodDesc()));
+        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
+        for (int i = 0; i < plan.getArguments().size(); ++i) {
+            plan.getArguments().get(i).acceptVisitor(this);
+            requireValue();
+            arguments[i] = var.cast(method.parameterType(i));
+        }
 
         if (instance != null) {
             context.location(pe, plan.getLocation());
@@ -406,8 +405,8 @@ class ExprPlanEmitter implements PlanVisitor {
 
         ExprPlanEmitter innerEmitter = new ExprPlanEmitter(context);
         String lambdaClass = innerEmitter.emitLambdaClass(plan.getClassName(), plan.getMethodName(),
-                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, updateTemplates,
-                plan.getLocation());
+                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, boundVarTypes,
+                updateTemplates, plan.getLocation());
 
         String ownerCls = context.classStack.get(context.classStack.size() - 1);
         FieldReference ownerField = new FieldReference(thisClassName, "this$owner");
@@ -429,8 +428,8 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
-            List<String> boundVarList, Map<String, ComputationEmitter> outerBoundVars, boolean updateTemplates,
-            Location location) {
+            List<String> boundVarList, Map<String, ComputationEmitter> outerBoundVars,
+            Map<String, ValueType> outerBoundTypes, boolean updateTemplates, Location location) {
         ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
@@ -440,16 +439,17 @@ class ExprPlanEmitter implements PlanVisitor {
         workerMethod.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(workerMethod, context.dependencyAgent.getClassSource());
         thisVar = pe.newVar(cls);
-        for (ComputationEmitter outerClosure : outerBoundVars.values()) {
-            boundVarTypes.put(outerClosure.name, outerClosure.type);
+        for (String outerClosure : outerBoundVars.keySet()) {
+            boundVarTypes.put(outerClosure, outerBoundTypes.get(outerClosure));
         }
         boundVars.putAll(outerBoundVars);
         for (int i = 0; i < workerMethod.parameterCount(); ++i) {
             String varName = boundVarList.get(i);
             if (!varName.isEmpty()) {
-                boundVars.put(varName, new ParamEmitter(i + 1));
-                pe.newVar();
-                boundVarTypes.put(varName, workerMethod.parameterType(i));
+                ValueType paramType = workerMethod.parameterType(i);
+                int varIndex = i + 1;
+                boundVars.put(varName, () -> pe.var(varIndex, paramType));
+                boundVarTypes.put(varName, paramType);
             }
         }
 
@@ -459,7 +459,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         if (updateTemplates) {
             context.location(pe, location);
-            pe.invoke(new MethodReference(Templates.class, "update", void.class));
+            pe.invoke(Templates.class, "update");
         }
 
         if (workerMethod.getResultType() != ValueType.VOID) {

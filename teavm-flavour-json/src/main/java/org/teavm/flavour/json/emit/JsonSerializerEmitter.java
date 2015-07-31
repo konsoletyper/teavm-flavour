@@ -118,40 +118,15 @@ class JsonSerializerEmitter {
     private String tryGetPredefinedSerializer(String className) {
         String serializer = predefinedSerializers.get(className);
         if (serializer == null) {
-            if (isSuperType(Enum.class.getName(), className)) {
+            if (classSource.isSuperType(Enum.class.getName(), className).orElse(false)) {
                 serializer = EnumSerializer.class.getName();
-            } else if (isSuperType(Map.class.getName(), className)) {
+            } else if (classSource.isSuperType(Map.class.getName(), className).orElse(false)) {
                 serializer = MapSerializer.class.getName();
-            } else if (isSuperType(Collection.class.getName(), className)) {
+            } else if (classSource.isSuperType(Collection.class.getName(), className).orElse(false)) {
                 serializer = ListSerializer.class.getName();
             }
         }
         return serializer;
-    }
-
-    private boolean isSuperType(String superType, String subType) {
-        if (superType.equals(subType)) {
-            return true;
-        }
-
-        ClassReader cls = classSource.get(subType);
-        if (cls == null) {
-            return false;
-        }
-
-        if (cls.getParent() != null && !cls.getParent().equals(cls.getName())) {
-            if (isSuperType(superType, cls.getParent())) {
-                return true;
-            }
-        }
-
-        for (String iface : cls.getInterfaces()) {
-            if (isSuperType(superType, iface)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private void emitClassSerializer(String serializedClassName) {

@@ -134,38 +134,13 @@ class JsonDeserializerEmitter {
     private String tryGetPredefinedDeserializer(String className) {
         String serializer = predefinedDeserializers.get(className);
         if (serializer == null) {
-            if (isSuperType(Map.class.getName(), className)) {
+            if (classSource.isSuperType(Map.class.getName(), className).orElse(false)) {
                 serializer = MapDeserializer.class.getName();
-            } else if (isSuperType(Collection.class.getName(), className)) {
+            } else if (classSource.isSuperType(Collection.class.getName(), className).orElse(false)) {
                 serializer = ListDeserializer.class.getName();
             }
         }
         return serializer;
-    }
-
-    private boolean isSuperType(String superType, String subType) {
-        if (superType.equals(subType)) {
-            return true;
-        }
-
-        ClassReader cls = classSource.get(subType);
-        if (cls == null) {
-            return false;
-        }
-
-        if (cls.getParent() != null && !cls.getParent().equals(cls.getName())) {
-            if (isSuperType(superType, cls.getParent())) {
-                return true;
-            }
-        }
-
-        for (String iface : cls.getInterfaces()) {
-            if (isSuperType(superType, iface)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private void emitClassDeserializer(String serializedClassName) {
@@ -212,7 +187,7 @@ class JsonDeserializerEmitter {
             nodeVar = pe.var(2, Node.class);
             ValueEmitter nodeVarBackup = nodeVar;
 
-            if (isSuperType(Enum.class.getName(), information.className)) {
+            if (classSource.isSuperType(Enum.class.getName(), information.className).orElse(false)) {
                 emitEnumDeserializer(information);
             } else {
                 BasicBlock nonObjectBlock = pe.prepareBlock();
