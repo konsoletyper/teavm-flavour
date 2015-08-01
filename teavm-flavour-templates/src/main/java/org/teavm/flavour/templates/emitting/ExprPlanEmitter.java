@@ -123,7 +123,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
     private void emitVariable(String name) {
         if (boundVars.containsKey(name)) {
-            boundVars.get(name).emit();
+            var = boundVars.get(name).emit();
             if (innerClosure.add(name)) {
                 innerClosureList.add(name);
             }
@@ -440,7 +440,7 @@ class ExprPlanEmitter implements PlanVisitor {
         MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
         workerMethod.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(workerMethod, context.dependencyAgent.getClassSource());
-        thisVar = pe.newVar(cls);
+        thisVar = pe.var(0, cls);
         for (String outerClosure : outerBoundVars.keySet()) {
             boundVarTypes.put(outerClosure, outerBoundTypes.get(outerClosure));
         }
