@@ -204,10 +204,10 @@
   </build>
 
   <modules>
-    <module>teavm-flavour-templates</module>
-    <module>teavm-flavour-expr</module>
-    <module>teavm-flavour-example</module>
-    <module>teavm-flavour-widgets</module>
-    <module>teavm-flavour-json</module>
+    <module>templates</module>
+    <module>expr</module>
+    <module>example</module>
+    <module>widgets</module>
+    <module>json</module>
   </modules>
 </project>
