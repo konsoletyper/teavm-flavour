@@ -374,6 +374,8 @@ class ExprPlanEmitter implements PlanVisitor {
 
         BasicBlock join = pe.prepareBlock();
         PhiEmitter result = pe.phi(ValueType.object("java.lang.Object"), join);
+        ConditionEmitter branching = this.branching;
+        this.branching = null;
         pe.when(branching)
                 .thenDo(() -> {
                     plan.getConsequent().acceptVisitor(this);

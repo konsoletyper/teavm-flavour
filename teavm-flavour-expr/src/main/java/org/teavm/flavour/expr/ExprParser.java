@@ -413,7 +413,13 @@ class ExprParser extends BaseParser<Holder> {
 
     Rule IntNumber() {
         final Var<String> digits = new Var<>();
-        Action<Holder> action = context -> {
+        Action<Holder> action = intNumberAction(digits);
+        Var<Integer> start = new Var<>();
+        return Sequence(start.set(currentIndex()), IntNumber(digits), action, setLocations(start));
+    }
+
+    Action<Holder> intNumberAction(Var<String> digits) {
+        return context -> {
             try {
                 int value = Integer.parseInt(digits.get());
                 context.getValueStack().push(wrap(new ConstantExpr<Void>(value)));
@@ -422,8 +428,6 @@ class ExprParser extends BaseParser<Holder> {
                 return false;
             }
         };
-        Var<Integer> start = new Var<>();
-        return Sequence(start.set(currentIndex()), IntNumber(digits), action, setLocations(start));
     }
 
     Rule IntNumber(Var<String> s) {
@@ -444,8 +448,7 @@ class ExprParser extends BaseParser<Holder> {
         final Var<Character> exponentSign = new Var<>();
         final Var<String> exponent = new Var<>();
         Var<Integer> start = new Var<>();
-        Action<Expr<Void>> action = context -> stringToDouble(context, intPart.get(), fracPart.get(),
-                exponentSign.get(), exponent.get());
+        Action<Expr<Void>> action = fracNumberAction(intPart, fracPart, exponentSign, exponent);
         return Sequence(
             start.set(currentIndex()),
             FirstOf(
@@ -453,6 +456,11 @@ class ExprParser extends BaseParser<Holder> {
                 Sequence(IntNumber(intPart), Exponent(exponent, exponentSign))),
             action,
             setLocations(start));
+    }
+
+    Action<Expr<Void>> fracNumberAction(Var<String> intPart, Var<String> fracPart, Var<Character> exponentSign,
+            Var<String> exponent) {
+        return context -> stringToDouble(context, intPart.get(), fracPart.get(), exponentSign.get(), exponent.get());
     }
 
     Rule Exponent(Var<String> s, Var<Character> sign) {
