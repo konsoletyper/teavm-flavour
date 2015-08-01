@@ -15,8 +15,11 @@
  */
 package org.teavm.flavour.json.emit;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.teavm.model.MethodDescriptor;
 
 /**
  *
@@ -36,4 +39,6 @@ class ClassInformation {
     Visibility fieldVisibility = Visibility.NONE;
     IdGeneratorType idGenerator = IdGeneratorType.NONE;
     String idProperty;
+    MethodDescriptor constructor;
+    List<PropertyInformation> constructorArgs = new ArrayList<>();
 }

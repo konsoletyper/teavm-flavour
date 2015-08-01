@@ -16,6 +16,7 @@
 package org.teavm.flavour.json.emit;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -144,16 +145,11 @@ class JsonDeserializerEmitter {
     }
 
     private void emitClassDeserializer(String serializedClassName) {
-        ClassInformation information = informationProvider.get(serializedClassName);
-        if (information == null) {
-            return;
-        }
-
         ClassHolder cls = new ClassHolder(serializedClassName + "$$__deserializer__$$");
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(NullableDeserializer.class.getName());
 
-        emitDeserializationMethod(information, cls);
+        emitDeserializationMethod(serializedClassName, cls);
         emitConstructor(cls);
         agent.submitClass(cls);
     }
@@ -170,10 +166,19 @@ class JsonDeserializerEmitter {
         cls.addMethod(ctor);
     }
 
-    private void emitDeserializationMethod(ClassInformation information, ClassHolder cls) {
-        deserializedClass = classSource.get(information.className);
+    private void emitDeserializationMethod(String deserializedClassName, ClassHolder cls) {
+        deserializedClass = classSource.get(deserializedClassName);
         if (deserializedClass == null) {
             return;
+        }
+
+        boolean isEnum = deserializedClass.hasModifier(ElementModifier.ENUM);
+        ClassInformation information = null;
+        if (!isEnum) {
+            information = informationProvider.get(deserializedClassName);
+            if (information == null) {
+                return;
+            }
         }
 
         try {
@@ -187,8 +192,8 @@ class JsonDeserializerEmitter {
             nodeVar = pe.var(2, Node.class);
             ValueEmitter nodeVarBackup = nodeVar;
 
-            if (classSource.isSuperType(Enum.class.getName(), information.className).orElse(false)) {
-                emitEnumDeserializer(information);
+            if (isEnum) {
+                emitEnumDeserializer(deserializedClassName);
             } else {
                 BasicBlock nonObjectBlock = pe.prepareBlock();
                 BasicBlock mainBlock = pe.prepareBlock();
@@ -213,11 +218,11 @@ class JsonDeserializerEmitter {
         }
     }
 
-    private void emitEnumDeserializer(ClassInformation information) {
-        ClassReader cls = classSource.get(information.className);
+    private void emitEnumDeserializer(String deserializedClassName) {
+        ClassReader cls = classSource.get(deserializedClassName);
         Set<String> valueSet = new HashSet<>();
         for (FieldReader field : cls.getFields()) {
-            if (!field.hasModifier(ElementModifier.STATIC) || !field.getType().isObject(information.className)) {
+            if (!field.hasModifier(ElementModifier.STATIC) || !field.getType().isObject(deserializedClassName)) {
                 continue;
             }
             valueSet.add(field.getName());
@@ -231,15 +236,15 @@ class JsonDeserializerEmitter {
         StringChooseEmitter choise = pe.stringChoise(textVar);
         for (String enumValue : valueSet) {
             choise.option(enumValue, () -> pe
-                    .initClass(information.className)
-                    .getField(information.className, enumValue, ValueType.object(information.className))
+                    .initClass(deserializedClassName)
+                    .getField(deserializedClassName, enumValue, ValueType.object(deserializedClassName))
                     .returnValue());
         }
         pe.jump(invalidValueBlock);
 
         pe.enter(invalidValueBlock);
         ValueEmitter error = pe.string()
-                .append("Can't convert to " + information.className + ": ")
+                .append("Can't convert to " + deserializedClassName + ": ")
                 .append(nodeVar.cast(Node.class).invokeSpecial("stringify", String.class))
                 .build();
         pe.construct(IllegalArgumentException.class, error).raise();
@@ -396,7 +401,38 @@ class JsonDeserializerEmitter {
     }
 
     private void emitConstructor(ClassInformation information) {
-        targetVar = pe.construct(information.className);
+        if (information.constructor == null) {
+            targetVar = pe.construct(information.className);
+            return;
+        }
+
+        ValueEmitter[] args = new ValueEmitter[information.constructorArgs.size()];
+        Type[] genericTypes;
+        if (information.constructor.getName().equals("<init>")) {
+            Constructor<?> javaCtor = findConstructor(new MethodReference(information.className,
+                    information.constructor));
+            genericTypes = javaCtor.getGenericParameterTypes();
+        } else {
+            Method javaMethod = findMethod(new MethodReference(information.className, information.constructor));
+            genericTypes = javaMethod.getGenericParameterTypes();
+        }
+        for (int i = 0; i < args.length; ++i) {
+            PropertyInformation property = information.constructorArgs.get(i);
+            if (property != null) {
+                Type type = genericTypes[i];
+                ValueEmitter value = getJsonProperty(nodeVar, property.outputName);
+                value = convert(value, type);
+                args[i] = value.cast(information.constructor.parameterType(i));
+            } else {
+                args[i] = pe.defaultValue(information.constructor.parameterType(i));
+            }
+        }
+        if (information.constructor.getName().equals("<init>")) {
+            targetVar = pe.construct(information.className, args);
+        } else {
+            targetVar = pe.invoke(information.className, information.constructor.getName(),
+                    ValueType.object(information.className), args);
+        }
     }
 
     private void emitIdRegistration(ClassInformation information) {
@@ -466,11 +502,10 @@ class JsonDeserializerEmitter {
         MethodReference method = new MethodReference(property.className, property.setter);
         Method javaMethod = findMethod(method);
         Type type = javaMethod.getGenericParameterTypes()[0];
-        agent.linkMethod(method, null);
 
         ValueEmitter value = getJsonProperty(nodeVar, property.outputName);
         value = convert(value, type);
-        targetVar.invokeVirtual(method, value);
+        targetVar.invokeVirtual(property.setter.getName(), value.cast(property.setter.parameterType(0)));
     }
 
     private void emitField(PropertyInformation property) {
@@ -648,6 +683,22 @@ class JsonDeserializerEmitter {
         while (owner != null) {
             try {
                 return owner.getDeclaredMethod(reference.getName(), params);
+            } catch (NoSuchMethodException e) {
+                owner = owner.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private Constructor<?> findConstructor(MethodReference reference) {
+        Class<?> owner = findClass(reference.getClassName());
+        Class<?>[] params = new Class<?>[reference.parameterCount()];
+        for (int i = 0; i < params.length; ++i) {
+            params[i] = convertType(reference.parameterType(i));
+        }
+        while (owner != null) {
+            try {
+                return owner.getDeclaredConstructor(params);
             } catch (NoSuchMethodException e) {
                 owner = owner.getSuperclass();
             }

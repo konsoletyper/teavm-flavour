@@ -27,7 +27,9 @@ import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
 import org.teavm.model.FieldReader;
+import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodReader;
+import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 
 /**
@@ -84,6 +86,7 @@ class ClassInformationProvider {
         getInheritance(information, cls);
         getIdentityInfo(information, cls);
         getIgnoredProperties(information, cls);
+        scanCreators(information, cls);
         scanFields(information, cls);
         scanGetters(information, cls);
         scanSetters(information, cls);
@@ -369,6 +372,71 @@ class ClassInformationProvider {
         }
 
         property.setter = method.getDescriptor();
+    }
+
+    private void scanCreators(ClassInformation information, ClassReader cls) {
+        MethodReference foundCreator = null;
+        for (MethodReader method : cls.getMethods()) {
+            if (method.getAnnotations().get("com.fasterxml.jackson.annotation.JsonCreator") != null) {
+                if (foundCreator != null) {
+                    diagnostics.error(new CallLocation(foundCreator), "Duplicate creators declared: {{m0}} and {{m1}}",
+                            foundCreator, method.getReference());
+                    break;
+                }
+                foundCreator = method.getReference();
+                if (!method.getName().equals("<init>") && method.hasModifier(ElementModifier.STATIC)) {
+                    diagnostics.error(new CallLocation(method.getReference()), "Creator should be either constructor "
+                            + " or static: {{m0}}", method.getReference());
+                    continue;
+                }
+                information.constructor = method.getDescriptor();
+                for (int i = 0; i < method.parameterCount(); ++i) {
+                    PropertyInformation property = addParameter(information, method.getReference(), i,
+                            method.parameterAnnotation(i), method.parameterType(i));
+                    information.constructorArgs.add(property);
+                }
+            }
+        }
+        if (information.constructor == null) {
+            MethodReader defaultCtor = cls.getMethod(new MethodDescriptor("<init>", ValueType.VOID));
+            if (defaultCtor == null) {
+                diagnostics.error(null, "Neither non-argument constructor nor @JonCreator were found in {{c0}}",
+                        information.className);
+            } else {
+                information.constructor = defaultCtor.getDescriptor();
+            }
+        }
+    }
+
+    private PropertyInformation addParameter(ClassInformation information, MethodReference creator, int index,
+            AnnotationContainerReader annotations, ValueType type) {
+        PropertyInformation property = new PropertyInformation();
+        property.className = information.className;
+        property.outputName = getPropertyName(annotations, null);
+        if (property.outputName == null) {
+            diagnostics.error(new CallLocation(creator), "Parameter #" + index + " name was not specified");
+            return null;
+        }
+        property.name = property.outputName;
+
+        PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
+        if (conflictingProperty != null) {
+            diagnostics.error(null, "Duplicate property declaration " + property.outputName + ". "
+                    + "Already declared in {{c0}}", property.className);
+            return null;
+        }
+
+        information.properties.put(property.name, property);
+        information.propertiesByOutputName.put(property.outputName, property);
+
+        if (property.ignored || isIgnored(annotations)) {
+            property.ignored = true;
+            return property;
+        }
+
+        property.creatorParameterIndex = index;
+        property.type = type;
+        return property;
     }
 
     private void scanFields(ClassInformation information, ClassReader cls) {

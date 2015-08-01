@@ -21,6 +21,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -103,6 +104,13 @@ public class DeserializerTest {
     public void setsViaField() {
         FieldVisible obj = JSONRunner.deserialize("{ \"foo\" : 3 }", FieldVisible.class);
         assertEquals(3, obj.foo);
+    }
+
+    @Test
+    public void setsViaConstructor() {
+        WithConstructor obj = JSONRunner.deserialize("{ \"foo\" : 23, \"bar\" : \"q\" }", WithConstructor.class);
+        assertEquals(23, obj.getFoo());
+        assertEquals("q", obj.getBar());
     }
 
     @Test
@@ -301,6 +309,25 @@ public class DeserializerTest {
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
+    }
+
+    public static class WithConstructor {
+        private int foo;
+        private String bar;
+
+        @JsonCreator
+        public WithConstructor(@JsonProperty("foo") int foo, @JsonProperty("bar") String bar) {
+            this.foo = foo;
+            this.bar = bar;
+        }
+
+        public int getFoo() {
+            return foo;
+        }
+
+        public String getBar() {
+            return bar;
+        }
     }
 
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)

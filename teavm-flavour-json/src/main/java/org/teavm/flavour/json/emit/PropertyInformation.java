@@ -31,6 +31,7 @@ class PropertyInformation implements Cloneable {
     String className;
     ValueType type;
     boolean ignored;
+    Integer creatorParameterIndex;
 
     @Override
     public PropertyInformation clone() {
