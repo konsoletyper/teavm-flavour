@@ -32,7 +32,7 @@ import org.teavm.jso.JS;
  * @author Alexey Andreev
  */
 public class DomBuilder {
-    private static final Window window = (Window)JS.getGlobal();
+    private static final Window window = (Window) JS.getGlobal();
     private static final Document document = window.getDocument();
     private Slot slot;
     private Deque<Item> stack = new ArrayDeque<>();
@@ -105,7 +105,7 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             throw new IllegalStateException("Can't apply modifier to root node");
         }
-        Renderable renderable = modifier.apply((HTMLElement)stack.peek().element);
+        Renderable renderable = modifier.apply((HTMLElement) stack.peek().element);
         renderables.add(renderable);
         return this;
     }

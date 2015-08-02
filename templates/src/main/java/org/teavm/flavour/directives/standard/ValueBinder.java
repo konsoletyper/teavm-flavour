@@ -34,7 +34,7 @@ public class ValueBinder<T> implements Renderable {
     private Object cachedValue;
 
     public ValueBinder(HTMLElement element) {
-        this.element = (HTMLInputElement)element;
+        this.element = (HTMLInputElement) element;
     }
 
     @BindContent

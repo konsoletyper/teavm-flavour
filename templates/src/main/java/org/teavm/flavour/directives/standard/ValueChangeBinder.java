@@ -35,7 +35,7 @@ public class ValueChangeBinder implements Renderable {
     private boolean bound;
 
     public ValueChangeBinder(HTMLElement element) {
-        this.element = (HTMLInputElement)element;
+        this.element = (HTMLInputElement) element;
     }
 
     @BindContent
@@ -59,10 +59,5 @@ public class ValueChangeBinder implements Renderable {
         }
     }
 
-    private EventListener<Event> eventListener = new EventListener<Event>() {
-        @Override
-        public void handleEvent(Event evt) {
-            listener.changed(element.getValue());
-        }
-    };
+    private EventListener<Event> eventListener = evt -> listener.changed(element.getValue());
 }

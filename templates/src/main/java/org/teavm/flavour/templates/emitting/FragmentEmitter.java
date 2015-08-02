@@ -25,9 +25,7 @@ import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
 import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
@@ -53,17 +51,15 @@ class FragmentEmitter {
 
         MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
         method.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(method);
-        ValueEmitter thisVar = pe.newVar();
+        ProgramEmitter pe = ProgramEmitter.create(method, context.dependencyAgent.getClassSource());
+        ValueEmitter thisVar = pe.var(0, cls);
 
         String workerCls = emitWorkerClass(fragment);
-        FieldReference ownerField = new FieldReference(cls.getName(), "this$owner");
         ValueType ownerType = ValueType.object(ownerCls);
-        MethodReference constructor = new MethodReference(workerCls, "<init>", ValueType.object(ownerCls),
-                ValueType.VOID);
-        MethodReference createMethod = new MethodReference(Fragment.class, "create", Component.class);
 
-        pe.construct(constructor, thisVar.getField(ownerField, ownerType)).invokeVirtual(createMethod).returnValue();
+        pe.construct(workerCls, thisVar.getField("this$owner", ownerType))
+                .invokeVirtual("create", Component.class)
+                .returnValue();
 
         cls.addMethod(method);
         context.dependencyAgent.submitClass(cls);
@@ -88,9 +84,9 @@ class FragmentEmitter {
         MethodHolder buildDomMethod = new MethodHolder("buildDom", ValueType.object(DomBuilder.class.getName()),
                 ValueType.VOID);
         buildDomMethod.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(buildDomMethod);
-        ValueEmitter thisVar = pe.newVar();
-        ValueEmitter builderVar = pe.newVar();
+        ProgramEmitter pe = ProgramEmitter.create(buildDomMethod, context.dependencyAgent.getClassSource());
+        ValueEmitter thisVar = pe.var(0, cls);
+        ValueEmitter builderVar = pe.var(1, DomBuilder.class);
 
         TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, pe, thisVar, builderVar);
         context.classStack.add(cls.getName());
@@ -106,29 +102,24 @@ class FragmentEmitter {
     private void emitVariableCache(ClassHolder cls, Map<String, EmittedVariable> vars) {
         MethodHolder updateMethod = new MethodHolder("update", ValueType.VOID);
         updateMethod.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(updateMethod);
-        ValueEmitter thisVar = pe.newVar();
+        ProgramEmitter pe = ProgramEmitter.create(updateMethod, context.dependencyAgent.getClassSource());
+        ValueEmitter thisVar = pe.var(0, cls);
 
         for (EmittedVariable var : vars.values()) {
             FieldHolder field = new FieldHolder("cache$" + var.name);
             field.setType(var.type);
             cls.addField(field);
-            thisVar.setField(field.getReference(), field.getType(), emitVariableReader(cls, thisVar, var));
+            thisVar.setField(field.getName(), emitVariableReader(thisVar, var).cast(field.getType()));
         }
         pe.exit();
 
         cls.addMethod(updateMethod);
     }
 
-    private ValueEmitter emitVariableReader(ClassHolder cls, ValueEmitter thisVar, EmittedVariable emitVar) {
-        String lastClass = cls.getName();
-
+    private ValueEmitter emitVariableReader(ValueEmitter thisVar, EmittedVariable emitVar) {
         for (int i = context.classStack.size() - 1; i >= emitVar.depth; --i) {
-            thisVar = thisVar.getField(new FieldReference(lastClass, "this$owner"),
-                    ValueType.object(context.classStack.get(i)));
-            lastClass = context.classStack.get(i);
+            thisVar = thisVar.getField("this$owner", ValueType.object(context.classStack.get(i)));
         }
-
-        return thisVar.getField(new FieldReference(lastClass, "var$" + emitVar.name), emitVar.type);
+        return thisVar.getField("var$" + emitVar.name, emitVar.type);
     }
 }

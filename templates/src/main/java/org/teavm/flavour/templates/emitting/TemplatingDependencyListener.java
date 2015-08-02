@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
-import org.teavm.dependency.DependencyConsumer;
-import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
@@ -52,24 +50,22 @@ class TemplatingDependencyListener extends AbstractDependencyListener {
     @Override
     public void methodReached(final DependencyAgent agent, final MethodDependency method,
             final CallLocation location) {
-        if (method.getReference().getClassName().equals(Templates.class.getName()) &&
-                method.getReference().getName().equals("createImpl")) {
-            method.getVariable(1).addConsumer(new DependencyConsumer() {
-                @Override public void consume(DependencyType type) {
-                    TemplateEmitter emitter = new TemplateEmitter(agent);
-                    TemplateInfo template = parseForModel(agent, type.getName(), location);
-                    if (template != null) {
-                        String templateClass = emitter.emitTemplate(type.getName(), template.sourceFileName,
-                                template.body);
-                        agent.linkClass(templateClass, location);
-                        MethodDependency ctor = agent.linkMethod(new MethodReference(templateClass, "<init>",
-                                ValueType.object(type.getName()), ValueType.VOID), location);
-                        ctor.getVariable(0).propagate(agent.getType(templateClass));
-                        ctor.getVariable(1).propagate(type);
-                        ctor.use();
-                        method.getResult().propagate(agent.getType(templateClass));
-                        templateMapping.put(type.getName(), templateClass);
-                    }
+        if (method.getReference().getClassName().equals(Templates.class.getName())
+                && method.getReference().getName().equals("createImpl")) {
+            method.getVariable(1).addConsumer(type -> {
+                TemplateEmitter emitter = new TemplateEmitter(agent);
+                TemplateInfo template = parseForModel(agent, type.getName(), location);
+                if (template != null) {
+                    String templateClass = emitter.emitTemplate(type.getName(), template.sourceFileName,
+                            template.body);
+                    agent.linkClass(templateClass, location);
+                    MethodDependency ctor = agent.linkMethod(new MethodReference(templateClass, "<init>",
+                            ValueType.object(type.getName()), ValueType.VOID), location);
+                    ctor.getVariable(0).propagate(agent.getType(templateClass));
+                    ctor.getVariable(1).propagate(type);
+                    ctor.use();
+                    method.getResult().propagate(agent.getType(templateClass));
+                    templateMapping.put(type.getName(), templateClass);
                 }
             });
         }
@@ -82,8 +78,8 @@ class TemplatingDependencyListener extends AbstractDependencyListener {
         }
         AnnotationReader annot = cls.getAnnotations().get(BindTemplate.class.getName());
         if (annot == null) {
-            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
-                    "no BindTemplate annotation supplied", typeName);
+            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+                    + "no BindTemplate annotation supplied", typeName);
             return null;
         }
         String path = annot.getValue("value").getString();
@@ -99,8 +95,8 @@ class TemplatingDependencyListener extends AbstractDependencyListener {
             }
              fragment = parser.parse(new InputStreamReader(input, "UTF-8"), typeName);
         } catch (IOException e) {
-            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
-                    "template " + path + " was not found", typeName);
+            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+                    + "template " + path + " was not found", typeName);
             return null;
         }
         if (!parser.getDiagnostics().isEmpty()) {
@@ -108,8 +104,8 @@ class TemplatingDependencyListener extends AbstractDependencyListener {
             try (Reader reader = new InputStreamReader(agent.getClassLoader().getResourceAsStream(path), "UTF-8")) {
                 mapper.prepare(reader);
             } catch (IOException e) {
-                agent.getDiagnostics().error(location, "Can't create template for {{c0}}: " +
-                        "template " + path + " was not found", typeName);
+                agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+                        + "template " + path + " was not found", typeName);
                 return null;
             }
             for (Diagnostic diagnostic : parser.getDiagnostics()) {

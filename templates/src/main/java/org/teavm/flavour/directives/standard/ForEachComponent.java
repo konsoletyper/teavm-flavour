@@ -71,7 +71,7 @@ public class ForEachComponent<T> extends AbstractComponent {
         Iterable<T> items = collection.perform();
         if (items instanceof Collection<?>) {
             @SuppressWarnings("unchecked")
-            Collection<T> safeItems = (Collection<T>)(Collection<?>)items;
+            Collection<T> safeItems = (Collection<T>) (Collection<?>) items;
             newComputedCollection = new ArrayList<>(safeItems);
         } else {
             newComputedCollection = new ArrayList<>();

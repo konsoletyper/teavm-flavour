@@ -33,7 +33,7 @@ import org.teavm.jso.JS;
 @BindDirective(name = "text")
 @IgnoreContent
 public class TextComponent<T> extends AbstractComponent {
-    private static Window window = (Window)JS.getGlobal();
+    private static Window window = (Window) JS.getGlobal();
     private Computation<T> value;
     private NodeHolder textSlot;
     private T cachedValue;

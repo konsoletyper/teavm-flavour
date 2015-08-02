@@ -26,7 +26,6 @@ import org.teavm.flavour.expr.Location;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
 import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
@@ -94,13 +93,13 @@ class EmitContext {
 
         MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(ctor);
+        ProgramEmitter pe = ProgramEmitter.create(ctor, dependencyAgent.getClassSource());
         location(pe, location);
-        ValueEmitter thisVar = pe.newVar();
-        ValueEmitter ownerVar = pe.newVar();
+        ValueEmitter thisVar = pe.var(0, cls);
+        ValueEmitter ownerVar = pe.var(1, ValueType.object(ownerType));
 
         thisVar.invokeSpecial(new MethodReference(cls.getParent(), "<init>", ValueType.VOID));
-        thisVar.setField(new FieldReference(cls.getName(), "this$owner"), ValueType.object(ownerType), ownerVar);
+        thisVar.setField("this$owner", ownerVar);
         pe.exit();
 
         cls.addMethod(ctor);

@@ -33,7 +33,7 @@ public class EnabledBinder implements Renderable {
     private boolean cachedValue;
 
     public EnabledBinder(HTMLElement element) {
-        this.element = (HTMLInputElement)element;
+        this.element = (HTMLInputElement) element;
     }
 
     @BindContent

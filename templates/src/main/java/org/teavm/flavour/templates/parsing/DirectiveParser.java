@@ -77,8 +77,8 @@ class DirectiveParser {
         } else if (attrAnnot != null) {
             return parseAttribute(cls, attrAnnot);
         } else {
-            error("Class " + cls.getName() + " declared by directive package is not marked either by " +
-                    BindDirective.class.getName() + " or by " + BindAttributeDirective.class.getName());
+            error("Class " + cls.getName() + " declared by directive package is not marked either by "
+                    + BindDirective.class.getName() + " or by " + BindAttributeDirective.class.getName());
             return null;
         }
     }
@@ -116,10 +116,10 @@ class DirectiveParser {
     }
 
     private String[] parseNames(AnnotationDescriber annot) {
-        List<AnnotationValue> names = ((AnnotationList)annot.getValue("name")).value;
+        List<AnnotationValue> names = ((AnnotationList) annot.getValue("name")).value;
         String[] result = new String[names.size()];
         for (int i = 0; i < result.length; ++i) {
-            result[i] = ((AnnotationString)names.get(i)).value;
+            result[i] = ((AnnotationString) names.get(i)).value;
         }
         return result;
     }
@@ -128,8 +128,8 @@ class DirectiveParser {
         ClassDescriber cls = metadata.cls;
         metadata.constructor = cls.getMethod("<init>", new GenericClass(Slot.class.getName()));
         if (metadata.constructor == null) {
-            error("Class " + cls.getName() + " declared by directive package does not have constructor " +
-                    "that takes " + Slot.class.getName());
+            error("Class " + cls.getName() + " declared by directive package does not have constructor "
+                    + "that takes " + Slot.class.getName());
         }
     }
 
@@ -137,8 +137,8 @@ class DirectiveParser {
         ClassDescriber cls = metadata.cls;
         metadata.constructor = cls.getMethod("<init>", new GenericClass(HTMLElement.class.getName()));
         if (metadata.constructor == null) {
-            error("Class " + cls.getName() + " declared by directive package does not have constructor " +
-                    "that takes " + Slot.class.getName());
+            error("Class " + cls.getName() + " declared by directive package does not have constructor "
+                    + "that takes " + Slot.class.getName());
         }
     }
 
@@ -185,12 +185,12 @@ class DirectiveParser {
             ValueType[] argumentTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < argumentTypes.length; ++i) {
                 if (argumentTypes[i] instanceof GenericType) {
-                    argumentTypes[i] = ((GenericType)argumentTypes[i]).substitute(substitutions);
+                    argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(substitutions);
                 }
             }
             ValueType returnType = methodDesc.getReturnType();
             if (returnType instanceof GenericType) {
-                returnType = ((GenericType)returnType).substitute(substitutions);
+                returnType = ((GenericType) returnType).substitute(substitutions);
             }
             GenericMethod method = new GenericMethod(methodDesc, genericCls, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {
@@ -219,23 +219,23 @@ class DirectiveParser {
         }
         bindings.add(binding);
         if (metadata.contentSetter != null) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName() +
-                    " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": " +
-                    methodToString(metadata.contentSetter));
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName()
+                    + " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": "
+                    + methodToString(metadata.contentSetter));
             return;
         }
         metadata.contentSetter = method.getDescriber();
         ValueType[] arguments = method.getActualArgumentTypes();
         if (arguments.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked with " +
-                    BindContent.class.getName() + " and therefore should take exactly 1 argument, " +
-                    "but takes " + arguments.length);
+            error("Method " + methodToString(method.getDescriber()) + " is marked with "
+                    + BindContent.class.getName() + " and therefore should take exactly 1 argument, "
+                    + "but takes " + arguments.length);
             return;
         }
         if (!arguments[0].equals(new GenericClass(Fragment.class.getName()))) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked with " +
-                    BindContent.class.getName() + " and therefore should take " + Fragment.class.getName() +
-                    " as an argument, but takes " + arguments[0]);
+            error("Method " + methodToString(method.getDescriber()) + " is marked with "
+                    + BindContent.class.getName() + " and therefore should take " + Fragment.class.getName()
+                    + " as an argument, but takes " + arguments[0]);
         }
     }
 
@@ -245,23 +245,23 @@ class DirectiveParser {
             return;
         }
         if (metadata.type != null) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName() +
-                    " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": " +
-                    methodToString(metadata.setter));
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName()
+                    + " but another method is alredy bound to content of directive " + metadata.cls.getName() + ": "
+                    + methodToString(metadata.setter));
         }
         metadata.setter = method.getDescriber();
         ValueType[] arguments = method.getActualArgumentTypes();
         if (arguments.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked with " +
-                    BindContent.class.getName() + " and therefore should take exactly 1 argument, " +
-                    "but takes " + arguments.length);
+            error("Method " + methodToString(method.getDescriber()) + " is marked with "
+                    + BindContent.class.getName() + " and therefore should take exactly 1 argument, "
+                    + "but takes " + arguments.length);
             return;
         }
 
         DirectiveAttributeMetadata attrMeta = new DirectiveAttributeMetadata();
         if (!parseAttributeType(attrMeta, arguments[0])) {
-            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
-                    "mapped to an attribute: " + arguments[0]);
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
+                    + "mapped to an attribute: " + arguments[0]);
         } else {
             metadata.type = attrMeta.type;
             metadata.valueType = attrMeta.valueType;
@@ -276,12 +276,12 @@ class DirectiveParser {
             return;
         }
         bindings.add(binding);
-        String name = ((AnnotationString)binding.getValue("name")).value;
+        String name = ((AnnotationString) binding.getValue("name")).value;
 
         DirectiveAttributeMetadata existing = metadata.attributes.get(name);
         if (existing != null) {
-            error("Method " + methodToString(method.getDescriber()) + " is bound to " + name + " attribute, but " +
-                    "it is already bound to another method: " + methodToString(existing.setter));
+            error("Method " + methodToString(method.getDescriber()) + " is bound to " + name + " attribute, but "
+                    + "it is already bound to another method: " + methodToString(existing.setter));
             return;
         }
 
@@ -290,20 +290,20 @@ class DirectiveParser {
         metadata.attributes.put(name, attrMetadata);
         attrMetadata.setter = method.getDescriber();
 
-        AnnotationBoolean optionalValue = (AnnotationBoolean)binding.getValue("optional");
+        AnnotationBoolean optionalValue = (AnnotationBoolean) binding.getValue("optional");
         attrMetadata.required = optionalValue == null || !optionalValue.value;
 
         ValueType[] arguments = method.getActualArgumentTypes();
         if (arguments.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by " +
-                    BindAttribute.class.getName() + " and therefore must take exactly 1 argument, but " +
-                    "takes " + arguments.length);
+            error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                    + BindAttribute.class.getName() + " and therefore must take exactly 1 argument, but "
+                    + "takes " + arguments.length);
             return;
         }
 
         if (!parseAttributeType(attrMetadata, arguments[0])) {
-            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
-                    "mapped to an attribute: " + arguments[0]);
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
+                    + "mapped to an attribute: " + arguments[0]);
         }
     }
 
@@ -316,14 +316,14 @@ class DirectiveParser {
 
         TypeUnifier unifier = new TypeUnifier(classRepository);
         GenericClass variableType = new GenericClass(Variable.class.getName(), new GenericReference(typeVar));
-        if (unifier.unify(variableType, (GenericType)valueType, false)) {
+        if (unifier.unify(variableType, (GenericType) valueType, false)) {
             attrMetadata.type = DirectiveAttributeType.VARIABLE;
             attrMetadata.valueType = unifier.getSubstitutions().get(typeVar);
             return true;
         }
 
         if (valueType instanceof GenericClass) {
-            GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass)valueType);
+            GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass) valueType);
             if (sam != null) {
                 attrMetadata.sam = sam;
                 attrMetadata.type = DirectiveAttributeType.FUNCTION;
@@ -342,22 +342,22 @@ class DirectiveParser {
         }
 
         if (directive.nameSetter != null) {
-            error("Method " + methodToString(method.getDescriber()) + " declares binding to annotation name " +
-                    "that is already bound to " + methodToString(directive.nameSetter));
+            error("Method " + methodToString(method.getDescriber()) + " declares binding to annotation name "
+                    + "that is already bound to " + methodToString(directive.nameSetter));
             return;
         }
 
         ValueType[] args = method.getActualArgumentTypes();
         if (args.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by " +
-                    BindDirectiveName.class.getName() + " and therefore must take exactly 1 argument, but " +
-                    "takes " + args.length);
+            error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                    + BindDirectiveName.class.getName() + " and therefore must take exactly 1 argument, but "
+                    + "takes " + args.length);
             return;
         }
 
         if (!args[0].equals(new GenericClass(String.class.getName()))) {
-            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be " +
-                    "mapped to directive's name: " + args[0]);
+            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
+                    + "mapped to directive's name: " + args[0]);
         }
         directive.nameSetter = method.getDescriber();
     }
@@ -402,7 +402,7 @@ class DirectiveParser {
             if (!(obj instanceof MethodWithParams)) {
                 return false;
             }
-            MethodWithParams other = (MethodWithParams)obj;
+            MethodWithParams other = (MethodWithParams) obj;
             return name.equals(other.name) && Arrays.equals(params, other.params);
         }
     }

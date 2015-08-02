@@ -43,16 +43,7 @@ public abstract class BaseAsyncEventBinder<T extends Event> implements Renderabl
 
     @BindContent
     public void setHandler(final EventHandler<T> handler) {
-        this.action = new EventListener<T>() {
-            @Override
-            public void handleEvent(final T evt) {
-                new Thread() {
-                    @Override public void run() {
-                        handler.handleEvent(evt);
-                    }
-                }.start();
-            }
-        };
+        this.action = evt -> new Thread(() -> handler.handleEvent(evt)).start();
     }
 
     @Override
