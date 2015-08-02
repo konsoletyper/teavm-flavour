@@ -17,15 +17,17 @@ package org.teavm.flavour.json.emit;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import org.teavm.dependency.DependencyAgent;
-import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyNode;
-import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.FieldDependency;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.json.JSON;
@@ -46,6 +48,7 @@ import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.model.AccessLevel;
+import org.teavm.model.AnnotationContainerReader;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReader;
@@ -276,8 +279,10 @@ class JsonSerializerEmitter {
         MethodReference method = new MethodReference(property.className, property.getter);
 
         MethodDependency getterDep = agent.linkMethod(method, null);
+        AnnotationContainerReader annotations = getterDep.getMethod() != null ? getterDep.getMethod().getAnnotations()
+                : null;
         ValueEmitter propertyValue = convertValue(valueVar.invokeVirtual(method), method.getReturnType(),
-                getterDep.getResult());
+                getterDep.getResult(), annotations);
         targetVar.invokeSpecial(ObjectNode.class, "set", pe.constant(property.outputName),
                 propertyValue.cast(Node.class));
     }
@@ -286,20 +291,24 @@ class JsonSerializerEmitter {
         FieldReference field = new FieldReference(property.className, property.fieldName);
 
         FieldDependency dep = agent.linkField(field, null);
-        ValueEmitter propertyValue = convertValue(valueVar.getField(property.fieldName, dep.getField().getType()),
-                dep.getField().getType(), dep.getValue());
+        AnnotationContainerReader annotations = dep.getField() != null ? dep.getField().getAnnotations() : null;
+        ValueType type = dep.getField() != null ? dep.getField().getType() : ValueType.object("java.lang.Object");
+        ValueEmitter propertyValue = convertValue(valueVar.getField(property.fieldName, type),
+                type, dep.getValue(), annotations);
         targetVar.invokeVirtual("set", pe.constant(property.outputName), propertyValue.cast(Node.class));
     }
 
-    private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node) {
+    private ValueEmitter convertValue(ValueEmitter value, final ValueType type, DependencyNode node,
+            AnnotationContainerReader annotations) {
         if (type instanceof ValueType.Primitive) {
             return convertPrimitive(value, (ValueType.Primitive) type);
         } else {
-            return convertNullable(value, type, node);
+            return convertNullable(value, type, node, annotations);
         }
     }
 
-    private ValueEmitter convertNullable(ValueEmitter value, ValueType type, DependencyNode node) {
+    private ValueEmitter convertNullable(ValueEmitter value, ValueType type, DependencyNode node,
+            AnnotationContainerReader annotations) {
         BasicBlock exit = pe.prepareBlock();
         PhiEmitter result = pe.phi(Node.class, exit);
 
@@ -308,9 +317,9 @@ class JsonSerializerEmitter {
                 .elseDo(() -> {
                     ValueEmitter notNullValue;
                     if (type instanceof ValueType.Array) {
-                        notNullValue = convertArray(value, (ValueType.Array) type, node);
+                        notNullValue = convertArray(value, (ValueType.Array) type, node, annotations);
                     } else if (type instanceof ValueType.Object) {
-                        notNullValue = convertObject(value, (ValueType.Object) type, node);
+                        notNullValue = convertObject(value, (ValueType.Object) type, node, annotations);
                     } else {
                         notNullValue = value;
                     }
@@ -337,7 +346,8 @@ class JsonSerializerEmitter {
         throw new AssertionError("Unknown primitive type: " + type);
     }
 
-    private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type, DependencyNode node) {
+    private ValueEmitter convertArray(ValueEmitter value, ValueType.Array type, DependencyNode node,
+            AnnotationContainerReader annotations) {
         ValueType itemType = type.getItemType();
 
         BasicBlock loopDecision = pe.prepareBlock();
@@ -353,7 +363,8 @@ class JsonSerializerEmitter {
         pe.when(index.getValue().isLessThan(size))
                 .thenDo(() -> {
                     ValueEmitter item = value.getElement(index.getValue());
-                    json.invokeVirtual("add", convertValue(item, itemType, node.getArrayItem()).cast(Node.class));
+                    json.invokeVirtual("add", convertValue(item, itemType, node.getArrayItem(), annotations)
+                            .cast(Node.class));
                     index.getValue().add(1).propagateTo(index);
                     pe.jump(loopDecision);
                 })
@@ -363,19 +374,34 @@ class JsonSerializerEmitter {
         return json;
     }
 
-    private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type, DependencyNode node) {
+    private ValueEmitter convertObject(ValueEmitter value, ValueType.Object type, DependencyNode node,
+            AnnotationContainerReader annotations) {
         if (type.getClassName().equals(String.class.getName())) {
             return pe.invoke(StringNode.class, "create", StringNode.class, value);
+        } else if (classSource.isSuperType(Date.class.getName(), type.getClassName()).orElse(false)) {
+            return convertDate(value, annotations);
         } else {
             final MethodReference serializeRef = new MethodReference(JSON.class, "serialize",
                     JsonSerializerContext.class, Object.class, Node.class);
-            node.addConsumer(new DependencyConsumer() {
-                @Override
-                public void consume(DependencyType type) {
-                    agent.linkMethod(serializeRef, null).propagate(2, type);
-                }
-            });
+            node.addConsumer(t -> agent.linkMethod(serializeRef, null).propagate(2, t));
             return pe.invoke(serializeRef, contextVar, value);
+        }
+    }
+
+    private ValueEmitter convertDate(ValueEmitter value, AnnotationContainerReader annotations) {
+        DateFormatInformation formatInfo = DateFormatInformation.get(annotations);
+        if (formatInfo.asString) {
+            ValueEmitter locale = formatInfo.locale != null
+                    ? pe.construct(Locale.class, pe.constant(formatInfo.locale))
+                    : pe.invoke(Locale.class, "getDefault", Locale.class);
+            ValueEmitter format = pe.construct(SimpleDateFormat.class, pe.constant(formatInfo.pattern), locale);
+            format.invokeVirtual("setTimeZone", pe.invoke(TimeZone.class, "getTimeZone", TimeZone.class,
+                    pe.constant("GMT")));
+            value = format.invokeVirtual("format", String.class, value.cast(Date.class));
+            return pe.invoke(StringNode.class, "create", StringNode.class, value);
+        } else {
+            value = value.invokeVirtual("getTime", long.class).cast(double.class);
+            return pe.invoke(NumberNode.class, "create", NumberNode.class, value);
         }
     }
 }

@@ -19,8 +19,23 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TimeZone;
+import org.junit.Test;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonFormat.Shape;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -32,16 +47,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.junit.Test;
 
 /**
  *
@@ -356,6 +361,30 @@ public class SerializerTest {
         assertEquals(aId, firstSuccessor.asInt());
     }
 
+    @Test
+    public void writesFormattedDate() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getTimeZone("GMT"));
+        calendar.setTimeInMillis(0);
+        calendar.set(Calendar.YEAR, 2015);
+        calendar.set(Calendar.MONTH, Calendar.AUGUST);
+        calendar.set(Calendar.DATE, 2);
+        calendar.set(Calendar.HOUR_OF_DAY, 16);
+        calendar.set(Calendar.MINUTE, 25);
+        calendar.set(Calendar.SECOND, 35);
+        Date date = calendar.getTime();
+
+        DateFormats formats = new DateFormats();
+        formats.numeric = date;
+        formats.textual = date;
+
+        JsonNode node = JSONRunner.serialize(formats);
+        assertTrue("Numeric date is a number", node.get("numeric").isNumber());
+        assertEquals(date.getTime(), node.get("numeric").asDouble(), 0.1);
+        assertTrue("Textual date is a string", node.get("textual").isTextual());
+        assertEquals("2015-08-02 16:25:35 Z", node.get("textual").asText());
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -561,5 +590,12 @@ public class SerializerTest {
         public List<GraphNode> getSuccessors() {
             return successors;
         }
+    }
+
+    public static class DateFormats {
+        public Date numeric;
+
+        @JsonFormat(shape = Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss XX")
+        public Date textual;
     }
 }
