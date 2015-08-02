@@ -71,7 +71,7 @@ public class Compiler {
         CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository),
                 classResolver, scope);
         if (attributedExpr instanceof LambdaExpr<?> && type instanceof GenericClass) {
-            visitor.lambdaSam = visitor.navigator.findSingleAbstractMethod((GenericClass)type);
+            visitor.lambdaSam = visitor.navigator.findSingleAbstractMethod((GenericClass) type);
         }
         attributedExpr.acceptVisitor(visitor);
         if (type != null) {

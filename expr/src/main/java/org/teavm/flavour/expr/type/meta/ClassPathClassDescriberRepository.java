@@ -84,7 +84,7 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             typeVarCache.put(javaVar, var);
             Type[] javaBounds = javaVar.getBounds();
             if (javaBounds.length > 0) {
-                var.withUpperBound((GenericClass)convertGenericType(javaBounds[0]));
+                var.withUpperBound((GenericClass) convertGenericType(javaBounds[0]));
             }
         }
         return var;
@@ -92,7 +92,7 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
 
     public ValueType convertGenericType(Type javaType) {
         if (javaType instanceof Class<?>) {
-            Class<?> javaClass = (Class<?>)javaType;
+            Class<?> javaClass = (Class<?>) javaType;
             if (javaClass.isPrimitive()) {
                 return primitiveMap.get(javaClass.getName());
             } else if (javaClass.isArray()) {
@@ -100,29 +100,29 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             }
             return new GenericClass(javaClass.getName(), Collections.<GenericType>emptyList());
         } else if (javaType instanceof ParameterizedType) {
-            ParameterizedType javaGenericType = (ParameterizedType)javaType;
-            Class<?> javaRawClass = (Class<?>)javaGenericType.getRawType();
+            ParameterizedType javaGenericType = (ParameterizedType) javaType;
+            Class<?> javaRawClass = (Class<?>) javaGenericType.getRawType();
             Type[] javaArgs = javaGenericType.getActualTypeArguments();
             GenericType[] args = new GenericType[javaArgs.length];
             for (int i = 0; i < args.length; ++i) {
-                args[i] = (GenericType)convertGenericType(javaArgs[i]);
+                args[i] = (GenericType) convertGenericType(javaArgs[i]);
             }
             return new GenericClass(javaRawClass.getName(), Arrays.asList(args));
         } else if (javaType instanceof GenericArrayType) {
-            GenericArrayType javaArray = (GenericArrayType)javaType;
+            GenericArrayType javaArray = (GenericArrayType) javaType;
             return new GenericArray(convertGenericType(javaArray.getGenericComponentType()));
         } else if (javaType instanceof TypeVariable<?>) {
-            TypeVariable<?> javaVar = (TypeVariable<?>)javaType;
+            TypeVariable<?> javaVar = (TypeVariable<?>) javaType;
             return new GenericReference(getTypeVariable(javaVar));
         } else if (javaType instanceof WildcardType) {
-            WildcardType wildcard = (WildcardType)javaType;
+            WildcardType wildcard = (WildcardType) javaType;
             Type[] upperBounds = wildcard.getUpperBounds();
             Type[] lowerBounds = wildcard.getLowerBounds();
             TypeVar var = new TypeVar();
             if (lowerBounds.length > 0) {
-                var.withLowerBound((GenericType)convertGenericType(lowerBounds[0]));
+                var.withLowerBound((GenericType) convertGenericType(lowerBounds[0]));
             } else if (upperBounds.length > 0) {
-                var.withUpperBound((GenericType)convertGenericType(upperBounds[0]));
+                var.withUpperBound((GenericType) convertGenericType(upperBounds[0]));
             }
             return new GenericReference(var);
         } else {
@@ -132,7 +132,7 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
 
     Class<?> convertToRawType(ValueType type) {
         if (type instanceof Primitive) {
-            switch (((Primitive)type).getKind()) {
+            switch (((Primitive) type).getKind()) {
                 case BOOLEAN:
                     return boolean.class;
                 case CHAR:
@@ -153,10 +153,10 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
                     throw new AssertionError();
             }
         } else if (type instanceof GenericArray) {
-            GenericArray array = (GenericArray)type;
+            GenericArray array = (GenericArray) type;
             return Array.newInstance(convertToRawType(array.getElementType()), 0).getClass();
         } else if (type instanceof GenericClass) {
-            GenericClass cls = (GenericClass)type;
+            GenericClass cls = (GenericClass) type;
             try {
                 return Class.forName(cls.getName(), false, classLoader);
             } catch (ClassNotFoundException e) {

@@ -37,7 +37,7 @@ public final class GenericArray extends GenericType {
     @Override
     public GenericArray substitute(Map<TypeVar, GenericType> substitutions) {
         if (elementType instanceof GenericType) {
-            GenericType genericElem = (GenericType)elementType;
+            GenericType genericElem = (GenericType) elementType;
             GenericType substElement = genericElem.substitute(substitutions);
             return substElement != elementType ? new GenericArray(substElement) : this;
         } else {
@@ -58,12 +58,12 @@ public final class GenericArray extends GenericType {
         if (!(obj instanceof GenericArray)) {
             return false;
         }
-        GenericArray other = (GenericArray)obj;
+        GenericArray other = (GenericArray) obj;
         return elementType.equals(other.elementType);
     }
 
     @Override
     public GenericType erasure() {
-        return elementType instanceof GenericType ? new GenericArray(((GenericType)elementType).erasure()) : this;
+        return elementType instanceof GenericType ? new GenericArray(((GenericType) elementType).erasure()) : this;
     }
 }

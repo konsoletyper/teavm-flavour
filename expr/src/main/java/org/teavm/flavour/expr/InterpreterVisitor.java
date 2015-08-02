@@ -58,176 +58,176 @@ class InterpreterVisitor implements PlanVisitor {
             case ADD:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a + (Integer)b;
+                        value = (Integer) a + (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a + (Long)b;
+                        value = (Long) a + (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a + (Float)b;
+                        value = (Float) a + (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a + (Double)b;
+                        value = (Double) a + (Double) b;
                         break;
                 }
                 break;
             case SUBTRACT:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a - (Integer)b;
+                        value = (Integer) a - (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a - (Long)b;
+                        value = (Long) a - (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a - (Float)b;
+                        value = (Float) a - (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a - (Double)b;
+                        value = (Double) a - (Double) b;
                         break;
                 }
                 break;
             case MULTIPLY:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a * (Integer)b;
+                        value = (Integer) a * (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a * (Long)b;
+                        value = (Long) a * (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a * (Float)b;
+                        value = (Float) a * (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a * (Double)b;
+                        value = (Double) a * (Double) b;
                         break;
                 }
                 break;
             case DIVIDE:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a / (Integer)b;
+                        value = (Integer) a / (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a / (Long)b;
+                        value = (Long) a / (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a / (Float)b;
+                        value = (Float) a / (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a / (Double)b;
+                        value = (Double) a / (Double) b;
                         break;
                 }
                 break;
             case REMAINDER:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a % (Integer)b;
+                        value = (Integer) a % (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a % (Long)b;
+                        value = (Long) a % (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a % (Float)b;
+                        value = (Float) a % (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a % (Double)b;
+                        value = (Double) a % (Double) b;
                         break;
                 }
                 break;
             case EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = ((Integer)a).intValue() == ((Integer)b).intValue();
+                        value = ((Integer) a).intValue() == ((Integer) b).intValue();
                         break;
                     case LONG:
-                        value = ((Long)a).intValue() == ((Long)b).intValue();
+                        value = ((Long) a).intValue() == ((Long) b).intValue();
                         break;
                     case FLOAT:
-                        value = ((Float)a).floatValue() == ((Float)b).floatValue();
+                        value = ((Float) a).floatValue() == ((Float) b).floatValue();
                         break;
                     case DOUBLE:
-                        value = ((Double)a).doubleValue() == ((Double)b).doubleValue();
+                        value = ((Double) a).doubleValue() == ((Double) b).doubleValue();
                         break;
                 }
                 break;
             case NOT_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = ((Integer)a).intValue() != ((Integer)b).intValue();
+                        value = ((Integer) a).intValue() != ((Integer) b).intValue();
                         break;
                     case LONG:
-                        value = ((Long)a).intValue() != ((Long)b).intValue();
+                        value = ((Long) a).intValue() != ((Long) b).intValue();
                         break;
                     case FLOAT:
-                        value = ((Float)a).floatValue() != ((Float)b).floatValue();
+                        value = ((Float) a).floatValue() != ((Float) b).floatValue();
                         break;
                     case DOUBLE:
-                        value = ((Double)a).doubleValue() != ((Double)b).doubleValue();
+                        value = ((Double) a).doubleValue() != ((Double) b).doubleValue();
                         break;
                 }
                 break;
             case GREATER:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a > (Integer)b;
+                        value = (Integer) a > (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a > (Long)b;
+                        value = (Long) a > (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a > (Float)b;
+                        value = (Float) a > (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a > (Double)b;
+                        value = (Double) a > (Double) b;
                         break;
                 }
                 break;
             case GREATER_OR_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a >= (Integer)b;
+                        value = (Integer) a >= (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a >= (Long)b;
+                        value = (Long) a >= (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a >= (Float)b;
+                        value = (Float) a >= (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a >= (Double)b;
+                        value = (Double) a >= (Double) b;
                         break;
                 }
                 break;
             case LESS:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a < (Integer)b;
+                        value = (Integer) a < (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a < (Long)b;
+                        value = (Long) a < (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a < (Float)b;
+                        value = (Float) a < (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a < (Double)b;
+                        value = (Double) a < (Double) b;
                         break;
                 }
                 break;
             case LESS_OR_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        value = (Integer)a <= (Integer)b;
+                        value = (Integer) a <= (Integer) b;
                         break;
                     case LONG:
-                        value = (Long)a <= (Long)b;
+                        value = (Long) a <= (Long) b;
                         break;
                     case FLOAT:
-                        value = (Float)a <= (Float)b;
+                        value = (Float) a <= (Float) b;
                         break;
                     case DOUBLE:
-                        value = (Double)a <= (Double)b;
+                        value = (Double) a <= (Double) b;
                         break;
                 }
                 break;
@@ -239,16 +239,16 @@ class InterpreterVisitor implements PlanVisitor {
         plan.getOperand().acceptVisitor(this);
         switch (plan.getValueType()) {
             case INT:
-                value = -(Integer)value;
+                value = -(Integer) value;
                 break;
             case LONG:
-                value = -(Long)value;
+                value = -(Long) value;
                 break;
             case FLOAT:
-                value = -(Float)value;
+                value = -(Float) value;
                 break;
             case DOUBLE:
-                value = -(Double)value;
+                value = -(Double) value;
                 break;
         }
     }
@@ -272,7 +272,7 @@ class InterpreterVisitor implements PlanVisitor {
     @Override
     public void visit(LogicalBinaryPlan plan) {
         plan.getFirstOperand().acceptVisitor(this);
-        Boolean a = (Boolean)value;
+        Boolean a = (Boolean) value;
         switch (plan.getType()) {
             case AND:
                 if (!a) {
@@ -294,7 +294,7 @@ class InterpreterVisitor implements PlanVisitor {
     @Override
     public void visit(NotPlan plan) {
         plan.getOperand().acceptVisitor(this);
-        value = !(Boolean)value;
+        value = !(Boolean) value;
     }
 
     @Override
@@ -318,56 +318,56 @@ class InterpreterVisitor implements PlanVisitor {
                     case INT:
                         break;
                     case LONG:
-                        value = (long)(Integer)value;
+                        value = (long) (Integer) value;
                         break;
                     case FLOAT:
-                        value = (float)(Integer)value;
+                        value = (float) (Integer) value;
                         break;
                     case DOUBLE:
-                        value = (double)(Integer)value;
+                        value = (double) (Integer) value;
                         break;
                 }
                 break;
             case LONG:
                 switch (plan.getTargetType()) {
                     case INT:
-                        value = (int)((Long)value).longValue();
+                        value = (int) ((Long) value).longValue();
                         break;
                     case LONG:
                         break;
                     case FLOAT:
-                        value = (float)(Long)value;
+                        value = (float) (Long) value;
                         break;
                     case DOUBLE:
-                        value = (double)(Long)value;
+                        value = (double) (Long) value;
                         break;
                 }
                 break;
             case FLOAT:
                 switch (plan.getTargetType()) {
                     case INT:
-                        value = ((Float)value).intValue();
+                        value = ((Float) value).intValue();
                         break;
                     case LONG:
-                        value = ((Float)value).longValue();
+                        value = ((Float) value).longValue();
                         break;
                     case FLOAT:
                         break;
                     case DOUBLE:
-                        value = ((Float)value).doubleValue();
+                        value = ((Float) value).doubleValue();
                         break;
                 }
                 break;
             case DOUBLE:
                 switch (plan.getTargetType()) {
                     case INT:
-                        value = ((Double)value).intValue();
+                        value = ((Double) value).intValue();
                         break;
                     case LONG:
-                        value = ((Double)value).longValue();
+                        value = ((Double) value).longValue();
                         break;
                     case FLOAT:
-                        value = ((Double)value).floatValue();
+                        value = ((Double) value).floatValue();
                         break;
                     case DOUBLE:
                         break;
@@ -381,13 +381,13 @@ class InterpreterVisitor implements PlanVisitor {
         plan.getOperand().acceptVisitor(this);
         switch (plan.getType()) {
             case BYTE:
-                value = ((Integer)value).byteValue();
+                value = ((Integer) value).byteValue();
                 break;
             case CHAR:
-                value = (char)((Integer)value).intValue();
+                value = (char) ((Integer) value).intValue();
                 break;
             case SHORT:
-                value = ((Integer)value).shortValue();
+                value = ((Integer) value).shortValue();
                 break;
         }
     }
@@ -397,13 +397,13 @@ class InterpreterVisitor implements PlanVisitor {
         plan.getOperand().acceptVisitor(this);
         switch (plan.getType()) {
             case BYTE:
-                value = ((Byte)value).intValue();
+                value = ((Byte) value).intValue();
                 break;
             case CHAR:
-                value = (int)((Character)value).charValue();
+                value = (int) ((Character) value).charValue();
                 break;
             case SHORT:
-                value = ((Short)value).intValue();
+                value = ((Short) value).intValue();
                 break;
         }
     }
@@ -413,7 +413,7 @@ class InterpreterVisitor implements PlanVisitor {
         plan.getArray().acceptVisitor(this);
         Object array = value;
         plan.getIndex().acceptVisitor(this);
-        int index = (Integer)value;
+        int index = (Integer) value;
         value = Array.get(array, index);
     }
 
@@ -435,8 +435,8 @@ class InterpreterVisitor implements PlanVisitor {
         try {
             value = getField(plan.getClassName(), plan.getFieldName()).get(instance);
         } catch (IllegalAccessException e) {
-            throw new InterpretationException("Can't access field " + plan.getClassName() + "." +
-                    plan.getFieldName(), e);
+            throw new InterpretationException("Can't access field " + plan.getClassName() + "."
+                    + plan.getFieldName(), e);
         }
     }
 
@@ -469,11 +469,11 @@ class InterpreterVisitor implements PlanVisitor {
         try {
             value = method.invoke(instance, arguments);
         } catch (IllegalAccessException e) {
-            throw new InterpretationException("Can't access method " + plan.getClassName() + "." +
-                    plan.getMethodName() + plan.getMethodDesc(), e);
+            throw new InterpretationException("Can't access method " + plan.getClassName() + "."
+                    + plan.getMethodName() + plan.getMethodDesc(), e);
         } catch (InvocationTargetException e) {
-            throw new InterpretationException("Can't access method " + plan.getClassName() + "." +
-                    plan.getMethodName() + plan.getMethodDesc(), e);
+            throw new InterpretationException("Can't access method " + plan.getClassName() + "."
+                    + plan.getMethodName() + plan.getMethodDesc(), e);
         }
     }
 
@@ -488,21 +488,21 @@ class InterpreterVisitor implements PlanVisitor {
         try {
             value = ctor.newInstance(arguments);
         } catch (IllegalAccessException e) {
-            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>" +
-                    plan.getMethodDesc(), e);
+            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
+                    + plan.getMethodDesc(), e);
         } catch (InvocationTargetException e) {
-            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>" +
-                    plan.getMethodDesc(), e);
+            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
+                    + plan.getMethodDesc(), e);
         } catch (InstantiationException e) {
-            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>" +
-                    plan.getMethodDesc(), e);
+            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
+                    + plan.getMethodDesc(), e);
         }
     }
 
     @Override
     public void visit(ConditionalPlan plan) {
         plan.getCondition().acceptVisitor(this);
-        Boolean condition = (Boolean)value;
+        Boolean condition = (Boolean) value;
         if (condition) {
             plan.getConsequent().acceptVisitor(this);
         } else {

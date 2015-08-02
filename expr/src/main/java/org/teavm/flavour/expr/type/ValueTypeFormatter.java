@@ -33,7 +33,7 @@ public class ValueTypeFormatter {
 
     public void format(ValueType type, StringBuilder sb) {
         if (type instanceof Primitive) {
-            switch (((Primitive)type).getKind()) {
+            switch (((Primitive) type).getKind()) {
                 case BOOLEAN:
                     sb.append("boolean");
                     break;
@@ -62,7 +62,7 @@ public class ValueTypeFormatter {
                     throw new AssertionError("Unexpected primitive type");
             }
         } else if (type instanceof GenericClass) {
-            GenericClass cls = (GenericClass)type;
+            GenericClass cls = (GenericClass) type;
             sb.append(cls.getName());
             if (!cls.getArguments().isEmpty()) {
                 sb.append('<');
@@ -75,11 +75,11 @@ public class ValueTypeFormatter {
                 sb.append('>');
             }
         } else if (type instanceof GenericArray) {
-            GenericArray array = (GenericArray)type;
+            GenericArray array = (GenericArray) type;
             format(array.getElementType());
             sb.append("[]");
         } else if (type instanceof GenericReference) {
-            GenericReference ref = (GenericReference)type;
+            GenericReference ref = (GenericReference) type;
             sb.append(getNameOfTypeVar(ref.getVar()));
         } else {
             throw new AssertionError("Unexpected type: " + type.getClass().getName());
@@ -99,7 +99,7 @@ public class ValueTypeFormatter {
         int letterIndex = index % 26;
         int suffix = index / 26;
         StringBuilder sb = new StringBuilder();
-        sb.append((char)('A' + letterIndex));
+        sb.append((char) ('A' + letterIndex));
         if (suffix > 0) {
             sb.append(suffix);
         }

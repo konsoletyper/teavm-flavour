@@ -91,10 +91,10 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
 
         Interpreter interpreter = new Interpreter(typedPlan.getPlan());
         @SuppressWarnings("unchecked")
-        F function = (F)Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { functionType },
+        F function = (F) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { functionType },
                 new FunctionProxy(interpreter));
         @SuppressWarnings("unchecked")
-        V variables = (V)Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { variablesType },
+        V variables = (V) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { variablesType },
                 new VariablesProxy(interpreter, methodToVariableMap));
 
         return new Evaluator<>(function, variables);

@@ -63,17 +63,17 @@ public class TypeUnifier {
             special = special.substitute(substitutions);
         }
         if (pattern instanceof GenericReference) {
-            return substituteVariable((GenericReference)pattern, special);
+            return substituteVariable((GenericReference) pattern, special);
         } else if (special instanceof GenericReference) {
-            return substituteVariable((GenericReference)special, pattern);
+            return substituteVariable((GenericReference) special, pattern);
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
-            return unifyArrays((GenericArray)pattern, (GenericArray)special);
+            return unifyArrays((GenericArray) pattern, (GenericArray) special);
         } else if (pattern instanceof GenericClass) {
-            GenericClass patternClass = (GenericClass)pattern;
+            GenericClass patternClass = (GenericClass) pattern;
             if (patternClass.getName().equals("java.lang.Object") && covariant) {
                 return special;
             } else if (special instanceof GenericClass) {
-                GenericClass specialClass = (GenericClass)special;
+                GenericClass specialClass = (GenericClass) special;
                 return unifyClasses(patternClass, specialClass, covariant);
             } else {
                 return null;
@@ -84,8 +84,8 @@ public class TypeUnifier {
 
     private GenericType unifyArrays(GenericArray pattern, GenericArray special) {
         if (pattern.getElementType() instanceof GenericType && special.getElementType() instanceof GenericType) {
-            GenericType patternElem = (GenericType)pattern.getElementType();
-            GenericType specialElem = (GenericType)special.getElementType();
+            GenericType patternElem = (GenericType) pattern.getElementType();
+            GenericType specialElem = (GenericType) special.getElementType();
             GenericType resultElem = unifyImpl(patternElem, specialElem, true);
             return resultElem != null ? new GenericArray(resultElem) : null;
         } else {

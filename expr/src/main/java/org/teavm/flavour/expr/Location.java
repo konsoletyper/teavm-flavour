@@ -25,8 +25,8 @@ public class Location {
 
     public Location(int start, int end) {
         if (start < 0 || end < 0) {
-            throw new IllegalArgumentException("Both start and end must be non-negative, actual values are " +
-                    start + ", " + end);
+            throw new IllegalArgumentException("Both start and end must be non-negative, actual values are "
+                    + start + ", " + end);
         }
         this.start = start;
         this.end = end;
