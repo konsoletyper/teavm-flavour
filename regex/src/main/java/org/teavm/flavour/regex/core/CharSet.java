@@ -117,7 +117,7 @@ public final class CharSet implements Cloneable {
         }
         for (int c : getExceptionalMembers()) {
             if (c >= 32) {
-                sb.append((char)c);
+                sb.append((char) c);
             } else if (c >= 0) {
                 sb.append("\\u00").append(Character.forDigit(c / 16, 16)).append(Character.forDigit(c % 16, 16));
             }
@@ -129,7 +129,7 @@ public final class CharSet implements Cloneable {
     @Override
     protected CharSet clone() {
         try {
-            CharSet copy = (CharSet)super.clone();
+            CharSet copy = (CharSet) super.clone();
             copy.set = set.clone();
             return copy;
         } catch (CloneNotSupportedException e) {

@@ -234,7 +234,7 @@ public class SparseSet implements Cloneable {
             if (this == obj) {
                 return true;
             }
-            Path other = (Path)obj;
+            Path other = (Path) obj;
             for (int i = 0; i < data.length; ++i) {
                 if (data[i] != other.data[i]) {
                     return false;
@@ -270,7 +270,7 @@ public class SparseSet implements Cloneable {
     @Override
     protected SparseSet clone() {
         try {
-            SparseSet copy = (SparseSet)super.clone();
+            SparseSet copy = (SparseSet) super.clone();
             copy.data = Arrays.copyOf(data, data.length);
             return copy;
         } catch (CloneNotSupportedException e) {
