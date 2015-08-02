@@ -36,11 +36,12 @@ import org.teavm.dependency.DependencyConsumer;
 import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
-import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.JSONClassArgument;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
+import org.teavm.model.ClassReaderSource;
 import org.teavm.model.FieldReference;
 import org.teavm.model.IncomingReader;
 import org.teavm.model.InstructionLocation;
@@ -72,13 +73,15 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
     private JsonDeserializerEmitter emitter;
     private boolean generated;
     private DependencyNode deserializableClasses;
-    private Map<MethodReference, Integer> deserializeMethods;
+    private Map<MethodReference, Integer> deserializeMethods = new HashMap<>();
     private Set<MethodReference> processedMethods = new HashSet<>();
+    private ClassReaderSource classSource;
 
     @Override
     public void started(DependencyAgent agent) {
         deserializableClasses = agent.createNode();
         emitter = new JsonDeserializerEmitter(agent, deserializableClasses);
+        classSource = agent.getClassSource();
     }
 
     @Override
@@ -103,7 +106,6 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
             }
             MethodReader methodReader = method.getMethod();
             if (methodReader.getProgram() != null) {
-                findDeserializeMethods(agent.getClassLoader(), agent.getDiagnostics());
                 findDeserializableClasses(agent, methodReader.getProgram());
             }
         }
@@ -169,57 +171,6 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
                 ValueType.Object objType = (ValueType.Object) valueType;
                 deserializableClasses.propagate(agent.getType(objType.getClassName()));
             }
-        }
-    }
-
-    private void findDeserializeMethods(ClassLoader classLoader, Diagnostics diagnostics) {
-        if (deserializeMethods != null) {
-            return;
-        }
-        deserializeMethods = new HashMap<>();
-        try {
-            Enumeration<URL> resources = classLoader.getResources("META-INF/flavour/deserialize-methods");
-            while (resources.hasMoreElements()) {
-                URL res = resources.nextElement();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(res.openStream()))) {
-                    while (true) {
-                        String line = reader.readLine();
-                        if (line == null) {
-                            break;
-                        }
-                        line = line.trim();
-                        if (line.isEmpty() || line.startsWith("#")) {
-                            continue;
-                        }
-
-                        int colonIndex = line.lastIndexOf(':');
-                        if (colonIndex < 0) {
-                            diagnostics.error(null, "Invalid deserializer method: " + line);
-                            continue;
-                        }
-
-                        MethodReference methodRef;
-                        try {
-                            methodRef = MethodReference.parse(line.substring(0, colonIndex));
-                        } catch (RuntimeException e) {
-                            diagnostics.error(null, "Invalid deserializer method: " + line);
-                            continue;
-                        }
-
-                        int argIndex;
-                        try {
-                            argIndex = Integer.parseInt(line.substring(colonIndex + 1));
-                        } catch (RuntimeException e) {
-                            diagnostics.error(null, "Invalid deserializer method: " + line);
-                            continue;
-                        }
-
-                        deserializeMethods.put(methodRef, argIndex);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            diagnostics.error(null, "IO error occured getting deserializer method list");
         }
     }
 
@@ -411,7 +362,17 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
         @Override
         public void invoke(VariableReader receiver, VariableReader instance, MethodReference methodRef,
                 List<? extends VariableReader> arguments, InvocationType type) {
-            Integer argIndex = deserializeMethods.get(methodRef);
+            Integer argIndex = deserializeMethods.computeIfAbsent(methodRef, candidateRef -> {
+                MethodReader candidate = classSource.resolve(candidateRef);
+                if (candidate != null) {
+                    for (int i = 0; i < candidate.parameterCount(); ++i) {
+                        if (candidate.parameterAnnotation(i).get(JSONClassArgument.class.getName()) != null) {
+                            return i;
+                        }
+                    }
+                }
+                return null;
+            });
             if (argIndex == null) {
                 return;
             }

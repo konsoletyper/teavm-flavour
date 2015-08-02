@@ -399,10 +399,7 @@ class ClassInformationProvider {
         }
         if (information.constructor == null) {
             MethodReader defaultCtor = cls.getMethod(new MethodDescriptor("<init>", ValueType.VOID));
-            if (defaultCtor == null) {
-                diagnostics.error(null, "Neither non-argument constructor nor @JonCreator were found in {{c0}}",
-                        information.className);
-            } else {
+            if (defaultCtor != null) {
                 information.constructor = defaultCtor.getDescriptor();
             }
         }

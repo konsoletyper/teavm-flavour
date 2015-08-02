@@ -402,6 +402,8 @@ class JsonDeserializerEmitter {
 
     private void emitConstructor(ClassInformation information) {
         if (information.constructor == null) {
+            agent.getDiagnostics().error(null, "Neither non-argument constructor nor @JonCreator were found in {{c0}}",
+                    information.className);
             targetVar = pe.construct(information.className);
             return;
         }
