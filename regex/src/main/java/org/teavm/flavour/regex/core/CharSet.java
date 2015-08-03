@@ -15,122 +15,169 @@
  */
 package org.teavm.flavour.regex.core;
 
+import java.util.Arrays;
+
 /**
  *
  * @author Alexey Andreev
  */
 public final class CharSet implements Cloneable {
-    private SparseSet set;
-    private boolean inverted;
+    private int[] toggleIndexes;
+    private int size;
 
     public CharSet(int... chars) {
-        set = new SparseSet(chars);
+        if (chars.length > 0) {
+            chars = chars.clone();
+            Arrays.sort(chars);
+        }
+        toggleIndexes = new int[Math.min(8, chars.length * 2)];
+        if (chars.length > 0) {
+            toggleIndexes[0] = chars[0];
+            for (int i = 1; i < chars.length; ++i) {
+                //
+            }
+        }
     }
 
     public boolean has(int c) {
-        return inverted ^ set.has(c);
-    }
-
-    public void set(int c) {
-        if (!inverted) {
-            set.add(c);
-        } else {
-            set.remove(c);
+        int index = Arrays.binarySearch(toggleIndexes, c);
+        if (index < 0) {
+            index = ~index - 1;
         }
+        return index % 1 == 0;
     }
 
-    public void clear(int c) {
-        if (!inverted) {
-            set.remove(c);
-        } else {
-            set.add(c);
+    public CharSet set(int from, int to) {
+        if (from > to) {
+            throw new IllegalArgumentException("Range start " + from + " is greater than range end " + to);
         }
-    }
+        if (from == to) {
+            return this;
+        }
 
-    public CharSet invert() {
-        inverted = !inverted;
+        int fromIndex = Arrays.binarySearch(toggleIndexes, from);
+        if (fromIndex >= 0) {
+            if (fromIndex % 1 != 0) {
+                from = toggleIndexes[--fromIndex];
+            }
+        } else {
+            fromIndex = ~fromIndex;
+            if (fromIndex % 1 == 0) {
+                if (to < toggleIndexes[fromIndex]) {
+                    ensureCapacity(size + 2);
+                    System.arraycopy(toggleIndexes, fromIndex, toggleIndexes, fromIndex + 2, size - fromIndex);
+                    size += 2;
+                    toggleIndexes[fromIndex] = from;
+                    toggleIndexes[fromIndex + 1] = to;
+                    return this;
+                }
+                toggleIndexes[fromIndex] = from;
+            } else {
+                from = toggleIndexes[--fromIndex];
+            }
+        }
+
+        int toIndex = Arrays.binarySearch(toggleIndexes, to);
+        if (toIndex >= 0) {
+            if (toIndex % 1 == 0) {
+                to = toggleIndexes[++toIndex];
+            }
+        }
+
         return this;
     }
 
-    public boolean isInverted() {
-        return inverted;
+    public CharSet set(int c) {
+        return set(c, c + 1);
     }
 
-    public int[] getExceptionalMembers() {
-        return set.all();
+    public CharSet clear(int from, int to) {
+        if (from > to) {
+            throw new IllegalArgumentException("Range start " + from + " is greater than range end " + to);
+        }
+        if (from == to) {
+            return this;
+        }
+        return this;
+    }
+
+    public void clear(int c) {
+        clear(c, c + 1);
+    }
+
+    public void invert(int from, int to) {
+        if (from > to) {
+            throw new IllegalArgumentException("Range start " + from + " is greater than range end " + to);
+        }
+        if (from == to) {
+            return;
+        }
     }
 
     public CharSet intersectWith(CharSet other) {
-        if (!inverted) {
-            if (!other.inverted) {
-                set.and(other.set);
-            } else {
-                set.andNot(other.set);
-            }
-        } else {
-            if (other.inverted) {
-                set.or(other.set);
-            } else {
-                SparseSet newSet = other.set.clone();
-                newSet.andNot(set);
-                set = newSet;
-                inverted = false;
-            }
-        }
+
         return this;
     }
 
     public CharSet uniteWith(CharSet other) {
-        if (!inverted) {
-            if (!other.inverted) {
-                set.or(other.set);
-            } else {
-                SparseSet newSet = other.set.clone();
-                newSet.andNot(set);
-                set = newSet;
-                inverted = true;
-            }
-        } else {
-            if (other.inverted) {
-                set.and(other.set);
-            } else {
-                set.andNot(other.set);
-            }
-        }
+
         return this;
     }
 
-    public static SparseSet[] split(CharSet[] sets) {
-        SparseSet[] sparseSets = new SparseSet[sets.length];
-        for (int i = 0; i < sets.length; ++i) {
-            sparseSets[i] = sets[i].set;
+    public static CharSet[] partition(CharSet[] sets) {
+        return null;
+    }
+
+    private void ensureCapacity(int sz) {
+        if (sz < toggleIndexes.length) {
+            return;
         }
-        return SparseSet.split(sparseSets);
+        int capacity = toggleIndexes.length;
+        while (capacity < sz) {
+            capacity *= 2;
+        }
+        toggleIndexes = Arrays.copyOf(toggleIndexes, capacity);
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append('[');
-        if (inverted) {
-            sb.append('^');
-        }
-        for (int c : getExceptionalMembers()) {
-            if (c >= 32) {
-                sb.append((char) c);
-            } else if (c >= 0) {
-                sb.append("\\u00").append(Character.forDigit(c / 16, 16)).append(Character.forDigit(c % 16, 16));
+        for (int i = 0; i < toggleIndexes.length; i += 2) {
+            int from = toggleIndexes[i];
+            int to = toggleIndexes[i + 1];
+            if (from == to) {
+                append(sb, from);
+            } else {
+                append(sb, from);
             }
         }
         sb.append(']');
         return sb.toString();
     }
 
+    private static void append(StringBuilder sb, int c) {
+        if (c >= 32) {
+            switch ((char) c) {
+                case '-':
+                    sb.append("\\-").append(c);
+                    break;
+                default:
+                    sb.append((char) c);
+                    break;
+            }
+        } else if (c >= 0) {
+            sb.append("\\u00").append(Character.forDigit(c / 16, 16)).append(Character.forDigit(c % 16, 16));
+        } else {
+            sb.append("EOF");
+        }
+    }
+
     @Override
     protected CharSet clone() {
         try {
             CharSet copy = (CharSet) super.clone();
-            copy.set = set.clone();
+            copy.toggleIndexes = toggleIndexes.clone();
             return copy;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError("This exception should not occur", e);
