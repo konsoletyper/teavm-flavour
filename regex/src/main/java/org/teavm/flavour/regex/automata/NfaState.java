@@ -18,7 +18,7 @@ package org.teavm.flavour.regex.automata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.teavm.flavour.regex.core.CharSet;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -56,7 +56,7 @@ public class NfaState {
         return readonlyTransitions;
     }
 
-    public NfaTransition createTransition(NfaState target, CharSet chars) {
+    public NfaTransition createTransition(NfaState target, SetOfChars chars) {
         NfaTransition transition = new NfaTransition(this);
         transition.setTarget(target);
         transition.setCharSet(chars);

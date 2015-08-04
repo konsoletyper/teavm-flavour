@@ -23,7 +23,7 @@ import org.teavm.flavour.regex.ast.NodeVisitor;
 import org.teavm.flavour.regex.ast.OneOfNode;
 import org.teavm.flavour.regex.ast.RepeatNode;
 import org.teavm.flavour.regex.ast.TextNode;
-import org.teavm.flavour.regex.core.CharSet;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -54,11 +54,11 @@ public class NfaBuilder implements NodeVisitor {
         int last = text.length() - 1;
         for (int i = 0; i < last; ++i) {
             NfaState next = automaton.createState();
-            state.createTransition(next, new CharSet(text.charAt(i)));
+            state.createTransition(next, new SetOfChars(text.charAt(i)));
             state = next;
         }
         if (last > 0) {
-            state.createTransition(end, new CharSet(text.charAt(last)));
+            state.createTransition(end, new SetOfChars(text.charAt(last)));
         }
     }
 

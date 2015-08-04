@@ -15,24 +15,24 @@
  */
 package org.teavm.flavour.regex.ast;
 
-import org.teavm.flavour.regex.core.CharSet;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class CharSetNode extends Node {
-    private CharSet charSet;
+    private SetOfChars charSet;
 
-    public CharSetNode(CharSet charSet) {
+    public CharSetNode(SetOfChars charSet) {
         this.charSet = charSet;
     }
 
-    public CharSet getCharSet() {
+    public SetOfChars getCharSet() {
         return charSet;
     }
 
-    public void setCharSet(CharSet charSet) {
+    public void setCharSet(SetOfChars charSet) {
         this.charSet = charSet;
     }
 

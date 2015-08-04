@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.regex.automata;
 
-import org.teavm.flavour.regex.core.CharSet;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -23,7 +23,7 @@ import org.teavm.flavour.regex.core.CharSet;
  */
 public class NfaTransition {
     private NfaState source;
-    private CharSet charSet;
+    private SetOfChars charSet;
     private int targetIndex = -1;
     private String startGroup;
     private String endGroup;
@@ -43,11 +43,11 @@ public class NfaTransition {
         return source;
     }
 
-    public CharSet getCharSet() {
+    public SetOfChars getCharSet() {
         return charSet;
     }
 
-    public void setCharSet(CharSet charSet) {
+    public void setCharSet(SetOfChars charSet) {
         this.charSet = charSet;
     }
 
