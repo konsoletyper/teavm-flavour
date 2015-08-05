@@ -165,17 +165,88 @@ public final class SetOfChars implements Cloneable {
     }
 
     public SetOfChars intersectWith(SetOfChars other) {
+        if (size == 0) {
+            return this;
+        }
+        if (other.size == 0) {
+            size = 0;
+            return this;
+        }
 
+        int[] otherToggleIndexes;
+        int otherSize;
+        if (other.size < 10) {
+            otherToggleIndexes = other.toggleIndexes;
+            otherSize = other.size;
+        } else if (size < 10) {
+            otherSize = size;
+            otherToggleIndexes = toggleIndexes;
+            size = other.size;
+            toggleIndexes = other.toggleIndexes.clone();
+        } else {
+            int[] firstToggle = toggleIndexes;
+            int firstSize = size;
+            int[] secondToggle = other.toggleIndexes;
+            int secondSize = other.size;
+
+            toggleIndexes = new int[firstSize + secondSize];
+            int i = 0;
+            int j = 0;
+            int index = 0;
+            while (true) {
+                if (i >= firstSize) {
+                    if (index % 2 != 0) {
+                        if (j % 2 != 0) {
+                            ++j;
+                        }
+                        toggleIndexes[index++] = secondToggle[i];
+                    }
+                    break;
+                } else if (j >= secondSize) {
+                    if (index % 2 != 0) {
+                        if (i % 2 != 0) {
+                            ++i;
+                        }
+                        toggleIndexes[index++] = firstToggle[i];
+                    }
+                    break;
+                } else {
+                    int point;
+                    if (firstToggle[i] < secondToggle[j]) {
+                        point = firstToggle[i++];
+                    } else if (secondToggle[j] < firstToggle[i]) {
+                        point = secondToggle[j++];
+                    } else {
+                        point = firstToggle[i++];
+                        ++j;
+                    }
+                    if (i % 2 == 1 && j % 2 == 1) {
+                        if (index % 2 == 0) {
+                            toggleIndexes[index++] = point;
+                        }
+                    } else {
+                        if (index % 2 != 0) {
+                            toggleIndexes[index++] = point;
+                        }
+                    }
+                }
+            }
+            size = index;
+            return this;
+        }
+
+        int last = Math.min(toggleIndexes[0], otherToggleIndexes[0]);
+        for (int i = 0; i < otherSize; i += 2) {
+            clear(last, otherToggleIndexes[i]);
+            last = otherToggleIndexes[i + 1];
+        }
+        clear(last, Math.max(toggleIndexes[size - 1], otherToggleIndexes[otherSize - 1]));
         return this;
     }
 
     public SetOfChars uniteWith(SetOfChars other) {
 
         return this;
-    }
-
-    public static SetOfChars[] partition(SetOfChars[] sets) {
-        return null;
     }
 
     private void ensureCapacity(int sz) {
