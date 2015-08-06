@@ -24,222 +24,226 @@ import org.teavm.flavour.regex.core.SetOfChars;
  * @author Alexey Andreev
  */
 public class SetOfCharsTest {
-    private boolean[] booleanArray = new boolean[20];
-    private SetOfChars charSet = new SetOfChars();
-
     @Test
     public void setsRange() {
-        set(5, 10);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .verify();
     }
 
     @Test
     public void clearsRange() {
-        set(0, 20);
-        clear(5, 10);
-        match();
+        new TestableSetOfChars(20)
+                .set(0, 20)
+                .clear(5, 10)
+                .verify();
     }
 
     @Test
     public void clearsSubSet() {
-        set(5, 10);
-        clear(2, 12);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .clear(2, 12)
+                .verify();
     }
 
     @Test
     public void clearsIntersected() {
-        set(5, 10);
-        clear(7, 12);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .clear(7, 12)
+                .verify();
     }
 
     @Test
     public void repeatedSetHasNoEffect() {
-        set(5, 10);
-        set(5, 10);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .set(5, 10)
+                .verify();
     }
 
     @Test
     public void repeatedClearHasNoEffect() {
-        set(0, 20);
-        clear(5, 10);
-        clear(5, 10);
-        match();
+        new TestableSetOfChars(20)
+                .set(0, 20)
+                .clear(5, 10)
+                .clear(5, 10)
+                .verify();
     }
 
     @Test
     public void setInsertsRangeBefore() {
-        set(10, 15);
-        set(0, 5);
-        match();
+        new TestableSetOfChars(20)
+                .set(10, 15)
+                .set(0, 5)
+                .verify();
     }
 
     @Test
     public void clearInsertsRangeBefore() {
-        set(0, 20);
-        clear(10, 15);
-        clear(0, 5);
-        match();
+        new TestableSetOfChars(20)
+                .set(0, 20)
+                .clear(10, 15)
+                .clear(0, 5)
+                .verify();
     }
 
     @Test
     public void setInsertRangeAfter() {
-        set(0, 5);
-        set(10, 15);
-        match();
+        new TestableSetOfChars(20)
+                .set(0, 5)
+                .set(10, 15)
+                .verify();
     }
 
     @Test
     public void setInsertRangeBetween() {
-        set(0, 5);
-        set(15, 20);
-        set(8, 12);
-        match();
+        new TestableSetOfChars(20)
+                .set(0, 5)
+                .set(15, 20)
+                .set(8, 12)
+                .verify();
     }
 
     @Test
     public void setJoinsRanges() {
-        set(5, 10);
-        set(14, 18);
-        set(7, 16);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .set(14, 18)
+                .set(7, 16)
+                .verify();
     }
 
     @Test
     public void setJoinsRangeAtEdges() {
-        set(5, 10);
-        set(14, 18);
-        set(10, 14);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .set(14, 18)
+                .set(10, 14)
+                .verify();
     }
 
     @Test
     public void setGrowsRange() {
-        set(5, 10);
-        set(4, 8);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .set(4, 8)
+                .verify();
     }
 
     @Test
     public void setGrowsRangeAtEdge() {
-        set(5, 10);
-        set(4, 5);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .set(4, 5)
+                .verify();
     }
 
     @Test
     public void setMergesAndGrows() {
-        set(5, 8);
-        set(11, 16);
-        set(3, 18);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 8)
+                .set(11, 16)
+                .set(3, 18)
+                .verify();
     }
 
     @Test
     public void setInnerMergesAndGrows() {
-        set(5, 8);
-        set(11, 16);
-        set(6, 18);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 8)
+                .set(11, 16)
+                .set(6, 18)
+                .verify();
     }
 
     @Test
     public void initsWithSingleChar() {
-        init(10);
-        match();
+        new TestableSetOfChars(20, 10)
+                .verify();
     }
 
     @Test
     public void initsWithRepeatedSingleChar() {
-        init(10, 10, 10);
-        match();
+        new TestableSetOfChars(20, 10, 10)
+                .verify();
     }
 
     @Test
     public void initsWithSingleRange() {
-        init(5, 6, 7, 7, 8, 9, 10, 10);
-        match();
+        new TestableSetOfChars(20, 5, 6, 7, 7, 8, 9, 10, 10)
+                .verify();
     }
 
     @Test
     public void initsWithMultipleRanges() {
-        init(5, 6, 9, 12, 13, 15);
-        match();
+        new TestableSetOfChars(20, 5, 6, 9, 12, 13, 15)
+                .verify();
     }
 
     @Test
     public void invertsWholeRange() {
-        set(5, 10);
-        invert(5, 10);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .invert(5, 10)
+                .verify();
     }
 
     @Test
     public void invertsSuperRange() {
-        set(5, 10);
-        invert(2, 15);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 10)
+                .invert(2, 15)
+                .verify();
     }
 
     @Test
     public void invertsSubRange() {
-        set(5, 15);
-        invert(7, 12);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 15)
+                .invert(7, 12)
+                .verify();
     }
 
     @Test
     public void invertsTwoRanges() {
-        set(5, 8);
-        set(11, 16);
-        invert(2, 19);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 8)
+                .set(11, 16)
+                .invert(2, 19)
+                .verify();
     }
 
     @Test
     public void invertsBetweenTwoRanges() {
-        set(5, 8);
-        set(11, 16);
-        invert(6, 19);
-        match();
+        new TestableSetOfChars(20)
+                .set(5, 8)
+                .set(11, 16)
+                .invert(6, 19)
+                .verify();
     }
 
-    private void init(int... values) {
-        charSet = new SetOfChars(values);
-        for (int i = 0; i < booleanArray.length; ++i) {
-            booleanArray[i] = false;
-        }
-        for (int value : values) {
-            booleanArray[value] = true;
-        }
+    @Test
+    public void intersects() {
+        new TestableSetOfChars(20).set(1, 5).set(8, 11).set(14, 18)
+                .intersectWith(new TestableSetOfChars(20).set(3, 9).set(11, 19))
+                .verify();
     }
 
-    private void set(int from, int to) {
-        charSet.set(from, to);
-        for (int i = from; i < to; ++i) {
-            booleanArray[i] = true;
-        }
+    @Test
+    public void intersectsWithLarge() {
+        new TestableSetOfChars(100).set(10, 30).set(40, 70).set(80, 95)
+                .intersectWith(new TestableSetOfChars(100).set(3, 9).set(11, 19).set(21, 29).set(30, 34)
+                        .set(40, 45).set(50, 60).set(62, 68).set(80, 82).set(86, 90).set(94, 98))
+                .verify();
     }
 
-    private void clear(int from, int to) {
-        charSet.clear(from, to);
-        for (int i = from; i < to; ++i) {
-            booleanArray[i] = false;
-        }
-    }
-
-    private void invert(int from, int to) {
-        charSet.invert(from, to);
-        for (int i = from; i < to; ++i) {
-            booleanArray[i] = !booleanArray[i];
-        }
-    }
-
-    private void match() {
-        for (int i = 0; i < booleanArray.length; ++i) {
-            assertEquals("Element " + i + " does not match", booleanArray[i], charSet.has(i));
-        }
+    @Test
+    public void intersectsLargeSets() {
+        new TestableSetOfChars(100).set(1, 4).set(7, 9).set(11, 21).set(25, 32).set(38, 45).set(50, 59).set(75, 80)
+                .intersectWith(new TestableSetOfChars(100).set(3, 9).set(11, 19).set(21, 29).set(30, 34)
+                        .set(40, 45).set(50, 60).set(62, 68).set(80, 82).set(86, 90).set(94, 98))
+                .verify();
     }
 }
