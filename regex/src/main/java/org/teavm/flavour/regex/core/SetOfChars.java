@@ -16,14 +16,15 @@
 package org.teavm.flavour.regex.core;
 
 import java.util.Arrays;
+import java.util.PrimitiveIterator;
 
 /**
  *
  * @author Alexey Andreev
  */
-public final class SetOfChars implements Cloneable {
-    private int[] toggleIndexes;
-    private int size;
+public final class SetOfChars implements Cloneable, Iterable<Integer> {
+    int[] toggleIndexes;
+    int size;
 
     public SetOfChars(int... chars) {
         if (chars.length > 0) {
@@ -350,5 +351,22 @@ public final class SetOfChars implements Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new AssertionError("This exception should not occur", e);
         }
+    }
+
+    @Override
+    public PrimitiveIterator.OfInt iterator() {
+        return new PrimitiveIterator.OfInt() {
+            int index;
+            @Override public boolean hasNext() {
+                return index < size;
+            }
+            @Override public int nextInt() {
+                return toggleIndexes[index++];
+            }
+        };
+    }
+
+    public SetOfCharsIterator iterate() {
+        return new SetOfCharsIterator(this);
     }
 }
