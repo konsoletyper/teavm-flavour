@@ -15,9 +15,7 @@
  */
 package org.teavm.flavour.regex.tests;
 
-import static org.junit.Assert.assertEquals;
 import org.junit.Test;
-import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -243,6 +241,29 @@ public class SetOfCharsTest {
     public void intersectsLargeSets() {
         new TestableSetOfChars(100).set(1, 4).set(7, 9).set(11, 21).set(25, 32).set(38, 45).set(50, 59).set(75, 80)
                 .intersectWith(new TestableSetOfChars(100).set(3, 9).set(11, 19).set(21, 29).set(30, 34)
+                        .set(40, 45).set(50, 60).set(62, 68).set(80, 82).set(86, 90).set(94, 98))
+                .verify();
+    }
+
+    @Test
+    public void unites() {
+        new TestableSetOfChars(20).set(1, 5).set(8, 11).set(14, 18)
+                .uniteWith(new TestableSetOfChars(20).set(3, 9).set(11, 19))
+                .verify();
+    }
+
+    @Test
+    public void unitesWithLarge() {
+        new TestableSetOfChars(100).set(10, 30).set(40, 70).set(80, 95)
+                .uniteWith(new TestableSetOfChars(100).set(3, 9).set(11, 19).set(21, 29).set(30, 34)
+                        .set(40, 45).set(50, 60).set(62, 68).set(80, 82).set(86, 90).set(94, 98))
+                .verify();
+    }
+
+    @Test
+    public void unitesLargeSets() {
+        new TestableSetOfChars(100).set(1, 4).set(7, 9).set(11, 21).set(25, 32).set(38, 45).set(50, 59).set(75, 80)
+                .uniteWith(new TestableSetOfChars(100).set(3, 9).set(11, 19).set(21, 29).set(30, 34)
                         .set(40, 45).set(50, 60).set(62, 68).set(80, 82).set(86, 90).set(94, 98))
                 .verify();
     }

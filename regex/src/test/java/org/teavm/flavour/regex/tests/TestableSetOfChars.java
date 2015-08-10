@@ -66,6 +66,14 @@ public class TestableSetOfChars {
         return this;
     }
 
+    public TestableSetOfChars uniteWith(TestableSetOfChars other) {
+        for (int i = 0; i < array.length; ++i) {
+            array[i] = array[i] | other.array[i];
+        }
+        setOfChars.uniteWith(other.setOfChars);
+        return this;
+    }
+
     public TestableSetOfChars verify() {
         for (int i = 0; i < array.length; ++i) {
             assertEquals("Element " + i + " does not match", array[i], setOfChars.has(i));

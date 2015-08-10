@@ -193,41 +193,21 @@ public final class SetOfChars implements Cloneable {
             int i = 0;
             int j = 0;
             int index = 0;
-            while (true) {
-                if (i >= firstSize) {
-                    if (index % 2 != 0) {
-                        if (j % 2 != 0) {
-                            ++j;
-                        }
-                        toggleIndexes[index++] = secondToggle[i];
-                    }
-                    break;
-                } else if (j >= secondSize) {
-                    if (index % 2 != 0) {
-                        if (i % 2 != 0) {
-                            ++i;
-                        }
-                        toggleIndexes[index++] = firstToggle[i];
-                    }
-                    break;
+            while (i < firstSize && j < secondSize) {
+                int point;
+                if (firstToggle[i] < secondToggle[j]) {
+                    point = firstToggle[i++];
+                } else if (secondToggle[j] < firstToggle[i]) {
+                    point = secondToggle[j++];
                 } else {
-                    int point;
-                    if (firstToggle[i] < secondToggle[j]) {
-                        point = firstToggle[i++];
-                    } else if (secondToggle[j] < firstToggle[i]) {
-                        point = secondToggle[j++];
-                    } else {
-                        point = firstToggle[i++];
-                        ++j;
-                    }
-                    if (i % 2 == 1 && j % 2 == 1) {
-                        if (index % 2 == 0) {
-                            toggleIndexes[index++] = point;
-                        }
-                    } else {
-                        if (index % 2 != 0) {
-                            toggleIndexes[index++] = point;
-                        }
+                    point = firstToggle[i++];
+                    ++j;
+                }
+                if (i % 2 == 1 && j % 2 == 1) {
+                    toggleIndexes[index++] = point;
+                } else {
+                    if (index % 2 != 0) {
+                        toggleIndexes[index++] = point;
                     }
                 }
             }
@@ -245,7 +225,72 @@ public final class SetOfChars implements Cloneable {
     }
 
     public SetOfChars uniteWith(SetOfChars other) {
+        if (other.size == 0) {
+            return this;
+        }
+        if (size == 0) {
+            toggleIndexes = other.toggleIndexes.clone();
+            size = other.size;
+            return this;
+        }
 
+        int[] otherToggleIndexes;
+        int otherSize;
+        if (other.size < 10) {
+            otherToggleIndexes = other.toggleIndexes;
+            otherSize = other.size;
+        } else if (size < 10) {
+            otherSize = size;
+            otherToggleIndexes = toggleIndexes;
+            size = other.size;
+            toggleIndexes = other.toggleIndexes.clone();
+        } else {
+            int[] firstToggle = toggleIndexes;
+            int firstSize = size;
+            int[] secondToggle = other.toggleIndexes;
+            int secondSize = other.size;
+
+            toggleIndexes = new int[firstSize + secondSize];
+            int i = 0;
+            int j = 0;
+            int index = 0;
+            while (true) {
+                if (i >= firstSize) {
+                    while (j < secondSize) {
+                        toggleIndexes[index++] = secondToggle[j++];
+                    }
+                    break;
+                } else if (j >= secondSize) {
+                    while (i < firstSize) {
+                        toggleIndexes[index++] = firstToggle[i++];
+                    }
+                    break;
+                } else {
+                    int point;
+                    if (firstToggle[i] < secondToggle[j]) {
+                        point = firstToggle[i++];
+                    } else if (secondToggle[j] < firstToggle[i]) {
+                        point = secondToggle[j++];
+                    } else {
+                        point = firstToggle[i++];
+                        ++j;
+                    }
+                    if (i % 2 == 0 && j % 2 == 0) {
+                        toggleIndexes[index++] = point;
+                    } else {
+                        if (index % 2 == 0) {
+                            toggleIndexes[index++] = point;
+                        }
+                    }
+                }
+            }
+            size = index;
+            return this;
+        }
+
+        for (int i = 0; i < otherSize; i += 2) {
+            set(otherToggleIndexes[i], otherToggleIndexes[i + 1]);
+        }
         return this;
     }
 
