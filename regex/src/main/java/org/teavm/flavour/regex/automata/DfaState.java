@@ -15,7 +15,9 @@
  */
 package org.teavm.flavour.regex.automata;
 
+import java.util.PrimitiveIterator;
 import org.teavm.flavour.regex.core.MapOfChars;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -27,11 +29,58 @@ public class DfaState {
     private boolean terminal;
     private MapOfChars<DfaTransition> transitions = new MapOfChars<>();
 
+    DfaState(Dfa automaton, int index) {
+        this.automaton = automaton;
+        this.index = index;
+    }
+
     public Dfa getAutomaton() {
         return automaton;
     }
 
     public int getIndex() {
         return index;
+    }
+
+    public boolean isTerminal() {
+        return terminal;
+    }
+
+    public void setTerminal(boolean terminal) {
+        this.terminal = terminal;
+    }
+
+    public DfaTransition createTransition(SetOfChars chars) {
+        DfaTransition transition = new DfaTransition(this);
+        for (PrimitiveIterator.OfInt iter = chars.iterator(); iter.hasNext();) {
+            transitions.fill(iter.nextInt(), iter.nextInt(), transition);
+        }
+        return transition;
+    }
+
+    public DfaTransition createTransition(int from, int to) {
+        DfaTransition transition = new DfaTransition(this);
+        transitions.fill(from, to, transition);
+        return transition;
+    }
+
+    public DfaTransition createTransition() {
+        return new DfaTransition(this);
+    }
+
+    public void replaceTransitions(SetOfChars chars, DfaTransition transition) {
+        if (transition.getSource() != this) {
+            throw new IllegalArgumentException("Can't put transition that originates from another node");
+        }
+        for (PrimitiveIterator.OfInt iter = chars.iterator(); iter.hasNext();) {
+            transitions.fill(iter.nextInt(), iter.nextInt(), transition);
+        }
+    }
+
+    public void replaceTransitions(int from, int to, DfaTransition transition) {
+        if (transition.getSource() != this) {
+            throw new IllegalArgumentException("Can't put transition that originates from another node");
+        }
+        transitions.fill(from, to, transition);
     }
 }

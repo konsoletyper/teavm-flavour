@@ -27,13 +27,18 @@ public class MapOfChars<T> {
     int size;
     Object[] data;
 
+    public MapOfChars() {
+        toggleIndexes = new int[4];
+        data = new Object[4];
+    }
+
     @SuppressWarnings("unchecked")
     public T get(int index) {
         index = Arrays.binarySearch(toggleIndexes, index);
         if (index < 0) {
             index = ~index - 1;
         }
-        return (T) data[index];
+        return index >= 0 && index < size ? (T) data[index] : null;
     }
 
     public MapOfChars<T> fill(int from, int to, T value) {
@@ -43,17 +48,24 @@ public class MapOfChars<T> {
         if (from == to) {
             return this;
         }
+        if (value == null && size == 0) {
+            return this;
+        }
 
         int fromIndex = Arrays.binarySearch(toggleIndexes, 0, size, from);
 
         if (fromIndex >= 0) {
-            if (fromIndex > 0 && Objects.equals(data[fromIndex - 1], value)) {
-                from = toggleIndexes[--fromIndex];
+            --fromIndex;
+            if (fromIndex >= 0 && Objects.equals(data[fromIndex], value)) {
+                from = toggleIndexes[fromIndex];
             }
         } else {
             fromIndex = ~fromIndex;
-            if (Objects.equals(data[fromIndex], value)) {
-                if (fromIndex >= size || to < toggleIndexes[fromIndex]) {
+            if (fromIndex >= size && value == null) {
+                return this;
+            }
+            if (fromIndex < size && Objects.equals(data[fromIndex], value)) {
+                if (to < toggleIndexes[fromIndex]) {
                     ensureCapacity(size + 2);
                     System.arraycopy(toggleIndexes, fromIndex, toggleIndexes, fromIndex + 2, size - fromIndex);
                     System.arraycopy(data, fromIndex, data, fromIndex + 2, size - fromIndex);
@@ -67,6 +79,11 @@ public class MapOfChars<T> {
                 toggleIndexes[fromIndex] = from;
             } else if (fromIndex > 0 && Objects.equals(data[fromIndex - 1], value)) {
                 from = toggleIndexes[--fromIndex];
+            } else if (fromIndex == 0 && value == null) {
+                fromIndex = -1;
+                if (to <= toggleIndexes[0]) {
+                    return this;
+                }
             } else {
                 --fromIndex;
                 if (value != null) {
@@ -75,6 +92,7 @@ public class MapOfChars<T> {
                         System.arraycopy(toggleIndexes, 0, toggleIndexes, 1, size);
                         System.arraycopy(data, 0, data, 1, size);
                         ++size;
+                        ++fromIndex;
                     }
                     toggleIndexes[fromIndex] = from;
                     data[fromIndex] = value;
@@ -92,6 +110,8 @@ public class MapOfChars<T> {
         } else {
             toIndex = ~toIndex;
             if (Objects.equals(data[toIndex], value)) {
+                ++toIndex;
+            } else {
                 toggleIndexes[toIndex] = to;
             }
         }
