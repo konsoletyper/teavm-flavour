@@ -40,7 +40,7 @@ public class TestableMapOfChars<T> {
 
     public TestableMapOfChars<T> verify() {
         for (int i = 0; i < data.length; ++i) {
-            Assert.assertEquals(data[i], map.get(i));
+            Assert.assertEquals("Error at index " + i, data[i], map.get(i));
         }
         return this;
     }

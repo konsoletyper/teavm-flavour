@@ -53,29 +53,27 @@ public class MapOfChars<T> {
         }
 
         int fromIndex = Arrays.binarySearch(toggleIndexes, 0, size, from);
+        T valueAfter = get(to);
 
         if (fromIndex >= 0) {
-            --fromIndex;
             if (fromIndex >= 0 && Objects.equals(data[fromIndex], value)) {
                 from = toggleIndexes[fromIndex];
             }
         } else {
             fromIndex = ~fromIndex;
-            if (fromIndex >= size && value == null) {
+            if (fromIndex >= size) {
+                if (value != null) {
+                    ensureCapacity(2);
+                    size = 2;
+
+                    toggleIndexes[0] = from;
+                    data[0] = value;
+                    toggleIndexes[1] = to;
+                    data[1] = null;
+                }
                 return this;
             }
             if (fromIndex < size && Objects.equals(data[fromIndex], value)) {
-                if (to < toggleIndexes[fromIndex]) {
-                    ensureCapacity(size + 2);
-                    System.arraycopy(toggleIndexes, fromIndex, toggleIndexes, fromIndex + 2, size - fromIndex);
-                    System.arraycopy(data, fromIndex, data, fromIndex + 2, size - fromIndex);
-                    size += 2;
-                    toggleIndexes[fromIndex] = from;
-                    data[fromIndex] = value;
-                    toggleIndexes[fromIndex + 1] = to;
-                    data[fromIndex + 1] = fromIndex > 0 ? data[fromIndex - 1] : null;
-                    return this;
-                }
                 toggleIndexes[fromIndex] = from;
             } else if (fromIndex > 0 && Objects.equals(data[fromIndex - 1], value)) {
                 from = toggleIndexes[--fromIndex];
@@ -85,38 +83,57 @@ public class MapOfChars<T> {
                     return this;
                 }
             } else {
-                --fromIndex;
-                if (value != null) {
-                    if (fromIndex < 0) {
-                        ensureCapacity(size + 1);
-                        System.arraycopy(toggleIndexes, 0, toggleIndexes, 1, size);
-                        System.arraycopy(data, 0, data, 1, size);
-                        ++size;
-                        ++fromIndex;
-                    }
+                if (to < toggleIndexes[fromIndex]) {
+                    ensureCapacity(size + 2);
+                    System.arraycopy(toggleIndexes, fromIndex, toggleIndexes, fromIndex + 2, size - fromIndex);
+                    System.arraycopy(data, fromIndex, data, fromIndex + 2, size - fromIndex);
+                    size += 2;
                     toggleIndexes[fromIndex] = from;
                     data[fromIndex] = value;
+                    toggleIndexes[fromIndex + 1] = to;
+                    data[fromIndex + 1] = fromIndex > 0 ? valueAfter : null;
+                    return this;
                 }
+                toggleIndexes[fromIndex] = from;
+                data[fromIndex] = value;
             }
         }
-        data[fromIndex] = value;
+        if (fromIndex >= 0) {
+            data[fromIndex] = value;
+        }
 
         int toIndex = Arrays.binarySearch(toggleIndexes, 0, size, to);
 
         if (toIndex >= 0) {
             if (Objects.equals(data[toIndex], value)) {
-                to = toggleIndexes[++toIndex];
+                if (++toIndex >= size) {
+                    size = 0;
+                    Arrays.fill(data, null);
+                    return this;
+                }
+                to = toggleIndexes[toIndex];
             }
         } else {
             toIndex = ~toIndex;
-            if (Objects.equals(data[toIndex], value)) {
+            if (toIndex < size && Objects.equals(data[toIndex], valueAfter)) {
                 ++toIndex;
             } else {
-                toggleIndexes[toIndex] = to;
+                if (toIndex - 1 == fromIndex) {
+                    ensureCapacity(size + 1);
+                    System.arraycopy(toggleIndexes, toIndex, toggleIndexes, toIndex + 1, size - toIndex);
+                    System.arraycopy(data, toIndex, data, toIndex + 1, size - toIndex);
+                    toggleIndexes[toIndex] = to;
+                    data[toIndex] = valueAfter;
+                    ++size;
+                } else {
+                    --toIndex;
+                    toggleIndexes[toIndex] = to;
+                }
             }
         }
 
         System.arraycopy(toggleIndexes, toIndex, toggleIndexes, fromIndex + 1, size - toIndex);
+        System.arraycopy(data, toIndex, data, fromIndex + 1, size - toIndex);
         size -= toIndex - fromIndex - 1;
 
         return this;
