@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.regex.tests;
 
+import java.util.Random;
 import org.junit.Test;
 
 /**
@@ -198,6 +199,176 @@ public class MapOfCharsTest {
                 .fill(8, 12, "bar")
                 .fill(12, 16, "baz")
                 .fill(9, 11, "bar")
+                .verify();
+    }
+
+    @Test
+    public void replacingRangeStartHasNoEffect() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "baz")
+                .fill(8, 10, "bar")
+                .verify();
+    }
+
+    @Test
+    public void replacingRangeEndHasNoEffect() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "baz")
+                .fill(10, 12, "bar")
+                .verify();
+    }
+
+    @Test
+    public void mergesRanges() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "foo")
+                .fill(6, 14, "foo")
+                .verify();
+    }
+
+    @Test
+    public void mergesRangesWithExactBounds() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "foo")
+                .fill(4, 16, "foo")
+                .verify();
+    }
+
+    @Test
+    public void mergesRangesWithExactLowerBound() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "foo")
+                .fill(4, 14, "foo")
+                .verify();
+    }
+
+    @Test
+    public void mergesRangesWithExactUpperBound() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "foo")
+                .fill(6, 16, "foo")
+                .verify();
+    }
+
+    @Test
+    public void coversRange() {
+        new TestableMapOfChars<String>(20)
+                .fill(4, 8, "foo")
+                .fill(8, 12, "bar")
+                .fill(12, 16, "foo")
+                .fill(2, 18, "foo")
+                .verify();
+    }
+
+    @Test
+    public void randomTest() {
+        Random random = new Random();
+        String[] strings = { null, "foo", "bar", "baz", "***", "qwe", "123" };
+        for (int i = 0; i < 10000; ++i) {
+            int iterations = 2 + random.nextInt(100);
+            int stringsToUse = 3 + random.nextInt(strings.length - 3);
+            TestableMapOfChars<String> map = new TestableMapOfChars<>(40);
+            System.out.println("Beginning iteration");
+            for (int j = 0; j < iterations; ++j) {
+                int a = random.nextInt(40);
+                int b = random.nextInt(40);
+                int lower = Math.min(a, b);
+                int upper = Math.max(a, b);
+                String str = strings[random.nextInt(stringsToUse)];
+                System.out.println("  " + map.getMap());
+                System.out.println("  [" + lower + "; " + upper + ") <- " + str);
+                try {
+                    map.fill(lower, upper, str).verify();
+                } catch (AssertionError e) {
+                    System.out.println("  ERROR: "  + map.getMap());
+                    throw e;
+                }
+            }
+        }
+    }
+
+    @Test
+    public void appendsRangeWithGap() {
+        new TestableMapOfChars<String>(20)
+                .fill(2, 7, "foo")
+                .fill(7, 12, "bar")
+                .fill(13, 18, "***")
+                .verify();
+    }
+
+    @Test
+    public void prependsRangeWithGap() {
+        new TestableMapOfChars<String>(20)
+                .fill(10, 15, "foo")
+                .fill(2, 7, "foo")
+                .verify();
+    }
+
+    @Test
+    public void erasesEnd() {
+        new TestableMapOfChars<String>(20)
+                .fill(1, 10, "foo")
+                .fill(10, 15, "bar")
+                .fill(5, 15, null)
+                .verify();
+    }
+
+    @Test
+    public void erasesStart() {
+        new TestableMapOfChars<String>(20)
+                .fill(1, 10, "foo")
+                .fill(10, 15, "bar")
+                .fill(1, 12, null)
+                .verify();
+    }
+
+    @Test
+    public void appendsNullProperly() {
+        new TestableMapOfChars<String>(20)
+                .fill(1, 10, "foo")
+                .fill(10, 15, null)
+                .verify();
+    }
+
+    @Test
+    public void resizesRangeToRight() {
+        new TestableMapOfChars<String>(20)
+                .fill(5, 10, "foo")
+                .fill(10, 15, "bar")
+                .fill(10, 12, "foo")
+                .verify();
+    }
+
+    @Test
+    public void resizesRangeToLeft() {
+        new TestableMapOfChars<String>(20)
+                .fill(5, 10, "foo")
+                .fill(10, 15, "bar")
+                .fill(7, 10, "bar")
+                .verify();
+    }
+
+    @Test
+    public void deletesInnerRange() {
+        new TestableMapOfChars<String>(20)
+                .fill(1, 4, "foo")
+                .fill(4, 7, null)
+                .fill(7, 10, "bar")
+                .fill(10, 13, null)
+                .fill(15, 18, "baz")
+                .fill(5, 12, null)
                 .verify();
     }
 }

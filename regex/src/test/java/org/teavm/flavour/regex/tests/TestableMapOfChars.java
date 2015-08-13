@@ -15,8 +15,10 @@
  */
 package org.teavm.flavour.regex.tests;
 
+import java.util.Objects;
 import org.junit.Assert;
 import org.teavm.flavour.regex.core.MapOfChars;
+import org.teavm.flavour.regex.core.MapOfCharsIterator;
 
 /**
  *
@@ -42,6 +44,17 @@ public class TestableMapOfChars<T> {
         for (int i = 0; i < data.length; ++i) {
             Assert.assertEquals("Error at index " + i, data[i], map.get(i));
         }
+        T previous = null;
+        for (MapOfCharsIterator<T> iter = map.iterate(); iter.hasValue(); iter.next()) {
+            if (Objects.equals(iter.getValue(), previous)) {
+                Assert.fail("Two ranges with same value found at " + iter.getStart());
+            }
+            previous = iter.getValue();
+        }
         return this;
+    }
+
+    public MapOfChars<T> getMap() {
+        return map;
     }
 }
