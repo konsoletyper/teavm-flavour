@@ -226,9 +226,34 @@ public class MapOfChars<T> {
             if (i > 0) {
                 sb.append(", ");
             }
-            sb.append("[" + toggleIndexes[i] + ";" + toggleIndexes[i + 1] + ") => " + data[i]);
+            if (toggleIndexes[i] + 1 == toggleIndexes[i + 1]) {
+                append(sb, toggleIndexes[i]);
+            } else {
+                sb.append('[');
+                append(sb, toggleIndexes[i]);
+                append(sb, toggleIndexes[i + 1] - 1);
+                sb.append(']');
+            }
+            sb.append(" => " + data[i]);
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    private static void append(StringBuilder sb, int c) {
+        if (c >= 32) {
+            switch ((char) c) {
+                case '-':
+                    sb.append("\\-").append(c);
+                    break;
+                default:
+                    sb.append((char) c);
+                    break;
+            }
+        } else if (c >= 0) {
+            sb.append("\\u00").append(Character.forDigit(c / 16, 16)).append(Character.forDigit(c % 16, 16));
+        } else {
+            sb.append("EOF");
+        }
     }
 }

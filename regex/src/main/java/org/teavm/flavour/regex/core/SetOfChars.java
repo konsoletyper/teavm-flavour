@@ -318,7 +318,7 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
             } else {
                 append(sb, from);
                 sb.append('-');
-                append(sb, to);
+                append(sb, to - 1);
             }
         }
         sb.append(']');

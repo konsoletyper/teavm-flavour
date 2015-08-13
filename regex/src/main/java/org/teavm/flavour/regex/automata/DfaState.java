@@ -17,6 +17,7 @@ package org.teavm.flavour.regex.automata;
 
 import java.util.PrimitiveIterator;
 import org.teavm.flavour.regex.core.MapOfChars;
+import org.teavm.flavour.regex.core.MapOfCharsIterator;
 import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
@@ -48,6 +49,14 @@ public class DfaState {
 
     public void setTerminal(boolean terminal) {
         this.terminal = terminal;
+    }
+
+    public DfaTransition getTransition(int c) {
+        return transitions.get(c);
+    }
+
+    public MapOfCharsIterator<DfaTransition> getTransitions() {
+        return transitions.iterate();
     }
 
     public DfaTransition createTransition(SetOfChars chars) {
