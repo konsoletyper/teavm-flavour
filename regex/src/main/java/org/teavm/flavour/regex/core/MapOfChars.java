@@ -69,14 +69,15 @@ public class MapOfChars<T> {
             fromIndex = ~fromIndex;
             if (fromIndex > 0 && Objects.equals(data[fromIndex - 1], value)) {
                 from = toggleIndexes[--fromIndex];
-            } else if (fromIndex < size && Objects.equals(data[fromIndex], value) && to >= toggleIndexes[fromIndex]) {
+            } else if (fromIndex < size && Objects.equals(data[fromIndex], value)
+                    && to >= toggleIndexes[fromIndex]) {
                 toggleIndexes[fromIndex] = from;
             }
         }
 
         int toIndex = Arrays.binarySearch(toggleIndexes, 0, size, to);
         if (toIndex >= 0) {
-            if (value != null && Objects.equals(data[toIndex], value)) {
+            if (toIndex < size - 1 && Objects.equals(data[toIndex], value)) {
                 to = toggleIndexes[++toIndex];
             }
             ++toIndex;
@@ -84,7 +85,8 @@ public class MapOfChars<T> {
             toIndex = ~toIndex;
             if (toIndex > 0 && toIndex < size && Objects.equals(data[toIndex - 1], value)) {
                 to = toggleIndexes[toIndex++];
-            } else if (toIndex > 1 && Objects.equals(data[toIndex - 2], value) && from < toggleIndexes[toIndex - 1]) {
+            } else if (toIndex > 1 && Objects.equals(data[toIndex - 2], value)
+                    && from < toggleIndexes[toIndex - 1]) {
                 toggleIndexes[toIndex - 1] = to;
             }
         }
@@ -152,6 +154,7 @@ public class MapOfChars<T> {
                 ++fromIndex;
             }
             if (fromIndex != toIndex) {
+                ensureCapacity(size + fromIndex - toIndex);
                 System.arraycopy(toggleIndexes, toIndex, toggleIndexes, fromIndex, size - toIndex);
                 System.arraycopy(data, toIndex, data, fromIndex, size - toIndex);
             }
@@ -166,6 +169,7 @@ public class MapOfChars<T> {
             data[fromIndex] = value;
             ++fromIndex;
             if (value != null) {
+                ensureCapacity(fromIndex + 1);
                 toggleIndexes[fromIndex] = to;
                 data[fromIndex] = null;
                 ++fromIndex;
@@ -175,28 +179,18 @@ public class MapOfChars<T> {
         }
 
         --toIndex;
-        if (fromIndex == toIndex) {
-            if (toggleIndexes[toIndex] != to || toggleIndexes[fromIndex] != from) {
-                --toIndex;
-            }
-        } else if (fromIndex + 1 == toIndex) {
-            if (toggleIndexes[fromIndex] != from && toggleIndexes[toIndex] != to) {
-                --toIndex;
-            }
-        }
 
         int desiredToIndex = fromIndex + 1;
         if (toIndex < desiredToIndex) {
             int extraSpace = desiredToIndex - toIndex;
             ensureCapacity(size + extraSpace);
             System.arraycopy(toggleIndexes, fromIndex, toggleIndexes, fromIndex + extraSpace, size - fromIndex);
-            System.arraycopy(data, fromIndex, data, fromIndex + extraSpace, size - desiredToIndex);
+            System.arraycopy(data, fromIndex, data, fromIndex + extraSpace, size - fromIndex);
             size += extraSpace;
         } else if (toIndex > desiredToIndex) {
             int wastedSpace = toIndex - desiredToIndex;
-            System.arraycopy(toggleIndexes, toIndex, toggleIndexes, toIndex - wastedSpace,
-                    size - toIndex + wastedSpace);
-            System.arraycopy(data, toIndex, data, toIndex - wastedSpace, size - toIndex + wastedSpace);
+            System.arraycopy(toggleIndexes, toIndex, toggleIndexes, toIndex - wastedSpace, size - toIndex);
+            System.arraycopy(data, toIndex, data, toIndex - wastedSpace, size - toIndex);
             size -= wastedSpace;
         }
 

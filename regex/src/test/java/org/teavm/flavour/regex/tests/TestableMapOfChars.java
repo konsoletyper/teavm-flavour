@@ -41,15 +41,15 @@ public class TestableMapOfChars<T> {
     }
 
     public TestableMapOfChars<T> verify() {
-        for (int i = 0; i < data.length; ++i) {
-            Assert.assertEquals("Error at index " + i, data[i], map.get(i));
-        }
         T previous = null;
         for (MapOfCharsIterator<T> iter = map.iterate(); iter.hasValue(); iter.next()) {
             if (Objects.equals(iter.getValue(), previous)) {
                 Assert.fail("Two ranges with same value found at " + iter.getStart());
             }
             previous = iter.getValue();
+        }
+        for (int i = 0; i < data.length; ++i) {
+            Assert.assertEquals("Error at index " + i, data[i], map.get(i));
         }
         return this;
     }

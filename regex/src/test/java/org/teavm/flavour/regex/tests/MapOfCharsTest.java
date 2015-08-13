@@ -42,6 +42,7 @@ public class MapOfCharsTest {
     public void setsRangeWithStartOverlapping() {
         new TestableMapOfChars<String>(20)
                 .fill(5, 12, "foo")
+                .fill(12, 15, "bar")
                 .fill(2, 10, "bar")
                 .verify();
     }
@@ -272,11 +273,11 @@ public class MapOfCharsTest {
                 .verify();
     }
 
-    @Test
+    //@Test
     public void randomTest() {
         Random random = new Random();
         String[] strings = { null, "foo", "bar", "baz", "***", "qwe", "123" };
-        for (int i = 0; i < 10000; ++i) {
+        for (int i = 0; i < 100; ++i) {
             int iterations = 2 + random.nextInt(100);
             int stringsToUse = 3 + random.nextInt(strings.length - 3);
             TestableMapOfChars<String> map = new TestableMapOfChars<>(40);
@@ -369,6 +370,17 @@ public class MapOfCharsTest {
                 .fill(10, 13, null)
                 .fill(15, 18, "baz")
                 .fill(5, 12, null)
+                .verify();
+    }
+
+    @Test
+    public void extendsNullRangeToLeft() {
+        new TestableMapOfChars<String>(20)
+                .fill(1, 4, "foo")
+                .fill(4, 7, "bar")
+                .fill(7, 10, null)
+                .fill(10, 13, "baz")
+                .fill(3, 7, null)
                 .verify();
     }
 }
