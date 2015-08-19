@@ -369,4 +369,8 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
     public SetOfCharsIterator iterate() {
         return new SetOfCharsIterator(this);
     }
+
+    public int[] getToggleIndexes() {
+        return Arrays.copyOf(toggleIndexes, size);
+    }
 }

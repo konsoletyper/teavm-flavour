@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import org.teavm.flavour.regex.core.MapOfCharsIterator;
@@ -120,19 +121,105 @@ public class Dfa {
                 continue;
             }
 
-            Set<NfaState> nextStates;
+            Queue<TransitionDescriptor> transitions = new PriorityQueue<>();
             for (int nfaIndex : stateSet.indexes) {
                 NfaState nfaState = nfa.getStates().get(nfaIndex);
-                nfaState.getTransitions();
+                for (NfaTransition transition : nfaState.getTransitions()) {
+                    if (transition.getCharSet() == null) {
+                        continue;
+                    }
+                    transitions.add(new TransitionDescriptor(transition));
+                }
+            }
+
+            while (!transitions.isEmpty()) {
+                int index = transitions.peek().getFirstIndex();
+                Set<NfaState> targetStates = new HashSet<>();
+                while (!transitions.isEmpty() && transitions.peek().getFirstIndex() == index) {
+                    TransitionDescriptor td = transitions.remove();
+                    if (td.getTransition().getCharSet().has(index)) {
+                        targetStates.add(td.getTransition().getTarget());
+                    }
+                    td = td.next();
+                    if (td != null) {
+                        transitions.add(td);
+                    }
+                }
+                NfaStateSet targetSet = new NfaStateSet(targetStates.toArray(new NfaState[0]));
+                DfaState state = stateMap.computeIfAbsent(targetSet, s -> dfa.createState());
             }
         }
 
         return dfa;
     }
 
+    private Set<NfaState> emptyClosure(NfaState state) {
+        Set<NfaState> result = new HashSet<>();
+        emptyClosure(state, result);
+        return result;
+    }
+
+    private void emptyClosure(NfaState state, Set<NfaState> set) {
+        if (!set.add(state)) {
+            return;
+        }
+        for (NfaTransition transition : state.getTransitions()) {
+            if (transition.getCharSet() == null) {
+                emptyClosure(transition.getTarget(), set);
+            }
+        }
+    }
+
+    static class TransitionDescriptor implements Comparable<TransitionDescriptor> {
+        NfaTransition transition;
+        int index;
+        int[] toggleIndexes;
+
+        public TransitionDescriptor(NfaTransition transition) {
+            this(transition, transition.getCharSet().getToggleIndexes(), 0);
+        }
+
+        private TransitionDescriptor(NfaTransition transition, int[] toggleIndexes, int index) {
+            this.transition = transition;
+            this.index = index;
+            this.toggleIndexes = toggleIndexes;
+        }
+
+        public NfaTransition getTransition() {
+            return transition;
+        }
+
+        public int getFirstIndex() {
+            return toggleIndexes[index];
+        }
+
+        public TransitionDescriptor next() {
+            return index + 1 < toggleIndexes.length
+                    ? new TransitionDescriptor(transition, toggleIndexes, index + 1)
+                    : null;
+        }
+
+        @Override
+        public int compareTo(TransitionDescriptor o) {
+            return Integer.compare(getFirstIndex(), o.getFirstIndex());
+        }
+    }
+
     static class NfaStateSet {
         public final int[] indexes;
         private int hash;
+
+        public NfaStateSet(NfaState... states) {
+            this(mapStates(states));
+        }
+
+        private static int[] mapStates(NfaState... states) {
+            int[] indexes = new int[states.length];
+            for (int i = 0; i < indexes.length; ++i) {
+                indexes[i] = states[i].getIndex();
+            }
+            return indexes;
+        }
 
         public NfaStateSet(int... indexes) {
             Arrays.sort(indexes);
