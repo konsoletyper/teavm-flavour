@@ -40,7 +40,7 @@ public class DfaTransition {
     }
 
     public void setTarget(DfaState target) {
-        if (target.getAutomaton() != getAutomaton()) {
+        if (target != null && target.getAutomaton() != getAutomaton()) {
             throw new IllegalArgumentException("Can't set target state from another automaton");
         }
         targetIndex = target.getIndex();

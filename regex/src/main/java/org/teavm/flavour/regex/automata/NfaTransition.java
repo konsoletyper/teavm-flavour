@@ -56,10 +56,10 @@ public class NfaTransition {
     }
 
     public void setTarget(NfaState target) {
-        if (target.getAutomaton() != getAutomaton()) {
+        if (target != null && target.getAutomaton() != getAutomaton()) {
             throw new IllegalArgumentException("Can't set target state from another automaton");
         }
-        targetIndex = target.getIndex();
+        targetIndex = target != null ? target.getIndex() : -1;
     }
 
     public String getStartGroup() {

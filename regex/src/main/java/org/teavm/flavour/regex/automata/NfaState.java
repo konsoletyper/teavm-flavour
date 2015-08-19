@@ -60,6 +60,7 @@ public class NfaState {
         NfaTransition transition = new NfaTransition(this);
         transition.setTarget(target);
         transition.setCharSet(chars);
+        transitions.add(transition);
         return transition;
     }
 

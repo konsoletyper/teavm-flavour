@@ -313,7 +313,7 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
         for (int i = 0; i < size; i += 2) {
             int from = toggleIndexes[i];
             int to = toggleIndexes[i + 1];
-            if (from == to) {
+            if (from + 1 == to) {
                 append(sb, from);
             } else {
                 append(sb, from);

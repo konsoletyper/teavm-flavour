@@ -57,22 +57,24 @@ public class NfaBuilder implements NodeVisitor {
             state.createTransition(next, new SetOfChars(text.charAt(i)));
             state = next;
         }
-        if (last > 0) {
+        if (last >= 0) {
             state.createTransition(end, new SetOfChars(text.charAt(last)));
         }
     }
 
     @Override
     public void visit(ConcatNode node) {
-        NfaState intermediate = automaton.createState();
         NfaState oldEnd = end;
 
-        end = intermediate;
-        node.getFirst().acceptVisitor(this);
+        for (int i = 0; i < node.getSequence().size() - 1; ++i) {
+            NfaState intermediate = automaton.createState();
+            end = intermediate;
+            node.getSequence().get(i).acceptVisitor(this);
+            start = intermediate;
+        }
 
-        start = intermediate;
         end = oldEnd;
-        node.getSecond().acceptVisitor(this);
+        node.getSequence().get(node.getSequence().size() - 1).acceptVisitor(this);
     }
 
     @Override
@@ -116,10 +118,9 @@ public class NfaBuilder implements NodeVisitor {
         if (node.getMaximum() == 0) {
             NfaState tmp = automaton.createState();
             start = intermediate;
-            end = tmp;
             node.getRepeated().acceptVisitor(this);
-            tmp.createTransition(intermediate).setReluctant(node.isReluctant());
-            tmp.createTransition(oldEnd);
+            tmp.createTransition(start).setReluctant(node.isReluctant());
+            start.createTransition(oldEnd);
         } else {
             for (int i = node.getMinimum(); i < node.getMaximum(); ++i) {
                 start = intermediate;
@@ -135,6 +136,8 @@ public class NfaBuilder implements NodeVisitor {
             }
             intermediate.createTransition(oldEnd);
         }
+
+        end = oldEnd;
     }
 
     @Override

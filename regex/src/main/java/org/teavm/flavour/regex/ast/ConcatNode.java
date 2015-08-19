@@ -15,37 +15,33 @@
  */
 package org.teavm.flavour.regex.ast;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class ConcatNode extends Node {
-    private Node first;
-    private Node second;
+    private List<Node> sequence = new ArrayList<>();
 
-    public ConcatNode(Node first, Node second) {
-        this.first = first;
-        this.second = second;
+    public ConcatNode(Node... sequence) {
+        this.sequence.addAll(Arrays.asList(sequence));
     }
 
-    public Node getFirst() {
-        return first;
-    }
-
-    public void setFirst(Node first) {
-        this.first = first;
-    }
-
-    public Node getSecond() {
-        return second;
-    }
-
-    public void setSecond(Node second) {
-        this.second = second;
+    public List<Node> getSequence() {
+        return sequence;
     }
 
     @Override
     public void acceptVisitor(NodeVisitor visitor) {
         visitor.visit(this);
+    }
+
+    @Override
+    public String toString() {
+        return sequence.stream().map(n -> "(" + n + ")").collect(Collectors.joining(" + "));
     }
 }

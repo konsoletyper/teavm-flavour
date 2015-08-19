@@ -48,4 +48,9 @@ public class OneOfNode extends Node {
     public void acceptVisitor(NodeVisitor visitor) {
         visitor.visit(this);
     }
+
+    @Override
+    public String toString() {
+        return "(" + first + ") | (" + second + ")";
+    }
 }

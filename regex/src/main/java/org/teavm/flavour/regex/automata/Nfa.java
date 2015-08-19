@@ -18,17 +18,30 @@ package org.teavm.flavour.regex.automata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.regex.ast.CharSetNode;
+import org.teavm.flavour.regex.ast.ConcatNode;
+import org.teavm.flavour.regex.ast.Node;
+import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class Nfa {
-    private List<NfaState> states = new ArrayList<>();
+    List<NfaState> states = new ArrayList<>();
     private List<NfaState> readonlyStates = Collections.unmodifiableList(states);
 
     public Nfa() {
         states.add(new NfaState(this, 0));
+    }
+
+    public Nfa(Node node) {
+        this();
+        NfaBuilder builder = new NfaBuilder(this);
+        NfaState end = createState();
+        end.setTerminal(true);
+        builder.setEnd(end);
+        new ConcatNode(node, new CharSetNode(new SetOfChars(-1))).acceptVisitor(builder);
     }
 
     public NfaState getStartState() {
@@ -40,14 +53,20 @@ public class Nfa {
     }
 
     public NfaState createState() {
-        return new NfaState(this, states.size());
+        NfaState state = new NfaState(this, states.size());
+        states.add(state);
+        return state;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < states.size(); ++i) {
-            sb.append(i).append("\n");
+            sb.append(i);
+            if (states.get(i).isTerminal()) {
+                sb.append('*');
+            }
+            sb.append("\n");
             for (NfaTransition transition : states.get(i).getTransitions()) {
                 sb.append("  -> ").append(transition.getTarget().getIndex()).append(" : ")
                         .append(transition.getCharSet());

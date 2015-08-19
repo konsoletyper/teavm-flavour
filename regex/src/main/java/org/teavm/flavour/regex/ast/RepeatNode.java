@@ -20,22 +20,22 @@ package org.teavm.flavour.regex.ast;
  * @author Alexey Andreev
  */
 public class RepeatNode extends Node {
-    private RepeatNode repeated;
+    private Node repeated;
     private int minimum;
     private int maximum;
     private boolean reluctant;
 
-    public RepeatNode(RepeatNode repeated, int minimum, int maximum) {
+    public RepeatNode(Node repeated, int minimum, int maximum) {
         this.repeated = repeated;
         this.minimum = minimum;
         this.maximum = maximum;
     }
 
-    public RepeatNode getRepeated() {
+    public Node getRepeated() {
         return repeated;
     }
 
-    public void setRepeated(RepeatNode repeated) {
+    public void setRepeated(Node repeated) {
         this.repeated = repeated;
     }
 
@@ -66,5 +66,18 @@ public class RepeatNode extends Node {
     @Override
     public void acceptVisitor(NodeVisitor visitor) {
         visitor.visit(this);
+    }
+
+    @Override
+    public String toString() {
+        if (minimum == 0 && maximum == 1) {
+            return "optional(" + repeated + ")";
+        } else if (minimum == 0 && maximum == 0) {
+            return "repeat(" + repeated + ")";
+        } else if (minimum == 1 && maximum == 0) {
+            return "once-at-least(" + repeated + ")";
+        } else {
+            return "repeat(" + repeated + "){" + minimum + "," + maximum + "}";
+        }
     }
 }
