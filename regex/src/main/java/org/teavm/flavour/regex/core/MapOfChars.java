@@ -22,7 +22,7 @@ import java.util.Objects;
  *
  * @author Alexey Andreev
  */
-public class MapOfChars<T> {
+public class MapOfChars<T> implements Cloneable {
     int[] toggleIndexes;
     int size;
     Object[] data;
@@ -39,6 +39,10 @@ public class MapOfChars<T> {
             index = ~index - 1;
         }
         return index >= 0 && index < size ? (T) data[index] : null;
+    }
+
+    public int[] getToggleIndexes() {
+        return Arrays.copyOf(toggleIndexes, size);
     }
 
     public MapOfChars<T> fill(int from, int to, T value) {
@@ -238,6 +242,19 @@ public class MapOfChars<T> {
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    @Override
+    public MapOfChars<T> clone() {
+        try {
+            @SuppressWarnings("unchecked")
+            MapOfChars<T> copy = (MapOfChars<T>) super.clone();
+            copy.data = data.clone();
+            copy.toggleIndexes = toggleIndexes.clone();
+            return copy;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError("Unexpected exception", e);
+        }
     }
 
     private static void append(StringBuilder sb, int c) {

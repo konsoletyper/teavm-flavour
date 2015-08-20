@@ -28,7 +28,9 @@ import static org.teavm.flavour.regex.ast.Node.range;
 import static org.teavm.flavour.regex.ast.Node.text;
 import static org.teavm.flavour.regex.ast.Node.unlimited;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.Test;
+import org.teavm.flavour.regex.Matcher;
 import org.teavm.flavour.regex.automata.Ambiguity;
 import org.teavm.flavour.regex.automata.AmbiguityFinder;
 import org.teavm.flavour.regex.automata.Dfa;
@@ -137,5 +139,59 @@ public class DfaTest {
         assertThat(ambiguities.size(), is(1));
         assertThat(ambiguities.get(0).getDomains().length, is(2));
         assertThat(dfa.domains(ambiguities.get(0).getExample()).length, is(2));
+    }
+
+    @Test
+    public void compiles() {
+        Matcher matcher = Dfa.fromNode(atLeast(1,
+                text("["),
+                oneOf(
+                        concat(text("fo"), atLeast(1, text("o"))),
+                        concat(text("b"), atLeast(1, text("a")), text("r")),
+                        concat(text("b"), atLeast(1, text("a")), text("z"))),
+                text("]")))
+                .compile();
+        assertTrue(matcher.matches("[foo]"));
+        assertTrue(matcher.matches("[foo][baar]"));
+        assertTrue(matcher.matches("[fooo][baar][foo]"));
+        assertFalse(matcher.matches("[foq]"));
+        assertFalse(matcher.matches("[foooo"));
+
+        for (int i = 0; i < 100000; ++i) {
+            matcher.matches("[foo][baar]");
+            matcher.matches("[fooo][baar][foo]");
+            matcher.matches("[foq]");
+            matcher.matches("[foooo");
+        }
+
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < 100000; ++i) {
+            matcher.matches("[fooooooooooooooooooooooooooooooooooooooooooo][baaaaaaaaaaaaaaaaaaaaaaaaaar]" +
+                    "[foo][bar][baz][foo]");
+            matcher.matches("[foo][baar]");
+            matcher.matches("[fooo][baar][foo]");
+            matcher.matches("[foq]");
+            matcher.matches("[foooo");
+        }
+        System.out.println(System.currentTimeMillis() - start);
+
+        Pattern pattern = Pattern.compile("(\\[fo(o*)\\]\\[b(a*)r\\]\\[b(a*)z\\])+");
+        for (int i = 0; i < 100000; ++i) {
+            pattern.matcher("[foo][baar]").matches();
+            pattern.matcher("[fooo][baar][foo]").matches();
+            pattern.matcher("[foq]").matches();
+            pattern.matcher("[foooo").matches();
+        }
+
+        start = System.currentTimeMillis();
+        for (int i = 0; i < 100000; ++i) {
+            pattern.matcher("[fooooooooooooooooooooooooooooooooooooooooooo][baaaaaaaaaaaaaaaaaaaaaaaaaar]" +
+                    "[foo][bar][baz][foo]").matches();
+            pattern.matcher("[foo][baar]").matches();
+            pattern.matcher("[fooo][baar][foo]").matches();
+            pattern.matcher("[foq]").matches();
+            pattern.matcher("[foooo").matches();
+        }
+        System.out.println(System.currentTimeMillis() - start);
     }
 }

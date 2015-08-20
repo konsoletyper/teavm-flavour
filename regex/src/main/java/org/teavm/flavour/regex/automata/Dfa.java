@@ -27,7 +27,9 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
+import org.teavm.flavour.regex.Matcher;
 import org.teavm.flavour.regex.ast.Node;
+import org.teavm.flavour.regex.bytecode.MatcherClassBuilder;
 import org.teavm.flavour.regex.core.MapOfCharsIterator;
 
 /**
@@ -104,6 +106,14 @@ public class Dfa {
         } else {
             sb.append("EOF");
         }
+    }
+
+    public Matcher compile() {
+        return compile(Dfa.class.getClassLoader());
+    }
+
+    public Matcher compile(ClassLoader classLoader) {
+        return new MatcherClassBuilder().compile(classLoader, this);
     }
 
     public boolean matches(String text) {
@@ -223,6 +233,7 @@ public class Dfa {
             }
         }
 
+        new MatcherClassBuilder().build(Dfa.class.getName() + "_impl", dfa);
         return dfa;
     }
 

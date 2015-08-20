@@ -15,17 +15,32 @@
  */
 package org.teavm.flavour.regex;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Regex {
-    String[] value();
+public interface Matcher {
+    Matcher feed(String text);
+
+    Matcher end();
+
+    boolean isValid();
+
+    default boolean isTerminal() {
+        return getDomain() >= 0;
+    }
+
+    int getDomain();
+
+    Matcher restart();
+
+    default boolean matches(String text) {
+        restart().feed(text).end();
+        return isValid();
+    }
+
+    default int domain(String text) {
+        restart().feed(text).end();
+        return getDomain();
+    }
 }

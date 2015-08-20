@@ -123,6 +123,11 @@
         <artifactId>jackson-databind</artifactId>
         <version>${jackson.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.ow2.asm</groupId>
+        <artifactId>asm-debug-all</artifactId>
+        <version>5.0.4</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
