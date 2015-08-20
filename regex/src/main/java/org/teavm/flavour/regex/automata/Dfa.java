@@ -83,20 +83,6 @@ public class Dfa {
                     sb.append(']');
                 }
 
-                if (transition.getStartGroup() != null) {
-                    sb.append(" start<" + transition.getStartGroup() + ">");
-                }
-                if (transition.getStartGroupIndex() >= 0) {
-                    sb.append(" start<" + transition.getStartGroupIndex() + ">");
-                }
-
-                if (transition.getEndGroup() != null) {
-                    sb.append(" end<" + transition.getStartGroup() + ">");
-                }
-                if (transition.getEndGroupIndex() >= 0) {
-                    sb.append(" end<" + transition.getStartGroupIndex() + ">");
-                }
-
                 sb.append('\n');
             }
         }
@@ -133,8 +119,25 @@ public class Dfa {
         return transition != null && transition.getTarget().isTerminal();
     }
 
+    public int[] domains(String text) {
+        DfaState state = getStartState();
+        for (int i = 0; i < text.length(); ++i) {
+            DfaTransition transition = state.getTransition(text.charAt(i));
+            if (transition == null) {
+                return new int[0];
+            }
+            state = transition.getTarget();
+        }
+        DfaTransition transition = state.getTransition(-1);
+        return transition != null ? transition.getTarget().getDomains() : new int[0];
+    }
+
     public static Dfa fromNode(Node node) {
         return fromNfa(new Nfa(node));
+    }
+
+    public static Dfa fromNodes(Node... nodes) {
+        return fromNfa(new Nfa(nodes));
     }
 
     public static Dfa fromNfa(Nfa nfa) {
@@ -143,9 +146,11 @@ public class Dfa {
         Map<NfaStateSet, DfaState> stateMap = new HashMap<>();
         Function<NfaStateSet, DfaState> stateFunction = u -> {
             DfaState result = dfa.createState();
-            result.setTerminal(Arrays.stream(u.indexes)
+            result.setDomains(Arrays.stream(u.indexes)
                     .mapToObj(i -> nfa.getStates().get(i))
-                    .anyMatch(s -> s.isTerminal()));
+                    .mapToInt(NfaState::getDomain)
+                    .filter(dom -> dom >= 0)
+                    .toArray());
             return result;
         };
 

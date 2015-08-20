@@ -35,13 +35,17 @@ public class Nfa {
         states.add(new NfaState(this, 0));
     }
 
-    public Nfa(Node node) {
+    public Nfa(Node... nodes) {
         this();
         NfaBuilder builder = new NfaBuilder(this);
-        NfaState end = createState();
-        end.setTerminal(true);
-        builder.setEnd(end);
-        new ConcatNode(node, new CharSetNode(new SetOfChars(-1))).acceptVisitor(builder);
+        NfaState start = builder.getStart();
+        for (int i = 0; i < nodes.length; ++i) {
+            NfaState end = createState();
+            end.setDomain(i);
+            builder.setStart(start);
+            builder.setEnd(end);
+            new ConcatNode(nodes[i], new CharSetNode(new SetOfChars(-1))).acceptVisitor(builder);
+        }
     }
 
     public NfaState getStartState() {
@@ -63,30 +67,13 @@ public class Nfa {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < states.size(); ++i) {
             sb.append(i);
-            if (states.get(i).isTerminal()) {
+            if (states.get(i).getDomain() >= 0) {
                 sb.append('*');
             }
             sb.append("\n");
             for (NfaTransition transition : states.get(i).getTransitions()) {
                 sb.append("  -> ").append(transition.getTarget().getIndex()).append(" : ")
                         .append(transition.getCharSet());
-                if (transition.isReluctant()) {
-                    sb.append(" reluctant");
-                }
-
-                if (transition.getStartGroup() != null) {
-                    sb.append(" start<" + transition.getStartGroup() + ">");
-                }
-                if (transition.getStartGroupIndex() >= 0) {
-                    sb.append(" start<" + transition.getStartGroupIndex() + ">");
-                }
-
-                if (transition.getEndGroup() != null) {
-                    sb.append(" end<" + transition.getStartGroup() + ">");
-                }
-                if (transition.getEndGroupIndex() >= 0) {
-                    sb.append(" end<" + transition.getStartGroupIndex() + ">");
-                }
 
                 sb.append('\n');
             }

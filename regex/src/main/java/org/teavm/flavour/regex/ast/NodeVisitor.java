@@ -26,8 +26,6 @@ public interface NodeVisitor {
 
     void visit(CharSetNode node);
 
-    void visit(CapturingGroupNode node);
-
     void visit(EmptyNode node);
 
     void visit(RepeatNode node);

@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.regex.automata;
 
+import java.util.Arrays;
 import java.util.PrimitiveIterator;
 import org.teavm.flavour.regex.core.MapOfChars;
 import org.teavm.flavour.regex.core.MapOfCharsIterator;
@@ -27,7 +28,7 @@ import org.teavm.flavour.regex.core.SetOfChars;
 public class DfaState {
     private Dfa automaton;
     private int index;
-    private boolean terminal;
+    private int[] domains;
     private MapOfChars<DfaTransition> transitions = new MapOfChars<>();
 
     DfaState(Dfa automaton, int index) {
@@ -44,11 +45,30 @@ public class DfaState {
     }
 
     public boolean isTerminal() {
-        return terminal;
+        return domains != null;
     }
 
-    public void setTerminal(boolean terminal) {
-        this.terminal = terminal;
+    public int[] getDomains() {
+        return domains != null ? domains.clone() : new int[0];
+    }
+
+    public void setDomains(int[] domains) {
+        if (domains.length == 0) {
+            this.domains = new int[0];
+        } else {
+            domains = domains.clone();
+            Arrays.sort(domains);
+            int j = 1;
+            for (int i = 1; i < domains.length; ++i) {
+                if (domains[i] != domains[i - 1]) {
+                    domains[j++] = domains[i];
+                }
+            }
+            if (j < domains.length) {
+                domains = Arrays.copyOf(domains, j);
+            }
+            this.domains = domains;
+        }
     }
 
     public DfaTransition getTransition(int c) {

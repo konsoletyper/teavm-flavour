@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.regex.automata;
 
-import org.teavm.flavour.regex.ast.CapturingGroupNode;
 import org.teavm.flavour.regex.ast.CharSetNode;
 import org.teavm.flavour.regex.ast.ConcatNode;
 import org.teavm.flavour.regex.ast.EmptyNode;
@@ -37,6 +36,14 @@ public class NfaBuilder implements NodeVisitor {
     public NfaBuilder(Nfa automaton) {
         this.automaton = automaton;
         start = automaton.getStartState();
+    }
+
+    public NfaState getStart() {
+        return start;
+    }
+
+    public void setStart(NfaState start) {
+        this.start = start;
     }
 
     public NfaState getEnd() {
@@ -83,23 +90,6 @@ public class NfaBuilder implements NodeVisitor {
     }
 
     @Override
-    public void visit(CapturingGroupNode node) {
-        NfaState intermediateStart = automaton.createState();
-        NfaTransition enter = start.createTransition(intermediateStart);
-        enter.setStartGroup(node.getName());
-        enter.setStartGroupIndex(node.getIndex());
-        start = intermediateStart;
-
-        NfaState intermediateEnd = automaton.createState();
-        NfaTransition exit = start.createTransition(intermediateEnd);
-        exit.setEndGroup(node.getName());
-        exit.setEndGroupIndex(node.getIndex());
-        end = intermediateEnd;
-
-        node.getCaptured().acceptVisitor(this);
-    }
-
-    @Override
     public void visit(EmptyNode node) {
         start.createTransition(end);
     }
@@ -119,7 +109,7 @@ public class NfaBuilder implements NodeVisitor {
             NfaState tmp = automaton.createState();
             start = intermediate;
             node.getRepeated().acceptVisitor(this);
-            tmp.createTransition(start).setReluctant(node.isReluctant());
+            tmp.createTransition(start);
             start.createTransition(oldEnd);
         } else {
             for (int i = node.getMinimum(); i < node.getMaximum(); ++i) {
@@ -128,11 +118,6 @@ public class NfaBuilder implements NodeVisitor {
                 intermediate = automaton.createState();
                 end = intermediate;
                 node.getRepeated().acceptVisitor(this);
-                if (node.isReluctant()) {
-                    NfaState tmp = automaton.createState();
-                    intermediate.createTransition(tmp).setReluctant(true);
-                    intermediate = tmp;
-                }
             }
             intermediate.createTransition(oldEnd);
         }

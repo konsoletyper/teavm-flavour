@@ -23,7 +23,6 @@ public class RepeatNode extends Node {
     private Node repeated;
     private int minimum;
     private int maximum;
-    private boolean reluctant;
 
     public RepeatNode(Node repeated, int minimum, int maximum) {
         this.repeated = repeated;
@@ -53,14 +52,6 @@ public class RepeatNode extends Node {
 
     public void setMaximum(int maximum) {
         this.maximum = maximum;
-    }
-
-    public boolean isReluctant() {
-        return reluctant;
-    }
-
-    public void setReluctant(boolean reluctant) {
-        this.reluctant = reluctant;
     }
 
     @Override

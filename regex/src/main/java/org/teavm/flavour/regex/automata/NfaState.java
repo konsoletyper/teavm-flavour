@@ -27,7 +27,7 @@ import org.teavm.flavour.regex.core.SetOfChars;
 public class NfaState {
     private Nfa automaton;
     private int index;
-    private boolean terminal;
+    private int domain = -1;
     private List<NfaTransition> transitions = new ArrayList<>();
     private List<NfaTransition> readonlyTransitions = Collections.unmodifiableList(transitions);
 
@@ -44,12 +44,12 @@ public class NfaState {
         return index;
     }
 
-    public boolean isTerminal() {
-        return terminal;
+    public int getDomain() {
+        return domain;
     }
 
-    public void setTerminal(boolean terminal) {
-        this.terminal = terminal;
+    public void setDomain(int domain) {
+        this.domain = domain;
     }
 
     public List<NfaTransition> getTransitions() {

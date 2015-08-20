@@ -22,10 +22,6 @@ package org.teavm.flavour.regex.automata;
 public class DfaTransition {
     private DfaState source;
     private int targetIndex = -1;
-    private String startGroup;
-    private String endGroup;
-    private int startGroupIndex = -1;
-    private int endGroupIndex = -1;
 
     public DfaTransition(DfaState source) {
         this.source = source;
@@ -44,38 +40,6 @@ public class DfaTransition {
             throw new IllegalArgumentException("Can't set target state from another automaton");
         }
         targetIndex = target.getIndex();
-    }
-
-    public String getStartGroup() {
-        return startGroup;
-    }
-
-    public void setStartGroup(String startGroup) {
-        this.startGroup = startGroup;
-    }
-
-    public String getEndGroup() {
-        return endGroup;
-    }
-
-    public void setEndGroup(String endGroup) {
-        this.endGroup = endGroup;
-    }
-
-    public int getStartGroupIndex() {
-        return startGroupIndex;
-    }
-
-    public void setStartGroupIndex(int startGroupIndex) {
-        this.startGroupIndex = startGroupIndex;
-    }
-
-    public int getEndGroupIndex() {
-        return endGroupIndex;
-    }
-
-    public void setEndGroupIndex(int endGroupIndex) {
-        this.endGroupIndex = endGroupIndex;
     }
 
     public DfaState getSource() {

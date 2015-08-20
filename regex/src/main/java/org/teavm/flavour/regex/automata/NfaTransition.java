@@ -25,11 +25,6 @@ public class NfaTransition {
     private NfaState source;
     private SetOfChars charSet;
     private int targetIndex = -1;
-    private String startGroup;
-    private String endGroup;
-    private int startGroupIndex = -1;
-    private int endGroupIndex = -1;
-    private boolean reluctant;
 
     NfaTransition(NfaState source) {
         this.source = source;
@@ -60,45 +55,5 @@ public class NfaTransition {
             throw new IllegalArgumentException("Can't set target state from another automaton");
         }
         targetIndex = target != null ? target.getIndex() : -1;
-    }
-
-    public String getStartGroup() {
-        return startGroup;
-    }
-
-    public void setStartGroup(String startGroup) {
-        this.startGroup = startGroup;
-    }
-
-    public String getEndGroup() {
-        return endGroup;
-    }
-
-    public void setEndGroup(String endGroup) {
-        this.endGroup = endGroup;
-    }
-
-    public int getStartGroupIndex() {
-        return startGroupIndex;
-    }
-
-    public void setStartGroupIndex(int startGroupIndex) {
-        this.startGroupIndex = startGroupIndex;
-    }
-
-    public int getEndGroupIndex() {
-        return endGroupIndex;
-    }
-
-    public void setEndGroupIndex(int endGroupIndex) {
-        this.endGroupIndex = endGroupIndex;
-    }
-
-    public boolean isReluctant() {
-        return reluctant;
-    }
-
-    public void setReluctant(boolean reluctant) {
-        this.reluctant = reluctant;
     }
 }

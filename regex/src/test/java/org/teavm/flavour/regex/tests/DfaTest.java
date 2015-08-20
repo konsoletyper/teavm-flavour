@@ -15,8 +15,10 @@
  */
 package org.teavm.flavour.regex.tests;
 
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import org.junit.Test;
 import org.teavm.flavour.regex.ast.ConcatNode;
 import org.teavm.flavour.regex.ast.OneOfNode;
@@ -69,5 +71,13 @@ public class DfaTest {
         assertFalse(dfa.matches("[foo]"));
         assertFalse(dfa.matches("[]"));
         assertFalse(dfa.matches("[barba]"));
+    }
+
+    @Test
+    public void findsDomain() {
+        Dfa dfa = Dfa.fromNodes(new TextNode("foo"), new TextNode("bar"));
+        assertThat(dfa.domains("foo"), is(new int[] { 0 }));
+        assertThat(dfa.domains("bar"), is(new int[] { 1 }));
+        assertThat(dfa.domains("baz"), is(new int[0]));
     }
 }
