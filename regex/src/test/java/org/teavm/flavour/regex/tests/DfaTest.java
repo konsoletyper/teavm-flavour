@@ -15,15 +15,22 @@
  */
 package org.teavm.flavour.regex.tests;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.teavm.flavour.regex.ast.Node.atLeast;
+import static org.teavm.flavour.regex.ast.Node.atMost;
+import static org.teavm.flavour.regex.ast.Node.concat;
+import static org.teavm.flavour.regex.ast.Node.oneOf;
+import static org.teavm.flavour.regex.ast.Node.optional;
+import static org.teavm.flavour.regex.ast.Node.range;
+import static org.teavm.flavour.regex.ast.Node.text;
+import static org.teavm.flavour.regex.ast.Node.unlimited;
+import java.util.List;
 import org.junit.Test;
-import org.teavm.flavour.regex.ast.ConcatNode;
-import org.teavm.flavour.regex.ast.OneOfNode;
-import org.teavm.flavour.regex.ast.RepeatNode;
-import org.teavm.flavour.regex.ast.TextNode;
+import org.teavm.flavour.regex.automata.Ambiguity;
+import org.teavm.flavour.regex.automata.AmbiguityFinder;
 import org.teavm.flavour.regex.automata.Dfa;
 
 /**
@@ -33,7 +40,7 @@ import org.teavm.flavour.regex.automata.Dfa;
 public class DfaTest {
     @Test
     public void matchesString() {
-        Dfa dfa = Dfa.fromNode(new TextNode("foo"));
+        Dfa dfa = Dfa.fromNode(text("foo"));
         assertTrue(dfa.matches("foo"));
         assertFalse(dfa.matches("foo*"));
         assertFalse(dfa.matches("fo"));
@@ -41,7 +48,7 @@ public class DfaTest {
 
     @Test
     public void matchesOneOfStrings() {
-        Dfa dfa = Dfa.fromNode(new OneOfNode(new TextNode("bar"), new TextNode("baz")));
+        Dfa dfa = Dfa.fromNode(oneOf(text("bar"), text("baz")));
         assertTrue(dfa.matches("bar"));
         assertTrue(dfa.matches("baz"));
         assertFalse(dfa.matches("foo"));
@@ -50,8 +57,7 @@ public class DfaTest {
 
     @Test
     public void matchesRepeat() {
-        Dfa dfa = Dfa.fromNode(new ConcatNode(new TextNode("b"), new RepeatNode(new TextNode("a"), 1, 0),
-                new TextNode("r")));
+        Dfa dfa = Dfa.fromNode(concat(text("b"), atLeast(1, text("a")), text("r")));
         assertTrue(dfa.matches("bar"));
         assertTrue(dfa.matches("baaaaaar"));
         assertFalse(dfa.matches("br"));
@@ -60,10 +66,10 @@ public class DfaTest {
 
     @Test
     public void matchesRepeat2() {
-        Dfa dfa = Dfa.fromNode(new ConcatNode(
-                new TextNode("["),
-                new RepeatNode(new OneOfNode(new TextNode("bar"), new TextNode("baz")), 1, 0),
-                new TextNode("]")));
+        Dfa dfa = Dfa.fromNode(concat(
+                text("["),
+                atLeast(1, oneOf(text("bar"), text("baz"))),
+                text("]")));
         assertTrue(dfa.matches("[bar]"));
         assertTrue(dfa.matches("[barbarbar]"));
         assertTrue(dfa.matches("[bazbarbaz]"));
@@ -75,9 +81,61 @@ public class DfaTest {
 
     @Test
     public void findsDomain() {
-        Dfa dfa = Dfa.fromNodes(new TextNode("foo"), new TextNode("bar"));
+        Dfa dfa = Dfa.fromNodes(text("foo"), text("bar"));
         assertThat(dfa.domains("foo"), is(new int[] { 0 }));
         assertThat(dfa.domains("bar"), is(new int[] { 1 }));
         assertThat(dfa.domains("baz"), is(new int[0]));
+    }
+
+    @Test
+    public void matchesTimestamp() {
+        Dfa dfa = Dfa.fromNodes(concat(
+                atMost(4, range('0', '9')),
+                text("-"),
+                atMost(2, range('0', '9')),
+                text("-"),
+                atMost(2, range('0', '9')),
+                optional(
+                    text("T"),
+                    atMost(2, range('0', '9')),
+                    text(":"),
+                    atMost(2, range('0', '9')),
+                    text(":"),
+                    atMost(2, range('0', '9')),
+                    optional(text("."), atMost(3, range('0', '9'))))));
+        assertTrue(dfa.matches("2015-08-20T10:53:23.123"));
+        assertTrue(dfa.matches("2015-08-20T10:53:23"));
+        assertTrue(dfa.matches("2015-08-20"));
+        assertTrue(dfa.matches("15-8-20"));
+        assertTrue(dfa.matches("15-8-20T1:05:00"));
+        assertFalse(dfa.matches("2015-08-20T"));
+        assertFalse(dfa.matches("2015-08-20T10:53"));
+        assertFalse(dfa.matches("2015-08-20T10:53"));
+    }
+
+    @Test
+    public void matchesCamelCase() {
+        Dfa dfa = Dfa.fromNodes(concat(
+                range('a', 'z'),
+                unlimited(oneOf(range('a', 'z'), range('0', '9'))),
+                unlimited(
+                    range('A', 'Z'),
+                    atLeast(1, oneOf(range('a', 'z'), range('0', '9')))
+                )));
+        assertTrue(dfa.matches("matchesCamelCase"));
+        assertTrue(dfa.matches("ab2cDef"));
+        assertFalse(dfa.matches("DfaTest"));
+        assertFalse(dfa.matches("abcDEf"));
+    }
+
+    @Test
+    public void findsAmbiguity() {
+        Dfa dfa = Dfa.fromNodes(
+                concat(text("foo/"), atLeast(1, range('a', 'z'))),
+                concat(atLeast(1, range('a', 'z')), text("/bar")));
+        List<Ambiguity> ambiguities = AmbiguityFinder.findAmbiguities(dfa);
+        assertThat(ambiguities.size(), is(1));
+        assertThat(ambiguities.get(0).getDomains().length, is(2));
+        assertThat(dfa.domains(ambiguities.get(0).getExample()).length, is(2));
     }
 }

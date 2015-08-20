@@ -13,35 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.regex.ast;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+package org.teavm.flavour.regex.automata;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class OneOfNode extends Node {
-    private List<Node> elements = new ArrayList<>();
+public class Ambiguity {
+    private String example;
+    private int[] domains;
 
-    public OneOfNode(Node... nodes) {
-        elements.addAll(Arrays.asList(nodes));
+    public Ambiguity(String example, int[] domains) {
+        this.example = example;
+        this.domains = domains.clone();
     }
 
-    public List<Node> getElements() {
-        return elements;
+    public String getExample() {
+        return example;
     }
 
-    @Override
-    public void acceptVisitor(NodeVisitor visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public String toString() {
-        return elements.stream().map(e -> "(" + e + ")").collect(Collectors.joining(" | "));
+    public int[] getDomains() {
+        return domains.clone();
     }
 }

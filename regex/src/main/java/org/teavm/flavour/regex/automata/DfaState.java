@@ -54,7 +54,7 @@ public class DfaState {
 
     public void setDomains(int[] domains) {
         if (domains.length == 0) {
-            this.domains = new int[0];
+            this.domains = null;
         } else {
             domains = domains.clone();
             Arrays.sort(domains);

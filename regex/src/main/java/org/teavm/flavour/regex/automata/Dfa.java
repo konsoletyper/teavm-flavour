@@ -183,15 +183,18 @@ public class Dfa {
             Map<DfaState, DfaTransition> transitionsByTarget = new HashMap<>();
             while (!transitions.isEmpty()) {
                 int index = transitions.peek().getFirstIndex();
-                Set<NfaState> targetStates = new HashSet<>();
                 while (!transitions.isEmpty() && transitions.peek().getFirstIndex() == index) {
                     TransitionDescriptor td = transitions.remove();
-                    if (td.getTransition().getCharSet().has(index)) {
-                        targetStates.add(td.getTransition().getTarget());
-                    }
                     td = td.next();
                     if (td != null) {
                         transitions.add(td);
+                    }
+                }
+
+                Set<NfaState> targetStates = new HashSet<>();
+                for (TransitionDescriptor td : transitions) {
+                    if (td.getTransition().getCharSet().has(index)) {
+                        targetStates.add(td.getTransition().getTarget());
                     }
                 }
                 targetStates = emptyClosure(targetStates);

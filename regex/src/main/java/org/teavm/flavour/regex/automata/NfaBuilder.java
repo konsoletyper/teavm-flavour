@@ -18,6 +18,7 @@ package org.teavm.flavour.regex.automata;
 import org.teavm.flavour.regex.ast.CharSetNode;
 import org.teavm.flavour.regex.ast.ConcatNode;
 import org.teavm.flavour.regex.ast.EmptyNode;
+import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.ast.NodeVisitor;
 import org.teavm.flavour.regex.ast.OneOfNode;
 import org.teavm.flavour.regex.ast.RepeatNode;
@@ -106,11 +107,10 @@ public class NfaBuilder implements NodeVisitor {
         }
 
         if (node.getMaximum() == 0) {
-            NfaState tmp = automaton.createState();
             start = intermediate;
             node.getRepeated().acceptVisitor(this);
-            tmp.createTransition(start);
-            start.createTransition(oldEnd);
+            end.createTransition(intermediate);
+            intermediate.createTransition(oldEnd);
         } else {
             for (int i = node.getMinimum(); i < node.getMaximum(); ++i) {
                 start = intermediate;
@@ -129,10 +129,13 @@ public class NfaBuilder implements NodeVisitor {
     public void visit(OneOfNode node) {
         NfaState oldStart = start;
         NfaState oldEnd = end;
-        node.getFirst().acceptVisitor(this);
 
+        for (Node element : node.getElements()) {
+            start = oldStart;
+            end = oldEnd;
+            element.acceptVisitor(this);
+        }
         start = oldStart;
         end = oldEnd;
-        node.getSecond().acceptVisitor(this);
     }
 }
