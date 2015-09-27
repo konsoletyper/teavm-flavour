@@ -16,7 +16,6 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.List;
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
@@ -38,6 +37,7 @@ import org.teavm.flavour.templates.tree.DirectiveFunctionBinding;
 import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.flavour.templates.tree.TemplateNodeVisitor;
+import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;

@@ -19,21 +19,19 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.core.Document;
-import org.teavm.dom.core.Element;
-import org.teavm.dom.core.Node;
-import org.teavm.dom.core.Text;
-import org.teavm.dom.html.HTMLElement;
-import org.teavm.jso.JS;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.xml.Document;
+import org.teavm.jso.dom.xml.Element;
+import org.teavm.jso.dom.xml.Node;
+import org.teavm.jso.dom.xml.Text;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class DomBuilder {
-    private static final Window window = (Window) JS.getGlobal();
-    private static final Document document = window.getDocument();
+    private static final Document document = Window.current().getDocument();
     private Slot slot;
     private Deque<Item> stack = new ArrayDeque<>();
     private List<Renderable> renderables = new ArrayList<>();

@@ -15,15 +15,13 @@
  */
 package org.teavm.flavour.widgets;
 
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.html.HTMLDocument;
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.javascript.spi.Async;
-import org.teavm.jso.JS;
+import org.teavm.jso.dom.html.HTMLDocument;
+import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.platform.async.AsyncCallback;
 
 /**
@@ -32,8 +30,7 @@ import org.teavm.platform.async.AsyncCallback;
  */
 @BindTemplate("templates/flavour/widgets/popup.html")
 public final class Popup {
-    private static Window window = (Window) JS.getGlobal();
-    private static HTMLDocument document = window.getDocument();
+    private static HTMLDocument document = HTMLDocument.current();
     private Fragment content;
     private Component component;
     private AsyncCallback<Void> callback;

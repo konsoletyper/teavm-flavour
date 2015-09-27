@@ -15,11 +15,11 @@
  */
 package org.teavm.flavour.directives.standard;
 
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ElementConsumer;
 import org.teavm.flavour.templates.Renderable;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *

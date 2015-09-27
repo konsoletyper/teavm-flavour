@@ -15,8 +15,6 @@
  */
 package org.teavm.flavour.widgets;
 
-import org.teavm.dom.events.EventListener;
-import org.teavm.dom.events.MouseEvent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
@@ -24,6 +22,8 @@ import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
+import org.teavm.jso.dom.events.EventListener;
+import org.teavm.jso.dom.events.MouseEvent;
 
 /**
  *

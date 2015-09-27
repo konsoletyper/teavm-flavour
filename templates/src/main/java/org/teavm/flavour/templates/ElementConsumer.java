@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.templates;
 
-import org.teavm.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *

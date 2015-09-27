@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.templates;
 
-import org.teavm.dom.core.Node;
+import org.teavm.jso.dom.xml.Node;
 
 /**
  *
