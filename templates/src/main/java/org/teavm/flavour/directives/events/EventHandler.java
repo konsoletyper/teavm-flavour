@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.directives.events;
 
-import org.teavm.dom.events.Event;
+import org.teavm.jso.dom.events.Event;
 
 /**
  *

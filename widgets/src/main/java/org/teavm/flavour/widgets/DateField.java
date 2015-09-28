@@ -20,12 +20,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.events.EventListener;
-import org.teavm.dom.events.MouseEvent;
-import org.teavm.dom.html.HTMLElement;
-import org.teavm.dom.html.HTMLInputElement;
-import org.teavm.dom.html.TextRectangle;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
@@ -34,7 +28,13 @@ import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.ValueChangeListener;
-import org.teavm.jso.JS;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.EventListener;
+import org.teavm.jso.dom.events.MouseEvent;
+import org.teavm.jso.dom.html.HTMLDocument;
+import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
+import org.teavm.jso.dom.html.TextRectangle;
 
 /**
  *
@@ -43,7 +43,6 @@ import org.teavm.jso.JS;
 @BindDirective(name = "date")
 @BindTemplate("templates/flavour/widgets/date-field.html")
 public class DateField extends AbstractWidget {
-    private static final Window window = (Window) JS.getGlobal();
     private Computation<Integer> size;
     private Computation<Date> value;
     private Computation<String> locale;
@@ -140,10 +139,10 @@ public class DateField extends AbstractWidget {
         if (dropDownElement != null) {
             return;
         }
-        dropDownElement = window.getDocument().createElement("div");
+        dropDownElement = HTMLDocument.current().createElement("div");
         dropDownElement.setAttribute("class", "flavour-dropdown flavour-dropdown-calendar");
 
-        TextRectangle windowRect = window.getDocument().getBody().getBoundingClientRect();
+        TextRectangle windowRect = HTMLDocument.current().getBody().getBoundingClientRect();
         TextRectangle inputRect = inputElement.getBoundingClientRect();
         dropDownElement.getStyle().setProperty("right", windowRect.getWidth() - inputRect.getRight() + "px");
         dropDownElement.getStyle().setProperty("top", inputRect.getBottom() + "px");
@@ -154,13 +153,13 @@ public class DateField extends AbstractWidget {
         });
         dropDownComponent = Templates.bind(dropDown, dropDownElement);
 
-        window.getDocument().getBody().appendChild(dropDownElement);
-        window.setTimeout(() -> window.getDocument().addEventListener("click", bodyListener), 0);
+        HTMLDocument.current().getBody().appendChild(dropDownElement);
+        Window.setTimeout(() -> HTMLDocument.current().addEventListener("click", bodyListener), 0);
     }
 
     private void closeDropDown() {
-        window.getDocument().getBody().removeChild(dropDownElement);
-        window.getDocument().removeEventListener("click", bodyListener);
+        HTMLDocument.current().getBody().removeChild(dropDownElement);
+        HTMLDocument.current().removeEventListener("click", bodyListener);
         dropDownComponent.destroy();
         dropDownElement = null;
         dropDownComponent = null;

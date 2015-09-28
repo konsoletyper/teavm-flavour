@@ -15,12 +15,12 @@
  */
 package org.teavm.flavour.directives.events;
 
-import org.teavm.dom.events.Event;
-import org.teavm.dom.events.EventListener;
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Renderable;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.events.EventListener;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *

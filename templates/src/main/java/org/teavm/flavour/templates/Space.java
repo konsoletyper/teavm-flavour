@@ -16,8 +16,8 @@
 package org.teavm.flavour.templates;
 
 import java.util.List;
-import org.teavm.dom.core.Node;
-import org.teavm.dom.core.NodeList;
+import org.teavm.jso.dom.xml.Node;
+import org.teavm.jso.dom.xml.NodeList;
 
 /**
  *

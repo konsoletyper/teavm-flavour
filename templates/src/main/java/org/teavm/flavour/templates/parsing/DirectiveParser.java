@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.htmlparser.jericho.Segment;
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
@@ -51,6 +50,7 @@ import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Variable;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *

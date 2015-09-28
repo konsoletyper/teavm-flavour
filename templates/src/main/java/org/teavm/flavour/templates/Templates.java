@@ -17,9 +17,8 @@ package org.teavm.flavour.templates;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.html.HTMLElement;
-import org.teavm.jso.JS;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *
@@ -33,7 +32,7 @@ public final class Templates {
     }
 
     public static Component bind(Object model, String id) {
-        return bind(model, ((Window) JS.getGlobal()).getDocument().getElementById(id));
+        return bind(model, Window.current().getDocument().getElementById(id));
     }
 
     public static Component bind(Object model, HTMLElement element) {

@@ -16,7 +16,6 @@
 package org.teavm.flavour.directives.standard;
 
 import java.util.Objects;
-import org.teavm.dom.browser.Window;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
@@ -24,7 +23,7 @@ import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.NodeHolder;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.jso.JS;
+import org.teavm.jso.browser.Window;
 
 /**
  *
@@ -33,7 +32,6 @@ import org.teavm.jso.JS;
 @BindDirective(name = "text")
 @IgnoreContent
 public class TextComponent<T> extends AbstractComponent {
-    private static Window window = (Window) JS.getGlobal();
     private Computation<T> value;
     private NodeHolder textSlot;
     private T cachedValue;
@@ -60,7 +58,7 @@ public class TextComponent<T> extends AbstractComponent {
             textSlot.delete();
             textSlot = null;
         }
-        textSlot = new NodeHolder(window.getDocument().createTextNode(String.valueOf(computedValue)));
+        textSlot = new NodeHolder(Window.current().getDocument().createTextNode(String.valueOf(computedValue)));
         getSlot().append(textSlot);
     }
 }

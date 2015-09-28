@@ -16,12 +16,12 @@
 package org.teavm.flavour.directives.standard;
 
 import java.util.Objects;
-import org.teavm.dom.html.HTMLElement;
-import org.teavm.dom.html.HTMLInputElement;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Renderable;
+import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
 
 /**
  *

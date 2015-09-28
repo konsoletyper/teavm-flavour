@@ -15,9 +15,9 @@
  */
 package org.teavm.flavour.directives.events;
 
-import org.teavm.dom.events.Event;
-import org.teavm.dom.html.HTMLElement;
 import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.html.HTMLElement;
 
 /**
  *

@@ -17,8 +17,6 @@ package org.teavm.flavour.templates.test;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.dom.browser.Window;
-import org.teavm.dom.html.HTMLDocument;
 import org.teavm.flavour.directives.standard.ForEachComponent;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Computation;
@@ -27,15 +25,15 @@ import org.teavm.flavour.templates.DomFragment;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Variable;
-import org.teavm.jso.JS;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.html.HTMLDocument;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class ComponentTest {
-    private static final Window window = (Window)JS.getGlobal();
-    private static final HTMLDocument document = window.getDocument();
+    private static final HTMLDocument document = Window.current().getDocument();
 
     public void buildsDom() {
         Fragment fragment = new DomFragment() {
