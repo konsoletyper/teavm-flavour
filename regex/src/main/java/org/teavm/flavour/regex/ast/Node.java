@@ -60,6 +60,10 @@ public abstract class Node {
         return new CharSetNode(new SetOfChars().set(from, to + 1));
     }
 
+    public static Node character(char c) {
+        return new CharSetNode(new SetOfChars().set(c, c + 1));
+    }
+
     public static Node optional(Node... nodes) {
         return new RepeatNode(nodes.length == 1 ? nodes[0] : concat(nodes), 0, 1);
     }

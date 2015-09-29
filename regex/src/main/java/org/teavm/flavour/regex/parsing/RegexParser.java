@@ -15,8 +15,10 @@
  */
 package org.teavm.flavour.regex.parsing;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.core.SetOfChars;
 
@@ -30,13 +32,13 @@ public class RegexParser {
     public Node parse(String text) throws RegexParseException {
         this.text = text;
         try {
-            ParseResult<Node> result = parseUnion(0);
+            ParseResult<Node> result = unionParser().parse(0);
             if (result.data == null) {
-                error("Unexpected character " + text.charAt(result.index), result.index);
-                return null;
+                throw new RegexParseException("Unexpected character " + text.charAt(result.index),
+                        text, result.index);
             } else if (result.index != text.length()) {
-                error("Unexpected character " + text.charAt(result.index), result.index);
-                return null;
+                throw new RegexParseException("Unexpected character " + text.charAt(result.index),
+                        text, result.index);
             } else {
                 return result.data;
             }
@@ -45,170 +47,133 @@ public class RegexParser {
         }
     }
 
-    private ParseResult<Node> parseUnion(int index) throws RegexParseException {
-        List<Node> operands = new ArrayList<>();
-        ParseResult<Node> result = parseUnionOperand(index);
-        if (result.data == null) {
-            return result;
-        }
-        operands.add(result.data);
-        index = result.index;
-        while (index < text.length()) {
-            if (text.charAt(index) != '|') {
-                break;
-            }
-            ++index;
-            result = parseUnionOperand(index);
-            if (result.data == null) {
-                error("Could not parse | operand", result.index);
-                return null;
-            }
-            operands.add(result.data);
-            index = result.index;
-        }
-        Node resultNode = operands.size() != 1 ? Node.oneOf(operands.toArray(new Node[operands.size()]))
-                : operands.get(0);
-        return new ParseResult<>(index, resultNode);
+    private Parser<Node> unionParser() {
+        Var<Node> node = new Var<>();
+        return sequence(
+                concatParser(),
+                repeat(0, sequence(
+                        matchChar('|'),
+                        concatParser().map(n -> Node.oneOf(node.value, n)).thenStore(node))))
+                .thenRead(node);
     }
 
-    private ParseResult<Node> parseUnionOperand(int index) throws RegexParseException {
-        List<Node> operands = new ArrayList<>();
-        ParseResult<Node> result = parseConcatOperand(index);
-        if (result.data == null) {
-            return result;
-        }
-        operands.add(result.data);
-        while (index < text.length()) {
-            result = parseConcatOperand(index);
-            if (result.data == null) {
-                break;
-            }
-            operands.add(result.data);
-            index = result.index;
-        }
-        Node resultNode = operands.size() != 1 ? Node.concat(operands.toArray(new Node[operands.size()]))
-                : operands.get(0);
-        return new ParseResult<>(index, resultNode);
-    }
-
-    private ParseResult<Node> parseConcatOperand(int index) throws RegexParseException {
-        ParseResult<Node> result = parseQuantifierOperand(index);
-        if (result.data == null || result.index >= text.length()) {
-            return result;
-        }
-        switch (text.charAt(result.index)) {
-            case '?':
-                return new ParseResult<>(result.index + 1, Node.optional(result.data));
-            case '*':
-                return new ParseResult<>(result.index + 1, Node.unlimited(result.data));
-            case '+':
-                return new ParseResult<>(result.index + 1, Node.atLeast(1, result.data));
-            case '{':
-                return parseRangeQuantifier(result.index + 1, result.data);
-            default:
-                return result;
-        }
-    }
-
-    private ParseResult<Node> parseRangeQuantifier(int index, Node operand) throws RegexParseException {
-        ParseResult<Integer> result = parseNumber(index);
-        if (result.data == null) {
-            return new ParseResult<>(result.index, null);
-        }
-        int atLeast = result.data;
-        index = result.index;
-        if (index >= text.length()) {
-            return new ParseResult<>(index, null);
-        }
-        if (text.charAt(index) == '}') {
-            return new ParseResult<>(index + 1, Node.repeat(atLeast, atLeast, operand));
-        } else if (text.charAt(index) != ',') {
-            return new ParseResult<>(index, null);
-        }
-        ++index;
-        result = parseNumber(index);
-        Node resultNode = result.data == null ? Node.atLeast(atLeast, operand)
-                : Node.repeat(atLeast, result.data, operand);
-        if (index >= text.length() || text.charAt(index) == '}') {
-            return new ParseResult<>(index, null);
-        }
-        ++index;
-        return new ParseResult<>(index, resultNode);
-    }
-
-    private ParseResult<Integer> parseNumber(int index) throws RegexParseException {
-        if (index >= text.length()) {
-            return new ParseResult<>(index, null);
-        }
-        int value = 0;
-        while (index < text.length()) {
-            char c = text.charAt(index++);
-            if (c >= '0' && c <= '9') {
-                value = value * 10 + (c - '0');
-            } else {
-                break;
-            }
-        }
-        return new ParseResult<>(index, value);
-    }
-
-    private ParseResult<Node> parseQuantifierOperand(int index) throws RegexParseException {
-        char c = text.charAt(index);
-        switch (c) {
-            case '.':
-                return new ParseResult<>(index + 1, Node.range(new SetOfChars().set(-1, Character.MAX_VALUE + 1)));
-            case '\\':
-                return parseEscapeSequence(index + 1);
-            case '(':
-                return parseGroup(index + 1);
-            case ')':
-            case '|':
-            case ']':
-            case '?':
-            case '{':
-            case '}':
-            case '*':
-            case '+':
-                return new ParseResult<>(index, null);
-            default:
-                return new ParseResult<>(index + 1, Node.range(c, (char) (c + 1)));
-        }
+    private Parser<Node> concatParser() {
+        Var<Node> node = new Var<>();
+        return sequence(
+                quantifierParser(),
+                repeat(0, quantifierParser().map(n -> Node.concat(node.value, n)).thenStore(node)))
+                .thenRead(node);
     }
 
     private Parser<Node> quantifierParser() {
-        return firstOf(allCharsParser());
+        Var<Node> node = new Var<>();
+        return sequence(
+                termParser().thenStore(node),
+                optional(firstOf(
+                        optionalQuantifierParser(node),
+                        unlimitedQuantifierParser(node),
+                        atLeastOneQuantifierParser(node),
+                        customQuantifierParser(node))))
+                .thenRead(node);
     }
 
-    private Parser<Node> allCharsParser() {
+    private Parser<Boolean> optionalQuantifierParser(Var<Node> node) {
+        return matchChar('?').thenRead(node).map(Node::optional).thenStore(node);
+    }
+
+    private Parser<Boolean> unlimitedQuantifierParser(Var<Node> node) {
+        return matchChar('*').thenRead(node).map(Node::unlimited).thenStore(node);
+    }
+
+    private Parser<Boolean> atLeastOneQuantifierParser(Var<Node> node) {
+        return matchChar('*').thenRead(node).map(n -> Node.atLeast(1, n)).thenStore(node);
+    }
+
+    private Parser<Boolean> customQuantifierParser(Var<Node> node) {
+        Var<Integer> atLeast = new Var<>();
+        Var<Integer> atMost = new Var<>();
+        Var<Boolean> hasMaximum = new Var<>();
+        return sequence(
+                matchChar('{'),
+                integerParser().thenStore(atLeast),
+                optional(sequence(
+                        matchChar(',').map(b -> true).thenStore(hasMaximum),
+                        optional(integerParser().thenStore(atMost)))),
+                matchChar('}'))
+                .thenRead(node)
+                .map(n -> {
+                    if (atMost.value != null) {
+                        return Node.repeat(atLeast.value, atMost.value, n);
+                    } else if (hasMaximum.value != null) {
+                        return Node.atLeast(atLeast.value, n);
+                    } else {
+                        return Node.repeat(atLeast.value, atLeast.value, n);
+                    }
+                })
+                .thenStore(node);
+    }
+
+    private Parser<Integer> integerParser() {
+        return repeat(1, matchRange('0', '9')).then((start, end) -> Integer.parseInt(text.substring(start, end)));
+    }
+
+    private Parser<Node> termParser() {
+        return firstOf(
+                anyCharParser(),
+                groupParser(),
+                escapeSequenceParser(),
+                charRangeParser(),
+                except(')', '|', ']', '?', '{', '}', '*', '+')
+                        .then((start, end) -> Node.range(text.charAt(end - 1), text.charAt(end - 1))));
+    }
+
+    private Parser<Node> anyCharParser() {
         return matchChar('.').then((start, end) -> Node.range(new SetOfChars().set(-1, Character.MAX_VALUE + 1)));
     }
 
     private Parser<Node> groupParser() {
-        return null;
+        Var<Node> node = new Var<>();
+        return sequence(matchChar('('), unionParser().thenStore(node), matchChar(')')).thenRead(node);
     }
 
-    private ParseResult<Node> parseEscapeSequence(int index) throws RegexParseException {
-        char c = text.charAt(index);
-        switch (c) {
-            case '\\':
-                return new ParseResult<>(index + 1, Node.range(c, (char) (c + 1)));
-        }
-        return null;
+    private Parser<Node> escapeSequenceParser() {
+        Var<Node> node = new Var<>();
+        return sequence(matchChar('\\'), firstOf(
+                matchChar('\\').then(() -> Node.character('\\')),
+                matchChar('t').then(() -> Node.character('\t')),
+                matchChar('n').then(() -> Node.character('\n')),
+                matchChar('b').then(() -> Node.character('\b')),
+                matchChar('f').then(() -> Node.character('\f')),
+                matchChar('e').then(() -> Node.character('\u001F')),
+                matchChar('d').then(() -> Node.range('0', '9')),
+                matchChar('D').then(() -> Node.range(excluding(range('0', '9')))),
+                matchChar('s').then(() -> Node.range(new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B'))),
+                matchChar('S').then(() -> Node.range(excluding(
+                        new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B')))),
+                matchChar('w').then(() -> Node.range(new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1)
+                        .set('0', '9' + 1))),
+                matchChar('W').then(() -> Node.range(excluding(new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1)
+                        .set('0', '9' + 1))))
+        ).thenStore(node)).thenRead(node);
     }
 
-    private ParseResult<Node> parseGroup(int index) throws RegexParseException {
-        ParseResult<Node> result = parseUnion(index);
-        if (result.data == null) {
-            return result;
-        }
-        if (result.index >= text.length() || text.charAt(result.index) != ')') {
-            return new ParseResult<>(result.index, null);
-        }
-        return new ParseResult<>(result.index + 1, result.data);
+    private Parser<Node> charRangeParser() {
+        Var<SetOfChars> set = new Var<>();
+        return sequence(
+                matchChar('[').map(x -> new SetOfChars()).thenStore(set),
+
+                matchChar(']'))
+                .thenRead(set)
+                .map(s -> Node.range(s));
     }
 
-    private void error(String message, int index) throws RegexParseException {
-        throw new RegexParseException(message, text, index);
+    private static SetOfChars range(char from, char to) {
+        return new SetOfChars().set(from, to + 1);
+    }
+
+    private static SetOfChars excluding(SetOfChars chars) {
+        chars.invert(-1, Character.MAX_VALUE + 1);
+        return chars;
     }
 
     static class ParseResult<T> {
@@ -230,7 +195,28 @@ public class RegexParser {
         };
     }
 
-    private <T> Parser<T> firstOf(Parser<T>... arguments) {
+    private Parser<Boolean> except(char... chars) {
+        char[] array = chars.clone();
+        Arrays.sort(array);
+        return index -> {
+            if (index >= text.length() || Arrays.binarySearch(array, text.charAt(index)) >= 0) {
+                return new ParseResult<>(index, null);
+            }
+            return new ParseResult<>(index + 1, true);
+        };
+    }
+
+    private Parser<Boolean> matchRange(char a, char b) {
+        return index -> {
+            if (index >= text.length() || text.charAt(index) < a || text.charAt(index) > b) {
+                return new ParseResult<>(index, null);
+            }
+            return new ParseResult<>(index + 1, true);
+        };
+    }
+
+    @SafeVarargs
+    private final <T> Parser<T> firstOf(Parser<T>... arguments) {
         return index -> {
             for (Parser<T> argument : arguments) {
                 ParseResult<T> result = argument.parse(index);
@@ -242,7 +228,8 @@ public class RegexParser {
         };
     }
 
-    private Parser<Boolean> sequence(Parser<?>... arguments) {
+    @SafeVarargs
+    private final Parser<Boolean> sequence(Parser<?>... arguments) {
         return index -> {
             for (Parser<?> argument : arguments) {
                 ParseResult<?> result = argument.parse(index);
@@ -255,18 +242,29 @@ public class RegexParser {
         };
     }
 
-    interface Parser<T> {
-        ParseResult<T> parse(int index) throws RegexParseException;
-
-        default Parser<T> optional(Parser<T> argument) {
-            return index -> {
-                ParseResult<T> result = argument.parse(index);
+    private Parser<Boolean> repeat(int atLeast, Parser<?> argument) {
+        return index -> {
+            int repeatCount = 0;
+            while (true) {
+                ParseResult<?> result = argument.parse(index);
                 if (result.data == null) {
-                    return this.parse(index);
+                    break;
                 }
-                return result;
-            };
-        }
+                index = result.index;
+            }
+            return new ParseResult<>(index, repeatCount < atLeast ? null : true);
+        };
+    }
+
+    private <T> Parser<Optional<T>> optional(Parser<T> argument) {
+        return index -> {
+            ParseResult<T> result = argument.parse(index);
+            return new ParseResult<>(result.index, result.data != null ? Optional.of(result.data) : Optional.empty());
+        };
+    }
+
+    interface Parser<T> {
+        ParseResult<T> parse(int index);
 
         default <S> Parser<S> then(ParserAction<S> action) {
             return index -> {
@@ -275,6 +273,47 @@ public class RegexParser {
                     return new ParseResult<>(index, null);
                 }
                 return new ParseResult<>(result.index, action.run(index, result.index));
+            };
+        }
+
+        default <S> Parser<S> then(Supplier<S> action) {
+            return index -> {
+                ParseResult<T> result = parse(index);
+                if (result.data == null) {
+                    return new ParseResult<>(index, null);
+                }
+                return new ParseResult<>(result.index, action.get());
+            };
+        }
+
+        default Parser<Boolean> thenStore(Var<T> var) {
+            return index -> {
+                ParseResult<T> result = parse(index);
+                if (result.data == null) {
+                    return new ParseResult<>(result.index, null);
+                }
+                var.value = result.data;
+                return new ParseResult<>(result.index, true);
+            };
+        }
+
+        default <S> Parser<S> thenRead(Var<S> var) {
+            return index -> {
+                ParseResult<T> result = parse(index);
+                if (result.data == null) {
+                    return new ParseResult<>(result.index, null);
+                }
+                return new ParseResult<>(result.index, var.value);
+            };
+        }
+
+        default <S> Parser<S> map(Function<T, S> f) {
+            return index -> {
+                ParseResult<T> result = parse(index);
+                if (result.data == null) {
+                    return new ParseResult<>(result.index, null);
+                }
+                return new ParseResult<>(result.index, f.apply(result.data));
             };
         }
     }
