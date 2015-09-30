@@ -121,8 +121,8 @@ public class RegexParser {
         return firstOf(
                 anyCharParser(),
                 groupParser(),
-                escapeSequenceParser(),
-                charRangeParser(),
+                escapeSequenceParser().map(Node::range),
+                charRangeParser().map(Node::range),
                 except(')', '|', ']', '?', '{', '}', '*', '+')
                         .then((start, end) -> Node.range(text.charAt(end - 1), text.charAt(end - 1))));
     }
@@ -136,35 +136,56 @@ public class RegexParser {
         return sequence(matchChar('('), unionParser().thenStore(node), matchChar(')')).thenRead(node);
     }
 
-    private Parser<Node> escapeSequenceParser() {
-        Var<Node> node = new Var<>();
-        return sequence(matchChar('\\'), firstOf(
-                matchChar('\\').then(() -> Node.character('\\')),
-                matchChar('t').then(() -> Node.character('\t')),
-                matchChar('n').then(() -> Node.character('\n')),
-                matchChar('b').then(() -> Node.character('\b')),
-                matchChar('f').then(() -> Node.character('\f')),
-                matchChar('e').then(() -> Node.character('\u001F')),
-                matchChar('d').then(() -> Node.range('0', '9')),
-                matchChar('D').then(() -> Node.range(excluding(range('0', '9')))),
-                matchChar('s').then(() -> Node.range(new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B'))),
-                matchChar('S').then(() -> Node.range(excluding(
-                        new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B')))),
-                matchChar('w').then(() -> Node.range(new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1)
-                        .set('0', '9' + 1))),
-                matchChar('W').then(() -> Node.range(excluding(new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1)
-                        .set('0', '9' + 1))))
-        ).thenStore(node)).thenRead(node);
-    }
-
-    private Parser<Node> charRangeParser() {
+    private Parser<SetOfChars> charRangeParser() {
         Var<SetOfChars> set = new Var<>();
+        Var<Boolean> inverted = new Var<>();
+        inverted.value = true;
         return sequence(
                 matchChar('[').map(x -> new SetOfChars()).thenStore(set),
-
+                optional(matchChar('^').map(b -> true).thenStore(inverted)),
+                firstOf(
+                    escapeSequenceParser(),
+                    singleCharRangeParser().map(SetOfChars::new),
+                    closedCharRangeParser(),
+                    charRangeParser())
+                    .map(newSet -> newSet.uniteWith(set.value)).thenStore(set),
                 matchChar(']'))
                 .thenRead(set)
-                .map(s -> Node.range(s));
+                .map(s -> !inverted.value ? s : excluding(s));
+    }
+
+    private Parser<SetOfChars> closedCharRangeParser() {
+        Var<Character> start = new Var<>();
+        Var<Character> end = new Var<>();
+        return sequence(
+                singleCharRangeParser().thenStore(start),
+                matchChar('-'),
+                singleCharRangeParser())
+                .then(() -> new SetOfChars().set(start.value, end.value + 1));
+    }
+
+    private Parser<Character> singleCharRangeParser() {
+        return except('[', '\\', '^', ']').then((start, end) -> text.charAt(end - 1));
+    }
+
+    private Parser<SetOfChars> escapeSequenceParser() {
+        Var<SetOfChars> set = new Var<>();
+        return sequence(matchChar('\\'), firstOf(
+                matchChar('t').then(() -> new SetOfChars('\t')),
+                matchChar('n').then(() -> new SetOfChars('\n')),
+                matchChar('b').then(() -> new SetOfChars('\b')),
+                matchChar('f').then(() -> new SetOfChars('\f')),
+                matchChar('e').then(() -> new SetOfChars('\u001F')),
+                matchChar('d').then(() -> new SetOfChars('0', '9')),
+                matchChar('D').then(() -> excluding(range('0', '9'))),
+                matchChar('s').then(() -> new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B')),
+                matchChar('S').then(() -> excluding(new SetOfChars(' ', '\t', '\n', '\f', '\r', '\u000B'))),
+                matchChar('w').then(() -> new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1).set('0', '9' + 1)),
+                matchChar('W').then(() -> excluding(new SetOfChars().set('a', 'z' + 1).set('A', 'Z' + 1)
+                        .set('0', '9' + 1))),
+                matchChars('(', ')', '|', '+', '*', '[', ']', '\\', '-', '^', '$')
+                        .then((start, end) -> new SetOfChars(text.charAt(end - 1)))
+        ).thenStore(set)).thenRead(set);
     }
 
     private static SetOfChars range(char from, char to) {
@@ -189,6 +210,17 @@ public class RegexParser {
     private Parser<Boolean> matchChar(char c) {
         return index -> {
             if (index >= text.length() || text.charAt(index) != c) {
+                return new ParseResult<>(index, null);
+            }
+            return new ParseResult<>(index + 1, true);
+        };
+    }
+
+    private Parser<Boolean> matchChars(char... chars) {
+        char[] array = chars.clone();
+        Arrays.sort(array);
+        return index -> {
+            if (index >= text.length() || Arrays.binarySearch(array, text.charAt(index)) < 0) {
                 return new ParseResult<>(index, null);
             }
             return new ParseResult<>(index + 1, true);
