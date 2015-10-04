@@ -39,7 +39,7 @@
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>
-      <artifactId>teavm-dom</artifactId>
+      <artifactId>teavm-jso-apis</artifactId>
     </dependency>
     <dependency>
       <groupId>net.htmlparser.jericho</groupId>
