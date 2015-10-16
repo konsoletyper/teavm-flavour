@@ -21,10 +21,12 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import java.util.List;
 import org.junit.Test;
+import org.teavm.flavour.regex.Matcher;
 import org.teavm.flavour.regex.Pattern;
 import org.teavm.flavour.regex.automata.Ambiguity;
 import org.teavm.flavour.regex.automata.AmbiguityFinder;
 import org.teavm.flavour.regex.automata.Dfa;
+import org.teavm.flavour.regex.parsing.RegexParser;
 
 /**
  *
@@ -176,6 +178,37 @@ public class DfaTest {
         assertTrue(pattern.matches("1234"));
         assertFalse(pattern.matches("1"));
         assertFalse(pattern.matches("12345"));
+    }
+
+    @Test
+    public void forks() {
+        Pattern pattern = parse("(abc)*");
+        Matcher a = pattern.matcher();
+        a.feed("a");
+
+        Matcher b = a.fork();
+        b.feed("bc").end();
+        assertTrue(b.isTerminal());
+
+        a.feed("bcabc").end();
+        assertTrue(a.isTerminal());
+    }
+
+    @Test
+    public void eats() {
+        Pattern pattern = Dfa.fromNode(new RegexParser().parse("(abc)*")).compile();
+        Matcher matcher = pattern.matcher();
+        String str = "abcabc";
+
+        matcher.eat(str);
+        assertThat(matcher.index(), is(3));
+        assertTrue(matcher.isValid());
+        assertTrue(matcher.isTerminal());
+
+        matcher.eat(str);
+        assertThat(matcher.index(), is(6));
+        assertTrue(matcher.isValid());
+        assertTrue(matcher.isTerminal());
     }
 
     @Test

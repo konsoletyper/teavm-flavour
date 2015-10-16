@@ -159,17 +159,21 @@ public class Dfa {
         return fromNodes(nodes);
     }
 
+    private static int[] getDomains(NfaStateSet u, Nfa nfa) {
+        return Arrays.stream(u.indexes)
+                .mapToObj(i -> nfa.getStates().get(i))
+                .mapToInt(NfaState::getDomain)
+                .filter(dom -> dom >= 0)
+                .toArray();
+    }
+
     public static Dfa fromNfa(Nfa nfa) {
         Dfa dfa = new Dfa();
 
         Map<NfaStateSet, DfaState> stateMap = new HashMap<>();
         Function<NfaStateSet, DfaState> stateFunction = u -> {
             DfaState result = dfa.createState();
-            result.setDomains(Arrays.stream(u.indexes)
-                    .mapToObj(i -> nfa.getStates().get(i))
-                    .mapToInt(NfaState::getDomain)
-                    .filter(dom -> dom >= 0)
-                    .toArray());
+            result.setDomains(getDomains(u, nfa));
             return result;
         };
 
@@ -178,6 +182,7 @@ public class Dfa {
         NfaStateSet initialStateSet = new NfaStateSet(emptyClosure(nfa.getStartState()).toArray(new NfaState[0]));
         queue.add(initialStateSet);
         stateMap.put(initialStateSet, dfa.getStartState());
+        dfa.getStartState().setDomains(getDomains(initialStateSet, nfa));
 
         while (!queue.isEmpty()) {
             NfaStateSet stateSet = queue.remove();

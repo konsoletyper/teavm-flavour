@@ -44,7 +44,7 @@ public interface Matcher {
 
     default boolean matches(String text) {
         restart().feed(text).end();
-        return isValid();
+        return isTerminal();
     }
 
     default int eat(String text) {
@@ -52,9 +52,6 @@ public interface Matcher {
             return -1;
         }
         feed(text, index(), text.length(), true);
-        if (!isTerminal()) {
-            end();
-        }
         return isValid() ? index() : -1;
     }
 

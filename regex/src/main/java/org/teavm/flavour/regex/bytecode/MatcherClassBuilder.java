@@ -350,13 +350,6 @@ public class MatcherClassBuilder {
     }
 
     private void generateTransitions(DfaState source, MethodVisitor mv) {
-        if (source.isTerminal()) {
-            Label noReluctant = new Label();
-            mv.visitVarInsn(Opcodes.ILOAD, 4);
-            mv.visitJumpInsn(Opcodes.IFNE, saveLabel);
-            mv.visitLabel(noReluctant);
-        }
-
         MapOfChars<DfaState> targets = getTransitions(source);
         MapOfChars<DfaState> rangeTargets = targets.clone();
 
@@ -449,8 +442,18 @@ public class MatcherClassBuilder {
             mv.visitIntInsn(Opcodes.SIPUSH, target.getDomains()[0]);
             mv.visitFieldInsn(Opcodes.PUTFIELD, className, "domain", "I");
         }
+
         debug(mv, "DFA: " + source.getIndex() + " -> " + target.getIndex() + " "
                 + Arrays.toString(target.getDomains()));
+        if (target.isTerminal()) {
+            Label noReluctant = new Label();
+            mv.visitVarInsn(Opcodes.ILOAD, 4);
+            mv.visitJumpInsn(Opcodes.IFEQ, noReluctant);
+            mv.visitIincInsn(2, 1);
+            debug(mv, "DFA reached terminal state");
+            mv.visitJumpInsn(Opcodes.GOTO, saveLabel);
+            mv.visitLabel(noReluctant);
+        }
         if (source.getIndex() + 1 == target.getIndex()) {
             mv.visitIincInsn(2, 1);
             generateLengthGuard(mv);
