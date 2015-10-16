@@ -18,10 +18,7 @@ package org.teavm.flavour.regex.automata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.teavm.flavour.regex.ast.CharSetNode;
-import org.teavm.flavour.regex.ast.ConcatNode;
 import org.teavm.flavour.regex.ast.Node;
-import org.teavm.flavour.regex.core.SetOfChars;
 
 /**
  *
@@ -44,7 +41,7 @@ public class Nfa {
             end.setDomain(i);
             builder.setStart(start);
             builder.setEnd(end);
-            new ConcatNode(nodes[i], new CharSetNode(new SetOfChars(-1))).acceptVisitor(builder);
+            nodes[i].acceptVisitor(builder);
         }
     }
 

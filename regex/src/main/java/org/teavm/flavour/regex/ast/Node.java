@@ -60,6 +60,10 @@ public abstract class Node {
         return new CharSetNode(new SetOfChars().set(from, to + 1));
     }
 
+    public static Node eof() {
+        return new CharSetNode(new SetOfChars().set(-1, 0));
+    }
+
     public static Node character(char c) {
         return new CharSetNode(new SetOfChars().set(c, c + 1));
     }

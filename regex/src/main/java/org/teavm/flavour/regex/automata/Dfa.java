@@ -27,10 +27,11 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
-import org.teavm.flavour.regex.Matcher;
+import org.teavm.flavour.regex.Pattern;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.bytecode.MatcherClassBuilder;
 import org.teavm.flavour.regex.core.MapOfCharsIterator;
+import org.teavm.flavour.regex.parsing.RegexParser;
 
 /**
  *
@@ -108,11 +109,11 @@ public class Dfa {
         }
     }
 
-    public Matcher compile() {
+    public Pattern compile() {
         return compile(Dfa.class.getClassLoader());
     }
 
-    public Matcher compile(ClassLoader classLoader) {
+    public Pattern compile(ClassLoader classLoader) {
         return new MatcherClassBuilder().compile(classLoader, this);
     }
 
@@ -148,6 +149,14 @@ public class Dfa {
 
     public static Dfa fromNodes(Node... nodes) {
         return fromNfa(new Nfa(nodes));
+    }
+
+    public static Dfa parse(String... clauses) {
+        RegexParser parser = new RegexParser();
+        Node[] nodes = Arrays.stream(clauses)
+                .map(clause -> Node.concat(parser.parse(clause), Node.eof()))
+                .toArray(sz -> new Node[sz]);
+        return fromNodes(nodes);
     }
 
     public static Dfa fromNfa(Nfa nfa) {

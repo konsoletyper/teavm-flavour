@@ -19,11 +19,14 @@ package org.teavm.flavour.regex;
  *
  * @author Alexey Andreev
  */
-public final class PatternCompiler {
-    private PatternCompiler() {
+public interface Pattern {
+    default boolean matches(String text) {
+        return matcher().matches(text);
     }
 
-    public static <T> T compile(Class<T> type) {
-        return null;
+    default int which(String text) {
+        return matcher().which(text);
     }
+
+    Matcher matcher();
 }

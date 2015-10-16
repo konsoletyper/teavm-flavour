@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.regex.bytecode;
 
+import java.io.PrintStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +29,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.teavm.flavour.regex.Matcher;
+import org.teavm.flavour.regex.Pattern;
 import org.teavm.flavour.regex.automata.Dfa;
 import org.teavm.flavour.regex.automata.DfaState;
 import org.teavm.flavour.regex.automata.DfaTransition;
@@ -45,8 +47,17 @@ public class MatcherClassBuilder {
     private Label errorLabel;
     private Label saveLabel;
     private String className;
+    private boolean debugMode;
 
-    public Matcher compile(ClassLoader originalClassLoader, Dfa dfa) {
+    public MatcherClassBuilder() {
+        this(false);
+    }
+
+    public MatcherClassBuilder(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
+
+    public Pattern compile(ClassLoader originalClassLoader, Dfa dfa) {
         String className = Matcher.class.getName() + "$$Impl";
         byte[] buffer = build(className, dfa);
         ClassLoader classLoader = new ClassLoader(originalClassLoader) {
@@ -60,8 +71,8 @@ public class MatcherClassBuilder {
         };
         try {
             Class<?> cls = Class.forName(className, true, classLoader);
-            return (Matcher) cls.newInstance();
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            return new CompiledPattern(cls.asSubclass(Matcher.class).getConstructor());
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError("Unexpected exception", e);
         }
     }
@@ -78,11 +89,14 @@ public class MatcherClassBuilder {
 
         cv.visitField(Opcodes.ACC_PRIVATE, "state", "I", null, null).visitEnd();
         cv.visitField(Opcodes.ACC_PRIVATE, "domain", "I", null, null).visitEnd();
+        cv.visitField(Opcodes.ACC_PRIVATE, "index", "I", null, null).visitEnd();
 
         buildConstructor(cv, className);
         buildValidMethod(cv, className);
         buildDomainMethod(cv, className);
+        buildIndexMethod(cv, className);
         buildRestartMethod(cv, className);
+        buildForkMethod(cv, className);
         buildEndMethod(cv, className, dfa);
         buildWorkerMethod(cv, className, dfa);
 
@@ -106,6 +120,10 @@ public class MatcherClassBuilder {
         mv.visitVarInsn(Opcodes.ALOAD, 0);
         mv.visitInsn(Opcodes.ICONST_M1);
         mv.visitFieldInsn(Opcodes.PUTFIELD, className, "domain", "I");
+
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitInsn(Opcodes.ICONST_0);
+        mv.visitFieldInsn(Opcodes.PUTFIELD, className, "index", "I");
 
         mv.visitInsn(Opcodes.RETURN);
         mv.visitMaxs(2, 1);
@@ -142,6 +160,18 @@ public class MatcherClassBuilder {
         mv.visitEnd();
     }
 
+    private void buildIndexMethod(ClassVisitor cv, String className) {
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "index", "()I", null, null);
+        mv.visitCode();
+
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD, className, "index", "I");
+        mv.visitInsn(Opcodes.IRETURN);
+
+        mv.visitMaxs(2, 1);
+        mv.visitEnd();
+    }
+
     private void buildRestartMethod(ClassVisitor cv, String className) {
         MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "restart", "()"
                 + Type.getDescriptor(Matcher.class), null, null);
@@ -154,6 +184,36 @@ public class MatcherClassBuilder {
         mv.visitInsn(Opcodes.ICONST_0);
         mv.visitFieldInsn(Opcodes.PUTFIELD, className, "state", "I");
         mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitInsn(Opcodes.ARETURN);
+
+        mv.visitMaxs(2, 1);
+        mv.visitEnd();
+    }
+
+    private void buildForkMethod(ClassVisitor cv, String className) {
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "fork", "()"
+                + Type.getDescriptor(Matcher.class), null, null);
+        mv.visitCode();
+
+        mv.visitTypeInsn(Opcodes.NEW, className);
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, className, "<init>", "()V", false);
+
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD, className, "domain", "I");
+        mv.visitFieldInsn(Opcodes.PUTFIELD, className, "domain", "I");
+
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD, className, "state", "I");
+        mv.visitFieldInsn(Opcodes.PUTFIELD, className, "state", "I");
+
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD, className, "index", "I");
+        mv.visitFieldInsn(Opcodes.PUTFIELD, className, "index", "I");
+
         mv.visitInsn(Opcodes.ARETURN);
 
         mv.visitMaxs(2, 1);
@@ -187,11 +247,13 @@ public class MatcherClassBuilder {
                 mv.visitVarInsn(Opcodes.ISTORE, 1);
                 mv.visitIntInsn(Opcodes.SIPUSH, !target.isTerminal() ? -1 : target.getDomains()[0]);
                 mv.visitVarInsn(Opcodes.ISTORE, 2);
+                debug(mv, "DFA: " + i + " .-> " + target.getIndex() + " " + Arrays.toString(target.getDomains()));
                 mv.visitJumpInsn(Opcodes.GOTO, saveLabel);
             }
         }
 
         mv.visitLabel(errorLabel);
+        debug(mv, "DFA: error");
         mv.visitInsn(Opcodes.ICONST_M1);
         mv.visitVarInsn(Opcodes.ISTORE, 1);
         mv.visitInsn(Opcodes.ICONST_M1);
@@ -211,15 +273,13 @@ public class MatcherClassBuilder {
     }
 
     private void buildWorkerMethod(ClassVisitor cv, String className, Dfa dfa) {
-        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "feed", "(Ljava/lang/String;)"
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "feed", "(Ljava/lang/String;IIZ)"
                 + Type.getDescriptor(Matcher.class), null, null);
         mv.visitCode();
 
         mv.visitVarInsn(Opcodes.ALOAD, 0);
         mv.visitFieldInsn(Opcodes.GETFIELD, className, "state", "I");
-        mv.visitVarInsn(Opcodes.ISTORE, 2);
-        mv.visitInsn(Opcodes.ICONST_0);
-        mv.visitVarInsn(Opcodes.ISTORE, 3);
+        mv.visitVarInsn(Opcodes.ISTORE, 5);
 
         errorLabel = new Label();
         saveLabel = new Label();
@@ -234,21 +294,25 @@ public class MatcherClassBuilder {
         int[] keys = new int[dfa.getStates().size()];
         Arrays.setAll(keys, IntUnaryOperator.identity());
 
-        mv.visitVarInsn(Opcodes.ILOAD, 2);
+        mv.visitVarInsn(Opcodes.ILOAD, 5);
         mv.visitLookupSwitchInsn(errorLabel, keys, stateLabels);
 
         mv.visitLabel(continueLabel);
-        mv.visitIincInsn(3, 1);
+        mv.visitIincInsn(2, 1);
         mv.visitJumpInsn(Opcodes.GOTO, loopLabel);
 
         mv.visitLabel(errorLabel);
+        debug(mv, "DFA: error");
         mv.visitInsn(Opcodes.ICONST_M1);
-        mv.visitVarInsn(Opcodes.ISTORE, 2);
+        mv.visitVarInsn(Opcodes.ISTORE, 5);
 
         mv.visitLabel(saveLabel);
         mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitVarInsn(Opcodes.ILOAD, 2);
+        mv.visitVarInsn(Opcodes.ILOAD, 5);
         mv.visitFieldInsn(Opcodes.PUTFIELD, className, "state", "I");
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitVarInsn(Opcodes.ILOAD, 2);
+        mv.visitFieldInsn(Opcodes.PUTFIELD, className, "index", "I");
         mv.visitVarInsn(Opcodes.ALOAD, 0);
         mv.visitInsn(Opcodes.ARETURN);
 
@@ -258,24 +322,41 @@ public class MatcherClassBuilder {
             generateTransitions(state, mv);
         }
 
-        mv.visitMaxs(2, 5);
+        mv.visitMaxs(3, 6);
         mv.visitEnd();
     }
 
     private void generateLengthGuard(MethodVisitor mv) {
-        mv.visitVarInsn(Opcodes.ALOAD, 1);
-        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
         mv.visitVarInsn(Opcodes.ILOAD, 3);
+        mv.visitVarInsn(Opcodes.ILOAD, 2);
         mv.visitInsn(Opcodes.ISUB);
         mv.visitJumpInsn(Opcodes.IFLE, saveLabel);
 
         mv.visitVarInsn(Opcodes.ALOAD, 1);
-        mv.visitVarInsn(Opcodes.ILOAD, 3);
+        mv.visitVarInsn(Opcodes.ILOAD, 2);
         mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C", false);
-        mv.visitVarInsn(Opcodes.ISTORE, 4);
+        mv.visitVarInsn(Opcodes.ISTORE, 6);
+
+        if (debugMode) {
+            mv.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/System", "out", Type.getDescriptor(PrintStream.class));
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitLdcInsn("DFA <- ");
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "print", "(Ljava/lang/String;)V", false);
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitVarInsn(Opcodes.ILOAD, 6);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "print", "(C)V", false);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "println", "()V", false);
+        }
     }
 
     private void generateTransitions(DfaState source, MethodVisitor mv) {
+        if (source.isTerminal()) {
+            Label noReluctant = new Label();
+            mv.visitVarInsn(Opcodes.ILOAD, 4);
+            mv.visitJumpInsn(Opcodes.IFNE, saveLabel);
+            mv.visitLabel(noReluctant);
+        }
+
         MapOfChars<DfaState> targets = getTransitions(source);
         MapOfChars<DfaState> rangeTargets = targets.clone();
 
@@ -296,7 +377,7 @@ public class MatcherClassBuilder {
 
         Label nonSingleChars = new Label();
         if (!keys.isEmpty()) {
-            mv.visitVarInsn(Opcodes.ILOAD, 4);
+            mv.visitVarInsn(Opcodes.ILOAD, 6);
             mv.visitLookupSwitchInsn(nonSingleChars, keys.stream().mapToInt(Integer::intValue).toArray(),
                     labels.toArray(new Label[0]));
             for (int i = 0; i < labels.size(); ++i) {
@@ -311,29 +392,46 @@ public class MatcherClassBuilder {
 
     private void generateBinaryMatcher(MethodVisitor mv, DfaState source, MapOfChars<DfaState> targets) {
         int[] toggleIndexes = targets.getToggleIndexes();
-        generateBinaryMatcher(mv, source, targets, toggleIndexes, 0, toggleIndexes.length);
+        if (toggleIndexes.length == 0) {
+            debug(mv, "DFA: " + source.getIndex() + " -> error");
+            mv.visitJumpInsn(Opcodes.GOTO, errorLabel);
+        } else {
+            generateBinaryMatcher(mv, source, targets, toggleIndexes, 0, toggleIndexes.length - 1);
+        }
     }
 
     private void generateBinaryMatcher(MethodVisitor mv, DfaState source, MapOfChars<DfaState> targets,
             int[] indexes, int l, int u) {
-        if (l == u) {
-            mv.visitJumpInsn(Opcodes.GOTO, errorLabel);
-        } else if (l + 1 == u) {
-            DfaState target = targets.get(indexes[l]);
+        int mid = (l + u) / 2;
+        mv.visitVarInsn(Opcodes.ILOAD, 6);
+        mv.visitLdcInsn(indexes[mid]);
+        mv.visitInsn(Opcodes.ISUB);
+        Label less = new Label();
+        mv.visitJumpInsn(Opcodes.IFLT, less);
+
+        if (mid + 1 > u) {
+            DfaState target = targets.get(indexes[mid]);
             if (target == null) {
+                debug(mv, "DFA: " + source.getIndex() + " -> error");
                 mv.visitJumpInsn(Opcodes.GOTO, errorLabel);
             } else {
                 generateTransition(mv, source, target);
             }
         } else {
-            int mid = (l + u) / 2;
-            mv.visitVarInsn(Opcodes.ILOAD, 4);
-            mv.visitLdcInsn(indexes[mid]);
-            mv.visitInsn(Opcodes.ISUB);
-            Label less = new Label();
-            mv.visitJumpInsn(Opcodes.IFLT, less);
-            generateBinaryMatcher(mv, source, targets, indexes, mid, u);
-            mv.visitLabel(less);
+            generateBinaryMatcher(mv, source, targets, indexes, mid + 1, u);
+        }
+
+        mv.visitLabel(less);
+
+        if (mid - 1 < l) {
+            DfaState target = targets.get(indexes[mid] - 1);
+            if (target == null) {
+                debug(mv, "DFA: " + source.getIndex() + " -> error");
+                mv.visitJumpInsn(Opcodes.GOTO, errorLabel);
+            } else {
+                generateTransition(mv, source, target);
+            }
+        } else {
             generateBinaryMatcher(mv, source, targets, indexes, l, mid - 1);
         }
     }
@@ -345,14 +443,16 @@ public class MatcherClassBuilder {
             mv.visitFieldInsn(Opcodes.PUTFIELD, className, "domain", "I");
         }
         mv.visitIntInsn(Opcodes.SIPUSH, target.getIndex());
-        mv.visitVarInsn(Opcodes.ISTORE, 2);
+        mv.visitVarInsn(Opcodes.ISTORE, 5);
         if (target.isTerminal() && source != target) {
             mv.visitVarInsn(Opcodes.ALOAD, 0);
             mv.visitIntInsn(Opcodes.SIPUSH, target.getDomains()[0]);
             mv.visitFieldInsn(Opcodes.PUTFIELD, className, "domain", "I");
         }
+        debug(mv, "DFA: " + source.getIndex() + " -> " + target.getIndex() + " "
+                + Arrays.toString(target.getDomains()));
         if (source.getIndex() + 1 == target.getIndex()) {
-            mv.visitIincInsn(3, 1);
+            mv.visitIincInsn(2, 1);
             generateLengthGuard(mv);
             mv.visitJumpInsn(Opcodes.GOTO, stateLabels[target.getIndex()]);
         } else {
@@ -415,5 +515,14 @@ public class MatcherClassBuilder {
             }
         }
         return result;
+    }
+
+    private void debug(MethodVisitor mv, String string) {
+        if (!debugMode) {
+            return;
+        }
+        mv.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/System", "out", Type.getDescriptor(PrintStream.class));
+        mv.visitLdcInsn(string);
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/String;)V", false);
     }
 }

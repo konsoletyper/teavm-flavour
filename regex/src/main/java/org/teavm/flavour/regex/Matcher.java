@@ -20,7 +20,15 @@ package org.teavm.flavour.regex;
  * @author Alexey Andreev
  */
 public interface Matcher {
-    Matcher feed(String text);
+    Matcher feed(String text, int start, int end, boolean reluctant);
+
+    Matcher fork();
+
+    default Matcher feed(String text) {
+        return feed(text, 0, text.length(), false);
+    }
+
+    int index();
 
     Matcher end();
 
@@ -39,7 +47,18 @@ public interface Matcher {
         return isValid();
     }
 
-    default int domain(String text) {
+    default int eat(String text) {
+        if (!isValid()) {
+            return -1;
+        }
+        feed(text, index(), text.length(), true);
+        if (!isTerminal()) {
+            end();
+        }
+        return isValid() ? index() : -1;
+    }
+
+    default int which(String text) {
         restart().feed(text).end();
         return getDomain();
     }
