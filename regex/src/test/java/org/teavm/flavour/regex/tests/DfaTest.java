@@ -34,6 +34,7 @@ import org.teavm.flavour.regex.Matcher;
 import org.teavm.flavour.regex.automata.Ambiguity;
 import org.teavm.flavour.regex.automata.AmbiguityFinder;
 import org.teavm.flavour.regex.automata.Dfa;
+import org.teavm.flavour.regex.parsing.RegexParser;
 
 /**
  *
@@ -42,7 +43,7 @@ import org.teavm.flavour.regex.automata.Dfa;
 public class DfaTest {
     @Test
     public void matchesString() {
-        Dfa dfa = Dfa.fromNode(text("foo"));
+        Dfa dfa = parse("foo");
         assertTrue(dfa.matches("foo"));
         assertFalse(dfa.matches("foo*"));
         assertFalse(dfa.matches("fo"));
@@ -50,7 +51,7 @@ public class DfaTest {
 
     @Test
     public void matchesOneOfStrings() {
-        Dfa dfa = Dfa.fromNode(oneOf(text("bar"), text("baz")));
+        Dfa dfa = parse("bar|baz");
         assertTrue(dfa.matches("bar"));
         assertTrue(dfa.matches("baz"));
         assertFalse(dfa.matches("foo"));
@@ -59,7 +60,7 @@ public class DfaTest {
 
     @Test
     public void matchesRepeat() {
-        Dfa dfa = Dfa.fromNode(concat(text("b"), atLeast(1, text("a")), text("r")));
+        Dfa dfa = parse("ba+r");
         assertTrue(dfa.matches("bar"));
         assertTrue(dfa.matches("baaaaaar"));
         assertFalse(dfa.matches("br"));
@@ -68,10 +69,7 @@ public class DfaTest {
 
     @Test
     public void matchesRepeat2() {
-        Dfa dfa = Dfa.fromNode(concat(
-                text("["),
-                atLeast(1, oneOf(text("bar"), text("baz"))),
-                text("]")));
+        Dfa dfa = parse("\\[(bar|baz)+\\]");
         assertTrue(dfa.matches("[bar]"));
         assertTrue(dfa.matches("[barbarbar]"));
         assertTrue(dfa.matches("[bazbarbaz]"));
@@ -139,6 +137,10 @@ public class DfaTest {
         assertThat(ambiguities.size(), is(1));
         assertThat(ambiguities.get(0).getDomains().length, is(2));
         assertThat(dfa.domains(ambiguities.get(0).getExample()).length, is(2));
+    }
+
+    private Dfa parse(String text) {
+        return Dfa.fromNode(new RegexParser().parse(text));
     }
 
     @Test

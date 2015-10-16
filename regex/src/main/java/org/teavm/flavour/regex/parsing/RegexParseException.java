@@ -19,7 +19,7 @@ package org.teavm.flavour.regex.parsing;
  *
  * @author Alexey Andreev
  */
-public class RegexParseException extends Exception {
+public class RegexParseException extends RuntimeException {
     private static final long serialVersionUID = -5589537820207419672L;
     private String text;
     private int index;
