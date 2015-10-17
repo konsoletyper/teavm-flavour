@@ -23,15 +23,20 @@
     <version>0.1.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>teavm-flavour-regex</artifactId>
+  <artifactId>teavm-flavour-routing</artifactId>
 
-  <name>TeaVM Flavour - Expr</name>
-  <description>Efficient regular expression implementation based on deterministic finite automata</description>
+  <name>TeaVM Flavour - Routing</name>
+  <description>Routing library</description>
 
   <dependencies>
     <dependency>
-      <groupId>org.ow2.asm</groupId>
-      <artifactId>asm-debug-all</artifactId>
+      <groupId>org.teavm.flavour</groupId>
+      <artifactId>teavm-flavour-regex</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso-apis</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

@@ -209,11 +209,12 @@
   </build>
 
   <modules>
-    <module>templates</module>
     <module>expr</module>
-    <module>example</module>
+    <module>templates</module>
     <module>widgets</module>
     <module>regex</module>
+    <module>routing</module>
     <module>json</module>
+    <module>example</module>
   </modules>
 </project>
