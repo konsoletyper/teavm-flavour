@@ -343,7 +343,7 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
     }
 
     @Override
-    protected SetOfChars clone() {
+    public SetOfChars clone() {
         try {
             SetOfChars copy = (SetOfChars) super.clone();
             copy.toggleIndexes = toggleIndexes.clone();

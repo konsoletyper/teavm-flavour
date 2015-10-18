@@ -47,12 +47,16 @@ public interface Matcher {
         return isTerminal();
     }
 
-    default int eat(String text) {
+    default int eat(String text, int index) {
         if (!isValid()) {
             return -1;
         }
-        feed(text, index(), text.length(), true);
+        feed(text, index, text.length(), true);
         return isValid() ? index() : -1;
+    }
+
+    default int eat(String text) {
+        return eat(text, index());
     }
 
     default int which(String text) {

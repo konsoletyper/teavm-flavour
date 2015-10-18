@@ -24,15 +24,15 @@ import org.teavm.jso.browser.Window;
  */
 public class PathChangeHandler {
     private Window window;
-    private static PathParser parser;
+    private static PathReader reader;
 
     public PathChangeHandler(Window window) {
         this.window = window;
     }
 
     public PathChangeHandler onChange(Object pathSet) {
-        if (parser == null) {
-            parser = new PathParser();
+        if (reader == null) {
+            reader = new PathReader();
             window.listenHashChange(event -> {
                 StringBuilder sb = new StringBuilder();
                 Location loc = window.getLocation();
@@ -40,10 +40,10 @@ public class PathChangeHandler {
                 if (!loc.getHash().isEmpty()) {
                     sb.append('#').append(loc.getHash());
                 }
-                parser.parse(sb.toString());
+                reader.read(sb.toString());
             });
         }
-        parser.addPathSet(pathSet);
+        reader.addPathSet(pathSet);
         return this;
     }
 }

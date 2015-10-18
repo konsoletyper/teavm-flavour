@@ -13,29 +13,32 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+package org.teavm.flavour.routing.parsing;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class PathParser {
-    private Map<Class<?>, List<Object>> pathSets = new HashMap<>();
+public class PathParserResult {
+    private int caseIndex;
+    private int[] startIndexes;
+    private int[] endIndexes;
 
-    public boolean parse(String path) {
-        return false;
+    PathParserResult(int caseIndex, int[] startIndexes, int[] endIndexes) {
+        this.caseIndex = caseIndex;
+        this.startIndexes = startIndexes;
+        this.endIndexes = endIndexes;
     }
 
-    public void addPathSet(Object pathSet) {
-        for (Class<?> cls : extractTypes(pathSet)) {
-            pathSets.computeIfAbsent(cls, key -> new ArrayList<>()).add(pathSet);
-        }
+    public int getCaseIndex() {
+        return caseIndex;
     }
 
-    private static native Class<?>[] extractTypes(Object pathSet);
+    public int start(int index) {
+        return startIndexes[index];
+    }
+
+    public int end(int index) {
+        return endIndexes[index];
+    }
 }
