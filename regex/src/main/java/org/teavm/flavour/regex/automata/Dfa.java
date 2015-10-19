@@ -195,7 +195,7 @@ public class Dfa {
             for (int nfaIndex : stateSet.indexes) {
                 NfaState nfaState = nfa.getStates().get(nfaIndex);
                 for (NfaTransition transition : nfaState.getTransitions()) {
-                    if (transition.getCharSet() == null) {
+                    if (transition.getCharSet() == null || transition.getCharSet().isEmpty()) {
                         continue;
                     }
                     transitions.add(new TransitionDescriptor(transition));

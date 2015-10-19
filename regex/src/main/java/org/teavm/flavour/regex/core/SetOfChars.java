@@ -221,7 +221,9 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
             clear(last, otherToggleIndexes[i]);
             last = otherToggleIndexes[i + 1];
         }
-        clear(last, Math.max(toggleIndexes[size - 1], otherToggleIndexes[otherSize - 1]));
+        if (size > 0 && otherSize > 0) {
+            clear(last, Math.max(toggleIndexes[size - 1], otherToggleIndexes[otherSize - 1]));
+        }
         return this;
     }
 
@@ -372,5 +374,9 @@ public final class SetOfChars implements Cloneable, Iterable<Integer> {
 
     public int[] getToggleIndexes() {
         return Arrays.copyOf(toggleIndexes, size);
+    }
+
+    public boolean isEmpty() {
+        return size == 0;
     }
 }

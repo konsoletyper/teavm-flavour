@@ -35,6 +35,7 @@ import org.teavm.flavour.regex.core.SetOfCharsIterator;
 public final class RegexTransformer {
     private static Charset utf8 = Charset.forName("UTF-8");
     private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
+    private static final char[] LC_HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static final SetOfChars VALID_CHARS = new SetOfChars()
             .set('A', 'Z' + 1)
             .set('a', 'z' + 1)
@@ -51,20 +52,40 @@ public final class RegexTransformer {
         return visitor.replacement;
     }
 
-    public static String escapeString(String text) {
+    public static Node escapeString(String text) {
+        ConcatNode result = new ConcatNode();
         StringBuilder sb = new StringBuilder();
         ByteBuffer octetBuffer = utf8.encode(text);
         byte[] octets = new byte[octetBuffer.remaining()];
         octetBuffer.get(octets);
         for (int i = 0; i < octets.length; ++i) {
-            byte octet = octets[i];
-            if (!isValid((char) octet)) {
-                sb.append('%').append(HEX_DIGITS[octet / 16]).append(HEX_DIGITS[octet % 16]);
-            } else {
+            int octet = octets[i];
+            if (octet < 0) {
+                octet += 256;
+            }
+            if (isValid((char) octet)) {
                 sb.append((char) octet);
+            } else {
+                if (sb.length() > 0) {
+                    result.getSequence().add(Node.text(sb.toString()));
+                    sb.setLength(0);
+                }
+                result.getSequence().add(Node.text("%"));
+                result.getSequence().add(hex(octet / 16));
+                result.getSequence().add(hex(octet % 16));
             }
         }
-        return sb.toString();
+        if (sb.length() > 0) {
+            result.getSequence().add(Node.text(sb.toString()));
+            sb.setLength(0);
+        }
+        return result;
+    }
+
+    private static Node hex(int digit) {
+        char h = HEX_DIGITS[digit];
+        char l = LC_HEX_DIGITS[digit];
+        return Node.range(new SetOfChars().set(h).set(l));
     }
 
     public static boolean isValid(char c) {
@@ -93,7 +114,7 @@ public final class RegexTransformer {
 
         @Override
         public void visit(TextNode node) {
-            replacement = new TextNode(escapeString(node.getValue()));
+            replacement = escapeString(node.getValue());
         }
 
         @Override
@@ -103,7 +124,7 @@ public final class RegexTransformer {
                 child.acceptVisitor(this);
                 result.getSequence().add(replacement);
             }
-            replacement = node;
+            replacement = result;
         }
 
         @Override
@@ -119,8 +140,8 @@ public final class RegexTransformer {
                                 oneOf = new OneOfNode();
                                 replacement = oneOf;
                             }
-                            String escaped = escapeString(String.valueOf((char) i));
-                            oneOf.getElements().add(Node.text(escaped));
+                            Node escaped = escapeString(String.valueOf((char) i));
+                            oneOf.getElements().add(escaped);
                         }
                     }
                 }

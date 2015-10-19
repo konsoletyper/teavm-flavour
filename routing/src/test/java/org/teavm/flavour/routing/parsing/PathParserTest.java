@@ -44,4 +44,21 @@ public class PathParserTest {
         assertThat(result.start(0), is(7));
         assertThat(result.end(0), is(9));
     }
+
+    @Test
+    public void transformsRegex() {
+        PathParserBuilder builder = new PathParserBuilder();
+        builder.path().escapedRegex("foo|bar-[0-9/]*|baz-///|чай");
+        PathParser parser = builder.build();
+
+        assertThat(parser.parse("foo").getCaseIndex(), is(0));
+        assertThat(parser.parse("bar-23").getCaseIndex(), is(0));
+        assertThat(parser.parse("bar-2/3").getCaseIndex(), is(-1));
+        assertThat(parser.parse("bar-2%2F3").getCaseIndex(), is(0));
+        assertThat(parser.parse("bar-2%2f3").getCaseIndex(), is(0));
+        assertThat(parser.parse("baz-//").getCaseIndex(), is(-1));
+        assertThat(parser.parse("baz-%2F%2F").getCaseIndex(), is(-1));
+        assertThat(parser.parse("%D1%87%D0%B0%D0%B9").getCaseIndex(), is(0));
+        assertThat(parser.parse("%d1%87%D0%B0%D0%b9").getCaseIndex(), is(0));
+    }
 }
