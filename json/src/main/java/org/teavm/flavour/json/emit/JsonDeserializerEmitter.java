@@ -233,7 +233,7 @@ class JsonDeserializerEmitter {
                 .thenDo(() -> pe.jump(invalidValueBlock));
 
         ValueEmitter textVar = nodeVar.cast(StringNode.class).invokeVirtual("getValue", String.class);
-        StringChooseEmitter choise = pe.stringChoise(textVar);
+        StringChooseEmitter choise = pe.stringChoice(textVar);
         for (String enumValue : valueSet) {
             choise.option(enumValue, () -> pe
                     .initClass(deserializedClassName)
@@ -323,7 +323,7 @@ class JsonDeserializerEmitter {
         String rootTypeName = getTypeName(information, information);
         subTypes.put(rootTypeName, information);
 
-        StringChooseEmitter choice = pe.stringChoise(taggedObject.tag);
+        StringChooseEmitter choice = pe.stringChoice(taggedObject.tag);
         for (ClassInformation subType : information.inheritance.subTypes) {
             choice.option(getTypeName(information, subType), () -> createObjectDeserializer(subType.className)
                             .invokeVirtual("deserialize", Object.class, contextVar, nodeVar.cast(Node.class))
