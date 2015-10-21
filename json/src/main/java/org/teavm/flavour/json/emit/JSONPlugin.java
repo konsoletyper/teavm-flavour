@@ -17,7 +17,6 @@ package org.teavm.flavour.json.emit;
 
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
-import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.model.MethodReference;
 import org.teavm.vm.spi.TeaVMHost;
 import org.teavm.vm.spi.TeaVMPlugin;
@@ -33,8 +32,6 @@ public class JSONPlugin implements TeaVMPlugin {
         DeserializerDependencyListener deserializerDep = new DeserializerDependencyListener();
         host.add(serializerDep);
         host.add(deserializerDep);
-        host.add(new MethodReference(JSON.class, "getClassSerializer", String.class, JsonSerializer.class),
-                new SerializerGenerator(serializerDep));
         host.add(new MethodReference(JSON.class, "findClassDeserializer", String.class, JsonDeserializer.class),
                 new DeserializerGenerator(deserializerDep));
     }
