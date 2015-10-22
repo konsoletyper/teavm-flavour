@@ -13,35 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing;
+package org.teavm.flavour.routing.emit;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class PathReader {
-    private Map<Class<?>, List<Object>> pathSets = new HashMap<>();
+class RouteSetDescriptor {
+    String className;
+    private List<RouteDescriptor> routes = new ArrayList<>();
 
-    public boolean read(String path) {
-        return false;
+    public RouteSetDescriptor(String className) {
+        this.className = className;
     }
 
-    public void addPathSet(Object pathSet) {
-        for (Class<?> cls : extractTypes(pathSet)) {
-            pathSets.computeIfAbsent(cls, key -> new ArrayList<>()).add(pathSet);
-        }
+    public String getClassName() {
+        return className;
     }
 
-    Collection<Object> getListeners(Class<?> type) {
-        return pathSets.getOrDefault(type, Collections.emptyList());
+    public List<RouteDescriptor> getRoutes() {
+        return routes;
     }
-
-    private static native Class<?>[] extractTypes(Object pathSet);
 }
