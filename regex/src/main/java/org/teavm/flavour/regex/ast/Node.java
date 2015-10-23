@@ -16,6 +16,8 @@
 package org.teavm.flavour.regex.ast;
 
 import org.teavm.flavour.regex.core.SetOfChars;
+import org.teavm.flavour.regex.parsing.RegexParseException;
+import org.teavm.flavour.regex.parsing.RegexParser;
 
 /**
  *
@@ -70,5 +72,9 @@ public abstract class Node {
 
     public static Node optional(Node... nodes) {
         return new RepeatNode(nodes.length == 1 ? nodes[0] : concat(nodes), 0, 1);
+    }
+
+    public static Node parse(String text) throws RegexParseException {
+        return new RegexParser().parse(text);
     }
 }

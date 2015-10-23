@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+package org.teavm.flavour.routing.metadata;
 
 import org.teavm.flavour.regex.ast.Node;
 
@@ -21,12 +21,13 @@ import org.teavm.flavour.regex.ast.Node;
  *
  * @author Alexey Andreev
  */
-class ParameterDescriptor {
+public class ParameterDescriptor {
     int index;
     int javaIndex;
     String name;
     ParameterType type;
     Node pattern;
+    Node effectivePattern;
 
     public ParameterDescriptor(int javaIndex, String name) {
         this.javaIndex = javaIndex;
@@ -53,7 +54,7 @@ class ParameterDescriptor {
         return pattern;
     }
 
-    public void setPattern(Node pattern) {
-        this.pattern = pattern;
+    public Node getEffectivePattern() {
+        return effectivePattern;
     }
 }

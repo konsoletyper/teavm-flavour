@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+package org.teavm.flavour.routing.metadata;
 
 import org.teavm.model.MethodDescriptor;
 
@@ -21,7 +21,7 @@ import org.teavm.model.MethodDescriptor;
  *
  * @author Alexey Andreev
  */
-class RouteDescriptor {
+public class RouteDescriptor {
     private MethodDescriptor method;
     private String[] pathParts;
     private ParameterDescriptor[] parameters;
@@ -30,5 +30,21 @@ class RouteDescriptor {
         this.method = method;
         this.pathParts = pathParts;
         this.parameters = parameters;
+    }
+
+    public MethodDescriptor getMethod() {
+        return method;
+    }
+
+    public int pathPartCount() {
+        return pathParts.length;
+    }
+
+    public String pathPart(int index) {
+        return pathParts[index];
+    }
+
+    public ParameterDescriptor parameter(int index) {
+        return parameters[index];
     }
 }

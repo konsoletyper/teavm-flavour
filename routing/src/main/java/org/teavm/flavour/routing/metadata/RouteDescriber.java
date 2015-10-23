@@ -13,13 +13,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+package org.teavm.flavour.routing.metadata;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.regex.ast.Node;
+import org.teavm.flavour.regex.parsing.RegexParseException;
 import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.Pattern;
@@ -36,12 +38,18 @@ import org.teavm.model.ValueType;
  *
  * @author Alexey Andreev
  */
-class RouteDescriber {
+public class RouteDescriber {
     private ClassReaderSource classSource;
     private Diagnostics diagnostics;
     private CallLocation location;
 
-    private RouteSetDescriptor parseRouteSet(String className) {
+    public RouteDescriber(ClassReaderSource classSource, Diagnostics diagnostics, CallLocation location) {
+        this.classSource = classSource;
+        this.diagnostics = diagnostics;
+        this.location = location;
+    }
+
+    public RouteSetDescriptor parseRouteSet(String className) {
         ClassReader cls = classSource.get(className);
         RouteSetDescriptor descriptor = new RouteSetDescriptor(className);
 
@@ -49,7 +57,7 @@ class RouteDescriber {
             if (method.hasModifier(ElementModifier.STATIC) || !method.hasModifier(ElementModifier.ABSTRACT)) {
                 continue;
             }
-
+            descriptor.routes.add(parseRoute(method));
         }
 
         return descriptor;
@@ -60,6 +68,7 @@ class RouteDescriber {
         List<ParameterDescriptor> parameters = new ArrayList<>();
         Map<String, Integer> parameterNames = parseParameterNames(method);
         if (parsePath(method, pathParts, parameters, parameterNames)) {
+            parseAnnotationsAndTypes(method, parameters);
             return new RouteDescriptor(method.getDescriptor(),
                     pathParts.toArray(new String[0]), parameters.toArray(new ParameterDescriptor[0]));
         } else {
@@ -143,10 +152,57 @@ class RouteDescriber {
             param.type = convertType(paramType);
             if (param.type == null) {
                 diagnostics.error(location, "Wrong parameter type {{t0}} on method {{m1}}", method.getReference());
+                continue;
             }
 
             AnnotationReader patternAnnot = paramAnnotations.get(Pattern.class.getName());
+            if (patternAnnot != null) {
+                if (param.type != ParameterType.STRING) {
+                    diagnostics.error(location, "Parameter " + (param.index + 1) + " of {{m0}} is marked with "
+                            + "{{c1}} annotation, and its type is not {{c2}", method.getReference(),
+                            patternAnnot.getType(), "java.lang.String");
+                } else {
+                    try {
+                        param.pattern = Node.parse(patternAnnot.getValue("value").getString());
+                    } catch (RegexParseException e) {
+                        diagnostics.error(location, "Parameter " + (param.index + 1) + " of {{m0}} is marked with "
+                                + "{{c1}} annotation with syntax error in regex at position " + e.getIndex(),
+                                method.getReference(), patternAnnot.getType());
+                    }
+                }
+            }
+
+            if (param.pattern != null) {
+                param.effectivePattern = param.pattern;
+            } else {
+                param.effectivePattern = getDefaultPattern(param);
+            }
         }
+    }
+
+    private Node getDefaultPattern(ParameterDescriptor parameter) {
+        switch (parameter.type) {
+            case STRING:
+                return Node.atLeast(1, Node.range('\0', Character.MAX_VALUE));
+            case BYTE:
+            case SHORT:
+            case INTEGER:
+            case LONG:
+            case BIG_INTEGER:
+                return Node.atLeast(1, Node.range('0', '9'));
+            case DOUBLE:
+            case FLOAT:
+            case BIG_DECIMAL: {
+                Node digits = Node.parse("\\d+");
+                Node exponent = Node.parse("[eE]");
+                Node frac = Node.concat(Node.character('.'), digits);
+                Node fracWithExponent = Node.concat(frac, Node.optional(exponent));
+                return Node.concat(digits, Node.optional(Node.oneOf(fracWithExponent, exponent)));
+            }
+            case DATE:
+                return Node.parse("\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?)?");
+        }
+        return null;
     }
 
     private ParameterType convertType(ValueType paramType) {

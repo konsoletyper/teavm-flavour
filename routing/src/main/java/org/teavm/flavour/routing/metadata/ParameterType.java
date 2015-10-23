@@ -13,13 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+package org.teavm.flavour.routing.metadata;
 
 /**
  *
  * @author Alexey Andreev
  */
-enum ParameterType {
+public enum ParameterType {
     STRING,
     BYTE,
     SHORT,

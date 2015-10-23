@@ -13,18 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+package org.teavm.flavour.routing.metadata;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  *
  * @author Alexey Andreev
  */
-class RouteSetDescriptor {
+public class RouteSetDescriptor {
     String className;
-    private List<RouteDescriptor> routes = new ArrayList<>();
+    List<RouteDescriptor> routes = new ArrayList<>();
+    private List<RouteDescriptor> readonlyRoutes;
 
     public RouteSetDescriptor(String className) {
         this.className = className;
@@ -35,6 +37,9 @@ class RouteSetDescriptor {
     }
 
     public List<RouteDescriptor> getRoutes() {
-        return routes;
+        if (readonlyRoutes == null) {
+            readonlyRoutes = Collections.unmodifiableList(routes);
+        }
+        return readonlyRoutes;
     }
 }
