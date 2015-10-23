@@ -41,10 +41,6 @@ class ParameterDescriptor {
         return index;
     }
 
-    void setIndex(int index) {
-        this.index = index;
-    }
-
     public int getJavaIndex() {
         return javaIndex;
     }

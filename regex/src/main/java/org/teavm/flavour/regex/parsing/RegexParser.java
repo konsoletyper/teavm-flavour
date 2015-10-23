@@ -31,6 +31,29 @@ public class RegexParser {
     private String text;
     private int index;
 
+    public Node parse(String text, int start, char terminalChar) throws RegexParseException {
+        index = start;
+        this.text = text;
+        try {
+            Optional<Node> result = parseUnion();
+            if (!result.isPresent()) {
+                throw new RegexParseException("Unexpected character at " + index, text, index);
+            }
+            if (index != text.length()) {
+                throw new RegexParseException("Unexpected end of string", text, index);
+            } else if (text.charAt(index) != terminalChar) {
+                throw new RegexParseException("Unexpected character at " + index, text, index);
+            }
+            return result.get();
+        } finally {
+            this.text = null;
+        }
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
     public Node parse(String text) throws RegexParseException {
         index = 0;
         this.text = text;

@@ -22,6 +22,7 @@ import java.util.Map;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
+import org.teavm.flavour.routing.Pattern;
 import org.teavm.model.AnnotationContainerReader;
 import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
@@ -29,6 +30,7 @@ import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
 import org.teavm.model.MethodReader;
+import org.teavm.model.ValueType;
 
 /**
  *
@@ -56,13 +58,16 @@ class RouteDescriber {
     private RouteDescriptor parseRoute(MethodReader method) {
         List<String> pathParts = new ArrayList<>();
         List<ParameterDescriptor> parameters = new ArrayList<>();
-        AnnotationReader pathAnnot = method.getAnnotations().get(Path.class.getName());
-        if (pathAnnot == null) {
-            diagnostics.error(location, "Missing {{c0}} annotation on {{m1}}", Path.class.getName(),
-                    method.getReference());
+        Map<String, Integer> parameterNames = parseParameterNames(method);
+        if (parsePath(method, pathParts, parameters, parameterNames)) {
+            return new RouteDescriptor(method.getDescriptor(),
+                    pathParts.toArray(new String[0]), parameters.toArray(new ParameterDescriptor[0]));
+        } else {
             return null;
         }
+    }
 
+    private Map<String, Integer> parseParameterNames(MethodReader method) {
         AnnotationContainerReader[] parameterAnnotations = new AnnotationContainerReader[0];
         Map<String, Integer> parameterNames = new HashMap<>();
         for (int i = 0; i < method.parameterCount(); ++i) {
@@ -84,6 +89,20 @@ class RouteDescriber {
                         + " and "  + (parameterNames.get(alias) + 1) + " of {{m0}}", method.getReference());
                 continue;
             }
+
+            parameterNames.put(alias, i);
+        }
+
+        return parameterNames;
+    }
+
+    private boolean parsePath(MethodReader method, List<String> pathParts, List<ParameterDescriptor> parameters,
+            Map<String, Integer> parameterNames) {
+        AnnotationReader pathAnnot = method.getAnnotations().get(Path.class.getName());
+        if (pathAnnot == null) {
+            diagnostics.error(location, "Missing {{c0}} annotation on {{m1}}", Path.class.getName(),
+                    method.getReference());
+            return false;
         }
 
         String path = pathAnnot.getValue("value").getString();
@@ -94,24 +113,79 @@ class RouteDescriber {
                 break;
             }
             pathParts.add(path.substring(index, next));
-            int sep = next + 1;
-            while (sep < path.length()) {
-                if (sep == ':') {
-                    break;
-                } else if (sep == '}') {
-                    break;
-                }
+            int end = path.indexOf('}', next + 1);
+            if (end < 0) {
+                diagnostics.error(location, "Missing closing parenthesis on path of {{m0}}", method.getReference());
+                return false;
             }
-            if (sep == path.length()) {
-                diagnostics.error(location, "Wrong path format for {{m0}}: open curly brace has not matching pair",
+            String alias = path.substring(next + 1, end);
+            index = next + 1;
+
+            Integer paramIndex = parameterNames.get(alias);
+            if (paramIndex == null) {
+                diagnostics.error(location, "No parameter " + alias + ", referred by path, found in {{m0}}",
                         method.getReference());
-                return null;
             }
+            ParameterDescriptor param = new ParameterDescriptor(paramIndex, alias);
+            param.index = parameters.size();
+            parameters.add(param);
         }
         pathParts.add(path.substring(index));
 
-        return new RouteDescriptor(method.getDescriptor(),
-                pathParts.toArray(new String[0]), parameters.toArray(new ParameterDescriptor[0]));
+        return true;
+    }
+
+    private void parseAnnotationsAndTypes(MethodReader method, List<ParameterDescriptor> parameters) {
+        AnnotationContainerReader[] annotations = method.getParameterAnnotations();
+        for (ParameterDescriptor param : parameters) {
+            ValueType paramType = method.parameterType(param.javaIndex);
+            AnnotationContainerReader paramAnnotations = annotations[param.javaIndex];
+            param.type = convertType(paramType);
+            if (param.type == null) {
+                diagnostics.error(location, "Wrong parameter type {{t0}} on method {{m1}}", method.getReference());
+            }
+
+            AnnotationReader patternAnnot = paramAnnotations.get(Pattern.class.getName());
+        }
+    }
+
+    private ParameterType convertType(ValueType paramType) {
+        if (paramType instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) paramType).getKind()) {
+                case BYTE:
+                    return ParameterType.BYTE;
+                case SHORT:
+                    return ParameterType.SHORT;
+                case INTEGER:
+                    return ParameterType.INTEGER;
+                case LONG:
+                    return ParameterType.LONG;
+                case FLOAT:
+                    return ParameterType.FLOAT;
+                case DOUBLE:
+                    return ParameterType.DOUBLE;
+                default:
+                    break;
+            }
+        } else if (paramType instanceof ValueType.Object) {
+            String className = ((ValueType.Object) paramType).getClassName();
+            switch (className) {
+                case "java.lang.String":
+                    return ParameterType.STRING;
+                case "java.math.BigDecimal":
+                    return ParameterType.BIG_DECIMAL;
+                case "java.math.BigInteger":
+                    return ParameterType.BIG_INTEGER;
+                case "java.util.Date":
+                    return ParameterType.DATE;
+                default:
+                    break;
+            }
+            if (classSource.isSuperType("java.lang.Enum", className).isPresent()) {
+                return ParameterType.ENUM;
+            }
+        }
+        return null;
     }
 
     private boolean isProperAliasName(String alias) {
