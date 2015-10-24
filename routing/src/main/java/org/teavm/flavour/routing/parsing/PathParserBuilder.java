@@ -33,7 +33,11 @@ public class PathParserBuilder {
         return pathBuilder;
     }
 
-    public PathParser build() {
+    public PathParser buildUnprepared() {
         return new PathParser(pathBuilders);
+    }
+
+    public PathParser build() {
+        return build().prepare();
     }
 }

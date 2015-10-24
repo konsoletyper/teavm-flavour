@@ -29,8 +29,16 @@ import org.teavm.flavour.regex.automata.Dfa;
  * @author Alexey Andreev
  */
 public class PathParser {
-    private PathParserCase[] cases;
-    private Pattern caseSelector;
+    PathParserCase[] cases;
+    Dfa caseSelectorDfa;
+    Pattern caseSelector;
+    boolean prepared;
+
+    PathParser(PathParserCase[] cases, Pattern caseSelector) {
+        this.cases = cases;
+        this.caseSelector = caseSelector;
+        prepared = true;
+    }
 
     PathParser(List<PathBuilder> pathBuilders) {
         List<PathParserCase> cases = new ArrayList<>();
@@ -73,7 +81,7 @@ public class PathParser {
             }
 
             for (int j = 0; j < elements.size(); ++j) {
-                elements.get(j).pattern = Dfa.fromNode(parserCaseNodes.get(j)).compile();
+                elements.get(j).patternDfa = Dfa.fromNode(parserCaseNodes.get(j));
             }
 
             PathParserCase parserCase = new PathParserCase();
@@ -81,9 +89,23 @@ public class PathParser {
             parserCase.elements = elements.toArray(new PathParserElement[elements.size()]);
             cases.add(parserCase);
         }
-        caseSelector = Dfa.fromNodes(caseNodes).compile();
+        caseSelectorDfa = Dfa.fromNodes(caseNodes);
 
         this.cases = cases.toArray(new PathParserCase[cases.size() - 1]);
+    }
+
+    public PathParser prepare() {
+        if (prepared) {
+            return this;
+        }
+        prepared = true;
+        caseSelector = caseSelectorDfa.compile();
+        for (PathParserCase parserCase : cases) {
+            for (PathParserElement elem : parserCase.elements) {
+                elem.pattern = elem.patternDfa.compile();
+            }
+        }
+        return this;
     }
 
     public PathParserResult parse(String path) {
@@ -132,6 +154,7 @@ public class PathParser {
     }
 
     static class PathParserElement {
+        Dfa patternDfa;
         Pattern pattern;
         int suffixLength;
     }

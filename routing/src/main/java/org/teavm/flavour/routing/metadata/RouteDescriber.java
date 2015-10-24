@@ -49,7 +49,7 @@ public class RouteDescriber {
         this.location = location;
     }
 
-    public RouteSetDescriptor parseRouteSet(String className) {
+    public RouteSetDescriptor describeRouteSet(String className) {
         ClassReader cls = classSource.get(className);
         RouteSetDescriptor descriptor = new RouteSetDescriptor(className);
 
@@ -57,13 +57,13 @@ public class RouteDescriber {
             if (method.hasModifier(ElementModifier.STATIC) || !method.hasModifier(ElementModifier.ABSTRACT)) {
                 continue;
             }
-            descriptor.routes.add(parseRoute(method));
+            descriptor.routes.add(describeRoute(method));
         }
 
         return descriptor;
     }
 
-    private RouteDescriptor parseRoute(MethodReader method) {
+    private RouteDescriptor describeRoute(MethodReader method) {
         List<String> pathParts = new ArrayList<>();
         List<ParameterDescriptor> parameters = new ArrayList<>();
         Map<String, Integer> parameterNames = parseParameterNames(method);
@@ -148,6 +148,7 @@ public class RouteDescriber {
         AnnotationContainerReader[] annotations = method.getParameterAnnotations();
         for (ParameterDescriptor param : parameters) {
             ValueType paramType = method.parameterType(param.javaIndex);
+            param.valueType = paramType;
             AnnotationContainerReader paramAnnotations = annotations[param.javaIndex];
             param.type = convertType(paramType);
             if (param.type == null) {
@@ -201,8 +202,20 @@ public class RouteDescriber {
             }
             case DATE:
                 return Node.parse("\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?)?");
+            case ENUM:
+                return getDefaultPatternForEnum(parameter);
+            default:
+                throw new AssertionError("Unknown parameter type: " + parameter.type);
         }
-        return null;
+    }
+
+    private Node getDefaultPatternForEnum(ParameterDescriptor parameter) {
+        String className = ((ValueType.Object) parameter.valueType).getClassName();
+        ClassReader cls = classSource.get(className);
+        return Node.oneOf(cls.getFields().stream()
+                .filter(field -> field.hasModifier(ElementModifier.STATIC) && field.getType().isObject(className))
+                .map(field -> Node.text(field.getName()))
+                .<Node>toArray(sz -> new Node[sz]));
     }
 
     private ParameterType convertType(ValueType paramType) {

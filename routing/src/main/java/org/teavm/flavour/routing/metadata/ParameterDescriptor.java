@@ -16,6 +16,7 @@
 package org.teavm.flavour.routing.metadata;
 
 import org.teavm.flavour.regex.ast.Node;
+import org.teavm.model.ValueType;
 
 /**
  *
@@ -26,6 +27,7 @@ public class ParameterDescriptor {
     int javaIndex;
     String name;
     ParameterType type;
+    ValueType valueType;
     Node pattern;
     Node effectivePattern;
 
@@ -56,5 +58,9 @@ public class ParameterDescriptor {
 
     public Node getEffectivePattern() {
         return effectivePattern;
+    }
+
+    public ValueType getValueType() {
+        return valueType;
     }
 }

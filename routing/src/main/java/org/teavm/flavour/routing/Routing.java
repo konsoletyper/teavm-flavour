@@ -15,30 +15,18 @@
  */
 package org.teavm.flavour.routing;
 
-import org.teavm.jso.browser.Window;
+import java.util.function.Consumer;
+
 
 /**
  *
  * @author Alexey Andreev
  */
-public final class Routing {
-    private static PathChangeHandler pathChangeHandler;
-
+final class Routing {
     private Routing() {
     }
 
-    public static <T> PathBuilder<T> pathBuilder(Class<T> pathBuilder) {
-        return null;
-    }
+    static native PathReader getReader(String className);
 
-    public static <T> T open(Class<T> pathSetType) {
-        return null;
-    }
-
-    public static PathChangeHandler handler() {
-        if (pathChangeHandler == null) {
-            pathChangeHandler = new PathChangeHandler(Window.current());
-        }
-        return pathChangeHandler;
-    }
+    static native <T extends Route> T createBuilderProxy(Class<T> routeType, Consumer<String> consumer);
 }
