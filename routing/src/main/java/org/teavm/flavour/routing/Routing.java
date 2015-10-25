@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.routing;
 
-import java.util.function.Consumer;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.core.JSArray;
 import org.teavm.jso.core.JSDate;
@@ -35,9 +34,11 @@ final class Routing {
         return getImplementorImpl(route.getClass().getName());
     }
 
-    private static native PathImplementor getImplementorImpl(String className);
+    static PathImplementor getImplementorByClass(Class<?> routeType) {
+        return getImplementorImpl(routeType.getName());
+    }
 
-    static native <T extends Route> T createBuilderProxy(Class<T> routeType, Consumer<String> consumer);
+    private static native PathImplementor getImplementorImpl(String className);
 
     static long parseDate(String text) {
         JSRegExp regex = JSRegExp.create("(\\d{4})-(\\d{2})-(\\d{2})(T(\\d{2}):(\\d{2}):(\\d{2}))?");
@@ -47,6 +48,30 @@ final class Routing {
         return (long) date.getTime();
     }
 
+    static String dateToString(long millis) {
+        JSDate date = JSDate.create(millis);
+        return padYear(date.getUTCFullYear())
+                .concat(JSString.valueOf("-")).concat(padDate(date.getUTCMonth() + 1))
+                .concat(JSString.valueOf("-")).concat(padDate(date.getUTCDate()))
+                .concat(JSString.valueOf("T")).concat(padDate(date.getUTCHours()))
+                .concat(JSString.valueOf(":")).concat(padDate(date.getUTCMinutes()))
+                .concat(JSString.valueOf(":")).concat(padDate(date.getUTCSeconds()))
+                .stringValue();
+    }
+
     @JSBody(params = "string", script = "return typeof(string) != 'undefined' ? parseInt(string) : 0;")
     static native int parseInt(JSString string);
+
+    static JSString padYear(int value) {
+        JSString str = intToString(value);
+        str = JSString.valueOf("0000").substring(str.getLength()).concat(str);
+        return str;
+    }
+
+    static JSString padDate(int value) {
+        return value < 10 ? JSString.valueOf("0").concat(intToString(value)) : intToString(value);
+    }
+
+    @JSBody(params = "num", script = "return num.toString();")
+    static native JSString intToString(int num);
 }

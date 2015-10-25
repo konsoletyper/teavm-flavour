@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.routing.PathSet;
@@ -57,23 +58,25 @@ import org.teavm.model.emit.ValueEmitter;
  *
  * @author Alexey Andreev
  */
-class RouteParserEmitter {
+class RouteImplementorEmitter {
     public static final String PATH_IMPLEMENTOR_CLASS = Route.class.getPackage().getName() + ".PathImplementor";
     public static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
     private DependencyAgent agent;
     private ClassReaderSource classSource;
     private Diagnostics diagnostics;
     private PathParserEmitter pathParserEmitter;
+    private RouteProxyEmitter proxyEmitter;
     private RouteDescriber describer;
     private Map<String, String> routeImplementors = new HashMap<>();
     private Map<String, String> routeIfaceImplementors = new HashMap<>();
     int suffixGenerator;
 
-    public RouteParserEmitter(DependencyAgent agent) {
+    public RouteImplementorEmitter(DependencyAgent agent) {
         this.agent = agent;
         classSource = agent.getClassSource();
         diagnostics = agent.getDiagnostics();
         pathParserEmitter = new PathParserEmitter(agent);
+        proxyEmitter = new RouteProxyEmitter(agent, classSource);
     }
 
     public Program emitGetter(MethodReference method) {
@@ -137,11 +140,17 @@ class RouteParserEmitter {
         emitConstructor(ProgramEmitter.create(ctor, classSource), implementorClass.getName(), descriptor);
         implementorClass.addMethod(ctor);
 
-        MethodHolder worker = new MethodHolder("read", ValueType.parse(String.class), ValueType.parse(Route.class),
+        MethodHolder reader = new MethodHolder("read", ValueType.parse(String.class), ValueType.parse(Route.class),
                 ValueType.BOOLEAN);
-        worker.setLevel(AccessLevel.PUBLIC);
-        emitWorker(ProgramEmitter.create(worker, classSource), implementorClass.getName(), routeIface, descriptor);
-        implementorClass.addMethod(worker);
+        reader.setLevel(AccessLevel.PUBLIC);
+        emitReadMethod(ProgramEmitter.create(reader, classSource), implementorClass.getName(), routeIface, descriptor);
+        implementorClass.addMethod(reader);
+
+        MethodHolder writer = new MethodHolder("write", ValueType.parse(Consumer.class),
+                ValueType.parse(Route.class));
+        writer.setLevel(AccessLevel.PUBLIC);
+        emitWriteMethod(ProgramEmitter.create(writer, classSource), descriptor);
+        implementorClass.addMethod(writer);
 
         agent.submitClass(implementorClass);
 
@@ -156,7 +165,7 @@ class RouteParserEmitter {
         pe.exit();
     }
 
-    private void emitWorker(ProgramEmitter pe, String className, String routeType, RouteSetDescriptor descriptor) {
+    private void emitReadMethod(ProgramEmitter pe, String className, String routeType, RouteSetDescriptor descriptor) {
         ValueEmitter thisVar = pe.var(0, ValueType.object(className));
         ValueEmitter pathVar = pe.var(1, String.class);
         ValueEmitter routeVar = pe.var(2, Route.class).cast(ValueType.object(routeType));
@@ -186,6 +195,12 @@ class RouteParserEmitter {
         choice.otherwise(() -> pe.constant(0).returnValue());
 
         pe.constant(1).returnValue();
+    }
+
+    private void emitWriteMethod(ProgramEmitter pe, RouteSetDescriptor descriptor) {
+        String proxyClassName = proxyEmitter.emitProxy(descriptor);
+        ValueEmitter consumer = pe.var(1, Consumer.class);
+        pe.construct(proxyClassName, consumer).returnValue();
     }
 
     private ValueEmitter emitParam(ValueEmitter stringVar, ParameterDescriptor param) {

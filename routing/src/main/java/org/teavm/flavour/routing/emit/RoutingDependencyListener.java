@@ -31,15 +31,15 @@ import org.teavm.model.ValueType;
 public class RoutingDependencyListener extends AbstractDependencyListener {
     private static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
     private static final MethodReference IMPL_METHOD_REF = new MethodReference(ROUTING_CLASS, "getImplementorImpl",
-            ValueType.parse(String.class), ValueType.object(RouteParserEmitter.PATH_IMPLEMENTOR_CLASS));
-    RouteParserEmitter emitter;
+            ValueType.parse(String.class), ValueType.object(RouteImplementorEmitter.PATH_IMPLEMENTOR_CLASS));
+    RouteImplementorEmitter emitter;
     DependencyAgent agent;
     private boolean getImplementorReached;
 
     @Override
     public void started(DependencyAgent agent) {
         this.agent = agent;
-        emitter = new RouteParserEmitter(agent);
+        emitter = new RouteImplementorEmitter(agent);
     }
 
     @Override
@@ -70,12 +70,14 @@ public class RoutingDependencyListener extends AbstractDependencyListener {
         MethodDependency implMethod = agent.linkMethod(IMPL_METHOD_REF, null);
         node.addConsumer(type -> {
             String implementorType = emitter.emitParser(type.getName(), location);
-            implMethod.getResult().propagate(agent.getType(implementorType));
-            MethodDependency ctor = agent.linkMethod(new MethodReference(implementorType, "<init>", ValueType.VOID),
-                    location);
-            ctor.propagate(0, implementorType);
-            ctor.getThrown().connect(implMethod.getThrown());
-            ctor.use();
+            if (implementorType != null) {
+                implMethod.getResult().propagate(agent.getType(implementorType));
+                MethodDependency ctor = agent.linkMethod(new MethodReference(implementorType, "<init>", ValueType.VOID),
+                        location);
+                ctor.propagate(0, implementorType);
+                ctor.getThrown().connect(implMethod.getThrown());
+                ctor.use();
+            }
         });
 
         MethodDependency equalsDep = agent.linkMethod(new MethodReference(String.class, "equals", Object.class,

@@ -15,8 +15,11 @@
  */
 package org.teavm.flavour.routing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import java.util.Date;
+import java.util.function.Consumer;
 import org.junit.Test;
 import org.teavm.jso.core.JSDate;
 
@@ -24,25 +27,10 @@ import org.teavm.jso.core.JSDate;
  *
  * @author Alexey Andreev
  */
-public class ParserTest {
+public class RoutingTest {
     @Test
     public void parses() {
-        class UsersApp implements UsersRoute {
-            int index;
-            int id;
-            @Override public void users() {
-                index = 1;
-                id = -1;
-            }
-            @Override public void viewUser(int id) {
-                index = 2;
-                this.id = id;
-            }
-            @Override public void editUser(int id) {
-                index = 3;
-                this.id = id;
-            }
-        }
+
 
         UsersApp app = new UsersApp();
         assertTrue(app.parse("users"));
@@ -60,14 +48,41 @@ public class ParserTest {
     }
 
     @Test
-    public void parsesDateParam() {
-        class DateRouteImpl implements DateRoute {
-            Date date;
-            @Override public void path(Date date) {
-                this.date = date;
-            }
-        }
+    public void writes() {
+        new UsersApp().parse("");
 
+        SavingConsumer consumer = new SavingConsumer();
+        UsersRoute route = Route.build(UsersRoute.class, consumer);
+
+        route.users();
+        assertEquals("users", consumer.consumed);
+
+        route.viewUser(23);
+        assertEquals("users/23", consumer.consumed);
+
+        route.editUser(42);
+        assertEquals("users/42/edit", consumer.consumed);
+    }
+
+    static class UsersApp implements UsersRoute {
+        int index;
+        int id;
+        @Override public void users() {
+            index = 1;
+            id = -1;
+        }
+        @Override public void viewUser(int id) {
+            index = 2;
+            this.id = id;
+        }
+        @Override public void editUser(int id) {
+            index = 3;
+            this.id = id;
+        }
+    }
+
+    @Test
+    public void parsesDateParam() {
         DateRouteImpl impl = new DateRouteImpl();
         assertTrue(impl.parse("date/2015-10-25"));
         assertEquals("Sun Oct 25 2015", JSDate.create(impl.date.getTime()).toDateString());
@@ -77,16 +92,26 @@ public class ParserTest {
     }
 
     @Test
-    public void parsesStringParam() {
-        class StringRouteImpl implements StringRoute {
-            String string;
-            @Override public void path(String text) {
-                this.string = text;
-            }
-            @Override public void nondeterminatePath(String text) {
-                this.string = text;
-            }
+    public void writesDateParam() {
+        new DateRouteImpl().parse();
+
+        SavingConsumer consumer = new SavingConsumer();
+        DateRoute route = Route.build(DateRoute.class, consumer);
+
+        route.path(new Date(1445810760000L));
+        assertEquals("date/2015-10-25T22:06:00", consumer.consumed);
+    }
+
+    static class DateRouteImpl implements DateRoute {
+        Date date;
+        @Override public void path(Date date) {
+            this.date = date;
         }
+    }
+
+    @Test
+    public void parsesStringParam() {
+
 
         StringRouteImpl impl = new StringRouteImpl();
         assertTrue(impl.parse("foo/baz/bar"));
@@ -99,6 +124,33 @@ public class ParserTest {
         impl = new StringRouteImpl();
         assertTrue(impl.parse("foo/%2F/bar"));
         assertEquals("/", impl.string);
+    }
+
+    @Test
+    public void writesStringParam() {
+        new StringRouteImpl().parse();
+
+        SavingConsumer consumer = new SavingConsumer();
+        StringRoute route = Route.build(StringRoute.class, consumer);
+
+        route.path("baz");
+        assertEquals("foo/baz/bar", consumer.consumed);
+
+        route.nondeterminatePath("bazz");
+        assertEquals("foo/bazzz", consumer.consumed);
+
+        route.path("/");
+        assertEquals("foo/%2F/bar", consumer.consumed);
+    }
+
+    static class StringRouteImpl implements StringRoute {
+        String string;
+        @Override public void path(String text) {
+            this.string = text;
+        }
+        @Override public void nondeterminatePath(String text) {
+            this.string = text;
+        }
     }
 
     @Test
@@ -151,5 +203,14 @@ public class ParserTest {
     static enum TestEnum {
         FOO,
         BAR
+    }
+
+    static class SavingConsumer implements Consumer<String> {
+        String consumed;
+
+        @Override
+        public void accept(String t) {
+            consumed = t;
+        }
     }
 }

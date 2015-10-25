@@ -41,8 +41,9 @@ public interface Route {
         return reader.read(path, this);
     }
 
+    @SuppressWarnings("unchecked")
     static <T extends Route> T build(Class<T> routeType, Consumer<String> consumer) {
-        return Routing.createBuilderProxy(routeType, consumer);
+        return (T) Routing.getImplementorByClass(routeType).write(consumer);
     }
 
     static <T extends Route> T open(Window window, Class<T> routeType) {
