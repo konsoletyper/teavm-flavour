@@ -1,0 +1,26 @@
+<h3>Order list</h3>
+<div>
+  <div>
+    <button event:click="add()">Add</button>
+  </div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Id</th>
+        <th>Receiver</th>
+        <th>Due date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <std:foreach var="order" index="i" in="orders">
+        <tr attr:class="i % 2 == 0 ? 'even' : 'odd'">
+          <td><std:text value="order.id"/></td>
+          <td><std:text value="order.receiver"/></td>
+          <td><std:text value="order.date"/></td>
+          <td><button event:click="view(i)">View</button></td>
+        </tr>
+      </std:foreach>
+    </tbody>
+  </table>
+</div>

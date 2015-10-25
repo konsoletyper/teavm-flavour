@@ -20,32 +20,56 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
+import org.teavm.flavour.routing.Conductor;
+import org.teavm.flavour.routing.Route;
+import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-public final class Client {
+@BindTemplate("templates/main.html")
+public final class Client implements ApplicationRoute {
+    private Fragment content;
+
     private Client() {
     }
 
     public static void main(String[] args) {
-        final InMemoryProductDataSet dataSet = new InMemoryProductDataSet(createProducts());
-        ProductViewFactory productViewFactory = new ProductViewFactory() {
-            @Override public ProductsView create() {
-                return new ProductsView(dataSet);
-            }
-        };
+        Client client = new Client();
+        new Conductor().add(client);
+        Route.open(ApplicationRoute.class).orderList();
+        Templates.bind(client, "application-content");
+    }
 
-        OrderView order = new OrderView(productViewFactory);
-        order.setAddress("Townburgh, Elm street, 123");
-        order.setReceiverName("John Doe");
-        order.setDate(new Date());
+    @Override
+    public void orderList() {
+        content = Templates.create(new OrderListView());
+    }
 
-        Templates.bind(order, "application-content");
+    @Override
+    public void order(int id) {
+        content = Templates.create(new OrderView(productViewFactory()));
+    }
+
+    @Override
+    public void newOrder() {
+        content = Templates.create(new OrderView(productViewFactory()));
+    }
+
+    public Fragment getContent() {
+        return content;
+    }
+
+    public ProductDataSet dataSet() {
+        return new InMemoryProductDataSet(createProducts());
+    }
+
+    public ProductViewFactory productViewFactory() {
+        return () -> new ProductsView(dataSet());
     }
 
     private static List<Product> createProducts() {
@@ -73,7 +97,7 @@ public final class Client {
                             + String.valueOf(index % 10) + product.getSku();
                     ++index;
                     list.add(new Product(sku,
-                            adjective + " " +  color + " " + product.getName(),
+                            adjective + " " + color + " " + product.getName(),
                             product.getUnitPrice().multiply(quotient)));
                 }
             }
