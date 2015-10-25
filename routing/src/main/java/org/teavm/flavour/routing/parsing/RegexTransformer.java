@@ -90,22 +90,11 @@ public final class RegexTransformer {
 
     public static boolean isValid(char c) {
         switch (c) {
-            case '$':
-            case '-':
-            case '_':
-            case '.':
-            case '+':
-            case '!':
-            case '*':
-            case '\'':
-            case '(':
-            case ')':
-            case ',':
-                return true;
+            case '/':
+            case '%':
+                return false;
             default:
-                return c >= '0' && c <= '9'
-                    || c >= 'a' && c <= 'z'
-                    || c >= 'A' && c <= 'Z';
+                return true;
         }
     }
 

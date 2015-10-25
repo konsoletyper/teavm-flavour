@@ -195,7 +195,7 @@ class RouteParserEmitter {
 
     private ValueEmitter emitParam(ValueEmitter stringVar, ParameterDescriptor param) {
         ProgramEmitter pe = stringVar.getProgramEmitter();
-        stringVar = pe.invoke(Window.class, "decodeURI", String.class, stringVar);
+        stringVar = pe.invoke(Window.class, "decodeURIComponent", String.class, stringVar);
         switch (param.getType()) {
             case STRING:
                 return stringVar;

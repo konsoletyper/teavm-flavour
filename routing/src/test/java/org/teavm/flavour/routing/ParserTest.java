@@ -15,8 +15,7 @@
  */
 package org.teavm.flavour.routing;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import java.util.Date;
 import org.junit.Test;
 import org.teavm.jso.core.JSDate;
@@ -72,6 +71,48 @@ public class ParserTest {
         DateRouteImpl impl = new DateRouteImpl();
         assertTrue(impl.parse("date/2015-10-25"));
         assertEquals("Sun Oct 25 2015", JSDate.create(impl.date.getTime()).toDateString());
+
+        impl = new DateRouteImpl();
+        assertFalse(impl.parse("date/foo"));
+    }
+
+    @Test
+    public void parsesStringParam() {
+        class StringRouteImpl implements StringRoute {
+            String string;
+            @Override public void path(String text) {
+                this.string = text;
+            }
+            @Override public void nondeterminatePath(String text) {
+                this.string = text;
+            }
+        }
+
+        StringRouteImpl impl = new StringRouteImpl();
+        assertTrue(impl.parse("foo/baz/bar"));
+        assertEquals("baz", impl.string);
+
+        impl = new StringRouteImpl();
+        assertTrue(impl.parse("foo/bazzz"));
+        assertEquals("bazz", impl.string);
+
+        impl = new StringRouteImpl();
+        assertTrue(impl.parse("foo/%2F/bar"));
+        assertEquals("/", impl.string);
+    }
+
+    @Test
+    public void parsesEnumParam() {
+        class EnumRouteImpl implements EnumRoute {
+            TestEnum e;
+            @Override public void path(TestEnum param) {
+                e = param;
+            }
+        }
+
+        EnumRouteImpl impl = new EnumRouteImpl();
+        assertTrue(impl.parse("prefix-FOO"));
+        assertEquals(TestEnum.FOO, impl.e);
     }
 
     @PathSet
@@ -90,5 +131,25 @@ public class ParserTest {
     static interface DateRoute extends Route {
         @Path("date/{param}")
         void path(@PathParameter("param") Date date);
+    }
+
+    @PathSet
+    static interface StringRoute extends Route {
+        @Path("foo/{param}/bar")
+        void path(@PathParameter("param") String text);
+
+        @Path("foo/{param}z")
+        void nondeterminatePath(@PathParameter("param") String text);
+    }
+
+    @PathSet
+    static interface EnumRoute extends Route {
+        @Path("prefix-{param}")
+        void path(@PathParameter("param") TestEnum param);
+    }
+
+    static enum TestEnum {
+        FOO,
+        BAR
     }
 }
