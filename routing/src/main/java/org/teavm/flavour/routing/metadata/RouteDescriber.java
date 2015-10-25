@@ -77,7 +77,7 @@ public class RouteDescriber {
     }
 
     private Map<String, Integer> parseParameterNames(MethodReader method) {
-        AnnotationContainerReader[] parameterAnnotations = new AnnotationContainerReader[0];
+        AnnotationContainerReader[] parameterAnnotations = method.getParameterAnnotations();
         Map<String, Integer> parameterNames = new HashMap<>();
         for (int i = 0; i < method.parameterCount(); ++i) {
             AnnotationReader parameterAnnot = parameterAnnotations[i].get(PathParameter.class.getName());
@@ -128,7 +128,6 @@ public class RouteDescriber {
                 return false;
             }
             String alias = path.substring(next + 1, end);
-            index = next + 1;
 
             Integer paramIndex = parameterNames.get(alias);
             if (paramIndex == null) {
@@ -138,6 +137,7 @@ public class RouteDescriber {
             ParameterDescriptor param = new ParameterDescriptor(paramIndex, alias);
             param.index = parameters.size();
             parameters.add(param);
+            index = end + 1;
         }
         pathParts.add(path.substring(index));
 

@@ -15,10 +15,21 @@
  */
 package org.teavm.flavour.routing.emit;
 
+import org.teavm.jso.impl.JSOPlugin;
+import org.teavm.vm.spi.Before;
+import org.teavm.vm.spi.Requires;
+import org.teavm.vm.spi.TeaVMHost;
+import org.teavm.vm.spi.TeaVMPlugin;
+
 /**
  *
  * @author Alexey Andreev
  */
-public class RoutingPlugin {
-
+@Before(JSOPlugin.class)
+@Requires(JSOPlugin.class)
+public class RoutingPlugin implements TeaVMPlugin {
+    @Override
+    public void install(TeaVMHost host) {
+        host.add(new RoutingDependencyListener());
+    }
 }

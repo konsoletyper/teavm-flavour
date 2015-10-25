@@ -120,8 +120,10 @@ public class PathParser {
         int[] startIndexes = new int[elements.length];
         int[] endIndexes = new int[startIndexes.length];
         if (elements.length > 0) {
-            Matcher[] matchers = Arrays.stream(elements).map(e -> e.pattern.matcher())
-                    .toArray(sz -> new Matcher[sz]);
+            Matcher[] matchers = new Matcher[elements.length];
+            for (int j = 0; j < matchers.length; ++j) {
+                matchers[j] = elements[j].pattern.matcher();
+            }
             startIndexes[0] = parserCase.prefixLength;
             endIndexes[0] = parserCase.prefixLength;
             int i = 0;

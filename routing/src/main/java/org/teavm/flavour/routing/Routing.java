@@ -26,7 +26,11 @@ final class Routing {
     private Routing() {
     }
 
-    static native PathReader getReader(String className);
+    static PathReader getReader(Route route) {
+        return getReaderImpl(route.getClass().getName());
+    }
+
+    private static native PathReader getReaderImpl(String className);
 
     static native <T extends Route> T createBuilderProxy(Class<T> routeType, Consumer<String> consumer);
 }

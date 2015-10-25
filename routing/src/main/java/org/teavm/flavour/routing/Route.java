@@ -46,7 +46,11 @@ public interface Route {
     }
 
     default boolean parse(String path) {
-        return Routing.getReader(getClass().getName()).read(path, this);
+        PathReader reader = Routing.getReader(this);
+        if (reader == null) {
+            throw new IllegalArgumentException("Wrong route interface: " + getClass().getName());
+        }
+        return reader.read(path, this);
     }
 
     static <T extends Route> T build(Class<T> routeType, Consumer<String> consumer) {

@@ -65,7 +65,7 @@ public class PathParserEmitter {
         }
 
         ValueEmitter caseSelector = createPattern(pe, pathParser.caseSelectorDfa);
-        return pe.construct(PathParser.class, cases, caseSelector);
+        return pe.construct(PathParser.class, cases, caseSelector.cast(Pattern.class));
     }
 
     public ValueEmitter createPattern(ProgramEmitter pe, Dfa dfa) {
