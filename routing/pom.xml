@@ -108,6 +108,9 @@
               <wildcards>
                 <wildcard>org.teavm.flavour.routing.*Test</wildcard>
               </wildcards>
+              <excludeWildcards>
+                <wildcard>org.teavm.flavour.routing.parsing.*Test</wildcard>
+              </excludeWildcards>
             </configuration>
           </execution>
         </executions>
