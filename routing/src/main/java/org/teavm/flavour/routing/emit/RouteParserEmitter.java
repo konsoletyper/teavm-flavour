@@ -37,7 +37,6 @@ import org.teavm.flavour.routing.parsing.PathParserBuilder;
 import org.teavm.flavour.routing.parsing.PathParserEmitter;
 import org.teavm.flavour.routing.parsing.PathParserResult;
 import org.teavm.jso.browser.Window;
-import org.teavm.jso.core.JSDate;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
@@ -60,6 +59,7 @@ import org.teavm.model.emit.ValueEmitter;
  */
 class RouteParserEmitter {
     public static final String PATH_READER_CLASS = Route.class.getPackage().getName() + ".PathReader";
+    public static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
     private DependencyAgent agent;
     private ClassReaderSource classSource;
     private Diagnostics diagnostics;
@@ -212,9 +212,7 @@ class RouteParserEmitter {
             case DOUBLE:
                 return pe.invoke(Double.class, "parseDouble", double.class, stringVar);
             case DATE: {
-                ValueEmitter millis = pe.invoke(JSDate.class, "parse", String.class, stringVar)
-                        .invokeVirtual("getTime", double.class)
-                        .cast(long.class);
+                ValueEmitter millis = pe.invoke(ROUTING_CLASS, "parseDate", ValueType.LONG, stringVar);
                 return pe.construct(Date.class, millis);
             }
             case ENUM: {

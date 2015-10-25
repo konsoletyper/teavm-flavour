@@ -30,19 +30,7 @@ public interface Route {
 
     default boolean parse(Window window) {
         Location location = window.getLocation();
-        return parse(location.getPathName(), location.getSearch(), location.getHash());
-    }
-
-    default boolean parse(String pathName, String query, String hash) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(pathName);
-        if (query != null && !query.isEmpty()) {
-            sb.append('?').append(query);
-        }
-        if (hash != null && !hash.isEmpty()) {
-            sb.append('#').append(hash);
-        }
-        return parse(sb.toString());
+        return parse(location.getHash());
     }
 
     default boolean parse(String path) {
@@ -58,8 +46,8 @@ public interface Route {
     }
 
     static <T extends Route> T open(Window window, Class<T> routeType) {
-        return build(routeType, url -> {
-            window.getLocation().assign(url);
+        return build(routeType, hash -> {
+            window.getLocation().setHash(hash);
         });
     }
 

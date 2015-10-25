@@ -15,8 +15,11 @@
  */
 package org.teavm.flavour.routing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import java.util.Date;
 import org.junit.Test;
+import org.teavm.jso.core.JSDate;
 
 /**
  *
@@ -57,6 +60,20 @@ public class ParserTest {
         assertEquals(42, app.id);
     }
 
+    @Test
+    public void parsesDateParam() {
+        class DateRouteImpl implements DateRoute {
+            Date date;
+            @Override public void path(Date date) {
+                this.date = date;
+            }
+        }
+
+        DateRouteImpl impl = new DateRouteImpl();
+        assertTrue(impl.parse("date/2015-10-25"));
+        assertEquals("Sun Oct 25 2015", JSDate.create(impl.date.getTime()).toDateString());
+    }
+
     @PathSet
     static interface UsersRoute extends Route {
         @Path("users")
@@ -67,5 +84,11 @@ public class ParserTest {
 
         @Path("users/{id}/edit")
         void editUser(@PathParameter("id") int id);
+    }
+
+    @PathSet
+    static interface DateRoute extends Route {
+        @Path("date/{param}")
+        void path(@PathParameter("param") Date date);
     }
 }

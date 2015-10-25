@@ -72,7 +72,7 @@ public class Conductor {
     EventListener<HashChangeEvent> listener = evt -> {
         Location location = window.getLocation();
         for (Route route : routes) {
-            if (route.parse(location.getPathName(), location.getSearch(), location.getHash())) {
+            if (route.parse(location.getHash())) {
                 return;
             }
         }
