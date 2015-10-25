@@ -58,15 +58,15 @@ import org.teavm.model.emit.ValueEmitter;
  * @author Alexey Andreev
  */
 class RouteParserEmitter {
-    public static final String PATH_READER_CLASS = Route.class.getPackage().getName() + ".PathReader";
+    public static final String PATH_IMPLEMENTOR_CLASS = Route.class.getPackage().getName() + ".PathImplementor";
     public static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
     private DependencyAgent agent;
     private ClassReaderSource classSource;
     private Diagnostics diagnostics;
     private PathParserEmitter pathParserEmitter;
     private RouteDescriber describer;
-    private Map<String, String> routeReaders = new HashMap<>();
-    private Map<String, String> routeIfaceReaders = new HashMap<>();
+    private Map<String, String> routeImplementors = new HashMap<>();
+    private Map<String, String> routeIfaceImplementors = new HashMap<>();
     int suffixGenerator;
 
     public RouteParserEmitter(DependencyAgent agent) {
@@ -76,29 +76,24 @@ class RouteParserEmitter {
         pathParserEmitter = new PathParserEmitter(agent);
     }
 
-
-    public String getReader(String routeType) {
-        return routeReaders.get(routeType);
-    }
-
     public Program emitGetter(MethodReference method) {
         ProgramEmitter pe = ProgramEmitter.create(method.getDescriptor(), classSource);
         ValueEmitter typeVar = pe.var(1, String.class);
 
         StringChooseEmitter choice = pe.stringChoice(typeVar);
-        for (String routeImpl : routeReaders.keySet()) {
-            String readerType = routeReaders.get(routeImpl);
+        for (String routeImpl : routeImplementors.keySet()) {
+            String implementorType = routeImplementors.get(routeImpl);
             choice.option(routeImpl, () -> {
-                pe.construct(readerType).returnValue();
+                pe.construct(implementorType).returnValue();
             });
         }
-        choice.otherwise(() -> pe.constantNull(ValueType.object(PATH_READER_CLASS)).returnValue());
+        choice.otherwise(() -> pe.constantNull(ValueType.object(PATH_IMPLEMENTOR_CLASS)).returnValue());
 
         return pe.getProgram();
     }
 
     public String emitParser(String className, CallLocation location) {
-        return routeReaders.computeIfAbsent(className, implType -> {
+        return routeImplementors.computeIfAbsent(className, implType -> {
             Set<ClassReader> pathSets = new HashSet<>();
             getPathSets(implType, pathSets, new HashSet<>());
             if (pathSets.isEmpty()) {
@@ -114,7 +109,7 @@ class RouteParserEmitter {
             }
             ClassReader routeType = pathSets.iterator().next();
 
-            return routeIfaceReaders.computeIfAbsent(routeType.getName(), ifaceType -> {
+            return routeIfaceImplementors.computeIfAbsent(routeType.getName(), ifaceType -> {
                 return emitInterfaceParser(ifaceType, location);
             });
         });
@@ -127,30 +122,30 @@ class RouteParserEmitter {
             return null;
         }
 
-        ClassHolder readerClass = new ClassHolder(PATH_READER_CLASS + suffixGenerator++);
-        readerClass.setLevel(AccessLevel.PACKAGE_PRIVATE);
-        readerClass.setParent("java.lang.Object");
-        readerClass.getInterfaces().add(PATH_READER_CLASS);
+        ClassHolder implementorClass = new ClassHolder(PATH_IMPLEMENTOR_CLASS + suffixGenerator++);
+        implementorClass.setLevel(AccessLevel.PACKAGE_PRIVATE);
+        implementorClass.setParent("java.lang.Object");
+        implementorClass.getInterfaces().add(PATH_IMPLEMENTOR_CLASS);
 
         FieldHolder parserField = new FieldHolder("pathParser");
         parserField.setLevel(AccessLevel.PRIVATE);
         parserField.setType(ValueType.parse(PathParser.class));
-        readerClass.addField(parserField);
+        implementorClass.addField(parserField);
 
         MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
-        emitConstructor(ProgramEmitter.create(ctor, classSource), readerClass.getName(), descriptor);
-        readerClass.addMethod(ctor);
+        emitConstructor(ProgramEmitter.create(ctor, classSource), implementorClass.getName(), descriptor);
+        implementorClass.addMethod(ctor);
 
         MethodHolder worker = new MethodHolder("read", ValueType.parse(String.class), ValueType.parse(Route.class),
                 ValueType.BOOLEAN);
         worker.setLevel(AccessLevel.PUBLIC);
-        emitWorker(ProgramEmitter.create(worker, classSource), readerClass.getName(), routeIface, descriptor);
-        readerClass.addMethod(worker);
+        emitWorker(ProgramEmitter.create(worker, classSource), implementorClass.getName(), routeIface, descriptor);
+        implementorClass.addMethod(worker);
 
-        agent.submitClass(readerClass);
+        agent.submitClass(implementorClass);
 
-        return readerClass.getName();
+        return implementorClass.getName();
     }
 
     private void emitConstructor(ProgramEmitter pe, String className, RouteSetDescriptor descriptor) {

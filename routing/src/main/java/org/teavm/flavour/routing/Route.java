@@ -34,7 +34,7 @@ public interface Route {
     }
 
     default boolean parse(String path) {
-        PathReader reader = Routing.getReader(this);
+        PathImplementor reader = Routing.getImplementor(this);
         if (reader == null) {
             throw new IllegalArgumentException("Wrong route interface: " + getClass().getName());
         }

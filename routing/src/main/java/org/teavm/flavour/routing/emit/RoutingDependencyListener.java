@@ -30,11 +30,11 @@ import org.teavm.model.ValueType;
  */
 public class RoutingDependencyListener extends AbstractDependencyListener {
     private static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
-    private static final MethodReference IMPL_METHOD_REF = new MethodReference(ROUTING_CLASS, "getReaderImpl",
-            ValueType.parse(String.class), ValueType.object(RouteParserEmitter.PATH_READER_CLASS));
+    private static final MethodReference IMPL_METHOD_REF = new MethodReference(ROUTING_CLASS, "getImplementorImpl",
+            ValueType.parse(String.class), ValueType.object(RouteParserEmitter.PATH_IMPLEMENTOR_CLASS));
     RouteParserEmitter emitter;
     DependencyAgent agent;
-    private boolean getReaderReached;
+    private boolean getImplementorReached;
 
     @Override
     public void started(DependencyAgent agent) {
@@ -48,32 +48,32 @@ public class RoutingDependencyListener extends AbstractDependencyListener {
         if (!ref.getClassName().equals(ROUTING_CLASS)) {
             return;
         }
-        if (ref.getName().equals("getReader")) {
-            reachGetReader(method, location);
+        if (ref.getName().equals("getImplementor")) {
+            reachGetImplementor(method, location);
         }
     }
 
     @Override
     public void completing(DependencyAgent agent) {
-        if (getReaderReached) {
+        if (getImplementorReached) {
             agent.submitMethod(IMPL_METHOD_REF, emitter.emitGetter(IMPL_METHOD_REF));
         }
     }
 
-    private void reachGetReader(MethodDependency method, CallLocation location) {
-        if (getReaderReached) {
+    private void reachGetImplementor(MethodDependency method, CallLocation location) {
+        if (getImplementorReached) {
             return;
         }
-        getReaderReached = true;
+        getImplementorReached = true;
         DependencyNode node = method.getVariable(1);
 
         MethodDependency implMethod = agent.linkMethod(IMPL_METHOD_REF, null);
         node.addConsumer(type -> {
-            String readerType = emitter.emitParser(type.getName(), location);
-            implMethod.getResult().propagate(agent.getType(readerType));
-            MethodDependency ctor = agent.linkMethod(new MethodReference(readerType, "<init>", ValueType.VOID),
+            String implementorType = emitter.emitParser(type.getName(), location);
+            implMethod.getResult().propagate(agent.getType(implementorType));
+            MethodDependency ctor = agent.linkMethod(new MethodReference(implementorType, "<init>", ValueType.VOID),
                     location);
-            ctor.propagate(0, readerType);
+            ctor.propagate(0, implementorType);
             ctor.getThrown().connect(implMethod.getThrown());
             ctor.use();
         });

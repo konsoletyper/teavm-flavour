@@ -15,11 +15,15 @@
  */
 package org.teavm.flavour.routing;
 
+import java.util.function.Consumer;
+
 
 /**
  *
  * @author Alexey Andreev
  */
-interface PathReader {
+interface PathImplementor {
     boolean read(String path, Route handler);
+
+    Route write(Consumer<String> consumer);
 }
