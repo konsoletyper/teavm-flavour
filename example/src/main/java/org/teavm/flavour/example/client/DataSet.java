@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
 import java.util.List;
 
@@ -21,8 +21,8 @@ import java.util.List;
  *
  * @author Alexey Andreev
  */
-public interface ProductDataSet {
-    List<Product> getProducts(String searchString, int offset, int limit);
+public interface DataSet<T> {
+    List<T> fetch(int offset, int limit);
 
-    int countProducts(String searchString);
+    int count();
 }

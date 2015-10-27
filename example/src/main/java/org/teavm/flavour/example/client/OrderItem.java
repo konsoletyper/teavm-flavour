@@ -13,25 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
 import java.math.BigDecimal;
+import org.teavm.flavour.example.api.ProductDTO;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class OrderItem {
-    private Product product;
+    private ProductDTO product;
     private int amount;
     private boolean invalidAmountString;
 
-    public OrderItem(Product product) {
+    public OrderItem(ProductDTO product) {
         this.product = product;
         amount = 1;
     }
 
-    public Product getProduct() {
+    public ProductDTO getProduct() {
         return product;
     }
 
@@ -64,7 +65,7 @@ public class OrderItem {
     }
 
     public BigDecimal getPrice() {
-        return product.getUnitPrice().multiply(new BigDecimal(amount));
+        return product.unitPrice.multiply(new BigDecimal(amount));
     }
 
     public void more() {

@@ -13,12 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.Popup;
 
@@ -28,13 +29,13 @@ import org.teavm.flavour.widgets.Popup;
  */
 @BindTemplate("templates/order.html")
 public class OrderView {
-    private ProductViewFactory productViewFactory;
+    private Supplier<ProductSelectionView> productViewFactory;
     private String receiverName = "";
     private String address = "";
     private Date date;
     private List<OrderItem> items = new ArrayList<>();
 
-    public OrderView(ProductViewFactory productViewFactory) {
+    public OrderView(Supplier<ProductSelectionView> productViewFactory) {
         this.productViewFactory = productViewFactory;
     }
 
@@ -75,7 +76,7 @@ public class OrderView {
     }
 
     public void addProduct() {
-        ProductsView products = productViewFactory.create();
+        ProductSelectionView products = productViewFactory.get();
         Popup.showModal(products);
         if (products.getChosenProduct() != null) {
             OrderItem item = new OrderItem(products.getChosenProduct());

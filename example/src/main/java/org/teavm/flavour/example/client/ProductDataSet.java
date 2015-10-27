@@ -13,15 +13,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
-import org.teavm.flavour.templates.BindTemplate;
+import java.util.List;
+import org.teavm.flavour.example.api.ProductDTO;
 
 /**
  *
  * @author Alexey Andreev
  */
-@BindTemplate("templates/order-list.html")
-public class OrderListView {
+public interface ProductDataSet {
+    List<ProductDTO> getProducts(String searchString, int offset, int limit);
 
+    int countProducts(String searchString);
 }

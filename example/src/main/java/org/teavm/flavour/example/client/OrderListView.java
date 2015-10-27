@@ -13,25 +13,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
-import org.teavm.flavour.routing.Path;
-import org.teavm.flavour.routing.PathParameter;
-import org.teavm.flavour.routing.PathSet;
-import org.teavm.flavour.routing.Route;
+import org.teavm.flavour.templates.BindTemplate;
 
 /**
  *
  * @author Alexey Andreev
  */
-@PathSet
-public interface ApplicationRoute extends Route {
-    @Path("orders")
-    void orderList();
+@BindTemplate("templates/order-list.html")
+public class OrderListView {
 
-    @Path("orders/new")
-    void newOrder();
-
-    @Path("orders/{id}")
-    void order(@PathParameter("id") int id);
 }

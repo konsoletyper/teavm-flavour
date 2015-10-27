@@ -146,7 +146,7 @@
             </goals>
             <configuration>
               <targetDirectory>${project.build.directory}/generated/js/teavm</targetDirectory>
-              <mainClass>org.teavm.flavour.example.Client</mainClass>
+              <mainClass>org.teavm.flavour.example.client.Client</mainClass>
               <runtime>SEPARATE</runtime>
               <minifying>false</minifying>
               <debugInformationGenerated>true</debugInformationGenerated>

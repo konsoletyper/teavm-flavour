@@ -13,48 +13,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.widgets.PopupContent;
-import org.teavm.flavour.widgets.PopupDelegate;
 
 /**
  *
  * @author Alexey Andreev
  */
-@BindTemplate("templates/products.html")
-public class ProductsView implements PopupContent {
-    private ProductDataSet dataSet;
-    private PopupDelegate popup;
-    private List<Product> products = new ArrayList<>();
+public class PagedData<T> {
+    private DataSet<T> dataSet;
+    private List<T> list = new ArrayList<>();
+    private List<T> readonlyList = Collections.unmodifiableList(list);
     private int currentPage;
-    private int pageSize = 20;
     private int pageCount;
-    private Product chosenProduct;
-    private String filter;
+    private int pageSize = 20;
 
-    public ProductsView(ProductDataSet dataSet) {
+    public PagedData(DataSet<T> dataSet) {
         this.dataSet = dataSet;
-        refresh();
-    }
-
-    @Override
-    public void setDelegate(PopupDelegate popup) {
-        this.popup = popup;
-    }
-
-    public Product getChosenProduct() {
-        return chosenProduct;
     }
 
     public void refresh() {
-        int count = dataSet.countProducts(filter);
+        int count = dataSet.count();
         pageCount = (count - 1) / pageSize + 1;
-        products.clear();
-        products.addAll(dataSet.getProducts(filter, currentPage * pageSize, pageSize));
+        list.clear();
+        list.addAll(dataSet.fetch(currentPage * pageSize, pageSize));
     }
 
     public void nextPage() {
@@ -94,12 +79,15 @@ public class ProductsView implements PopupContent {
         return currentPage * pageSize;
     }
 
-    public void choose(int index) {
-        chosenProduct = products.get(index);
-        popup.close();
+    public int getPageSize() {
+        return pageSize;
     }
 
-    public List<Product> getProducts() {
-        return products;
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    public List<T> getList() {
+        return readonlyList;
     }
 }

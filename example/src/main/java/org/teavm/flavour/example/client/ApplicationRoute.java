@@ -13,12 +13,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example;
+package org.teavm.flavour.example.client;
+
+import org.teavm.flavour.routing.Path;
+import org.teavm.flavour.routing.PathParameter;
+import org.teavm.flavour.routing.PathSet;
+import org.teavm.flavour.routing.Route;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ProductViewFactory {
-    ProductsView create();
+@PathSet
+public interface ApplicationRoute extends Route {
+    @Path("orders")
+    void orderList();
+
+    @Path("orders/new")
+    void newOrder();
+
+    @Path("orders/{id}")
+    void order(@PathParameter("id") int id);
+
+    @Path("products")
+    void productList();
+
+    @Path("products/{id}")
+    void product(@PathParameter("id") int id);
 }
