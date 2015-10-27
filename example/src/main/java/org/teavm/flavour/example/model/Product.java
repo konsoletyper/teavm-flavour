@@ -76,10 +76,9 @@ public class Product {
     }
 
     public Product findSkuDuplicate(ProductRepository repository) {
-        String sku = this.sku;
+        QProduct product = QProduct.product;
         Product existing = repository.all()
-                .where(product -> product.sku.equals(sku))
-                .getOnlyValue();
+                .fr;
         return existing != null && existing != this ? existing : null;
     }
 

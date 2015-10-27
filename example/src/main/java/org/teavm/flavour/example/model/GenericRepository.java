@@ -15,13 +15,13 @@
  */
 package org.teavm.flavour.example.model;
 
-import org.jinq.orm.stream.JinqStream;
+import com.querydsl.jpa.JPQLQuery;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface GenericRepository<T> {
+public interface GenericRepository<T, QT> {
     void add(T entity);
 
     void remove(T entity);
@@ -32,5 +32,5 @@ public interface GenericRepository<T> {
 
     T findById(int id);
 
-    JinqStream<T> all();
+    JPQLQuery<QT> all();
 }

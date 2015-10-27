@@ -31,6 +31,7 @@
   <properties>
     <jersey.version>2.22.1</jersey.version>
     <spring.version>4.2.2.RELEASE</spring.version>
+    <querydsl.version>4.0.4</querydsl.version>
   </properties>
 
   <dependencies>
@@ -74,9 +75,15 @@
       <version>2.1.0</version>
     </dependency>
     <dependency>
-      <groupId>org.jinq</groupId>
-      <artifactId>jinq-jpa</artifactId>
-      <version>1.8.4</version>
+      <groupId>com.querydsl</groupId>
+      <artifactId>querydsl-apt</artifactId>
+      <version>${querydsl.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.querydsl</groupId>
+      <artifactId>querydsl-jpa</artifactId>
+      <version>${querydsl.version}</version>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
@@ -133,6 +140,7 @@
           </webResources>
         </configuration>
       </plugin>
+      <!-- 
       <plugin>
         <groupId>org.teavm</groupId>
         <artifactId>teavm-maven-plugin</artifactId>
@@ -155,6 +163,23 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+       -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.querydsl</groupId>
+            <artifactId>querydsl-apt</artifactId>
+            <version>${querydsl.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>com.querydsl</groupId>
+            <artifactId>querydsl-jpa</artifactId>
+            <version>${querydsl.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

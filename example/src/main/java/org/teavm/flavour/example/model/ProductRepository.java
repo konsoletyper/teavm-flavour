@@ -19,5 +19,5 @@ package org.teavm.flavour.example.model;
  *
  * @author Alexey Andreev
  */
-public interface ProductRepository extends GenericRepository<Product> {
+public interface ProductRepository extends GenericRepository<Product, QProduct> {
 }
