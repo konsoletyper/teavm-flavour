@@ -19,25 +19,34 @@ import java.math.BigDecimal;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.SequenceGenerator;
 
 /**
  *
  * @author Alexey Andreev
  */
 @Entity
+@SequenceGenerator(name = "ProductIdGen", sequenceName = "ProductIdGen", allocationSize = 1)
 public class Product {
     @Id
+    @Column(nullable = false)
+    @GeneratedValue(generator = "ProductIdGen", strategy = GenerationType.SEQUENCE)
     private Integer id;
 
-    @Column(length = 100)
+    @Column(length = 40, nullable = false)
     private String sku;
 
-    @Column(length = 100)
+    @Column(length = 100, nullable = false)
     private String name;
 
-    @Column(scale = 2, precision = 10)
+    @Column(scale = 2, precision = 10, nullable = false)
     private BigDecimal price;
+
+    Product() {
+    }
 
     public Product(String sku, String name, BigDecimal price) {
         validateSku(sku);
@@ -61,16 +70,23 @@ public class Product {
         Objects.requireNonNull(sku);
         if (sku.isEmpty()) {
             throw new IllegalArgumentException("SKU must be non-empty");
-        } else if (name.length() > 40) {
+        } else if (sku.length() > 40) {
             throw new IllegalArgumentException("SKU lenght must not exceed 40 character");
         }
     }
 
     public Product findSkuDuplicate(ProductRepository repository) {
+        String sku = this.sku;
         Product existing = repository.all()
                 .where(product -> product.sku.equals(sku))
                 .getOnlyValue();
         return existing != null && existing != this ? existing : null;
+    }
+
+    public void checkSkuDuplicate(ProductRepository repository) {
+        if (findSkuDuplicate(repository) != null) {
+            throw new IllegalArgumentException("Product with SKU " + sku + " already exists");
+        }
     }
 
     public String getName() {

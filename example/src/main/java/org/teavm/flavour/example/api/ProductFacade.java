@@ -17,12 +17,14 @@ package org.teavm.flavour.example.api;
 
 import java.util.List;
 import javax.ws.rs.BeanParam;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 
 /**
  *
@@ -31,17 +33,22 @@ import javax.ws.rs.PathParam;
 @Path("products")
 public interface ProductFacade {
     @POST
+    @Consumes("application/json")
+    @Produces("application/json")
     int create(ProductDTO data);
 
     @GET
+    @Produces("application/json")
     List<ProductDTO> list(@BeanParam ProductQueryDTO query);
 
     @GET
     @Path("{id}")
+    @Produces("application/json")
     ProductDTO get(@PathParam("id") int id);
 
     @PUT
     @Path("{id}")
+    @Consumes("application/json")
     void update(@PathParam("id") int id, ProductDTO data);
 
     @DELETE

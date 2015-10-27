@@ -21,6 +21,7 @@ import org.jinq.jpa.JPQL;
 import org.jinq.orm.stream.JinqStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.teavm.flavour.example.api.ProductDTO;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.example.api.ProductQueryDTO;
@@ -32,6 +33,7 @@ import org.teavm.flavour.example.model.ProductRepository;
  * @author Alexey Andreev
  */
 @Component
+@Transactional
 public class ServerSideProductFacade implements ProductFacade {
     private ProductRepository repository;
 
@@ -43,6 +45,7 @@ public class ServerSideProductFacade implements ProductFacade {
     @Override
     public int create(ProductDTO data) {
         Product product = fromDTO(data);
+        product.checkSkuDuplicate(repository);
         repository.add(product);
         return repository.getId(product);
     }
@@ -54,11 +57,12 @@ public class ServerSideProductFacade implements ProductFacade {
             all = all.where(product -> JPQL.like(product.getName().toLowerCase(),
                     "%" + query.namePart.toLowerCase() + "%"));
         }
+        all = all.sortedBy(Product::getName);
         if (query.page.limit != 0) {
             all.limit(query.page.limit);
         }
-        return all.skip(query.page.offset)
-                .sortedBy(product -> product.getName())
+        return all
+                .skip(query.page.offset)
                 .toList().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -71,7 +75,9 @@ public class ServerSideProductFacade implements ProductFacade {
 
     @Override
     public void update(int id, ProductDTO data) {
-        fromDTO(data, requireProduct(id));
+        Product product = requireProduct(id);
+        fromDTO(data, product);
+        product.checkSkuDuplicate(repository);
     }
 
     @Override
