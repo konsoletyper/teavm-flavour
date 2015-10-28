@@ -4,6 +4,7 @@
   <table class="data">
     <thead>
       <tr>
+        <th>#</th>
         <th>SKU</th>
         <th>Name</th>
         <th>Price</th>
@@ -13,13 +14,14 @@
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
         <tr attr:class="i % 2 == 0 ? 'even' : 'odd'">
+          <td><std:text value="i + offset + 1"/></td>
           <td><std:text value="product.sku"/></td>
           <td><std:text value="product.name"/></td>
           <td align="right"><std:text value="'$' + product.unitPrice"/></td>
-          <td><button event:click="edit(i)">Edit</button></td>
+          <td><button event:click="choose(i)">Choose</button></td>
         </tr>
       </std:foreach>
-      <std:if condition="cursor.fetch().empty">
+      <std:if condition="products.empty">
         <tr>
           <td colspan="5"><i>There are no products satisfying given criteria</i></td>
         </tr>
@@ -28,5 +30,9 @@
   </table>
 </div>
 <div>
-  <w:paginator data="cursor"/>
+  <button event:click="previousPage()" std:enabled="currentPage > 0">Previous</button>
+  Page
+  <input type="text" size="3" std:value="currentPage + 1" std:change="str -> parseCurrentPage(str)">
+  of <std:text value="pageCount"/>
+  <button event:click="nextPage()" std:enabled="currentPage < pageCount - 1">Next</button>
 </div>

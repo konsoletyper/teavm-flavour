@@ -42,6 +42,10 @@ public interface ProductFacade {
     List<ProductDTO> list(@BeanParam ProductQueryDTO query);
 
     @GET
+    @Produces("application/json")
+    int count(ProductQueryDTO query);
+
+    @GET
     @Path("{id}")
     @Produces("application/json")
     ProductDTO get(@PathParam("id") int id);

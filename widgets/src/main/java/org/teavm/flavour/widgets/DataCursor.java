@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.client;
+package org.teavm.flavour.widgets;
 
 import java.util.List;
 
@@ -21,8 +21,8 @@ import java.util.List;
  *
  * @author Alexey Andreev
  */
-public interface DataSet<T> {
-    List<T> fetch(int offset, int limit);
+public interface DataCursor<T> {
+    List<T> fetch();
 
-    int count();
+    boolean isLoading();
 }

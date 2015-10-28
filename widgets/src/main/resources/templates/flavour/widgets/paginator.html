@@ -1,0 +1,16 @@
+<ul class="pagination">
+  <std:foreach var="item" in="items">
+    <std:if condition="item.previous">
+      <li attr:class="previousAvailable ? '' : 'disabled'">&laquo;</li>
+    </std:if>
+    <std:if condition="item.previous">
+      <li attr:class="nextAvailable ? '' : 'disabled'">&laquo;</li>
+    </std:if>
+    <std:if condition="item.page">
+      <li attr:class="currentPage == item.pageNumber ? 'active' : ''"><std:text value="item.pageNumber + 1"></li>
+    </std:if>
+    <std:if condition="item.skip">
+      <li>&hellip;</li>
+    </std:if>
+  </std:foreach>
+</ul>

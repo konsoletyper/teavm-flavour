@@ -22,6 +22,7 @@ import java.math.BigDecimal;
  * @author Alexey Andreev
  */
 public class ProductDTO {
+    public int id;
     public String sku;
     public String name;
     public BigDecimal unitPrice;

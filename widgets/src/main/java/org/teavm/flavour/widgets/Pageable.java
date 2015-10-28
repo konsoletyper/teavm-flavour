@@ -13,19 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.api;
-
-import javax.ws.rs.BeanParam;
-import javax.ws.rs.QueryParam;
+package org.teavm.flavour.widgets;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ProductQueryDTO {
-    @BeanParam
-    public QueryPageDTO page = new QueryPageDTO();
+public interface Pageable {
+    int getPageCount();
 
-    @QueryParam("name")
-    public String namePart;
+    int getCurrentPage();
+
+    void setCurrentPage(int currentPage);
 }

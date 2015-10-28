@@ -15,9 +15,10 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.util.List;
 import org.teavm.flavour.example.api.ProductDTO;
+import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.widgets.PagedCursor;
 
 /**
  *
@@ -25,14 +26,24 @@ import org.teavm.flavour.templates.BindTemplate;
  */
 @BindTemplate("templates/product-list.html")
 public class ProductListView {
-    private List<ProductDTO> products;
-    private ProductDataSet dataSet;
+    private ProductDataSource dataSource;
+    private PagedCursor<ProductDTO> cursor;
 
-    public ProductListView(ProductDataSet dataSet) {
-        this.dataSet = dataSet;
+    public ProductListView(ProductDataSource dataSource) {
+        cursor = new PagedCursor<>(dataSource);
+        cursor.refresh();
     }
 
-    public List<ProductDTO> getProducts() {
-        return products;
+    public ProductDataSource getDataSource() {
+        return dataSource;
+    }
+
+    public PagedCursor<ProductDTO> getCursor() {
+        return cursor;
+    }
+
+    public void edit(int index) {
+        ProductDTO product = cursor.fetch().get(index);
+        Route.open(ApplicationRoute.class).product(product.id);
     }
 }

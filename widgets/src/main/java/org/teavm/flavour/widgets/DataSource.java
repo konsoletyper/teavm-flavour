@@ -13,17 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.client;
+package org.teavm.flavour.widgets;
 
 import java.util.List;
-import org.teavm.flavour.example.api.ProductDTO;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ProductDataSet {
-    List<ProductDTO> getProducts(String searchString, int offset, int limit);
+public interface DataSource<T> {
+    List<T> fetch(int offset, int limit);
 
-    int countProducts(String searchString);
+    int count();
 }

@@ -19,9 +19,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.widgets.Popup;
 
 /**
  *
@@ -29,14 +27,12 @@ import org.teavm.flavour.widgets.Popup;
  */
 @BindTemplate("templates/order.html")
 public class OrderView {
-    private Supplier<ProductSelectionView> productViewFactory;
     private String receiverName = "";
     private String address = "";
     private Date date;
     private List<OrderItem> items = new ArrayList<>();
 
-    public OrderView(Supplier<ProductSelectionView> productViewFactory) {
-        this.productViewFactory = productViewFactory;
+    public OrderView() {
     }
 
     public String getReceiverName() {
@@ -76,11 +72,11 @@ public class OrderView {
     }
 
     public void addProduct() {
-        ProductSelectionView products = productViewFactory.get();
+        /*ProductSelectionView products = productViewFactory.get();
         Popup.showModal(products);
         if (products.getChosenProduct() != null) {
             OrderItem item = new OrderItem(products.getChosenProduct());
             items.add(item);
-        }
+        }*/
     }
 }

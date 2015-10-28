@@ -52,20 +52,29 @@ public class ServerSideProductFacade implements ProductFacade {
 
     @Override
     public List<ProductDTO> list(ProductQueryDTO query) {
-        JinqStream<Product> all = repository.all();
-        if (query.namePart != null && !query.namePart.trim().isEmpty()) {
-            all = all.where(product -> JPQL.like(product.getName().toLowerCase(),
-                    "%" + query.namePart.toLowerCase() + "%"));
-        }
-        all = all.sortedBy(Product::getName);
+        JinqStream<Product> all = filtered(query).sortedBy(Product::getName);
         if (query.page.limit != 0) {
-            all.limit(query.page.limit);
+            all = all.limit(query.page.limit);
         }
         return all
                 .skip(query.page.offset)
                 .toList().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public int count(ProductQueryDTO query) {
+        return (int) filtered(query).count();
+    }
+
+    private JinqStream<Product> filtered(ProductQueryDTO query) {
+        JinqStream<Product> all = repository.all();
+        if (query.namePart != null && !query.namePart.trim().isEmpty()) {
+            all = all.where(product -> JPQL.like(product.getName().toLowerCase(),
+                    "%" + query.namePart.trim().toLowerCase() + "%"));
+        }
+        return all;
     }
 
     @Override
@@ -95,6 +104,7 @@ public class ServerSideProductFacade implements ProductFacade {
 
     private ProductDTO toDTO(Product product) {
         ProductDTO dto = new ProductDTO();
+        dto.id = repository.getId(product);
         dto.name = product.getName();
         dto.sku = product.getSku();
         dto.unitPrice = product.getPrice();

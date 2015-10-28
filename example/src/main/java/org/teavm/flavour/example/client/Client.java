@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.util.function.Supplier;
 import org.teavm.flavour.routing.Conductor;
 import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.templates.BindTemplate;
@@ -48,13 +47,13 @@ public final class Client implements ApplicationRoute {
 
     @Override
     public void order(int id) {
-        content = Templates.create(new OrderView(productViewFactory()));
+        content = Templates.create(new OrderView());
         Templates.update();
     }
 
     @Override
     public void newOrder() {
-        content = Templates.create(new OrderView(productViewFactory()));
+        content = Templates.create(new OrderView());
         Templates.update();
     }
 
@@ -62,12 +61,8 @@ public final class Client implements ApplicationRoute {
         return content;
     }
 
-    public ProductDataSet productDataSet() {
+    public ProductDataSource productDataSet() {
         return null;
-    }
-
-    public Supplier<ProductSelectionView> productViewFactory() {
-        return () -> new ProductSelectionView(productDataSet());
     }
 
     @Override

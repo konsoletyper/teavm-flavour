@@ -13,33 +13,46 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.client;
+package org.teavm.flavour.widgets;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.templates.Templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class PagedData<T> {
-    private DataSet<T> dataSet;
+public class PagedCursor<T> implements Pageable, DataCursor<T> {
+    private DataSource<T> dataSource;
     private List<T> list = new ArrayList<>();
     private List<T> readonlyList = Collections.unmodifiableList(list);
     private int currentPage;
     private int pageCount;
     private int pageSize = 20;
+    private boolean loading;
 
-    public PagedData(DataSet<T> dataSet) {
-        this.dataSet = dataSet;
+    public PagedCursor(DataSource<T> dataSource) {
+        this.dataSource = dataSource;
     }
 
     public void refresh() {
-        int count = dataSet.count();
-        pageCount = (count - 1) / pageSize + 1;
-        list.clear();
-        list.addAll(dataSet.fetch(currentPage * pageSize, pageSize));
+        loading = true;
+        new Thread(() -> {
+            try {
+                int count = dataSource.count();
+                int newPageCount = (count - 1) / pageSize + 1;
+                List<T> newList = dataSource.fetch(currentPage * pageSize, pageSize);
+
+                list.clear();
+                list.addAll(newList);
+                pageCount = newPageCount;
+            } finally {
+                loading = false;
+            }
+            Templates.update();
+        });
     }
 
     public void nextPage() {
@@ -52,10 +65,12 @@ public class PagedData<T> {
         refresh();
     }
 
+    @Override
     public int getCurrentPage() {
         return currentPage;
     }
 
+    @Override
     public void setCurrentPage(int currentPage) {
         this.currentPage = currentPage;
     }
@@ -71,6 +86,7 @@ public class PagedData<T> {
         }
     }
 
+    @Override
     public int getPageCount() {
         return pageCount;
     }
@@ -87,7 +103,13 @@ public class PagedData<T> {
         this.pageSize = pageSize;
     }
 
-    public List<T> getList() {
+    @Override
+    public List<T> fetch() {
         return readonlyList;
+    }
+
+    @Override
+    public boolean isLoading() {
+        return loading;
     }
 }
