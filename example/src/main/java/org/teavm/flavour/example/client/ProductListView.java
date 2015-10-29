@@ -46,4 +46,8 @@ public class ProductListView {
         ProductDTO product = cursor.fetch().get(index);
         Route.open(ApplicationRoute.class).product(product.id);
     }
+
+    public void add() {
+        Route.open(ApplicationRoute.class).newProduct();
+    }
 }

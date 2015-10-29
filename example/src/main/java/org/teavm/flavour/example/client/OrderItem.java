@@ -65,7 +65,7 @@ public class OrderItem {
     }
 
     public BigDecimal getPrice() {
-        return product.unitPrice.multiply(new BigDecimal(amount));
+        return new BigDecimal(product.unitPrice).multiply(new BigDecimal(amount));
     }
 
     public void more() {

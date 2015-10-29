@@ -1,0 +1,15 @@
+<form>
+  <div class="form-group">
+    <label>SKU</label>
+    <input type="text" class="form-control" std:value="product.sku" std:change="value -> setSku(value)"/>
+  </div>
+  <div class="form-group">
+    <label>Name</label>
+    <input type="text" class="form-control" std:value="product.name" std:change="value -> setName(value)"/>
+  </div>
+  <div class="form-group" attr:class="priceValid ? '' : 'has-error'">
+    <label>Price</label>
+    <input type="text" class="form-control" std:value="product.unitPrice" std:change="value -> setUnitPrice(value)"/>
+  </div>
+  <button type="button" class="btn btn-default" event:click="save()">Save</button>
+</form>

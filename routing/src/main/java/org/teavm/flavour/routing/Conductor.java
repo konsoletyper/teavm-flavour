@@ -17,7 +17,6 @@ package org.teavm.flavour.routing;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.jso.browser.Location;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.HashChangeEvent;
@@ -70,9 +69,8 @@ public class Conductor {
     }
 
     EventListener<HashChangeEvent> listener = evt -> {
-        Location location = window.getLocation();
         for (Route route : routes) {
-            if (route.parse(location.getHash())) {
+            if (route.parse(window)) {
                 return;
             }
         }

@@ -52,7 +52,7 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
                 loading = false;
             }
             Templates.update();
-        });
+        }).start();
     }
 
     public void nextPage() {

@@ -43,7 +43,8 @@ public interface ProductFacade {
 
     @GET
     @Produces("application/json")
-    int count(ProductQueryDTO query);
+    @Path("count")
+    int count(@BeanParam ProductQueryDTO query);
 
     @GET
     @Path("{id}")

@@ -50,9 +50,15 @@ public class InsertComponent extends AbstractComponent {
                 body.destroy();
             }
             renderedFragment = newFragment;
-            body = newFragment.create();
-            getSlot().append(body.getSlot());
+            if (newFragment != null) {
+                body = newFragment.create();
+                getSlot().append(body.getSlot());
+            } else {
+                body = null;
+            }
         }
-        body.render();
+        if (body != null) {
+            body.render();
+        }
     }
 }

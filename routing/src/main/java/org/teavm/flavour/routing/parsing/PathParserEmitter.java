@@ -15,8 +15,6 @@
  */
 package org.teavm.flavour.routing.parsing;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.regex.Matcher;
 import org.teavm.flavour.regex.Pattern;
@@ -30,7 +28,6 @@ import org.teavm.model.MethodHolder;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
-import org.teavm.parsing.Parser;
 
 /**
  *
@@ -74,8 +71,9 @@ public class PathParserEmitter {
 
     public ClassHolder createPatternClass(Dfa dfa) {
         int index = dfaIndexGenerator++;
-        ClassHolder matcherClass = createDfaClass(dfa, index);
-        agent.submitClass(matcherClass);
+        byte[] matcherClass = createDfaClass(dfa, index);
+        String matcherClassName = agent.submitClassFile(matcherClass);
+        matcherClassName = matcherClassName.replace('/', '.');
 
         ClassHolder patternClass = new ClassHolder("org.teavm.flavour.internal.Pattern" + index);
         patternClass.setParent("java.lang.Object");
@@ -92,20 +90,16 @@ public class PathParserEmitter {
         MethodHolder worker = new MethodHolder("matcher", ValueType.parse(Matcher.class));
         worker.setLevel(AccessLevel.PUBLIC);
         pe = ProgramEmitter.create(worker, agent.getClassSource());
-        pe.construct(matcherClass.getName()).returnValue();
+        pe.construct(matcherClassName).returnValue();
         patternClass.addMethod(worker);
 
         agent.submitClass(patternClass);
         return patternClass;
     }
 
-    private ClassHolder createDfaClass(Dfa dfa, int index) {
+    private byte[] createDfaClass(Dfa dfa, int index) {
         MatcherClassBuilder classBuilder = new MatcherClassBuilder();
-        byte[] classFile = classBuilder.build("org.teavm.flavour.routing.internal.Matcher" + index, dfa);
-        ClassReader reader = new ClassReader(classFile);
-        ClassNode classNode = new ClassNode();
-        reader.accept(classNode, 0);
-        return Parser.parseClass(classNode);
+        return classBuilder.build("org.teavm.flavour.routing.internal.Matcher" + index, dfa);
     }
 
 }

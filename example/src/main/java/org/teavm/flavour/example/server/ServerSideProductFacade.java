@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.example.server;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.jinq.jpa.JPQL;
@@ -107,17 +108,17 @@ public class ServerSideProductFacade implements ProductFacade {
         dto.id = repository.getId(product);
         dto.name = product.getName();
         dto.sku = product.getSku();
-        dto.unitPrice = product.getPrice();
+        dto.unitPrice = product.getPrice().doubleValue();
         return dto;
     }
 
     private Product fromDTO(ProductDTO data) {
-        return new Product(data.sku, data.name, data.unitPrice);
+        return new Product(data.sku, data.name, new BigDecimal(data.unitPrice));
     }
 
     private void fromDTO(ProductDTO data, Product product) {
         product.setSku(data.sku);
         product.setName(data.name);
-        product.setPrice(data.unitPrice);
+        product.setPrice(new BigDecimal(data.unitPrice));
     }
 }

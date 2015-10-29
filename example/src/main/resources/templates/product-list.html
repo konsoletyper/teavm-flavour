@@ -1,7 +1,14 @@
 <?use w:org.teavm.flavour.widgets?>
-<h3>Please, select a product</h3>
+<div class="btn-toolbar">
+  <div class="btn-group">
+    <button type="button" class="btn" event:click="add()">Add</button>
+  </div>
+</div>
+<nav>
+  <w:paginator data="cursor"/>
+</nav>
 <div>
-  <table class="data">
+  <table class="table table-striped">
     <thead>
       <tr>
         <th>SKU</th>
@@ -12,7 +19,7 @@
     </thead>
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
-        <tr attr:class="i % 2 == 0 ? 'even' : 'odd'">
+        <tr>
           <td><std:text value="product.sku"/></td>
           <td><std:text value="product.name"/></td>
           <td align="right"><std:text value="'$' + product.unitPrice"/></td>
@@ -26,7 +33,4 @@
       </std:if>
     </tbody>
   </table>
-</div>
-<div>
-  <w:paginator data="cursor"/>
 </div>

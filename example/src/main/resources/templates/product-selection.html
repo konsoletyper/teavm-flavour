@@ -1,7 +1,7 @@
 <?use w:org.teavm.flavour.widgets?>
 <h3>Please, select a product</h3>
 <div>
-  <table class="data">
+  <table class="table-striped">
     <thead>
       <tr>
         <th>#</th>
@@ -13,7 +13,7 @@
     </thead>
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
-        <tr attr:class="i % 2 == 0 ? 'even' : 'odd'">
+        <tr>
           <td><std:text value="i + offset + 1"/></td>
           <td><std:text value="product.sku"/></td>
           <td><std:text value="product.name"/></td>
@@ -29,10 +29,10 @@
     </tbody>
   </table>
 </div>
-<div>
+<nav>
   <button event:click="previousPage()" std:enabled="currentPage > 0">Previous</button>
   Page
   <input type="text" size="3" std:value="currentPage + 1" std:change="str -> parseCurrentPage(str)">
   of <std:text value="pageCount"/>
   <button event:click="nextPage()" std:enabled="currentPage < pageCount - 1">Next</button>
-</div>
+</nav>

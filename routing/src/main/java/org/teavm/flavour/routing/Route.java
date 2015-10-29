@@ -30,7 +30,11 @@ public interface Route {
 
     default boolean parse(Window window) {
         Location location = window.getLocation();
-        return parse(location.getHash());
+        String hash = location.getHash();
+        if (hash.startsWith("#")) {
+            hash = hash.substring(1);
+        }
+        return parse(hash);
     }
 
     default boolean parse(String path) {

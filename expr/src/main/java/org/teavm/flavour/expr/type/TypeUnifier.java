@@ -94,9 +94,6 @@ public class TypeUnifier {
     }
 
     private GenericType unifyClasses(GenericClass pattern, GenericClass special, boolean covariant) {
-        if (pattern.getArguments().size() != special.getArguments().size()) {
-            return null;
-        }
         GenericClass matchType;
         if (!covariant) {
             if (!pattern.getName().equals(special.getName())) {

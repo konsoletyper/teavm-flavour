@@ -4,7 +4,7 @@
       <li attr:class="previousAvailable ? '' : 'disabled'">&laquo;</li>
     </std:if>
     <std:if condition="item.previous">
-      <li attr:class="nextAvailable ? '' : 'disabled'">&laquo;</li>
+      <li attr:class="nextAvailable ? '' : 'disabled'">&raquo;</li>
     </std:if>
     <std:if condition="item.page">
       <li attr:class="currentPage == item.pageNumber ? 'active' : ''"><std:text value="item.pageNumber + 1"></li>

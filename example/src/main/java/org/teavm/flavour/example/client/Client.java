@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.example.client;
 
+import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.routing.Conductor;
-import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
@@ -28,6 +28,7 @@ import org.teavm.flavour.templates.Templates;
 @BindTemplate("templates/main.html")
 public final class Client implements ApplicationRoute {
     private Fragment content;
+    private ProductFacade facade = new RemoteProductFacade();
 
     private Client() {
     }
@@ -35,8 +36,10 @@ public final class Client implements ApplicationRoute {
     public static void main(String[] args) {
         Client client = new Client();
         new Conductor().add(client);
-        Route.open(ApplicationRoute.class).orderList();
+        //Route.open(ApplicationRoute.class).productList();
         Templates.bind(client, "application-content");
+        client.parse();
+        Templates.update();
     }
 
     @Override
@@ -62,7 +65,7 @@ public final class Client implements ApplicationRoute {
     }
 
     public ProductDataSource productDataSet() {
-        return null;
+        return new ProductDataSource(facade);
     }
 
     @Override
@@ -73,5 +76,11 @@ public final class Client implements ApplicationRoute {
 
     @Override
     public void product(int id) {
+    }
+
+    @Override
+    public void newProduct() {
+        content = Templates.create(new ProductEditView(facade));
+        Templates.update();
     }
 }

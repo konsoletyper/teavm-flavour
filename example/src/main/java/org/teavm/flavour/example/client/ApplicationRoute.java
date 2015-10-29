@@ -40,4 +40,7 @@ public interface ApplicationRoute extends Route {
 
     @Path("products/{id}")
     void product(@PathParameter("id") int id);
+
+    @Path("products/new")
+    void newProduct();
 }
