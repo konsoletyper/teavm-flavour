@@ -1,16 +1,31 @@
 <ul class="pagination">
   <std:foreach var="item" in="items">
     <std:if condition="item.previous">
-      <li attr:class="previousAvailable ? '' : 'disabled'">&laquo;</li>
+      <li attr:class="previousAvailable ? '' : 'disabled'">
+        <a event:click="e -> previousPage(e)" std:link="c -> getPageLink(currentPage - 1, c)">&laquo;</a>
+      </li>
     </std:if>
-    <std:if condition="item.previous">
-      <li attr:class="nextAvailable ? '' : 'disabled'">&raquo;</li>
+    <std:if condition="item.next">
+      <li attr:class="nextAvailable ? '' : 'disabled'">
+        <a event:click="e -> nextPage(e)" std:link="c -> getPageLink(currentPage + 1, c)">&raquo;</a>
+      </li>
     </std:if>
     <std:if condition="item.page">
-      <li attr:class="currentPage == item.pageNumber ? 'active' : ''"><std:text value="item.pageNumber + 1"></li>
+      <li attr:class="currentPage == item.pageNumber ? 'active' : ''">
+        <a std:link="c -> getPageLink(item.pageNumber, c)"
+             event:click="e -> selectPage(e, item.pageNumber)">
+           <std:text value="item.pageNumber + 1"></a>
+      </li>
     </std:if>
     <std:if condition="item.skip">
-      <li>&hellip;</li>
+      <li class="disabled">
+        <span>&hellip;</span>
+      </li>
     </std:if>
   </std:foreach>
 </ul>
+<div>
+  <button type="button" class="btn btn-default btn-sm" event:click="refresh()">
+    <span class="glyphicon glyphicon-refresh"></span> Refresh
+  </button>
+</div>

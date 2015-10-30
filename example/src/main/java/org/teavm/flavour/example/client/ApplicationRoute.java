@@ -38,6 +38,9 @@ public interface ApplicationRoute extends Route {
     @Path("products")
     void productList();
 
+    @Path("products/page-{pageNum}")
+    void productPage(@PathParameter("pageNum") int page);
+
     @Path("products/{id}")
     void product(@PathParameter("id") int id);
 

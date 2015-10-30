@@ -53,13 +53,13 @@ public class ServerSideProductFacade implements ProductFacade {
 
     @Override
     public List<ProductDTO> list(ProductQueryDTO query) {
-        JinqStream<Product> all = filtered(query).sortedBy(Product::getName);
+        JinqStream<Product> all = filtered(query)
+                .sortedBy(Product::getName)
+                .skip(query.page.offset);
         if (query.page.limit != 0) {
             all = all.limit(query.page.limit);
         }
         return all
-                .skip(query.page.offset)
-                .toList().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }

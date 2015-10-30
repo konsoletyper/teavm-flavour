@@ -221,19 +221,27 @@ class ExprPlanEmitter implements PlanVisitor {
             case AND:
                 plan.getFirstOperand().acceptVisitor(this);
                 valueToBranching();
-                branching.and(() -> {
+                branching = branching.and(() -> {
+                    ConditionEmitter oldBranching = branching;
+                    branching = null;
                     plan.getSecondOperand().acceptVisitor(this);
                     valueToBranching();
-                    return branching;
+                    ConditionEmitter result = branching;
+                    branching = oldBranching;
+                    return result;
                 });
                 break;
             case OR:
                 plan.getFirstOperand().acceptVisitor(this);
                 valueToBranching();
-                branching.or(() -> {
+                branching = branching.or(() -> {
+                    ConditionEmitter oldBranching = branching;
+                    branching = null;
                     plan.getSecondOperand().acceptVisitor(this);
                     valueToBranching();
-                    return branching;
+                    ConditionEmitter result = branching;
+                    branching = oldBranching;
+                    return result;
                 });
                 break;
         }

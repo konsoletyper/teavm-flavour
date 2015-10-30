@@ -17,11 +17,15 @@ package org.teavm.flavour.widgets;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.MouseEvent;
 
 /**
  *
@@ -30,13 +34,12 @@ import org.teavm.flavour.templates.Slot;
 @BindDirective(name = "paginator")
 @BindTemplate("templates/flavour/widgets/paginator.html")
 public class Paginator extends AbstractWidget {
-    private Computation<Integer> sidePages = () -> 3;
-    private Computation<Integer> surroundingPages = () -> 2;
+    private Computation<Integer> maxPages = () -> 11;
     private Computation<Pageable> data;
+    private BiConsumer<Integer, Consumer<String>> linkGenerator;
     private List<Item> items = new ArrayList<>();
     private Pageable cachedData;
-    private int cachedSidePages;
-    private int cachedSurroundingPages;
+    private int cachedMaxPages;
     private int cachedPage;
     private int cachedPageCount;
 
@@ -49,30 +52,27 @@ public class Paginator extends AbstractWidget {
         this.data = data;
     }
 
-    @BindAttribute(name = "side-pages", optional = true)
-    public void setSidePages(Computation<Integer> sidePages) {
-        this.sidePages = sidePages;
+    @BindAttribute(name = "max-pages", optional = true)
+    public void setMaxPages(Computation<Integer> maxPages) {
+        this.maxPages = maxPages;
     }
 
-    @BindAttribute(name = "surrounding-pages", optional = true)
-    public void setSurroundingPages(Computation<Integer> surroundingPages) {
-        this.surroundingPages = surroundingPages;
+    @BindAttribute(name = "page-link", optional = true)
+    public void setLinkGenerator(BiConsumer<Integer, Consumer<String>> linkGenerator) {
+        this.linkGenerator = linkGenerator;
     }
 
     @Override
     public void render() {
         Pageable data = this.data.perform();
-        int sidePages = this.sidePages.perform();
-        int surroundingPages = this.surroundingPages.perform();
+        int maxPages = this.maxPages.perform();
         int page = data.getCurrentPage();
         int pageCount = data.getPageCount();
-        if (sidePages != cachedSidePages || surroundingPages != cachedSurroundingPages
-                || data != cachedData || cachedPage != page || cachedPageCount != pageCount) {
-            cachedSidePages = sidePages;
-            cachedSurroundingPages = surroundingPages;
+        if (maxPages != cachedMaxPages || data != cachedData || cachedPage != page || cachedPageCount != pageCount) {
             cachedData = data;
             cachedPage = page;
             cachedPageCount = pageCount;
+            cachedMaxPages = maxPages;
             rebuildItems();
             super.render();
         }
@@ -94,38 +94,102 @@ public class Paginator extends AbstractWidget {
         return cachedPage;
     }
 
+    public void selectPage(MouseEvent event, int pageNum) {
+        cachedData.setCurrentPage(pageNum);
+        replaceHash();
+        event.preventDefault();
+    }
+
+    public void nextPage(MouseEvent event) {
+        if (cachedData.getCurrentPage() < cachedData.getPageCount() - 1) {
+            cachedData.setCurrentPage(cachedData.getCurrentPage() + 1);
+        }
+        replaceHash();
+        event.preventDefault();
+    }
+
+    public void previousPage(MouseEvent event) {
+        if (cachedData.getCurrentPage() > 0) {
+            cachedData.setCurrentPage(cachedData.getCurrentPage() - 1);
+        }
+        replaceHash();
+        event.preventDefault();
+    }
+
+    public void getPageLink(int pageNumber, Consumer<String> consumer) {
+        if (linkGenerator != null) {
+            linkGenerator.accept(pageNumber, consumer);
+        } else {
+            consumer.accept(Window.current().getLocation().getHash());
+        }
+    }
+
+    private void replaceHash() {
+        linkGenerator.accept(cachedData.getCurrentPage(), hash -> {
+            if (hash != null) {
+                Window.current().getHistory().replaceState(null, "", "#" + Window.encodeURI(hash));
+            }
+        });
+    }
+
     private void rebuildItems() {
         items.clear();
         items.add(new Item(ItemType.PREVIOUS, cachedPage));
 
-        if (cachedSidePages < cachedPageCount) {
-            int left = Math.max(cachedSidePages, cachedPage - cachedSurroundingPages);
-            int right = Math.min(cachedPageCount - cachedSidePages, cachedPage + cachedSurroundingPages + 1);
-
-            for (int i = 0; i < cachedSidePages; ++i) {
-                items.add(new Item(ItemType.PAGE, i));
-            }
-            if (left > cachedSidePages) {
-                items.add(new Item(ItemType.SKIP, -1));
-            }
-
-            for (int i = left; i < right; ++i) {
-                items.add(new Item(ItemType.PAGE, i));
-            }
-
-            if (right <= cachedPageCount - cachedSidePages) {
-                items.add(new Item(ItemType.SKIP, -1));
-            }
-            for (int i = cachedPageCount - cachedSidePages; i < cachedPageCount; ++i) {
+        if (cachedMaxPages >= cachedPageCount) {
+            for (int i = 0; i < cachedPageCount; ++i) {
                 items.add(new Item(ItemType.PAGE, i));
             }
         } else {
-            for (int i = 0; i < cachedPageCount; ++i) {
-                items.add(new Item(ItemType.PAGE, i));
+            int buttons = cachedMaxPages - 2;
+            int central = buttons / 3;
+            int left = central - 1;
+            int right = central - 1;
+            central += 2 + buttons % 3;
+            int centralLeft = central / 2;
+            int centralRight = central - centralLeft;
+
+            if (left >= cachedPage - centralLeft) {
+                left += central;
+                right++;
+                for (int i = 0; i < left; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+                items.add(new Item(ItemType.SKIP, -1));
+                for (int i = cachedPageCount - right; i < cachedPageCount; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+            } else if (cachedPageCount - right <= cachedPage + centralRight) {
+                buttons++;
+                right += central;
+                left++;
+                for (int i = 0; i < left; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+                items.add(new Item(ItemType.SKIP, -1));
+                for (int i = cachedPageCount - right; i < cachedPageCount; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+            } else {
+                for (int i = 0; i < left; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+                items.add(new Item(ItemType.SKIP, -1));
+                for (int i = cachedPage - centralLeft; i < cachedPage + centralRight; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
+                items.add(new Item(ItemType.SKIP, -1));
+                for (int i = cachedPageCount - right; i < cachedPageCount; ++i) {
+                    items.add(new Item(ItemType.PAGE, i));
+                }
             }
         }
 
         items.add(new Item(ItemType.NEXT, cachedPage));
+    }
+
+    public void refresh() {
+        cachedData.refresh();
     }
 
     public List<Item> getItems() {

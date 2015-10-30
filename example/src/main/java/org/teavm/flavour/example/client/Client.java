@@ -28,6 +28,7 @@ import org.teavm.flavour.templates.Templates;
 @BindTemplate("templates/main.html")
 public final class Client implements ApplicationRoute {
     private Fragment content;
+    private Object currentView;
     private ProductFacade facade = new RemoteProductFacade();
 
     private Client() {
@@ -70,17 +71,31 @@ public final class Client implements ApplicationRoute {
 
     @Override
     public void productList() {
-        content = Templates.create(new ProductListView(productDataSet()));
-        Templates.update();
+        setView(new ProductListView(productDataSet()));
+    }
+
+    @Override
+    public void productPage(int page) {
+        if (currentView instanceof ProductListView) {
+            ((ProductListView) currentView).selectPage(page);
+        } else {
+            setView(new ProductListView(productDataSet(), page));
+        }
     }
 
     @Override
     public void product(int id) {
+        setView(new ProductEditView(facade, id));
     }
 
     @Override
     public void newProduct() {
-        content = Templates.create(new ProductEditView(facade));
+        setView(new ProductEditView(facade));
+    }
+
+    private void setView(Object view) {
+        this.currentView = view;
+        content = Templates.create(view);
         Templates.update();
     }
 }

@@ -113,13 +113,13 @@ class RouteImplementorEmitter {
             ClassReader routeType = pathSets.iterator().next();
 
             return routeIfaceImplementors.computeIfAbsent(routeType.getName(), ifaceType -> {
-                return emitInterfaceParser(ifaceType, location);
+                return emitInterfaceParser(ifaceType);
             });
         });
     }
 
-    private String emitInterfaceParser(String routeIface, CallLocation location) {
-        describer = new RouteDescriber(classSource, diagnostics, location);
+    private String emitInterfaceParser(String routeIface) {
+        describer = new RouteDescriber(classSource, diagnostics);
         RouteSetDescriptor descriptor = describer.describeRouteSet(routeIface);
         if (descriptor == null) {
             return null;
@@ -180,14 +180,22 @@ class RouteImplementorEmitter {
         for (int i = 0; i < descriptor.getRoutes().size(); ++i) {
             RouteDescriptor routeDescriptor = descriptor.getRoutes().get(i);
             MethodDescriptor method = routeDescriptor.getMethod();
-            ValueEmitter[] values = new ValueEmitter[method.parameterCount()];
             choice.option(i, () -> {
+                ValueEmitter[] values = new ValueEmitter[method.parameterCount()];
                 for (int j = 0; j < routeDescriptor.pathPartCount() - 1; ++j) {
                     ParameterDescriptor param = routeDescriptor.parameter(j);
+                    if (param == null) {
+                        continue;
+                    }
                     ValueEmitter startVar = parseResultVar.invokeVirtual("start", int.class, pe.constant(j));
                     ValueEmitter endVar = parseResultVar.invokeVirtual("end", int.class, pe.constant(j));
                     ValueEmitter rawParamVar = pathVar.invokeVirtual("substring", String.class, startVar, endVar);
                     values[param.getJavaIndex()] = emitParam(rawParamVar, param);
+                }
+                for (int j = 0; j < method.parameterCount(); ++j) {
+                    if (values[j] == null) {
+                        values[j] = pe.constantNull(method.parameterType(j));
+                    }
                 }
                 routeVar.invokeVirtual(method.getName(), method.getResultType(), values);
             });
@@ -245,8 +253,10 @@ class RouteImplementorEmitter {
             pathBuilder.text(routeDescriptor.pathPart(0));
             for (int i = 1; i < routeDescriptor.pathPartCount(); ++i) {
                 ParameterDescriptor param = routeDescriptor.parameter(i - 1);
-                pathBuilder.escapedRegex(param.getEffectivePattern());
-                pathBuilder.text(routeDescriptor.pathPart(i));
+                if (param != null) {
+                    pathBuilder.escapedRegex(param.getEffectivePattern());
+                    pathBuilder.text(routeDescriptor.pathPart(i));
+                }
             }
         }
         return pathParserBuilder.buildUnprepared();

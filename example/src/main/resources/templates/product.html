@@ -1,15 +1,27 @@
 <form>
-  <div class="form-group">
+  <div class="form-group" attr:class="skuEmpty ? 'form-group has-error' : 'form-group'">
     <label>SKU</label>
     <input type="text" class="form-control" std:value="product.sku" std:change="value -> setSku(value)"/>
+    <std:if condition="skuEmpty">
+      <span class="help-block">SKU is required</span>
+    </std:if>
   </div>
-  <div class="form-group">
+  <div class="form-group" attr:class="nameEmpty ? 'form-group has-error' : 'form-group'">
     <label>Name</label>
     <input type="text" class="form-control" std:value="product.name" std:change="value -> setName(value)"/>
+    <std:if condition="nameEmpty">
+      <span class="help-block">Name is required</span>
+    </std:if>
   </div>
-  <div class="form-group" attr:class="priceValid ? '' : 'has-error'">
+  <div attr:class="priceInvalid or priceNegative ? 'form-group has-error' : 'form-group'">
     <label>Price</label>
     <input type="text" class="form-control" std:value="product.unitPrice" std:change="value -> setUnitPrice(value)"/>
+    <std:if condition="priceInvalid">
+      <span class="help-block">Unexpected characters.</span>
+    </std:if>
+    <std:if condition="priceNegative">
+      <span class="help-block">Price must be positive.</span>
+    </std:if>
   </div>
   <button type="button" class="btn btn-default" event:click="save()">Save</button>
 </form>

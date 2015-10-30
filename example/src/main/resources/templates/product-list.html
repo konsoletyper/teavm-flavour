@@ -5,25 +5,25 @@
   </div>
 </div>
 <nav>
-  <w:paginator data="cursor"/>
+  <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
 </nav>
 <div>
   <table class="table table-striped">
     <thead>
       <tr>
+        <th></th>
         <th>SKU</th>
         <th>Name</th>
         <th>Price</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
         <tr>
+          <td><a std:link="c -> edit(product.id, c)">Edit</a></td>
           <td><std:text value="product.sku"/></td>
           <td><std:text value="product.name"/></td>
           <td align="right"><std:text value="'$' + product.unitPrice"/></td>
-          <td><button event:click="edit(i)">Edit</button></td>
         </tr>
       </std:foreach>
       <std:if condition="cursor.fetch().empty">

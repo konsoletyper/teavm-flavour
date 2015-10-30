@@ -55,6 +55,6 @@ public class LinkComponent implements Renderable {
     public void destroy() {
     }
 
-    @JSBody(params = { "elem", "value" }, script = "elem.href = value;")
+    @JSBody(params = { "elem", "value" }, script = "elem.href = '#' + value;")
     private static native void setHref(HTMLElement elem, String value);
 }

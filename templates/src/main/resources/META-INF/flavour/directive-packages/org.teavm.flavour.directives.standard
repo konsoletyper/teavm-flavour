@@ -6,3 +6,4 @@ ValueBinder
 ValueChangeBinder
 EnabledBinder
 ExposeElementComponent
+LinkComponent

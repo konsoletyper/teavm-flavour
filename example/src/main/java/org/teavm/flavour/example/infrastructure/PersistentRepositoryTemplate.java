@@ -57,7 +57,7 @@ public abstract class PersistentRepositoryTemplate<T> implements GenericReposito
 
     @Override
     public T findById(int id) {
-        return em.find(type, em);
+        return em.find(type, id);
     }
 
     @Override

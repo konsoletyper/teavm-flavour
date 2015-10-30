@@ -45,7 +45,7 @@ public class RemoteProductFacade implements ProductFacade {
     @Override
     public List<ProductDTO> list(ProductQueryDTO query) {
         StringBuilder sb = new StringBuilder();
-        sb.append("api/products?offset" + query.page.offset);
+        sb.append("api/products?offset=" + query.page.offset);
         if (query.namePart != null && !query.namePart.isEmpty()) {
             sb.append("&name=" + Window.encodeURIComponent(query.namePart));
         }

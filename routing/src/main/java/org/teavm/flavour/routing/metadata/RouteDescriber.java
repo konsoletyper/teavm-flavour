@@ -41,12 +41,10 @@ import org.teavm.model.ValueType;
 public class RouteDescriber {
     private ClassReaderSource classSource;
     private Diagnostics diagnostics;
-    private CallLocation location;
 
-    public RouteDescriber(ClassReaderSource classSource, Diagnostics diagnostics, CallLocation location) {
+    public RouteDescriber(ClassReaderSource classSource, Diagnostics diagnostics) {
         this.classSource = classSource;
         this.diagnostics = diagnostics;
-        this.location = location;
     }
 
     public RouteSetDescriptor describeRouteSet(String className) {
@@ -77,6 +75,7 @@ public class RouteDescriber {
     }
 
     private Map<String, Integer> parseParameterNames(MethodReader method) {
+        CallLocation location = new CallLocation(method.getReference());
         AnnotationContainerReader[] parameterAnnotations = method.getParameterAnnotations();
         Map<String, Integer> parameterNames = new HashMap<>();
         for (int i = 0; i < method.parameterCount(); ++i) {
@@ -107,6 +106,7 @@ public class RouteDescriber {
 
     private boolean parsePath(MethodReader method, List<String> pathParts, List<ParameterDescriptor> parameters,
             Map<String, Integer> parameterNames) {
+        CallLocation location = new CallLocation(method.getReference());
         AnnotationReader pathAnnot = method.getAnnotations().get(Path.class.getName());
         if (pathAnnot == null) {
             diagnostics.error(location, "Missing {{c0}} annotation on {{m1}}", Path.class.getName(),
@@ -133,10 +133,12 @@ public class RouteDescriber {
             if (paramIndex == null) {
                 diagnostics.error(location, "No parameter " + alias + ", referred by path, found in {{m0}}",
                         method.getReference());
+                parameters.add(null);
+            } else {
+                ParameterDescriptor param = new ParameterDescriptor(paramIndex, alias);
+                param.index = parameters.size();
+                parameters.add(param);
             }
-            ParameterDescriptor param = new ParameterDescriptor(paramIndex, alias);
-            param.index = parameters.size();
-            parameters.add(param);
             index = end + 1;
         }
         pathParts.add(path.substring(index));
@@ -146,7 +148,11 @@ public class RouteDescriber {
 
     private void parseAnnotationsAndTypes(MethodReader method, List<ParameterDescriptor> parameters) {
         AnnotationContainerReader[] annotations = method.getParameterAnnotations();
+        CallLocation location = new CallLocation(method.getReference());
         for (ParameterDescriptor param : parameters) {
+            if (param == null) {
+                continue;
+            }
             ValueType paramType = method.parameterType(param.javaIndex);
             param.valueType = paramType;
             AnnotationContainerReader paramAnnotations = annotations[param.javaIndex];

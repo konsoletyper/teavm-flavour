@@ -37,6 +37,7 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
         this.dataSource = dataSource;
     }
 
+    @Override
     public void refresh() {
         loading = true;
         new Thread(() -> {
@@ -73,6 +74,7 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
     @Override
     public void setCurrentPage(int currentPage) {
         this.currentPage = currentPage;
+        refresh();
     }
 
     public void parseCurrentPage(String text) {

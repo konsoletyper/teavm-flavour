@@ -44,7 +44,8 @@ public class Parser {
         RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.Root());
         ParsingResult<Holder> result = runner.run(text);
         for (ParseError error : result.parseErrors) {
-            diagnostics.add(new Diagnostic(error.getStartIndex(), error.getEndIndex(), error.getErrorMessage()));
+            diagnostics.add(new Diagnostic(error.getStartIndex(), error.getEndIndex(),
+                    error.getErrorMessage() != null ? error.getErrorMessage() : ""));
         }
         if (!diagnostics.isEmpty() && result.resultValue == null) {
             return new ConstantExpr<>(null);

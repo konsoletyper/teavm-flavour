@@ -59,4 +59,14 @@ public interface Route {
     static <T extends Route> T open(Class<T> routeType) {
         return open(Window.current(), routeType);
     }
+
+    static <T extends Route> T replace(Window window, Class<T> routeType) {
+        return build(routeType, hash -> {
+            window.getHistory().replaceState(null, null, "#" + Window.encodeURI(hash));
+        });
+    }
+
+    static <T extends Route> T replace(Class<T> routeType) {
+        return replace(Window.current(), routeType);
+    }
 }

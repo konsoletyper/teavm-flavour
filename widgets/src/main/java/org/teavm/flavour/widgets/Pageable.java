@@ -25,4 +25,6 @@ public interface Pageable {
     int getCurrentPage();
 
     void setCurrentPage(int currentPage);
+
+    void refresh();
 }

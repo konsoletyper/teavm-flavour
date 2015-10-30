@@ -29,22 +29,30 @@ import org.teavm.jso.browser.Window;
 public class ProductEditView {
     private Integer id;
     private ProductDTO product;
+    private boolean nameEmpty;
+    private boolean skuEmpty;
     private boolean loading;
     private ProductFacade facade;
-    private boolean priceValid = true;
+    private boolean priceInvalid;
+    private boolean priceNegative;
 
     public ProductEditView(ProductFacade facade) {
         this.facade = facade;
-        product = new ProductDTO();
-        product.sku = "";
-        product.name = "";
-        product.unitPrice = 0;
+        initProduct();
     }
 
     public ProductEditView(ProductFacade facade, int id) {
         this.facade = facade;
         this.id = id;
+        initProduct();
         load();
+    }
+
+    private void initProduct() {
+        product = new ProductDTO();
+        product.sku = "";
+        product.name = "";
+        product.unitPrice = 0;
     }
 
     private void load() {
@@ -60,6 +68,9 @@ public class ProductEditView {
     }
 
     public void save() {
+        if (!validate()) {
+            return;
+        }
         new Thread(() -> {
             try {
                 if (id == null) {
@@ -75,6 +86,13 @@ public class ProductEditView {
         }).start();
     }
 
+    private boolean validate() {
+        nameEmpty = product.name.isEmpty();
+        skuEmpty = product.sku.isEmpty();
+        priceNegative = product.unitPrice <= 0;
+        return !nameEmpty && !skuEmpty && !priceNegative;
+    }
+
     public void setSku(String sku) {
         product.sku = sku;
     }
@@ -84,16 +102,12 @@ public class ProductEditView {
     }
 
     public void setUnitPrice(String price) {
-        priceValid = true;
+        priceInvalid = false;
         try {
             product.unitPrice = Double.parseDouble(price.trim().replace(',', '.'));
         } catch (NumberFormatException e) {
-            priceValid = false;
+            priceInvalid = true;
         }
-    }
-
-    public boolean isPriceValid() {
-        return priceValid;
     }
 
     public ProductDTO getProduct() {
@@ -102,5 +116,21 @@ public class ProductEditView {
 
     public boolean isLoading() {
         return loading;
+    }
+
+    public boolean isNameEmpty() {
+        return nameEmpty;
+    }
+
+    public boolean isSkuEmpty() {
+        return skuEmpty;
+    }
+
+    public boolean isPriceInvalid() {
+        return priceInvalid;
+    }
+
+    public boolean isPriceNegative() {
+        return priceNegative;
     }
 }

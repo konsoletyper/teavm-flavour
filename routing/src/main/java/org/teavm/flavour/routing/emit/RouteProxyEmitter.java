@@ -103,8 +103,10 @@ public class RouteProxyEmitter {
         sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant(descriptor.pathPart(0)));
         for (int i = 1; i < descriptor.pathPartCount(); ++i) {
             ParameterDescriptor param = descriptor.parameter(i - 1);
-            ValueEmitter paramVar = pe.var(param.getJavaIndex() + 1, param.getValueType());
-            sb = sb.invokeVirtual("append", StringBuilder.class, emitParam(paramVar, param));
+            if (param != null) {
+                ValueEmitter paramVar = pe.var(param.getJavaIndex() + 1, param.getValueType());
+                sb = sb.invokeVirtual("append", StringBuilder.class, emitParam(paramVar, param));
+            }
 
             sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant(descriptor.pathPart(i)));
         }
