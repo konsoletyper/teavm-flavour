@@ -220,6 +220,7 @@
     <module>regex</module>
     <module>routing</module>
     <module>json</module>
+    <module>rest</module>
     <module>example</module>
   </modules>
 </project>
