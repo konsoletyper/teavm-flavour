@@ -452,9 +452,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             if (matchedPlan.type instanceof GenericType) {
                 GenericType type = ((GenericType) matchedPlan.type).substitute(unifiers.get(0).getSubstitutions());
-                matchedPlan = new TypedPlan(matchedPlan.plan, type);
+                matchedPlan = tryCast(matchedPlan, type);
             }
             expr.setAttribute(matchedPlan);
+
             return;
         }
 
