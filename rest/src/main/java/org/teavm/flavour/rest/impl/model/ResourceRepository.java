@@ -103,6 +103,7 @@ public class ResourceRepository {
         readPath(model, method);
         readHttpMethod(model, method);
         readParameters(model, method);
+        fillValues(model, method);
         validate(model, method);
     }
 
@@ -154,80 +155,67 @@ public class ResourceRepository {
         for (int i = 0; i < method.parameterCount(); ++i) {
             ParameterModel param = new ParameterModel();
             param.index = i;
-            param.sourceType = method.parameterType(i);
-            param.type = param.sourceType;
-            readParameter(param, model, method, annotations[i]);
+            param.type = method.parameterType(i);
+            readParameter(param, method, annotations[i]);
         }
     }
 
-    private void readParameter(ParameterModel param, MethodModel model, MethodReader method,
+    private void readParameter(ParameterModel param, MethodReader method,
             AnnotationContainerReader annotations) {
         AnnotationReader pathAnnot = annotations.get(JAXRSAnnotations.PATH_PARAM);
         AnnotationReader queryAnnot = annotations.get(JAXRSAnnotations.QUERY_PARAM);
         AnnotationReader headerAnnot = annotations.get(JAXRSAnnotations.HEADER_PARAM);
         AnnotationReader beanAnnot = annotations.get(JAXRSAnnotations.BEAN_PARAM);
 
+        int annotCount = 0;
+        if (pathAnnot != null) {
+            ++annotCount;
+        }
+        if (queryAnnot != null) {
+            ++annotCount;
+        }
+        if (headerAnnot != null) {
+            ++annotCount;
+        }
         if (beanAnnot != null) {
-            if (pathAnnot != null || queryAnnot != null || headerAnnot != null) {
-                diagnostics.error(new CallLocation(method.getReference()), "Can't combine {{c0}} with other "
-                        + "parameter annotations", JAXRSAnnotations.BEAN_PARAM);
+            ++annotCount;
+        }
+
+        if (annotCount > 1) {
+            diagnostics.error(new CallLocation(method.getReference()), "Only one annotation of the following list "
+                    + "enabled: {{c0}}, {{c1}}, {{c2}}, {{c3}}", JAXRSAnnotations.BEAN_PARAM,
+                    JAXRSAnnotations.QUERY_PARAM, JAXRSAnnotations.HEADER_PARAM, JAXRSAnnotations.QUERY_PARAM);
+        }
+
+        if (pathAnnot != null) {
+            param.usage = Usage.PATH;
+            param.name = pathAnnot.getValue("value").getString();
+            validateScalarParameter(param, method);
+        } else if (queryAnnot != null) {
+            param.usage = Usage.QUERY;
+            param.name = queryAnnot.getValue("value").getString();
+            validateScalarParameter(param, method);
+        } else if (headerAnnot != null) {
+            param.usage = Usage.HEADER;
+            param.name = headerAnnot.getValue("value").getString();
+            validateScalarParameter(param, method);
+        } else if (beanAnnot != null) {
+            param.usage = Usage.BEAN;
+            if (!(param.type instanceof ValueType.Object)) {
+                diagnostics.error(new CallLocation(method.getReference()), "Parameter #" + param.index
+                        + " marked by {{c0}} must be of object type, actual type is {{t1}}",
+                        JAXRSAnnotations.BEAN_PARAM, param.type);
             }
-            addBeanParameter(param, model, method);
         } else {
-            if (pathAnnot != null) {
-                addScalarParameter(param, model.pathParameters, "path", pathAnnot, method);
-            }
-            if (queryAnnot != null) {
-                addScalarParameter(param, model.queryParameters, "query", pathAnnot, method);
-            }
-            if (headerAnnot != null) {
-                addScalarParameter(param, model.headerParameters, "header", pathAnnot, method);
-            }
-            if (pathAnnot == null && headerAnnot == null && queryAnnot == null) {
-                if (model.body == null) {
-                    model.body = param;
-                } else {
-                    diagnostics.error(new CallLocation(method.getReference()),
-                            "Method has multiple candidates for request body");
-                }
-            }
+            param.usage = Usage.BODY;
         }
     }
 
-    private void addBeanParameter(ParameterModel param, MethodModel model, MethodReader method) {
-        if (!(param.type instanceof ValueType.Object)) {
-            diagnostics.error(new CallLocation(method.getReference()), "{{c0}} annotation is expected on class, "
-                    + "actual type is {{t1}}", JAXRSAnnotations.BEAN_PARAM, param.type);
-            return;
-        }
-        BeanModel bean = beanRepository.getBean(((ValueType.Object) param.type).getClassName());
-        if (bean == null) {
-            return;
-        }
-
-        for (PropertyModel property : bean.properties.values()) {
-            ParameterModel nestedParam = param.clone();
-            nestedParam.pathToValue.add(property);
-            nestedParam.type = property.getType();
-            readParameter(nestedParam, model, method, property.getGetter() != null
-                    ? property.getGetter().getAnnotations() : property.getField().getAnnotations());
-        }
-    }
-
-    private void addScalarParameter(ParameterModel param, Map<String, ParameterModel> map, String usage,
-            AnnotationReader annot, MethodReader method) {
-        param.name = annot.getValue("value").getString();
-        if (map.containsKey(param.name)) {
-            diagnostics.error(new CallLocation(method.getReference()), "Method has multiple candidates for " + usage
-                    + " parameter " + param.name);
-            return;
-        }
+    private void validateScalarParameter(ParameterModel param, MethodReader method) {
         if (!isSupportedParameterType(param.type)) {
-            diagnostics.error(new CallLocation(method.getReference()), "Parameter " + param.name + " has wrong type "
-                    + "{{t0}}", param.type);
-            return;
+            diagnostics.error(new CallLocation(method.getReference()), "Invalid parameter #" + param.getIndex()
+                    + " type {{t0}}", param.getType());
         }
-        map.put(param.name, param);
     }
 
     private boolean isSupportedParameterType(ValueType type) {
@@ -239,6 +227,62 @@ public class ResourceRepository {
                     || classSource.isSuperType("java.lang.Number", obj.getClassName()).orElse(false);
         } else {
             return false;
+        }
+    }
+
+    private void fillValues(MethodModel model, MethodReader method) {
+        for (ParameterModel param : model.parameters) {
+            RootValuePath path = new RootValuePath(param);
+            addValue(path, model, method);
+        }
+    }
+
+    private void addValue(ValuePath path, MethodModel model, MethodReader method) {
+        switch (path.getUsage()) {
+            case PATH:
+                addScalar(path, method, model.pathParameters);
+                break;
+            case QUERY:
+                addScalar(path, method, model.queryParameters);
+                break;
+            case HEADER:
+                addScalar(path, method, model.headerParameters);
+                break;
+            case BEAN:
+                fillBeanValues(path, model, method);
+                break;
+            case BODY:
+                if (model.body != null) {
+                    diagnostics.error(new CallLocation(method.getReference()), "Multiple candidates for "
+                            + "message body: " + model.body + " and " + path);
+                } else {
+                    model.body = path;
+                }
+        }
+    }
+
+    private void addScalar(ValuePath path, MethodReader method, Map<String, ValuePath> map) {
+        if (map.containsKey(path.getName())) {
+            diagnostics.error(new CallLocation(method.getReference()), "Multiple candidates for "
+                    + path.getUsage().name().toLowerCase() + " parameter '" + path.getName() + "': "
+                    + map.get(path.getName()) + " and " + path);
+            return;
+        }
+        map.put(path.getName(), path);
+    }
+
+    private void fillBeanValues(ValuePath path, MethodModel model, MethodReader method) {
+        if (!(path.getType() instanceof ValueType.Object)) {
+            return;
+        }
+        String className = ((ValueType.Object) path.getType()).getClassName();
+        BeanModel bean = beanRepository.getBean(className);
+        if (bean == null) {
+            return;
+        }
+
+        for (PropertyModel property : bean.properties.values()) {
+            addValue(new PropertyValuePath(path, property), model, method);
         }
     }
 

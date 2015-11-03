@@ -20,8 +20,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.teavm.diagnostics.Diagnostics;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.AnnotationContainerReader;
+import org.teavm.model.AnnotationReader;
+import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
@@ -34,11 +37,15 @@ import org.teavm.model.ValueType;
  * @author Alexey Andreev
  */
 public class BeanRepository {
+    private static String[] meaningfulAnnotations = { JAXRSAnnotations.BEAN_PARAM,
+            JAXRSAnnotations.PATH_PARAM, JAXRSAnnotations.HEADER_PARAM, JAXRSAnnotations.QUERY_PARAM };
     private ClassReaderSource classSource;
+    private Diagnostics diagnostics;
     private Map<String, BeanModel> cache = new HashMap<>();
 
-    public BeanRepository(ClassReaderSource classSource) {
+    public BeanRepository(ClassReaderSource classSource, Diagnostics diagnostics) {
         this.classSource = classSource;
+        this.diagnostics = diagnostics;
     }
 
     public BeanModel getBean(String className) {
@@ -67,8 +74,17 @@ public class BeanRepository {
 
     private void detectProperties(BeanModel model, ClassReader cls) {
         Set<String> inheritedProperties = new HashSet<>(model.properties.keySet());
+        detectFields(cls, model, inheritedProperties);
+        detectAccessors(cls, model, inheritedProperties);
+        detectUsage(model);
+    }
+
+    private void detectFields(ClassReader cls, BeanModel model, Set<String> inheritedProperties) {
         for (FieldReader field : cls.getFields()) {
-            if (field.hasModifier(ElementModifier.STATIC) || field.getLevel() != AccessLevel.PUBLIC) {
+            if (field.hasModifier(ElementModifier.STATIC)) {
+                continue;
+            }
+            if (field.getLevel() != AccessLevel.PUBLIC && hasMeaningfulAnnotation(field.getAnnotations())) {
                 continue;
             }
             PropertyModel property = new PropertyModel();
@@ -78,8 +94,17 @@ public class BeanRepository {
             model.properties.put(field.getName(), property);
             inheritedProperties.remove(field.getName());
         }
+    }
 
+    private void detectAccessors(ClassReader cls, BeanModel model, Set<String> inheritedProperties) {
         for (MethodReader method : cls.getMethods()) {
+            if (method.hasModifier(ElementModifier.STATIC)) {
+                continue;
+            }
+            if (method.getLevel() != AccessLevel.PUBLIC && hasMeaningfulAnnotation(method.getAnnotations())) {
+                continue;
+            }
+
             ValueType type;
             String propertyName = tryGetter(method);
             if (propertyName != null) {
@@ -103,13 +128,88 @@ public class BeanRepository {
                 property.type = type;
                 model.properties.put(propertyName, property);
                 inheritedProperties.remove(propertyName);
-            } else if (type.equals(property.type)) {
-                if (method.parameterCount() == 1) {
-                    property.setter = method;
-                } else {
-                    property.getter = method;
+            } else {
+                if (!type.equals(property.type)) {
+                    if (hasMeaningfulAnnotation(method.getAnnotations())) {
+                        diagnostics.error(new CallLocation(method.getReference()), "Inconsistent types for "
+                                + "property " + propertyName + ": {{t0}} vs. {{t1}}", type, property.type);
+                    }
+                    continue;
                 }
             }
+
+            if (method.parameterCount() == 1) {
+                property.setter = method;
+            } else {
+                property.getter = method;
+            }
+        }
+    }
+
+    private void detectUsage(BeanModel bean) {
+        for (PropertyModel property : bean.properties.values()) {
+            if (property.field != null) {
+                detectUsage(bean, property, property.field.getAnnotations());
+            }
+            if (property.getter != null) {
+                detectUsage(bean, property, property.getter.getAnnotations());
+            }
+            if (property.setter != null) {
+                detectUsage(bean, property, property.setter.getAnnotations());
+            }
+        }
+    }
+
+    private void detectUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations) {
+        if (!hasMeaningfulAnnotation(annotations)) {
+            return;
+        }
+        int count = 0;
+        for (String annot : meaningfulAnnotations) {
+            if (annotations.get(annot) != null) {
+                ++count;
+                if (count > 1) {
+                    diagnostics.error(null, "Property {{c0}}." + property.getName() + " should have only one "
+                            + "of the following annotations: {{c0}}, {{c1}}, {{c2}}, {{c3}}",
+                            bean.className, meaningfulAnnotations[0], meaningfulAnnotations[1],
+                            meaningfulAnnotations[2], meaningfulAnnotations[3]);
+                    return;
+                }
+            }
+        }
+
+        testScalarUsage(bean, property, annotations, JAXRSAnnotations.PATH_PARAM, Usage.PATH);
+        testScalarUsage(bean, property, annotations, JAXRSAnnotations.QUERY_PARAM, Usage.QUERY);
+        testScalarUsage(bean, property, annotations, JAXRSAnnotations.HEADER_PARAM, Usage.HEADER);
+        testUsage(bean, property, annotations, JAXRSAnnotations.BEAN_PARAM, Usage.BEAN);
+    }
+
+    private void testScalarUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations,
+            String annotationName, Usage desiredUsage) {
+        testUsage(bean, property, annotations, annotationName, desiredUsage);
+        AnnotationReader annot = annotations.get(annotationName);
+        if (annot != null) {
+            String newName = annot.getValue("value").getString();
+            if (!newName.equals(property.name)) {
+                diagnostics.error(null, "Property {{c0}}." + property.getName() + " has inconsistent JAX-RS "
+                        + "annotations", bean.className);
+            }
+        }
+    }
+
+    private void testUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations,
+            String annotationName, Usage desiredUsage) {
+        AnnotationReader annot = annotations.get(annotationName);
+        if (annot == null) {
+            return;
+        }
+        if (property.usage != null) {
+            if (property.usage != desiredUsage) {
+                diagnostics.error(null, "Property {{c0}}." + property.getName() + " has inconsistent JAX-RS "
+                        + "annotations", bean.className);
+            }
+        } else {
+            property.usage = desiredUsage;
         }
     }
 
@@ -151,7 +251,12 @@ public class BeanRepository {
         }
     }
 
-    private void applyAnnotations(PropertyModel model, AnnotationContainerReader annotations) {
-
+    private boolean hasMeaningfulAnnotation(AnnotationContainerReader annotations) {
+        for (String annot : meaningfulAnnotations) {
+            if (annotations.get(annot) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

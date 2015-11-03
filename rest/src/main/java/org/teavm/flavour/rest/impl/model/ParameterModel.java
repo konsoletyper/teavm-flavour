@@ -27,9 +27,9 @@ import org.teavm.model.ValueType;
 public class ParameterModel implements Cloneable {
     String name;
     int index;
-    ValueType sourceType;
     ValueType type;
     List<PropertyModel> pathToValue = new ArrayList<>();
+    Usage usage;
     private List<PropertyModel> readonlyPathToValue = Collections.unmodifiableList(pathToValue);
 
     ParameterModel() {
@@ -43,12 +43,12 @@ public class ParameterModel implements Cloneable {
         return index;
     }
 
-    public ValueType getSourceType() {
-        return sourceType;
-    }
-
     public ValueType getType() {
         return type;
+    }
+
+    public Usage getUsage() {
+        return usage;
     }
 
     public List<PropertyModel> getPathToValue() {

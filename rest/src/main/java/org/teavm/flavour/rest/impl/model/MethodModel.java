@@ -15,8 +15,10 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.teavm.flavour.rest.processor.HttpMethod;
@@ -31,13 +33,15 @@ public class MethodModel implements Cloneable {
     boolean inherited;
     HttpMethod httpMethod;
     String path = "";
-    Map<String, ParameterModel> pathParameters = new HashMap<>();
-    private Map<String, ParameterModel> readonlyPathParameters = Collections.unmodifiableMap(pathParameters);
-    Map<String, ParameterModel> queryParameters = new HashMap<>();
-    private Map<String, ParameterModel> readonlyQueryParameters = Collections.unmodifiableMap(queryParameters);
-    Map<String, ParameterModel> headerParameters = new HashMap<>();
-    private Map<String, ParameterModel> readonlyHeaderParameters = Collections.unmodifiableMap(headerParameters);
-    ParameterModel body;
+    List<ParameterModel> parameters;
+    private List<ParameterModel> readonlyParameters = Collections.unmodifiableList(parameters);
+    Map<String, ValuePath> pathParameters = new HashMap<>();
+    private Map<String, ValuePath> readonlyPathParameters = Collections.unmodifiableMap(pathParameters);
+    Map<String, ValuePath> queryParameters = new HashMap<>();
+    private Map<String, ValuePath> readonlyQueryParameters = Collections.unmodifiableMap(queryParameters);
+    Map<String, ValuePath> headerParameters = new HashMap<>();
+    private Map<String, ValuePath> readonlyHeaderParameters = Collections.unmodifiableMap(headerParameters);
+    ValuePath body;
 
     MethodModel(MethodDescriptor method) {
         this.method = method;
@@ -55,19 +59,23 @@ public class MethodModel implements Cloneable {
         return path;
     }
 
-    public ParameterModel getBody() {
+    public ValuePath getBody() {
         return body;
     }
 
-    public Map<String, ParameterModel> getPathParameters() {
+    public List<ParameterModel> getParameters() {
+        return readonlyParameters;
+    }
+
+    public Map<String, ValuePath> getPathParameters() {
         return readonlyPathParameters;
     }
 
-    public Map<String, ParameterModel> getQueryParameters() {
+    public Map<String, ValuePath> getQueryParameters() {
         return readonlyQueryParameters;
     }
 
-    public Map<String, ParameterModel> getHeaderParameters() {
+    public Map<String, ValuePath> getHeaderParameters() {
         return readonlyHeaderParameters;
     }
 
@@ -75,14 +83,16 @@ public class MethodModel implements Cloneable {
     public MethodModel clone() {
         try {
             MethodModel copy = (MethodModel) super.clone();
+            copy.parameters = new ArrayList<>(parameters);
+            copy.readonlyParameters = Collections.unmodifiableList(copy.parameters);
             copy.pathParameters = pathParameters.entrySet().stream().collect(Collectors.toMap(
-                    entry -> entry.getKey(), entry -> entry.getValue().clone()));
+                    entry -> entry.getKey(), entry -> entry.getValue()));
             copy.readonlyPathParameters = Collections.unmodifiableMap(pathParameters);
             copy.queryParameters = queryParameters.entrySet().stream().collect(Collectors.toMap(
-                    entry -> entry.getKey(), entry -> entry.getValue().clone()));
+                    entry -> entry.getKey(), entry -> entry.getValue()));
             copy.readonlyQueryParameters = Collections.unmodifiableMap(queryParameters);
             copy.headerParameters = headerParameters.entrySet().stream().collect(Collectors.toMap(
-                    entry -> entry.getKey(), entry -> entry.getValue().clone()));
+                    entry -> entry.getKey(), entry -> entry.getValue()));
             copy.readonlyHeaderParameters = Collections.unmodifiableMap(headerParameters);
             return copy;
         } catch (CloneNotSupportedException e) {

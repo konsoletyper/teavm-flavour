@@ -30,9 +30,8 @@ public class PropertyModel implements Cloneable {
     FieldReader field;
     MethodReader getter;
     MethodReader setter;
-    String pathParameterName;
-    String queryParameterName;
-    String headerParameterName;
+    String targetName;
+    Usage usage;
 
     public BeanModel getBean() {
         return bean;
@@ -54,16 +53,12 @@ public class PropertyModel implements Cloneable {
         return getter;
     }
 
-    public String getPathParameterName() {
-        return pathParameterName;
+    public String getTargetName() {
+        return targetName;
     }
 
-    public String getQueryParameterName() {
-        return queryParameterName;
-    }
-
-    public String getHeaderParameterName() {
-        return headerParameterName;
+    public Usage getUsage() {
+        return usage;
     }
 
     @Override
