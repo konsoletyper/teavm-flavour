@@ -17,7 +17,9 @@ package org.teavm.flavour.json.emit;
 
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
+import org.teavm.jso.impl.JSOPlugin;
 import org.teavm.model.MethodReference;
+import org.teavm.vm.spi.Before;
 import org.teavm.vm.spi.TeaVMHost;
 import org.teavm.vm.spi.TeaVMPlugin;
 
@@ -25,6 +27,7 @@ import org.teavm.vm.spi.TeaVMPlugin;
  *
  * @author Alexey Andreev
  */
+@Before(JSOPlugin.class)
 public class JSONPlugin implements TeaVMPlugin {
     @Override
     public void install(TeaVMHost host) {

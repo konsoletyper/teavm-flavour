@@ -19,16 +19,22 @@ package org.teavm.flavour.rest;
  *
  * @author Alexey Andreev
  */
-public class HttpStatusException extends RESTException {
-    private static final long serialVersionUID = -6056726443529225254L;
-    private final int status;
+public class RESTException extends RuntimeException {
+    private static final long serialVersionUID = 347142891467254L;
 
-    public HttpStatusException(int status, String message) {
-        super(status + " " + message);
-        this.status = status;
+    public RESTException() {
+        super();
     }
 
-    public int getStatus() {
-        return status;
+    public RESTException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public RESTException(String message) {
+        super(message);
+    }
+
+    public RESTException(Throwable cause) {
+        super(cause);
     }
 }

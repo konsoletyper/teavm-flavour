@@ -13,19 +13,21 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.rest;
+package org.teavm.flavour.rest.impl;
+
+import org.teavm.jso.impl.JSOPlugin;
+import org.teavm.vm.spi.Before;
+import org.teavm.vm.spi.TeaVMHost;
+import org.teavm.vm.spi.TeaVMPlugin;
 
 /**
  *
  * @author Alexey Andreev
  */
-public final class RestClient {
-    private RestClient() {
+@Before(JSOPlugin.class)
+public class RESTPlugin implements TeaVMPlugin {
+    @Override
+    public void install(TeaVMHost host) {
+        host.add(new RESTDependencyListener());
     }
-
-    public static <T> ResourceFactory<T> factory(Class<T> type) {
-        return factoryImpl(type.getName());
-    }
-
-    private static native <T> ResourceFactory<T> factoryImpl(String typeName);
 }

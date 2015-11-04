@@ -19,22 +19,13 @@ package org.teavm.flavour.rest;
  *
  * @author Alexey Andreev
  */
-public class RestException extends RuntimeException {
-    private static final long serialVersionUID = 347142891467254L;
-
-    public RestException() {
-        super();
+public final class RESTClient {
+    private RESTClient() {
     }
 
-    public RestException(String message, Throwable cause) {
-        super(message, cause);
+    public static <T> ResourceFactory<T> factory(Class<T> type) {
+        return factoryImpl(type.getName());
     }
 
-    public RestException(String message) {
-        super(message);
-    }
-
-    public RestException(Throwable cause) {
-        super(cause);
-    }
+    private static native <T> ResourceFactory<T> factoryImpl(String typeName);
 }

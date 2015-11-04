@@ -26,12 +26,17 @@
   <artifactId>teavm-flavour-json</artifactId>
 
   <name>TeaVM Flavour - Json</name>
-  <description>Simple statically typed expression language capable of running inside TeaVM</description>
+  <description>JSON to POJO binding library via Jackson annotations</description>
 
   <dependencies>
     <dependency>
       <groupId>org.teavm</groupId>
       <artifactId>teavm-jso</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso-impl</artifactId>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>

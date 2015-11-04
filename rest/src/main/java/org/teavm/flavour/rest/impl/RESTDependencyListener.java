@@ -13,15 +13,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.json.emit;
+package org.teavm.flavour.rest.impl;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,12 +29,12 @@ import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyNode;
 import org.teavm.dependency.MethodDependency;
-import org.teavm.flavour.json.JSON;
-import org.teavm.flavour.json.JSONClassArgument;
+import org.teavm.flavour.rest.RESTClient;
+import org.teavm.flavour.rest.ResourceFactory;
+import org.teavm.flavour.rest.impl.model.BeanRepository;
+import org.teavm.flavour.rest.impl.model.ResourceModelRepository;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
 import org.teavm.model.FieldReference;
 import org.teavm.model.IncomingReader;
 import org.teavm.model.InstructionLocation;
@@ -52,6 +47,9 @@ import org.teavm.model.ProgramReader;
 import org.teavm.model.RuntimeConstant;
 import org.teavm.model.ValueType;
 import org.teavm.model.VariableReader;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.StringChooseEmitter;
+import org.teavm.model.emit.ValueEmitter;
 import org.teavm.model.instructions.ArrayElementType;
 import org.teavm.model.instructions.BinaryBranchingCondition;
 import org.teavm.model.instructions.BinaryOperation;
@@ -67,89 +65,80 @@ import org.teavm.model.instructions.SwitchTableEntryReader;
  *
  * @author Alexey Andreev
  */
-class DeserializerDependencyListener extends AbstractDependencyListener {
-    private JsonDeserializerEmitter emitter;
-    private boolean generated;
-    private DependencyNode deserializableClasses;
-    private Map<MethodReference, Integer> deserializeMethods = new HashMap<>();
+class RESTDependencyListener extends AbstractDependencyListener {
+    private FactoryEmitter emitter;
     private Set<MethodReference> processedMethods = new HashSet<>();
-    private ClassReaderSource classSource;
+    private Map<String, String> proxyClassNames = new HashMap<>();
+    private DependencyNode proxiedClasses;
 
     @Override
     public void started(DependencyAgent agent) {
-        deserializableClasses = agent.createNode();
-        emitter = new JsonDeserializerEmitter(agent, deserializableClasses);
-        classSource = agent.getClassSource();
+        BeanRepository beanRepository = new BeanRepository(agent.getClassSource(), agent.getDiagnostics());
+        ResourceModelRepository resourceRepository = new ResourceModelRepository(agent.getDiagnostics(),
+                agent.getClassSource(), beanRepository);
+        emitter = new FactoryEmitter(resourceRepository, agent);
+        proxiedClasses = agent.createNode();
     }
 
     @Override
-    public void methodReached(final DependencyAgent agent, final MethodDependency method,
-            final CallLocation location) {
-        if (method.getReference().getClassName().equals(JSON.class.getName())
-                && method.getReference().getName().equals("findClassDeserializer")) {
-            deserializableClasses.addConsumer(type -> {
-                String deserializerName = emitter.addClassDeserializer(type.getName());
-                agent.linkMethod(new MethodReference(deserializerName, "<init>", ValueType.VOID), location)
-                        .propagate(0, deserializerName)
-                        .use();
-                method.getResult().propagate(agent.getType(deserializerName));
-            });
-            generateDeserializers(agent, location);
+    public void methodReached(DependencyAgent agent, MethodDependency method, CallLocation location) {
+        if (method.getReference().getClassName().equals(RESTClient.class.getName())
+                && method.getReference().getName().equals("factory")) {
+            proxiedClasses.addConsumer(type -> registerType(agent, type.getName(), location));
         } else if (method.getMethod() != null) {
             if (!processedMethods.add(method.getReference())) {
                 return;
             }
             MethodReader methodReader = method.getMethod();
             if (methodReader.getProgram() != null) {
-                findDeserializableClasses(agent, methodReader.getProgram());
+                findProxiedClasses(agent, methodReader.getProgram());
             }
         }
     }
 
-    private void generateDeserializers(DependencyAgent agent, CallLocation location) {
-        if (generated) {
-            return;
-        }
-        generated = true;
+    private void registerType(DependencyAgent agent, String typeName, CallLocation location) {
+        MethodDependency implMethod = agent.linkMethod(new MethodReference(RESTClient.class, "factoryImpl",
+                String.class, ResourceFactory.class), location);
 
-        try {
-            Enumeration<URL> resources = agent.getClassLoader().getResources("META-INF/flavour/deserializable");
-            while (resources.hasMoreElements()) {
-                URL res = resources.nextElement();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(res.openStream()))) {
-                    while (true) {
-                        String line = reader.readLine();
-                        if (line == null) {
-                            break;
-                        }
-                        line = line.trim();
-                        if (line.isEmpty() || line.startsWith("#")) {
-                            continue;
-                        }
+        String factoryClass = proxyClassNames.computeIfAbsent(typeName, emitter::emitFactory);
+        MethodDependency ctor = agent.linkMethod(new MethodReference(factoryClass, "<init>", ValueType.VOID), location)
+                .propagate(0, factoryClass);
+        ctor.getThrown().connect(implMethod.getThrown());
+        ctor.use();
+        implMethod.getResult().propagate(agent.getType(factoryClass));
 
-                        ClassReader cls = agent.getClassSource().get(line);
-                        if (cls == null) {
-                            agent.getDiagnostics().warning(location, "Can't find class {{c0}} declared by "
-                                    + res.toString(), line);
-                        }
+        MethodDependency equalsDep = agent.linkMethod(new MethodReference(String.class, "equals", Object.class,
+                boolean.class), location);
+        equalsDep.getThrown().connect(implMethod.getThrown());
+        equalsDep.use();
 
-                        deserializableClasses.propagate(agent.getType(line));
-                    }
-                }
-            }
-        } catch (IOException e) {
-            agent.getDiagnostics().error(location, "IO error occured getting deserializer list");
-        }
+        MethodDependency hashCodeDep = agent.linkMethod(new MethodReference(String.class, "hashCode", int.class),
+                location);
+        hashCodeDep.getThrown().connect(implMethod.getThrown());
+        hashCodeDep.use();
     }
 
-    public String getDeserializer(String className) {
-        if (emitter == null) {
-            return null;
+    @Override
+    public void completing(DependencyAgent agent) {
+        MethodReference method = new MethodReference(RESTClient.class, "factoryImpl", String.class,
+                ResourceFactory.class);
+
+        ProgramEmitter pe = ProgramEmitter.create(method.getDescriptor(), agent.getClassSource());
+        ValueEmitter typeVar = pe.var(1, String.class);
+
+        StringChooseEmitter choice = pe.stringChoice(typeVar);
+        for (String factoryImpl : proxyClassNames.keySet()) {
+            String implementorType = proxyClassNames.get(factoryImpl);
+            choice.option(factoryImpl, () -> {
+                pe.construct(implementorType).returnValue();
+            });
         }
-        return emitter.getClassDeserializer(className);
+        choice.otherwise(() -> pe.constantNull(ResourceFactory.class).returnValue());
+
+        agent.submitMethod(method, pe.getProgram());
     }
 
-    private void findDeserializableClasses(DependencyAgent agent, ProgramReader program) {
+    private void findProxiedClasses(DependencyAgent agent, ProgramReader program) {
         VariableGraphBuilder builder = new VariableGraphBuilder(program.variableCount());
         for (int i = 0; i < program.basicBlockCount(); ++i) {
             BasicBlockReader block = program.basicBlockAt(i);
@@ -164,7 +153,7 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
         for (ValueType valueType : builder.build()) {
             if (valueType instanceof ValueType.Object) {
                 ValueType.Object objType = (ValueType.Object) valueType;
-                deserializableClasses.propagate(agent.getType(objType.getClassName()));
+                proxiedClasses.propagate(agent.getType(objType.getClassName()));
             }
         }
     }
@@ -357,21 +346,10 @@ class DeserializerDependencyListener extends AbstractDependencyListener {
         @Override
         public void invoke(VariableReader receiver, VariableReader instance, MethodReference methodRef,
                 List<? extends VariableReader> arguments, InvocationType type) {
-            Integer argIndex = deserializeMethods.computeIfAbsent(methodRef, candidateRef -> {
-                MethodReader candidate = classSource.resolve(candidateRef);
-                if (candidate != null) {
-                    for (int i = 0; i < candidate.parameterCount(); ++i) {
-                        if (candidate.parameterAnnotation(i).get(JSONClassArgument.class.getName()) != null) {
-                            return i;
-                        }
-                    }
-                }
-                return null;
-            });
-            if (argIndex == null) {
-                return;
+            if (methodRef.getClassName().equals(RESTClient.class.getName())
+                    && methodRef.getName().equals("factory")) {
+                interestingVariables.add(arguments.get(0).getIndex());
             }
-            interestingVariables.add(arguments.get(argIndex).getIndex());
         }
 
         @Override

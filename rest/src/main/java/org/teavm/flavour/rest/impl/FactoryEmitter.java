@@ -85,6 +85,8 @@ public class FactoryEmitter {
         ValueEmitter thisVar = pe.var(0, cls);
         ValueEmitter path = pe.var(1, String.class);
         pe.construct(proxyClass, thisVar, path).returnValue();
+
+        cls.addMethod(method);
     }
 
     private String emitProxy(String className, String factoryClassName) {
@@ -144,6 +146,7 @@ public class FactoryEmitter {
     }
 
     private ValueEmitter emitHttpMethod(MethodModel model, ProgramEmitter pe) {
+        pe.initClass(HttpMethod.class.getName());
         return pe.getField(HttpMethod.class, model.getHttpMethod().name(), HttpMethod.class);
     }
 
@@ -158,6 +161,7 @@ public class FactoryEmitter {
         for (ValuePath queryParam : model.getQueryParameters().values()) {
             sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant((first ? "?" : "&")
                     + queryParam.getName() + "="));
+            first = false;
             sb = appendValue(sb, getParameter(pe, queryParam));
         }
         return sb.invokeVirtual("toString", String.class);
@@ -171,7 +175,7 @@ public class FactoryEmitter {
                 sb = appendConstant(sb, pattern.substring(index));
                 break;
             }
-            int end = findClosingBracket(pattern, index + 1);
+            int end = findClosingBracket(pattern, next + 1);
             if (end < 0) {
                 sb = appendConstant(sb, pattern.substring(index));
                 break;
@@ -188,6 +192,8 @@ public class FactoryEmitter {
             } else {
                 sb = appendValue(sb, getParameter(sb.getProgramEmitter(), value));
             }
+
+            index = end + 1;
         }
         return sb;
     }

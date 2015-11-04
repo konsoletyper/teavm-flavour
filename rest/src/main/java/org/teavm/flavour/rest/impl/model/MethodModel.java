@@ -33,7 +33,7 @@ public class MethodModel implements Cloneable {
     boolean inherited;
     HttpMethod httpMethod;
     String path = "";
-    List<ParameterModel> parameters;
+    List<ParameterModel> parameters = new ArrayList<>();
     private List<ParameterModel> readonlyParameters = Collections.unmodifiableList(parameters);
     Map<String, ValuePath> pathParameters = new HashMap<>();
     private Map<String, ValuePath> readonlyPathParameters = Collections.unmodifiableMap(pathParameters);

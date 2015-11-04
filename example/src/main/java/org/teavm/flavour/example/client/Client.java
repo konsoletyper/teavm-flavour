@@ -16,6 +16,7 @@
 package org.teavm.flavour.example.client;
 
 import org.teavm.flavour.example.api.ProductFacade;
+import org.teavm.flavour.rest.RESTClient;
 import org.teavm.flavour.routing.Conductor;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Fragment;
@@ -29,7 +30,7 @@ import org.teavm.flavour.templates.Templates;
 public final class Client implements ApplicationRoute {
     private Fragment content;
     private Object currentView;
-    private ProductFacade facade = new RemoteProductFacade();
+    private ProductFacade facade = RESTClient.factory(ProductFacade.class).createResource("api");
 
     private Client() {
     }

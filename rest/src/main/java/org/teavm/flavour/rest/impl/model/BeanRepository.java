@@ -190,9 +190,11 @@ public class BeanRepository {
         AnnotationReader annot = annotations.get(annotationName);
         if (annot != null) {
             String newName = annot.getValue("value").getString();
-            if (!newName.equals(property.name)) {
+            if (property.targetName != null && !newName.equals(property.targetName)) {
                 diagnostics.error(null, "Property {{c0}}." + property.getName() + " has inconsistent JAX-RS "
                         + "annotations", bean.className);
+            } else {
+                property.targetName = newName;
             }
         }
     }

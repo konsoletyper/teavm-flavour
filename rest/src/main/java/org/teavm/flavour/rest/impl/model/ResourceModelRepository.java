@@ -158,6 +158,7 @@ public class ResourceModelRepository {
             param.index = i;
             param.type = method.parameterType(i);
             readParameter(param, method, annotations[i]);
+            model.parameters.add(param);
         }
     }
 

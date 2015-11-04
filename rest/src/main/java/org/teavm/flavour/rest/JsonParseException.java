@@ -19,7 +19,7 @@ package org.teavm.flavour.rest;
  *
  * @author Alexey Andreev
  */
-public class JsonParseException extends RestException {
+public class JsonParseException extends RESTException {
     private static final long serialVersionUID = -7449483893122040982L;
     private String jsonString;
 
