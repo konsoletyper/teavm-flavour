@@ -38,6 +38,7 @@ class RequestImpl implements Request {
     HttpMethod method;
     String url;
     Node content;
+    boolean contentExists;
     Map<String, String> headers = new HashMap<>();
     XMLHttpRequest xhr;
 
@@ -49,6 +50,7 @@ class RequestImpl implements Request {
         this.method = method;
         this.url = url;
         this.content = content;
+        contentExists = true;
     }
 
     @Override
@@ -70,6 +72,7 @@ class RequestImpl implements Request {
     @Override
     public RequestImpl setContent(Node content) {
         this.content = content;
+        contentExists = true;
         return this;
     }
 
@@ -140,7 +143,7 @@ class RequestImpl implements Request {
             }
             callback.complete(response);
         });
-        xhr.send();
+        xhr.send(contentExists ? content.stringify() : null);
     }
 
     private void parseResponseHeaders(Map<String, String> map, String text) {

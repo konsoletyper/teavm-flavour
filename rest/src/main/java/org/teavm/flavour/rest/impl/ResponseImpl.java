@@ -43,6 +43,11 @@ class ResponseImpl implements Response {
     }
 
     @Override
+    public void setContent(Node content) {
+        this.content = content;
+    }
+
+    @Override
     public String getHeader(String name) {
         return headers.get(name);
     }

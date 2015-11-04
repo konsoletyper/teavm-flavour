@@ -26,6 +26,8 @@ public interface Response {
 
     Node getContent();
 
+    void setContent(Node content);
+
     String getTextContent();
 
     boolean isValidJson();

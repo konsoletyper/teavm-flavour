@@ -27,13 +27,19 @@ import org.teavm.flavour.rest.processor.ResponseProcessor;
 abstract class ProxyTemplate {
     private List<RequestProcessor> requestProcessors;
     private List<ResponseProcessor> responseProcessors;
+    private String prefix;
 
-    public ProxyTemplate(FactoryTemplate<?> factory) {
+    public ProxyTemplate(FactoryTemplate<?> factory, String prefix) {
         requestProcessors = new ArrayList<>(factory.requestProcessors);
         responseProcessors = new ArrayList<>(factory.responseProcessors);
+        if (!prefix.endsWith("/")) {
+            prefix = prefix + "/";
+        }
+        this.prefix = prefix;
     }
 
     protected ResponseImpl send(RequestImpl request) {
+        request.setUrl(prefix + request.url);
         for (RequestProcessor processor : requestProcessors) {
             processor.process(request);
         }

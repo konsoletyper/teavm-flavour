@@ -32,13 +32,14 @@ import org.teavm.model.ValueType;
  *
  * @author Alexey Andreev
  */
-public class ResourceRepository {
+public class ResourceModelRepository {
     private Diagnostics diagnostics;
     private ClassReaderSource classSource;
     private BeanRepository beanRepository;
     private Map<String, ResourceModel> resources = new HashMap<>();
 
-    public ResourceRepository(Diagnostics diagnostics, ClassReaderSource classSource, BeanRepository beanRepository) {
+    public ResourceModelRepository(Diagnostics diagnostics, ClassReaderSource classSource,
+            BeanRepository beanRepository) {
         this.diagnostics = diagnostics;
         this.classSource = classSource;
         this.beanRepository = beanRepository;
