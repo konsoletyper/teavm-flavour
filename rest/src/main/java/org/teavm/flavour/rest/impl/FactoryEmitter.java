@@ -29,11 +29,14 @@ import org.teavm.flavour.rest.impl.model.ValuePathVisitor;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.jso.browser.Window;
 import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
+import org.teavm.model.FieldHolder;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
+import org.teavm.model.emit.PhiEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
 
@@ -45,6 +48,7 @@ public class FactoryEmitter {
     private ResourceModelRepository resourceRepository;
     private DependencyAgent agent;
     private CallLocation location;
+    private int responseIndex;
 
     public FactoryEmitter(ResourceModelRepository modelRepository, DependencyAgent agent) {
         this.resourceRepository = modelRepository;
@@ -52,6 +56,7 @@ public class FactoryEmitter {
     }
 
     public String emitFactory(String className) {
+        responseIndex = 0;
         ClassHolder cls = new ClassHolder(className + "$Flavour_RESTFactory");
         cls.setParent(FactoryTemplate.class.getName());
         cls.setLevel(AccessLevel.PUBLIC);
@@ -139,7 +144,7 @@ public class FactoryEmitter {
             pe.exit();
         } else {
             ValueEmitter responseContent = response.invokeVirtual("getContent", Node.class);
-            deserialize(responseContent, method.getResultType()).returnValue();
+            deserialize(resource, responseContent, method.getResultType()).returnValue();
         }
 
         cls.addMethod(method);
@@ -157,12 +162,35 @@ public class FactoryEmitter {
             sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant("/"));
         }
         sb = appendUrlPattern(model.getPath(), model, sb);
-        boolean first = true;
+        ValueEmitter sep = pe.constant("?");
         for (ValuePath queryParam : model.getQueryParameters().values()) {
-            sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant((first ? "?" : "&")
-                    + queryParam.getName() + "="));
-            first = false;
-            sb = appendValue(sb, getParameter(pe, queryParam));
+            ValueEmitter value = getParameter(pe, queryParam);
+            if (value.getType() instanceof ValueType.Primitive) {
+                sb = sb.invokeVirtual("append", StringBuilder.class, sep)
+                        .invokeVirtual("append", StringBuilder.class, pe.constant(queryParam.getName() + "="));
+                sb = appendValue(sb, getParameter(pe, queryParam));
+                sep = pe.constant("&");
+            } else {
+                BasicBlock current = pe.getBlock();
+                BasicBlock joint = pe.prepareBlock();
+                pe.enter(joint);
+                PhiEmitter nextSep = pe.phi(String.class);
+                pe.enter(current);
+                ValueEmitter localSb = sb;
+                ValueEmitter localSep = sep;
+                pe.when(value.isNotNull()).thenDo(() -> {
+                    localSb.invokeVirtual("append", StringBuilder.class, localSep)
+                            .invokeVirtual("append", StringBuilder.class, pe.constant(queryParam.getName() + "="));
+                    appendValue(localSb, getParameter(pe, queryParam));
+                    pe.constant("&").propagateTo(nextSep);
+                    pe.jump(joint);
+                }).elseDo(() -> {
+                    localSep.propagateTo(nextSep);
+                    pe.jump(joint);
+                });
+                pe.enter(joint);
+            }
+
         }
         return sb.invokeVirtual("toString", String.class);
     }
@@ -288,7 +316,7 @@ public class FactoryEmitter {
         return value;
     }
 
-    private ValueEmitter deserialize(ValueEmitter value, ValueType target) {
+    private ValueEmitter deserialize(ResourceModel resource, ValueEmitter value, ValueType target) {
         ProgramEmitter pe = value.getProgramEmitter();
         if (target instanceof ValueType.Primitive) {
             switch (((ValueType.Primitive) target).getKind()) {
@@ -311,7 +339,12 @@ public class FactoryEmitter {
             }
             throw new AssertionError();
         } else {
-            return pe.invoke(JSON.class, "deserialize", Object.class, value, pe.constant(target)).cast(target);
+            value = pe.invoke(ResponseImpl.class, "wrapJson", Node.class, value);
+            String wrapper = createResponseWrapper(resource.getClassName(), target);
+            ValueType wrapperType = ValueType.object(wrapper);
+            value = pe.invoke(JSON.class, "deserialize", Object.class, value, pe.constant(wrapperType))
+                    .cast(wrapperType);
+            return value.getField("data", target);
         }
     }
 
@@ -342,5 +375,28 @@ public class FactoryEmitter {
             }
         }
         return value;
+    }
+
+    private String createResponseWrapper(String resourceType, ValueType type) {
+        ClassHolder cls = new ClassHolder(resourceType + "$Flavour_Response" + responseIndex++);
+        cls.setParent("java.lang.Object");
+        cls.setLevel(AccessLevel.PUBLIC);
+
+        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
+        ctor.setLevel(AccessLevel.PUBLIC);
+        ProgramEmitter pe = ProgramEmitter.create(ctor, agent.getClassSource());
+        pe.var(0, cls).invokeSpecial(Object.class, "<init>");
+        pe.setField(cls.getName(), "data", pe.constantNull(type));
+        pe.exit();
+        cls.addMethod(ctor);
+
+        FieldHolder field = new FieldHolder("data");
+        field.setType(type);
+        field.setLevel(AccessLevel.PUBLIC);
+        cls.addField(field);
+
+        agent.submitClass(cls);
+
+        return cls.getName();
     }
 }

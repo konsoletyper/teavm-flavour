@@ -27,6 +27,7 @@ import org.teavm.flavour.rest.processor.Request;
 import org.teavm.javascript.spi.Async;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.JSObject;
+import org.teavm.jso.JSProperty;
 import org.teavm.jso.ajax.XMLHttpRequest;
 import org.teavm.platform.async.AsyncCallback;
 
@@ -149,11 +150,11 @@ class RequestImpl implements Request {
     private void parseResponseHeaders(Map<String, String> map, String text) {
         int index = 0;
         while (index < text.length()) {
-            int lineEnd = text.indexOf("\r\n");
+            int lineEnd = text.indexOf("\r\n", index);
             if (lineEnd < 0) {
                 lineEnd = text.length();
             }
-            int sep = text.indexOf(':');
+            int sep = text.indexOf(':', index);
             map.put(text.substring(index, sep), text.substring(sep + 1, lineEnd).trim());
             index = lineEnd + 2;
         }
@@ -168,8 +169,10 @@ class RequestImpl implements Request {
     private static native JsonParseResult parseJson(String text);
 
     interface JsonParseResult extends JSObject {
+        @JSProperty
         boolean isSuccess();
 
+        @JSProperty
         Node getNode();
     }
 }
