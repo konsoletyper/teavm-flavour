@@ -34,6 +34,10 @@
     <jetty.version>9.3.5.v20151012</jetty.version>
     <teavm.flavour.rest.test.url>http://localhost:8080/</teavm.flavour.rest.test.url>
     <teavm.flavour.rest.test.port>8080</teavm.flavour.rest.test.port>
+    <teavm.flavour.test.incremental>false</teavm.flavour.test.incremental>
+    <teavm.flavour.test.threads>1</teavm.flavour.test.threads>
+    <teavm.flavour.test.selenium></teavm.flavour.test.selenium>
+    <teavm.flavour.test.skip>true</teavm.flavour.test.skip>
   </properties>
 
   <dependencies>
@@ -100,20 +104,48 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.glassfish.jersey.media</groupId>
-      <artifactId>jersey-media-moxy</artifactId>
+      <groupId>org.glassfish.jersey.containers</groupId>
+      <artifactId>jersey-container-servlet</artifactId>
       <version>${jersey.version}</version>
-      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.media</groupId>
+      <artifactId>jersey-media-json-jackson</artifactId>
+      <version>${jersey.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
       <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+      <version>${jetty.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
       <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlets</artifactId>
+      <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -151,31 +183,20 @@
               </properties>
             </configuration>
           </execution>
-        </executions>
-      </plugin>
-      <!-- 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
-        <executions>
           <execution>
-            <id>run-test-server</id>
+            <id>run-javascript-tests</id>
             <goals>
-              <goal>java</goal>
+              <goal>test</goal>
             </goals>
-            <phase>pre-integration-test</phase>
+            <phase>integration-test</phase>
             <configuration>
-              <mainClass>org.teavm.flavour.rest.test.RESTServer</mainClass>
-              <arguments>
-                <argument>${teavm.flavour.rest.test.port}</argument>
-              </arguments>
-              <keepAlive>true</keepAlive>
+              <skip>${teavm.flavour.test.skip}</skip>
+              <numThreads>${teavm.flavour.test.threads}</numThreads>
+              <seleniumURL>${teavm.flavour.test.selenium}</seleniumURL>
             </configuration>
           </execution>
         </executions>
       </plugin>
-       -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
@@ -193,4 +214,49 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>run-integration-tests</id>
+      <activation>
+        <property>
+          <name>teavm.flavour.test.skip</name>
+          <value>false</value>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-maven-plugin</artifactId>
+            <version>${jetty.version}</version>
+            <configuration>
+              <stopKey>alpha</stopKey>
+              <stopPort>9099</stopPort>
+              <useTestScope>true</useTestScope>
+            </configuration>
+            <executions>
+              <execution>
+                <id>start-jetty</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>run-forked</goal>
+                </goals>
+                <configuration> 
+                  <waitForChild>false</waitForChild>
+                </configuration>
+              </execution>
+              <execution>
+                <id>stop-jetty</id>
+                <phase>post-integration-test</phase>
+                <goals>
+                  <goal>stop</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
