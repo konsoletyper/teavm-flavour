@@ -35,6 +35,7 @@ public class ProductListView {
     }
 
     public ProductListView(ProductDataSource dataSource, int page) {
+        this.dataSource = dataSource;
         cursor = new PagedCursor<>(dataSource);
         cursor.setCurrentPage(page);
     }
@@ -61,5 +62,10 @@ public class ProductListView {
 
     public void pageLink(int page, Consumer<String> consumer) {
         Route.build(ApplicationRoute.class, consumer).productPage(page);
+    }
+
+    public void setFilter(String filter) {
+        dataSource.setNamePart(filter);
+        cursor.refresh();
     }
 }
