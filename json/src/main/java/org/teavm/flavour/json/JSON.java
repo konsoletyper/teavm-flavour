@@ -117,7 +117,7 @@ public final class JSON {
         standardDeserializers.put(String.class, new StringDeserializer());
     }
 
-    static JsonDeserializer getClassDeserializer(Class<?> cls) {
+    public static JsonDeserializer getClassDeserializer(@JSONClassArgument Class<?> cls) {
         ensureStandardDeserializers();
         JsonDeserializer deserializer = standardDeserializers.get(cls);
         if (deserializer != null) {

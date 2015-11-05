@@ -15,8 +15,24 @@
  */
 package org.teavm.flavour.rest.impl;
 
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.deserializer.ArrayDeserializer;
+import org.teavm.flavour.json.deserializer.JsonDeserializer;
+import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
+import org.teavm.flavour.json.deserializer.ListDeserializer;
+import org.teavm.flavour.json.deserializer.MapDeserializer;
+import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.rest.impl.model.MethodModel;
 import org.teavm.flavour.rest.impl.model.PropertyModel;
@@ -32,7 +48,6 @@ import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
@@ -48,7 +63,6 @@ public class FactoryEmitter {
     private ResourceModelRepository resourceRepository;
     private DependencyAgent agent;
     private CallLocation location;
-    private int responseIndex;
 
     public FactoryEmitter(ResourceModelRepository modelRepository, DependencyAgent agent) {
         this.resourceRepository = modelRepository;
@@ -56,7 +70,6 @@ public class FactoryEmitter {
     }
 
     public String emitFactory(String className) {
-        responseIndex = 0;
         ClassHolder cls = new ClassHolder(className + "$Flavour_RESTFactory");
         cls.setParent(FactoryTemplate.class.getName());
         cls.setLevel(AccessLevel.PUBLIC);
@@ -144,7 +157,7 @@ public class FactoryEmitter {
             pe.exit();
         } else {
             ValueEmitter responseContent = response.invokeVirtual("getContent", Node.class);
-            deserialize(resource, responseContent, method.getResultType()).returnValue();
+            deserialize(resource, model, responseContent, method.getResultType()).returnValue();
         }
 
         cls.addMethod(method);
@@ -316,7 +329,8 @@ public class FactoryEmitter {
         return value;
     }
 
-    private ValueEmitter deserialize(ResourceModel resource, ValueEmitter value, ValueType target) {
+    private ValueEmitter deserialize(ResourceModel resource, MethodModel method, ValueEmitter value,
+            ValueType target) {
         ProgramEmitter pe = value.getProgramEmitter();
         if (target instanceof ValueType.Primitive) {
             switch (((ValueType.Primitive) target).getKind()) {
@@ -339,13 +353,80 @@ public class FactoryEmitter {
             }
             throw new AssertionError();
         } else {
-            value = pe.invoke(ResponseImpl.class, "wrapJson", Node.class, value);
-            String wrapper = createResponseWrapper(resource.getClassName(), target);
-            ValueType wrapperType = ValueType.object(wrapper);
-            value = pe.invoke(JSON.class, "deserialize", Object.class, value, pe.constant(wrapperType))
-                    .cast(wrapperType);
-            return value.getField("data", target);
+            Method javaMethod = findMethod(new MethodReference(resource.getClassName(), method.getMethod()));
+            if (javaMethod == null) {
+                return pe.constantNull(target);
+            }
+            ValueEmitter deserializer = createDeserializer(javaMethod.getGenericReturnType(), pe);
+            value = deserializer.invokeVirtual("deserialize", Object.class,
+                    pe.construct(JsonDeserializerContext.class), value);
+            return value.cast(target);
         }
+    }
+
+    private ValueEmitter createDeserializer(Type type, ProgramEmitter pe) {
+        if (type instanceof Class<?>) {
+            return createObjectDeserializer((Class<?>) type, pe);
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType paramType = (ParameterizedType) type;
+            Type[] typeArgs = paramType.getActualTypeArguments();
+            if (paramType.getRawType().equals(Map.class)) {
+                return createMapDeserializer(typeArgs[0], typeArgs[1], pe);
+            } else if (paramType.getRawType().equals(List.class)) {
+                return createListDeserializer(typeArgs[0], pe);
+            } else if (paramType.getRawType().equals(Set.class)) {
+                return createSetDeserializer(typeArgs[0], pe);
+            } else {
+                return createDeserializer(paramType.getRawType(), pe);
+            }
+        } else if (type instanceof WildcardType) {
+            WildcardType wildcard = (WildcardType) type;
+            Type upperBound = wildcard.getUpperBounds()[0];
+            Class<?> upperCls = Object.class;
+            if (upperBound instanceof Class<?>) {
+                upperCls = (Class<?>) upperBound;
+            }
+            return createObjectDeserializer(upperCls, pe);
+        } else if (type instanceof TypeVariable<?>) {
+            TypeVariable<?> tyvar = (TypeVariable<?>) type;
+            Type upperBound = tyvar.getBounds()[0];
+            Class<?> upperCls = Object.class;
+            if (upperBound instanceof Class<?>) {
+                upperCls = (Class<?>) upperBound;
+            }
+            return createObjectDeserializer(upperCls, pe);
+        } else if (type instanceof GenericArrayType) {
+            GenericArrayType array = (GenericArrayType) type;
+            return createArrayDeserializer(array, pe);
+        } else {
+            return createObjectDeserializer(Object.class, pe);
+        }
+    }
+
+    private ValueEmitter createMapDeserializer(Type keyType, Type valueType, ProgramEmitter pe) {
+        ValueEmitter keyDeserializer = createDeserializer(keyType, pe).cast(JsonDeserializer.class);
+        ValueEmitter valueDeserializer = createDeserializer(valueType, pe).cast(JsonDeserializer.class);
+        return pe.construct(MapDeserializer.class, keyDeserializer, valueDeserializer);
+    }
+
+    private ValueEmitter createListDeserializer(Type itemType, ProgramEmitter pe) {
+        ValueEmitter itemDeserializer = createDeserializer(itemType, pe).cast(JsonDeserializer.class);
+        return pe.construct(ListDeserializer.class, itemDeserializer);
+    }
+
+    private ValueEmitter createSetDeserializer(Type itemType, ProgramEmitter pe) {
+        ValueEmitter itemDeserializer = createDeserializer(itemType, pe).cast(JsonDeserializer.class);
+        return pe.construct(SetDeserializer.class, itemDeserializer);
+    }
+
+    private ValueEmitter createArrayDeserializer(GenericArrayType type, ProgramEmitter pe) {
+        ValueEmitter itemDeserializer = createDeserializer(type.getGenericComponentType(), pe)
+                .cast(JsonDeserializer.class);
+        return pe.construct(ArrayDeserializer.class, pe.constant(Object.class), itemDeserializer);
+    }
+
+    private ValueEmitter createObjectDeserializer(Class<?> type, ProgramEmitter pe) {
+        return pe.invoke(JSON.class, "getClassDeserializer", JsonDeserializer.class, pe.constant(type));
     }
 
     private ValueEmitter serialize(ValueEmitter value) {
@@ -377,26 +458,60 @@ public class FactoryEmitter {
         return value;
     }
 
-    private String createResponseWrapper(String resourceType, ValueType type) {
-        ClassHolder cls = new ClassHolder(resourceType + "$Flavour_Response" + responseIndex++);
-        cls.setParent("java.lang.Object");
-        cls.setLevel(AccessLevel.PUBLIC);
+    private Method findMethod(MethodReference reference) {
+        Class<?> owner = findClass(reference.getClassName());
+        Class<?>[] params = new Class<?>[reference.parameterCount()];
+        for (int i = 0; i < params.length; ++i) {
+            params[i] = convertType(reference.parameterType(i));
+        }
+        while (owner != null) {
+            try {
+                return owner.getDeclaredMethod(reference.getName(), params);
+            } catch (NoSuchMethodException e) {
+                owner = owner.getSuperclass();
+            }
+        }
+        agent.getDiagnostics().error(new CallLocation(reference), "Corresponding Java method not found");
+        return null;
+    }
 
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(ctor, agent.getClassSource());
-        pe.var(0, cls).invokeSpecial(Object.class, "<init>");
-        pe.setField(cls.getName(), "data", pe.constantNull(type));
-        pe.exit();
-        cls.addMethod(ctor);
+    private Class<?> convertType(ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                    return boolean.class;
+                case BYTE:
+                    return byte.class;
+                case SHORT:
+                    return short.class;
+                case CHARACTER:
+                    return char.class;
+                case INTEGER:
+                    return int.class;
+                case LONG:
+                    return long.class;
+                case FLOAT:
+                    return float.class;
+                case DOUBLE:
+                    return double.class;
+            }
+        } else if (type instanceof ValueType.Array) {
+            Class<?> itemCls = convertType(((ValueType.Array) type).getItemType());
+            return Array.newInstance(itemCls, 0).getClass();
+        } else if (type instanceof ValueType.Void) {
+            return void.class;
+        } else if (type instanceof ValueType.Object) {
+            String className = ((ValueType.Object) type).getClassName();
+            return findClass(className);
+        }
+        throw new AssertionError("Can't convert type: " + type);
+    }
 
-        FieldHolder field = new FieldHolder("data");
-        field.setType(type);
-        field.setLevel(AccessLevel.PUBLIC);
-        cls.addField(field);
-
-        agent.submitClass(cls);
-
-        return cls.getName();
+    private Class<?> findClass(String name) {
+        try {
+            return Class.forName(name, false, agent.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Can't find class " + name, e);
+        }
     }
 }

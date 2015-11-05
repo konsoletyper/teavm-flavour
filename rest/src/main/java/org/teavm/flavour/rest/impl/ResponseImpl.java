@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.rest.processor.Response;
-import org.teavm.jso.JSBody;
 
 /**
  *
@@ -69,7 +68,4 @@ class ResponseImpl implements Response {
             defaultAction.run();
         }
     }
-
-    @JSBody(params = "node", script = "return { data : node };")
-    static native Node wrapJson(Node node);
 }
