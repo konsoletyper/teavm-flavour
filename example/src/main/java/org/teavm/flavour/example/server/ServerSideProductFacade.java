@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.teavm.flavour.example.api.ProductDTO;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.example.api.ProductQueryDTO;
+import org.teavm.flavour.example.api.QueryPageDTO;
 import org.teavm.flavour.example.model.Product;
 import org.teavm.flavour.example.model.ProductRepository;
 
@@ -52,12 +53,12 @@ public class ServerSideProductFacade implements ProductFacade {
     }
 
     @Override
-    public List<ProductDTO> list(ProductQueryDTO query) {
+    public List<ProductDTO> list(ProductQueryDTO query, QueryPageDTO page) {
         JinqStream<Product> all = filtered(query)
                 .sortedBy(Product::getName)
-                .skip(query.page.offset);
-        if (query.page.limit != 0) {
-            all = all.limit(query.page.limit);
+                .skip(page.offset != null ? page.offset : 0);
+        if (page.limit != null) {
+            all = all.limit(page.limit);
         }
         return all
                 .map(this::toDTO)

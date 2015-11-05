@@ -39,7 +39,7 @@ public interface ProductFacade {
 
     @GET
     @Produces("application/json")
-    List<ProductDTO> list(@BeanParam ProductQueryDTO query);
+    List<ProductDTO> list(@BeanParam ProductQueryDTO query, @BeanParam QueryPageDTO page);
 
     @GET
     @Produces("application/json")

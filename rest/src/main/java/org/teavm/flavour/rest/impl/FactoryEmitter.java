@@ -172,7 +172,9 @@ public class FactoryEmitter {
         ValueEmitter sb = pe.construct(StringBuilder.class);
         if (!resource.getPath().isEmpty()) {
             sb = appendUrlPattern(resource.getPath(), model, sb);
-            sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant("/"));
+            if (!model.getPath().isEmpty()) {
+                sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant("/"));
+            }
         }
         sb = appendUrlPattern(model.getPath(), model, sb);
         ValueEmitter sep = pe.constant("?");
@@ -202,6 +204,7 @@ public class FactoryEmitter {
                     pe.jump(joint);
                 });
                 pe.enter(joint);
+                sep = nextSep.getValue();
             }
 
         }

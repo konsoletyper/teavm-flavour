@@ -19,6 +19,7 @@ import java.util.List;
 import org.teavm.flavour.example.api.ProductDTO;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.example.api.ProductQueryDTO;
+import org.teavm.flavour.example.api.QueryPageDTO;
 import org.teavm.flavour.widgets.DataSource;
 
 /**
@@ -44,10 +45,11 @@ public class ProductDataSource implements DataSource<ProductDTO> {
     @Override
     public List<ProductDTO> fetch(int offset, int limit) {
         ProductQueryDTO query = new ProductQueryDTO();
+        QueryPageDTO page = new QueryPageDTO();
         query.namePart = namePart;
-        query.page.offset = offset;
-        query.page.limit = limit;
-        return facade.list(query);
+        page.offset = offset;
+        page.limit = limit;
+        return facade.list(query, page);
     }
 
     @Override

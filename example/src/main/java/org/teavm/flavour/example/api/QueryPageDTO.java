@@ -23,8 +23,8 @@ import javax.ws.rs.QueryParam;
  */
 public class QueryPageDTO {
     @QueryParam("offset")
-    public int offset;
+    public Integer offset;
 
     @QueryParam("limit")
-    public int limit;
+    public Integer limit;
 }

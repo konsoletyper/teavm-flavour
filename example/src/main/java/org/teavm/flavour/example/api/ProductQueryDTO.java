@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.example.api;
 
-import javax.ws.rs.BeanParam;
 import javax.ws.rs.QueryParam;
 
 /**
@@ -23,9 +22,6 @@ import javax.ws.rs.QueryParam;
  * @author Alexey Andreev
  */
 public class ProductQueryDTO {
-    @BeanParam
-    public QueryPageDTO page = new QueryPageDTO();
-
     @QueryParam("name")
     public String namePart;
 }
