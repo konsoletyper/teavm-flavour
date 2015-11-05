@@ -119,6 +119,8 @@ class RequestImpl implements Request {
         for (Map.Entry<String, String> header : headers.entrySet()) {
             xhr.setRequestHeader(header.getKey(), header.getValue());
         }
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.setRequestHeader("Accept", "application/json");
         xhr.onComplete(() -> {
             ResponseImpl response = new ResponseImpl();
             response.status = xhr.getStatus();

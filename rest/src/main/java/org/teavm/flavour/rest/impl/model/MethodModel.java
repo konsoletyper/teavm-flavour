@@ -41,6 +41,10 @@ public class MethodModel implements Cloneable {
     private Map<String, ValuePath> readonlyQueryParameters = Collections.unmodifiableMap(queryParameters);
     Map<String, ValuePath> headerParameters = new HashMap<>();
     private Map<String, ValuePath> readonlyHeaderParameters = Collections.unmodifiableMap(headerParameters);
+    List<String> produces = new ArrayList<>();
+    private List<String> readonlyProduces = Collections.unmodifiableList(produces);
+    List<String> consumes = new ArrayList<>();
+    private List<String> readonlyConsumes = Collections.unmodifiableList(consumes);
     ValuePath body;
 
     MethodModel(MethodDescriptor method) {
@@ -79,6 +83,14 @@ public class MethodModel implements Cloneable {
         return readonlyHeaderParameters;
     }
 
+    public List<String> getProduces() {
+        return readonlyProduces;
+    }
+
+    public List<String> getConsumes() {
+        return readonlyConsumes;
+    }
+
     @Override
     public MethodModel clone() {
         try {
@@ -94,6 +106,10 @@ public class MethodModel implements Cloneable {
             copy.headerParameters = headerParameters.entrySet().stream().collect(Collectors.toMap(
                     entry -> entry.getKey(), entry -> entry.getValue()));
             copy.readonlyHeaderParameters = Collections.unmodifiableMap(headerParameters);
+            copy.produces = new ArrayList<>(produces);
+            copy.readonlyProduces = Collections.unmodifiableList(copy.produces);
+            copy.consumes = new ArrayList<>(consumes);
+            copy.readonlyConsumes = Collections.unmodifiableList(copy.consumes);
             return copy;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();

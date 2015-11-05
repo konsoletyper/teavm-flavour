@@ -17,6 +17,7 @@ package org.teavm.flavour.rest.impl.model;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.model.AnnotationContainerReader;
@@ -104,6 +105,7 @@ public class ResourceModelRepository {
         readPath(model, method);
         readHttpMethod(model, method);
         readParameters(model, method);
+        readMimeTypes(model, method);
         fillValues(model, method);
         validate(model, method);
     }
@@ -229,6 +231,19 @@ public class ResourceModelRepository {
                     || classSource.isSuperType("java.lang.Number", obj.getClassName()).orElse(false);
         } else {
             return false;
+        }
+    }
+
+    private void readMimeTypes(MethodModel model, MethodReader method) {
+        AnnotationReader produces = method.getAnnotations().get(JAXRSAnnotations.PRODUCES);
+        if (produces != null) {
+            model.produces.addAll(produces.getValue("value").getList().stream()
+                    .map(annot -> annot.getString()).collect(Collectors.toList()));
+        }
+        AnnotationReader consumes = method.getAnnotations().get(JAXRSAnnotations.PRODUCES);
+        if (consumes != null) {
+            model.consumes.addAll(consumes.getValue("value").getList().stream()
+                    .map(annot -> annot.getString()).collect(Collectors.toList()));
         }
     }
 
