@@ -4,6 +4,9 @@
     <button type="button" class="btn" event:click="add()">Add</button>
   </div>
 </div>
+<div>
+  <input type="text" std:change="t -> setFilter(t)"/>
+</div>
 <nav>
   <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
 </nav>

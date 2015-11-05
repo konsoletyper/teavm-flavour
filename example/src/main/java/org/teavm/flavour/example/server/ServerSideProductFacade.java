@@ -73,8 +73,8 @@ public class ServerSideProductFacade implements ProductFacade {
     private JinqStream<Product> filtered(ProductQueryDTO query) {
         JinqStream<Product> all = repository.all();
         if (query.namePart != null && !query.namePart.trim().isEmpty()) {
-            all = all.where(product -> JPQL.like(product.getName().toLowerCase(),
-                    "%" + query.namePart.trim().toLowerCase() + "%"));
+            String namePart = "%" + query.namePart.trim().toLowerCase() + "%";
+            all = all.where(product -> JPQL.like(product.getName().toLowerCase(), namePart));
         }
         return all;
     }
