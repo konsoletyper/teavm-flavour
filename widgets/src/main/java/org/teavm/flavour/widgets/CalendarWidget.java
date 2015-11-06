@@ -22,10 +22,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.ValueChangeListener;
 
@@ -39,8 +39,8 @@ public class CalendarWidget extends AbstractWidget {
     private List<Day> days = new ArrayList<>();
     private int displayYear;
     private int displayMonth;
-    private Computation<String> currentLocale;
-    private Computation<Date> currentDate;
+    private Supplier<String> currentLocale;
+    private Supplier<Date> currentDate;
     private ValueChangeListener<Date> changeListener;
     private Date cachedDate;
     private int selectedYear;
@@ -87,12 +87,12 @@ public class CalendarWidget extends AbstractWidget {
     }
 
     @BindAttribute(name = "locale", optional = true)
-    public void setCurrentLocale(Computation<String> currentLocale) {
+    public void setCurrentLocale(Supplier<String> currentLocale) {
         this.currentLocale = currentLocale;
     }
 
     @BindAttribute(name = "value")
-    public void setCurrentDate(Computation<Date> currentDate) {
+    public void setCurrentDate(Supplier<Date> currentDate) {
         this.currentDate = currentDate;
     }
 
@@ -119,12 +119,12 @@ public class CalendarWidget extends AbstractWidget {
 
     @Override
     public void render() {
-        Date newDate = currentDate.perform();
+        Date newDate = currentDate.get();
         if (!newDate.equals(cachedDate)) {
             cachedDate = newDate;
             rebuildCurrentDate();
         }
-        String newLocale = currentLocale != null ? currentLocale.perform() : null;
+        String newLocale = currentLocale != null ? currentLocale.get() : null;
         boolean localeChanged = false;
         if (!Objects.equals(newLocale, cachedLocale)) {
             cachedLocale = newLocale;

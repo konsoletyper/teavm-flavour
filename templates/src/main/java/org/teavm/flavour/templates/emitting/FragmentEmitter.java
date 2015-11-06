@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
-import org.teavm.flavour.templates.DomFragment;
+import org.teavm.flavour.templates.DomComponentTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.model.AccessLevel;
@@ -57,9 +57,7 @@ class FragmentEmitter {
         String workerCls = emitWorkerClass(fragment);
         ValueType ownerType = ValueType.object(ownerCls);
 
-        pe.construct(workerCls, thisVar.getField("this$owner", ownerType))
-                .invokeVirtual("create", Component.class)
-                .returnValue();
+        pe.construct(workerCls, thisVar.getField("this$owner", ownerType)).returnValue();
 
         cls.addMethod(method);
         context.dependencyAgent.submitClass(cls);
@@ -68,7 +66,7 @@ class FragmentEmitter {
 
     private String emitWorkerClass(List<TemplateNode> fragment) {
         ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
-        cls.setParent(DomFragment.class.getName());
+        cls.setParent(DomComponentTemplate.class.getName());
         context.addConstructor(cls, null);
         context.pushBoundVars();
         emitBuildDomMethod(cls, fragment);

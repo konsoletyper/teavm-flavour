@@ -16,10 +16,10 @@
 package org.teavm.flavour.directives.standard;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.NodeHolder;
 import org.teavm.flavour.templates.Slot;
@@ -32,7 +32,7 @@ import org.teavm.jso.browser.Window;
 @BindDirective(name = "text")
 @IgnoreContent
 public class TextComponent<T> extends AbstractComponent {
-    private Computation<T> value;
+    private Supplier<T> value;
     private NodeHolder textSlot;
     private T cachedValue;
     private boolean cacheInitialized;
@@ -42,13 +42,13 @@ public class TextComponent<T> extends AbstractComponent {
     }
 
     @BindAttribute(name = "value")
-    public void setValue(Computation<T> value) {
+    public void setValue(Supplier<T> value) {
         this.value = value;
     }
 
     @Override
     public void render() {
-        T computedValue = value.perform();
+        T computedValue = value.get();
         if (cacheInitialized && Objects.equals(cachedValue, computedValue)) {
             return;
         }

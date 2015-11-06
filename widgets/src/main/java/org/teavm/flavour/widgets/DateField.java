@@ -20,11 +20,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.ValueChangeListener;
@@ -43,10 +43,10 @@ import org.teavm.jso.dom.html.TextRectangle;
 @BindDirective(name = "date")
 @BindTemplate("templates/flavour/widgets/date-field.html")
 public class DateField extends AbstractWidget {
-    private Computation<Integer> size;
-    private Computation<Date> value;
-    private Computation<String> locale;
-    private Computation<String> format;
+    private Supplier<Integer> size;
+    private Supplier<Date> value;
+    private Supplier<String> locale;
+    private Supplier<String> format;
     private ValueChangeListener<Date> changeListener;
     private String cachedFormat;
     private String cachedLocale;
@@ -60,17 +60,17 @@ public class DateField extends AbstractWidget {
     }
 
     public int getSize() {
-        Integer result = size != null ? size.perform() : null;
+        Integer result = size != null ? size.get() : null;
         return result != null ? result : 20;
     }
 
     @BindAttribute(name = "size", optional = true)
-    public void setSize(Computation<Integer> size) {
+    public void setSize(Supplier<Integer> size) {
         this.size = size;
     }
 
     public Date getValue() {
-        return value.perform();
+        return value.get();
     }
 
     public String getDateString() {
@@ -79,17 +79,17 @@ public class DateField extends AbstractWidget {
     }
 
     @BindAttribute(name = "value")
-    public void setValue(Computation<Date> value) {
+    public void setValue(Supplier<Date> value) {
         this.value = value;
     }
 
     @BindAttribute(name = "locale", optional = true)
-    public void setLocale(Computation<String> locale) {
+    public void setLocale(Supplier<String> locale) {
         this.locale = locale;
     }
 
     @BindAttribute(name = "format", optional = true)
-    public void setFormat(Computation<String> format) {
+    public void setFormat(Supplier<String> format) {
         this.format = format;
     }
 
@@ -101,14 +101,14 @@ public class DateField extends AbstractWidget {
     @Override
     public void render() {
         boolean formatChanged = false;
-        String newFormat = format != null ? format.perform() : null;
+        String newFormat = format != null ? format.get() : null;
         if (!Objects.equals(cachedFormat, newFormat)) {
             cachedFormat = newFormat;
             formatChanged = true;
         }
 
         boolean localeChanged = false;
-        String newLocale = locale != null ? locale.perform() : null;
+        String newLocale = locale != null ? locale.get() : null;
         if (!Objects.equals(cachedLocale, newLocale)) {
             cachedLocale = newLocale;
             localeChanged = true;

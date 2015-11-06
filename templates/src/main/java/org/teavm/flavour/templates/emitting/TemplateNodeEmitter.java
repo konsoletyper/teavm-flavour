@@ -236,30 +236,6 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         context.addVariable(varBinding.getName(), convertValueType(varBinding.getValueType()));
     }
 
-    private String emitVariableClass(ClassHolder owner, DirectiveVariableBinding varBinding) {
-        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(org.teavm.flavour.templates.Variable.class.getName());
-
-        context.addConstructor(cls, null);
-
-        MethodHolder setMethod = new MethodHolder("set", ValueType.parse(Object.class), ValueType.VOID);
-        setMethod.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(setMethod, context.dependencyAgent.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter valueVar = pe.var(1, Object.class);
-        ValueType varType = convertValueType(varBinding.getValueType());
-        ValueType ownerType = ValueType.object(owner.getName());
-
-        thisVar.getField("this$owner", ownerType).setField("var$" + varBinding.getName(), valueVar.cast(varType));
-        pe.exit();
-
-        cls.addMethod(setMethod);
-        context.dependencyAgent.submitClass(cls);
-        return cls.getName();
-    }
-
     private void emitFunction(ClassHolder cls, DirectiveFunctionBinding function, ProgramEmitter pe,
             ValueEmitter thisVar, ValueEmitter componentVar) {
         ExprPlanEmitter exprEmitter = new ExprPlanEmitter(context);

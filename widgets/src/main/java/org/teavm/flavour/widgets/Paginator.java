@@ -19,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.MouseEvent;
@@ -34,8 +34,8 @@ import org.teavm.jso.dom.events.MouseEvent;
 @BindDirective(name = "paginator")
 @BindTemplate("templates/flavour/widgets/paginator.html")
 public class Paginator extends AbstractWidget {
-    private Computation<Integer> maxPages = () -> 11;
-    private Computation<Pageable> data;
+    private Supplier<Integer> maxPages = () -> 11;
+    private Supplier<Pageable> data;
     private BiConsumer<Integer, Consumer<String>> linkGenerator;
     private List<Item> items = new ArrayList<>();
     private Pageable cachedData;
@@ -48,12 +48,12 @@ public class Paginator extends AbstractWidget {
     }
 
     @BindAttribute(name = "data")
-    public void setData(Computation<Pageable> data) {
+    public void setData(Supplier<Pageable> data) {
         this.data = data;
     }
 
     @BindAttribute(name = "max-pages", optional = true)
-    public void setMaxPages(Computation<Integer> maxPages) {
+    public void setMaxPages(Supplier<Integer> maxPages) {
         this.maxPages = maxPages;
     }
 
@@ -64,8 +64,8 @@ public class Paginator extends AbstractWidget {
 
     @Override
     public void render() {
-        Pageable data = this.data.perform();
-        int maxPages = this.maxPages.perform();
+        Pageable data = this.data.get();
+        int maxPages = this.maxPages.get();
         int page = data.getCurrentPage();
         int pageCount = data.getPageCount();
         if (maxPages != cachedMaxPages || data != cachedData || cachedPage != page || cachedPageCount != pageCount) {

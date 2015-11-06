@@ -15,11 +15,11 @@
  */
 package org.teavm.flavour.widgets;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.events.EventListener;
@@ -32,8 +32,8 @@ import org.teavm.jso.dom.events.MouseEvent;
 @BindDirective(name = "action-link")
 @BindTemplate("templates/flavour/widgets/action-link.html")
 public class ActionLink extends AbstractWidget {
-    private Computation<Boolean> enabled;
-    private Computation<Boolean> visible;
+    private Supplier<Boolean> enabled;
+    private Supplier<Boolean> visible;
     private EventListener<MouseEvent> clickListener;
     private Fragment content;
 
@@ -42,20 +42,20 @@ public class ActionLink extends AbstractWidget {
     }
 
     public boolean isEnabled() {
-        return enabled == null || enabled.perform();
+        return enabled == null || enabled.get();
     }
 
     @BindAttribute(name = "enabled", optional = true)
-    public void setEnabled(Computation<Boolean> enabled) {
+    public void setEnabled(Supplier<Boolean> enabled) {
         this.enabled = enabled;
     }
 
     public boolean isVisible() {
-        return visible == null || visible.perform();
+        return visible == null || visible.get();
     }
 
     @BindAttribute(name = "visible", optional = true)
-    public void setVisible(Computation<Boolean> visible) {
+    public void setVisible(Supplier<Boolean> visible) {
         this.visible = visible;
     }
 

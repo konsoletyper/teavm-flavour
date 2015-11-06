@@ -15,11 +15,11 @@
  */
 package org.teavm.flavour.directives.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
@@ -29,7 +29,7 @@ import org.teavm.flavour.templates.Slot;
  */
 @BindDirective(name = "insert")
 public class InsertComponent extends AbstractComponent {
-    private Computation<Fragment> fragment;
+    private Supplier<Fragment> fragment;
     private Fragment renderedFragment;
     private Component body;
 
@@ -38,13 +38,13 @@ public class InsertComponent extends AbstractComponent {
     }
 
     @BindAttribute(name = "fragment")
-    public void setFragment(Computation<Fragment> fragment) {
+    public void setFragment(Supplier<Fragment> fragment) {
         this.fragment = fragment;
     }
 
     @Override
     public void render() {
-        Fragment newFragment = fragment.perform();
+        Fragment newFragment = fragment.get();
         if (newFragment != renderedFragment) {
             if (body != null) {
                 body.destroy();

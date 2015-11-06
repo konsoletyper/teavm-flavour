@@ -16,8 +16,8 @@
 package org.teavm.flavour.widgets;
 
 import java.util.Date;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.ValueChangeListener;
 
 /**
@@ -26,16 +26,16 @@ import org.teavm.flavour.templates.ValueChangeListener;
  */
 @BindTemplate("templates/flavour/widgets/calendar-drop-down.html")
 public class CalendarDropDown {
-    private Computation<Date> value;
+    private Supplier<Date> value;
     private ValueChangeListener<Date> changeListener;
 
-    public CalendarDropDown(Computation<Date> value, ValueChangeListener<Date> changeListener) {
+    public CalendarDropDown(Supplier<Date> value, ValueChangeListener<Date> changeListener) {
         this.value = value;
         this.changeListener = changeListener;
     }
 
     public Date getValue() {
-        return value.perform();
+        return value.get();
     }
 
     public ValueChangeListener<Date> getChangeListener() {

@@ -15,15 +15,14 @@
  */
 package org.teavm.flavour.directives.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.Variable;
 
 /**
  *
@@ -32,8 +31,8 @@ import org.teavm.flavour.templates.Variable;
 @BindDirective(name = "with")
 public class WithComponent<T> extends AbstractComponent {
     private Fragment content;
-    private Variable<T> variable;
-    private Computation<T> value;
+    private T variable;
+    private Supplier<T> value;
     private Component contentRenderer;
 
     public WithComponent(Slot slot) {
@@ -46,12 +45,12 @@ public class WithComponent<T> extends AbstractComponent {
     }
 
     @BindAttribute(name = "var")
-    public void setVariable(Variable<T> variable) {
-        this.variable = variable;
+    public T getVariable() {
+        return variable;
     }
 
     @BindAttribute(name = "value")
-    public void setValue(Computation<T> value) {
+    public void setValue(Supplier<T> value) {
         this.value = value;
     }
 
@@ -61,7 +60,7 @@ public class WithComponent<T> extends AbstractComponent {
             contentRenderer = content.create();
             getSlot().append(contentRenderer.getSlot());
         }
-        variable.set(value.perform());
+        variable = value.get();
         contentRenderer.render();
     }
 

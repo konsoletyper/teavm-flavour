@@ -16,9 +16,9 @@
 package org.teavm.flavour.directives.standard;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
@@ -30,7 +30,7 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 @BindAttributeDirective(name = "value")
 public class ValueBinder<T> implements Renderable {
     private HTMLInputElement element;
-    private Computation<T> value;
+    private Supplier<T> value;
     private Object cachedValue;
 
     public ValueBinder(HTMLElement element) {
@@ -38,13 +38,13 @@ public class ValueBinder<T> implements Renderable {
     }
 
     @BindContent
-    public void setValue(Computation<T> value) {
+    public void setValue(Supplier<T> value) {
         this.value = value;
     }
 
     @Override
     public void render() {
-        Object newValue = value.perform();
+        Object newValue = value.get();
         if (!Objects.equals(newValue, cachedValue)) {
             cachedValue = newValue;
             element.setValue(String.valueOf(newValue));

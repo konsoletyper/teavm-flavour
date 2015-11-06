@@ -27,6 +27,7 @@ class AttributeDirectiveMetadata extends BaseDirectiveMetadata {
     MethodDescriber constructor;
     DirectiveAttributeType type;
     MethodDescriber setter;
+    MethodDescriber getter;
     ValueType valueType;
     GenericMethod sam;
 }

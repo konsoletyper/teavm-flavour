@@ -15,9 +15,9 @@
  */
 package org.teavm.flavour.directives.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
@@ -29,7 +29,7 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 @BindAttributeDirective(name = "enabled")
 public class EnabledBinder implements Renderable {
     private HTMLInputElement element;
-    private Computation<Boolean> value;
+    private Supplier<Boolean> value;
     private boolean cachedValue;
 
     public EnabledBinder(HTMLElement element) {
@@ -37,13 +37,13 @@ public class EnabledBinder implements Renderable {
     }
 
     @BindContent
-    public void setValue(Computation<Boolean> value) {
+    public void setValue(Supplier<Boolean> value) {
         this.value = value;
     }
 
     @Override
     public void render() {
-        boolean newValue = value.perform();
+        boolean newValue = value.get();
         if (newValue != cachedValue) {
             cachedValue = newValue;
             element.setDisabled(!newValue);

@@ -15,12 +15,12 @@
  */
 package org.teavm.flavour.directives.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
@@ -30,7 +30,7 @@ import org.teavm.flavour.templates.Slot;
  */
 @BindDirective(name = "if")
 public class IfComponent extends AbstractComponent {
-    private Computation<Boolean> condition;
+    private Supplier<Boolean> condition;
     private Fragment body;
     private Component childComponent;
     private boolean showing;
@@ -40,7 +40,7 @@ public class IfComponent extends AbstractComponent {
     }
 
     @BindAttribute(name = "condition")
-    public void setCondition(Computation<Boolean> condition) {
+    public void setCondition(Supplier<Boolean> condition) {
         this.condition = condition;
     }
 
@@ -51,7 +51,7 @@ public class IfComponent extends AbstractComponent {
 
     @Override
     public void render() {
-        boolean newShowing = condition.perform();
+        boolean newShowing = condition.get();
         if (showing != newShowing) {
             if (newShowing) {
                 if (childComponent == null) {

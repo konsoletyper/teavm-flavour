@@ -18,15 +18,14 @@ package org.teavm.flavour.directives.standard;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.Computation;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.Variable;
 
 /**
  *
@@ -34,9 +33,9 @@ import org.teavm.flavour.templates.Variable;
  */
 @BindDirective(name = "foreach")
 public class ForEachComponent<T> extends AbstractComponent {
-    private Computation<Iterable<T>> collection;
-    private Variable<T> elementVariable;
-    private Variable<Integer> indexVariable;
+    private Supplier<Iterable<T>> collection;
+    private T elementVariable;
+    private int indexVariable;
     private Fragment body;
     private List<Component> childComponents = new ArrayList<>();
     private List<T> computedCollection = new ArrayList<>();
@@ -46,18 +45,18 @@ public class ForEachComponent<T> extends AbstractComponent {
     }
 
     @BindAttribute(name = "in")
-    public void setCollection(Computation<Iterable<T>> collection) {
+    public void setCollection(Supplier<Iterable<T>> collection) {
         this.collection = collection;
     }
 
     @BindAttribute(name = "var")
-    public void setElementVariable(Variable<T> elementVariable) {
-        this.elementVariable = elementVariable;
+    public T getElementVariable() {
+        return elementVariable;
     }
 
     @BindAttribute(name = "index", optional = true)
-    public void setIndexVariable(Variable<Integer> indexVariable) {
-        this.indexVariable = indexVariable;
+    public int getIndexVariable() {
+        return indexVariable;
     }
 
     @BindContent
@@ -68,7 +67,7 @@ public class ForEachComponent<T> extends AbstractComponent {
     @Override
     public void render() {
         List<T> newComputedCollection;
-        Iterable<T> items = collection.perform();
+        Iterable<T> items = collection.get();
         if (items instanceof Collection<?>) {
             @SuppressWarnings("unchecked")
             Collection<T> safeItems = (Collection<T>) (Collection<?>) items;
@@ -82,10 +81,8 @@ public class ForEachComponent<T> extends AbstractComponent {
 
         for (int i = 0; i < newComputedCollection.size(); ++i) {
             T item = newComputedCollection.get(i);
-            elementVariable.set(item);
-            if (indexVariable != null) {
-                indexVariable.set(i);
-            }
+            elementVariable = item;
+            indexVariable = i;
             if (i >= computedCollection.size()) {
                 Component childComponent = body.create();
                 childComponent.render();

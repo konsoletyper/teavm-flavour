@@ -26,10 +26,8 @@ import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
-import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
@@ -49,7 +47,6 @@ import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.Variable;
 import org.teavm.jso.dom.html.HTMLElement;
 
 /**
@@ -251,15 +248,26 @@ class DirectiveParser {
         }
         metadata.setter = method.getDescriber();
         ValueType[] arguments = method.getActualArgumentTypes();
-        if (arguments.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked with "
-                    + BindContent.class.getName() + " and therefore should take exactly 1 argument, "
-                    + "but takes " + arguments.length);
-            return;
+        if (method.getActualReturnType() == null) {
+            if (arguments.length != 1) {
+                error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                        + BindContent.class.getName() + " and therefore must take exactly 1 argument, but "
+                        + "takes " + arguments.length);
+                return;
+            }
+            metadata.setter = method.getDescriber();
+        } else {
+            if (arguments.length != 0) {
+                error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                        + BindContent.class.getName() + " and therefore must not take arguments, but "
+                        + "takes " + arguments.length);
+                return;
+            }
+            metadata.getter = method.getDescriber();
         }
 
         DirectiveAttributeMetadata attrMeta = new DirectiveAttributeMetadata();
-        if (!parseAttributeType(attrMeta, arguments[0])) {
+        if (!parseAttributeType(attrMeta, arguments.length == 1 ? arguments[0] : null, method.getActualReturnType())) {
             error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
                     + "mapped to an attribute: " + arguments[0]);
         } else {
@@ -288,40 +296,43 @@ class DirectiveParser {
         DirectiveAttributeMetadata attrMetadata = new DirectiveAttributeMetadata();
         attrMetadata.name = name;
         metadata.attributes.put(name, attrMetadata);
-        attrMetadata.setter = method.getDescriber();
 
         AnnotationBoolean optionalValue = (AnnotationBoolean) binding.getValue("optional");
         attrMetadata.required = optionalValue == null || !optionalValue.value;
 
         ValueType[] arguments = method.getActualArgumentTypes();
-        if (arguments.length != 1) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by "
-                    + BindAttribute.class.getName() + " and therefore must take exactly 1 argument, but "
-                    + "takes " + arguments.length);
-            return;
+        if (method.getActualReturnType() == null) {
+            if (arguments.length != 1) {
+                error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                        + BindAttribute.class.getName() + " and therefore must take exactly 1 argument, but "
+                        + "takes " + arguments.length);
+                return;
+            }
+            attrMetadata.setter = method.getDescriber();
+        } else {
+            if (arguments.length != 0) {
+                error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                        + BindAttribute.class.getName() + " and therefore must not take arguments, but "
+                        + "takes " + arguments.length);
+                return;
+            }
+            attrMetadata.getter = method.getDescriber();
         }
 
-        if (!parseAttributeType(attrMetadata, arguments[0])) {
-            error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
-                    + "mapped to an attribute: " + arguments[0]);
+        if (!parseAttributeType(attrMetadata, arguments.length == 1 ? arguments[0] : null,
+                method.getActualReturnType())) {
+            error("Method " + methodToString(method.getDescriber()) + " should either take lambda or return value, "
+                    + "since it is mapped to an attribute: " + arguments[0]);
         }
     }
 
-    private boolean parseAttributeType(DirectiveAttributeMetadata attrMetadata, ValueType valueType) {
-        if (!(valueType instanceof GenericType)) {
-            return false;
-        }
-
-        TypeVar typeVar = new TypeVar();
-
-        TypeUnifier unifier = new TypeUnifier(classRepository);
-        GenericClass variableType = new GenericClass(Variable.class.getName(), new GenericReference(typeVar));
-        if (unifier.unify(variableType, (GenericType) valueType, false)) {
+    private boolean parseAttributeType(DirectiveAttributeMetadata attrMetadata, ValueType valueType,
+            ValueType returnType) {
+        if (valueType == null) {
             attrMetadata.type = DirectiveAttributeType.VARIABLE;
-            attrMetadata.valueType = unifier.getSubstitutions().get(typeVar);
+            attrMetadata.valueType = returnType;
             return true;
         }
-
         if (valueType instanceof GenericClass) {
             GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass) valueType);
             if (sam != null) {
