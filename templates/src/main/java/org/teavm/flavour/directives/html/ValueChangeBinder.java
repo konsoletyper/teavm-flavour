@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.directives.standard;
+package org.teavm.flavour.directives.html;
 
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;

@@ -13,48 +13,45 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.directives.standard;
+package org.teavm.flavour.directives.html;
 
-import java.util.function.Consumer;
+import java.util.Objects;
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Renderable;
-import org.teavm.jso.JSBody;
 import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
 
 /**
  *
  * @author Alexey Andreev
  */
-@BindAttributeDirective(name = "link")
-public class LinkComponent implements Renderable {
-    private HTMLElement element;
-    private String value;
-    private Consumer<Consumer<String>> path;
+@BindAttributeDirective(name = "value")
+public class ValueBinder<T> implements Renderable {
+    private HTMLInputElement element;
+    private Supplier<T> value;
+    private Object cachedValue;
 
-    public LinkComponent(HTMLElement element) {
-        this.element = element;
+    public ValueBinder(HTMLElement element) {
+        this.element = (HTMLInputElement) element;
     }
 
-    private Consumer<String> linkConsumer = str -> {
-        value = str;
-        setHref(element, value);
-    };
-
     @BindContent
-    public void setPath(Consumer<Consumer<String>> path) {
-        this.path = path;
+    public void setValue(Supplier<T> value) {
+        this.value = value;
     }
 
     @Override
     public void render() {
-        path.accept(linkConsumer);
+        Object newValue = value.get();
+        if (!Objects.equals(newValue, cachedValue)) {
+            cachedValue = newValue;
+            element.setValue(String.valueOf(newValue));
+        }
     }
 
     @Override
     public void destroy() {
     }
-
-    @JSBody(params = { "elem", "value" }, script = "elem.href = '#' + value;")
-    private static native void setHref(HTMLElement elem, String value);
 }

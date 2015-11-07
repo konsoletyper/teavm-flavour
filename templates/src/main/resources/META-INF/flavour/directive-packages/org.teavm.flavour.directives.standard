@@ -1,10 +1,4 @@
 ForEachComponent
 IfComponent
-TextComponent
 InsertComponent
-ValueBinder
-ValueChangeBinder
-EnabledBinder
-ExposeElementComponent
-LinkComponent
 WithComponent

@@ -13,35 +13,41 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.directives.standard;
+package org.teavm.flavour.directives.html;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.ElementConsumer;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
 
 /**
  *
  * @author Alexey Andreev
  */
-@BindAttributeDirective(name = "expose-element")
-public class ExposeElementComponent implements Renderable {
-    private HTMLElement element;
-    private ElementConsumer elementConsumer;
+@BindAttributeDirective(name = "enabled")
+public class EnabledBinder implements Renderable {
+    private HTMLInputElement element;
+    private Supplier<Boolean> value;
+    private boolean cachedValue;
 
-    public ExposeElementComponent(HTMLElement element) {
-        this.element = element;
+    public EnabledBinder(HTMLElement element) {
+        this.element = (HTMLInputElement) element;
     }
 
     @BindContent
-    public void setElementConsumer(ElementConsumer elementConsumer) {
-        this.elementConsumer = elementConsumer;
+    public void setValue(Supplier<Boolean> value) {
+        this.value = value;
     }
 
     @Override
     public void render() {
-        elementConsumer.consume(element);
+        boolean newValue = value.get();
+        if (newValue != cachedValue) {
+            cachedValue = newValue;
+            element.setDisabled(!newValue);
+        }
     }
 
     @Override
