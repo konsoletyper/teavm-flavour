@@ -248,26 +248,17 @@ class DirectiveParser {
         }
         metadata.setter = method.getDescriber();
         ValueType[] arguments = method.getActualArgumentTypes();
-        if (method.getActualReturnType() == null) {
-            if (arguments.length != 1) {
-                error("Method " + methodToString(method.getDescriber()) + " is marked by "
-                        + BindContent.class.getName() + " and therefore must take exactly 1 argument, but "
-                        + "takes " + arguments.length);
-                return;
-            }
-            metadata.setter = method.getDescriber();
-        } else {
-            if (arguments.length != 0) {
-                error("Method " + methodToString(method.getDescriber()) + " is marked by "
-                        + BindContent.class.getName() + " and therefore must not take arguments, but "
-                        + "takes " + arguments.length);
-                return;
-            }
-            metadata.getter = method.getDescriber();
+
+        if (arguments.length != 1) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by "
+                    + BindContent.class.getName() + " and therefore must take exactly 1 argument, but "
+                    + "takes " + arguments.length);
+            return;
         }
+        metadata.setter = method.getDescriber();
 
         DirectiveAttributeMetadata attrMeta = new DirectiveAttributeMetadata();
-        if (!parseAttributeType(attrMeta, arguments.length == 1 ? arguments[0] : null, method.getActualReturnType())) {
+        if (!parseAttributeType(attrMeta, arguments[0], method.getActualReturnType())) {
             error("Method " + methodToString(method.getDescriber()) + " takes argument of type that can't be "
                     + "mapped to an attribute: " + arguments[0]);
         } else {

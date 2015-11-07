@@ -41,10 +41,11 @@ public class TemplateTest {
     @Test
     public void bindsLambdaToAttribute() {
         ModelForLambdaToAttribute model = new ModelForLambdaToAttribute();
-        model.property = "foo";
         Component component = Templates.bind(model, root);
         HTMLElement elem = document.getElementById("value-copy");
 
+        model.property = "foo";
+        component.render();
         assertEquals("foo", elem.getAttribute("class"));
 
         model.property = "bar";
@@ -74,5 +75,25 @@ public class TemplateTest {
 
     @BindTemplate("templates/binds-variable-to-attribute.html")
     static class ModelForVariable {
+    }
+
+    @Test
+    public void bindsLambdaToAttributeContent() {
+        ModelForAttributeLambdaToAttribute model = new ModelForAttributeLambdaToAttribute();
+        Component component = Templates.bind(model, root);
+        HTMLElement elem = document.getElementById("result");
+
+        model.property = "foo";
+        component.render();
+        assertEquals("foo", elem.getAttribute("class"));
+
+        model.property = "bar";
+        component.render();
+        assertEquals("bar", elem.getAttribute("class"));
+    }
+
+    @BindTemplate("templates/binds-attribute-lambda-to-attribute.html")
+    static class ModelForAttributeLambdaToAttribute {
+        public String property;
     }
 }

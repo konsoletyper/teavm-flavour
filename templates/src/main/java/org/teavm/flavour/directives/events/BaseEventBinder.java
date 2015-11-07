@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.directives.events;
 
+import java.util.function.Consumer;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Renderable;
@@ -42,13 +43,8 @@ public abstract class BaseEventBinder<T extends Event> implements Renderable {
     }
 
     @BindContent
-    public void setHandler(final EventHandler<T> handler) {
-        this.action = new EventListener<T>() {
-            @Override
-            public void handleEvent(T evt) {
-                handler.handleEvent(evt);
-            }
-        };
+    public void setHandler(final Consumer<T> handler) {
+        this.action = handler::accept;
     }
 
     @Override

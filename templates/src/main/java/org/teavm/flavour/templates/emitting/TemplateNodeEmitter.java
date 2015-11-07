@@ -204,10 +204,10 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
                     pe, componentVar);
         }
 
-        context.classStack.add(cls.getName());
         for (DirectiveVariableBinding varBinding : node.getVariables()) {
             context.addVariable(varBinding.getName(), convertValueType(varBinding.getValueType()));
         }
+        context.classStack.add(cls.getName());
 
         if (node.getContentMethodName() != null) {
             emitContent(node, pe, thisVar, componentVar);
