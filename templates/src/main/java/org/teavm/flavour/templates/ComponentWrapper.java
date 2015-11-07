@@ -15,41 +15,32 @@
  */
 package org.teavm.flavour.templates;
 
-import java.util.List;
-
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class DomComponentTemplate extends AbstractComponent {
-    private List<Renderable> renderables;
+public abstract class ComponentWrapper implements Component {
+    protected Component component;
 
-    public DomComponentTemplate() {
-        super(Slot.create());
+    public ComponentWrapper(Component component) {
+        this.component = component;
     }
 
     @Override
     public void render() {
-        if (renderables == null) {
-            DomBuilder builder = new DomBuilder(getSlot());
-            buildDom(builder);
-            renderables = builder.getRenderables();
-        }
-        for (Renderable renderable : renderables) {
-            renderable.render();
-        }
+        prepare();
+        component.render();
     }
+
+    protected abstract void prepare();
 
     @Override
     public void destroy() {
-        if (renderables != null) {
-            for (Renderable renderable : renderables) {
-                renderable.destroy();
-            }
-            renderables = null;
-        }
-        super.destroy();
+        component.destroy();
     }
 
-    protected abstract void buildDom(DomBuilder builder);
+    @Override
+    public Slot getSlot() {
+        return component.getSlot();
+    }
 }

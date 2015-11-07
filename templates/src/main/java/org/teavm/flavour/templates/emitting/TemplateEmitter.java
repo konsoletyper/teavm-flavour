@@ -49,7 +49,7 @@ public class TemplateEmitter {
     }
 
     public String emitTemplate(String modelClassName, String sourceFileName, List<TemplateNode> fragment) {
-        ClassHolder cls = new ClassHolder(dependencyAgent.generateClassName());
+        ClassHolder cls = new ClassHolder(modelClassName + "$Flavour_Template");
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(Fragment.class.getName());
@@ -69,6 +69,7 @@ public class TemplateEmitter {
         context.addVariable("this", ValueType.object(modelClassName));
         context.classStack.add(cls.getName());
         context.dependencyAgent = dependencyAgent;
+        context.modelClassName = modelClassName;
         return new FragmentEmitter(context).emitTemplate(fragment);
     }
 

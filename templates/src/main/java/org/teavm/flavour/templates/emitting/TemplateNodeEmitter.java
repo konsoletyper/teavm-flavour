@@ -23,6 +23,7 @@ import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.ComponentWrapper;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Modifier;
@@ -119,16 +120,36 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private String emitComponentFragmentClass(DirectiveBinding node) {
-        String className = context.dependencyAgent.generateClassName();
+        String className = context.modelClassName + "$ComponentFragment" + context.suffixGenerator++;
         ClassHolder fragmentCls = new ClassHolder(className);
         fragmentCls.setParent(Object.class.getName());
         fragmentCls.getInterfaces().add(Fragment.class.getName());
 
-        emitDirectiveFields(fragmentCls, node.getVariables());
         context.addConstructor(fragmentCls, node.getLocation());
-        emitDirectiveWorker(fragmentCls, node);
+
+        MethodHolder worker = new MethodHolder("create", ValueType.parse(Component.class));
+        worker.setLevel(AccessLevel.PUBLIC);
+        ProgramEmitter pe = ProgramEmitter.create(worker, context.dependencyAgent.getClassSource());
+        ValueEmitter thisVar = pe.var(0, fragmentCls);
+        String ownerType = context.classStack.get(context.classStack.size() - 1);
+        ValueEmitter owner = thisVar.getField("this$owner", ValueType.object(ownerType));
+        pe.construct(emitComponentWrapperClass(node), owner).returnValue();
+        fragmentCls.addMethod(worker);
 
         context.dependencyAgent.submitClass(fragmentCls);
+        return className;
+    }
+
+    private String emitComponentWrapperClass(DirectiveBinding node) {
+        String className = context.modelClassName + "$ComponentWrapper" + context.suffixGenerator++;
+        ClassHolder wrapperCls = new ClassHolder(className);
+        wrapperCls.setParent(ComponentWrapper.class.getName());
+
+        emitDirectiveFields(wrapperCls, node.getVariables());
+        emitDirectiveWorker(wrapperCls, node);
+        emitDirectiveConstructor(wrapperCls, node);
+
+        context.dependencyAgent.submitClass(wrapperCls);
         return className;
     }
 
@@ -155,42 +176,69 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
     }
 
-    private void emitDirectiveWorker(ClassHolder cls, DirectiveBinding directive) {
-        MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
-        method.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(method, context.dependencyAgent.getClassSource());
+    private void emitDirectiveConstructor(ClassHolder cls, DirectiveBinding node) {
+        String ownerType = context.classStack.get(context.classStack.size() - 1);
+        FieldHolder ownerField = new FieldHolder("this$owner");
+        ownerField.setType(ValueType.object(ownerType));
+        ownerField.setLevel(AccessLevel.PUBLIC);
+        cls.addField(ownerField);
+
+        MethodHolder ctor = new MethodHolder("<init>", ownerField.getType(), ValueType.VOID);
+        ctor.setLevel(AccessLevel.PUBLIC);
+        ProgramEmitter pe = ProgramEmitter.create(ctor, context.dependencyAgent.getClassSource());
         ValueEmitter thisVar = pe.var(0, cls);
+        ValueEmitter ownerVar = pe.var(1, ownerField.getType());
 
-        context.location(pe, directive.getLocation());
-        ValueEmitter componentVar = pe.construct(directive.getClassName(),
+        context.location(pe, node.getLocation());
+        ValueEmitter componentVar = pe.construct(node.getClassName(),
                 pe.invoke(Slot.class, "create", Slot.class));
+        thisVar.invokeSpecial(ComponentWrapper.class, "<init>", componentVar.cast(Component.class));
+        thisVar.setField("this$owner", ownerVar);
 
-        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-            emitVariable(cls, varBinding, pe, thisVar, componentVar);
-        }
-
-        for (DirectiveFunctionBinding computation : directive.getComputations()) {
+        for (DirectiveFunctionBinding computation : node.getComputations()) {
             emitFunction(cls, computation, pe, thisVar, componentVar);
         }
 
-        context.classStack.add(cls.getName());
-
-        if (directive.getContentMethodName() != null) {
-            emitContent(directive, pe, thisVar, componentVar);
-        }
-
-        if (directive.getDirectiveNameMethodName() != null) {
-            emitDirectiveName(directive.getClassName(), directive.getDirectiveNameMethodName(), directive.getName(),
+        if (node.getDirectiveNameMethodName() != null) {
+            emitDirectiveName(node.getClassName(), node.getDirectiveNameMethodName(), node.getName(),
                     pe, componentVar);
         }
 
-        componentVar.returnValue();
+        context.classStack.add(cls.getName());
+        for (DirectiveVariableBinding varBinding : node.getVariables()) {
+            context.addVariable(varBinding.getName(), convertValueType(varBinding.getValueType()));
+        }
 
-        cls.addMethod(method);
-        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
+        if (node.getContentMethodName() != null) {
+            emitContent(node, pe, thisVar, componentVar);
+        }
+
+        pe.exit();
+
+        for (DirectiveVariableBinding varBinding : node.getVariables()) {
             context.removeVariable(varBinding.getName());
         }
         context.classStack.remove(context.classStack.size() - 1);
+        cls.addMethod(ctor);
+    }
+
+    private void emitDirectiveWorker(ClassHolder cls, DirectiveBinding directive) {
+        MethodHolder method = new MethodHolder("prepare", ValueType.VOID);
+        method.setLevel(AccessLevel.PUBLIC);
+        ProgramEmitter pe = ProgramEmitter.create(method, context.dependencyAgent.getClassSource());
+        ValueEmitter thisVar = pe.var(0, cls);
+        ValueEmitter componentVar = thisVar.getField("component", Component.class)
+                .cast(ValueType.object(directive.getClassName()));
+
+        context.location(pe, directive.getLocation());
+
+        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
+            emitVariable(varBinding, thisVar, componentVar);
+        }
+
+        pe.exit();
+
+        cls.addMethod(method);
     }
 
     private void emitAttributeDirectiveWorker(ClassHolder cls, AttributeDirectiveBinding directive) {
@@ -204,7 +252,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         ValueEmitter componentVar = pe.construct(directive.getClassName(), elemVar.cast(HTMLElement.class));
 
         for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-            emitVariable(cls, varBinding, pe, thisVar, componentVar);
+            emitVariable(varBinding, thisVar, componentVar);
         }
 
         for (DirectiveFunctionBinding function : directive.getFunctions()) {
@@ -224,16 +272,11 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
     }
 
-    private void emitVariable(ClassHolder cls, DirectiveVariableBinding varBinding, ProgramEmitter pe,
-            ValueEmitter thisVar, ValueEmitter componentVar) {
-        context.classStack.add(cls.getName());
-        String varClass = emitVariableClass(cls, varBinding);
-        context.classStack.remove(context.classStack.size() - 1);
-
-        componentVar.invokeVirtual(varBinding.getMethodName(), pe.construct(varClass, thisVar)
-                .cast(org.teavm.flavour.templates.Variable.class));
-
-        context.addVariable(varBinding.getName(), convertValueType(varBinding.getValueType()));
+    private void emitVariable(DirectiveVariableBinding varBinding,  ValueEmitter thisVar, ValueEmitter componentVar) {
+        ValueEmitter value = componentVar.invokeVirtual(varBinding.getMethodName(),
+                convertValueType(varBinding.getRawValueType()));
+        value = value.cast(convertValueType(varBinding.getValueType()));
+        thisVar.setField("var$" + varBinding.getName(), value);
     }
 
     private void emitFunction(ClassHolder cls, DirectiveFunctionBinding function, ProgramEmitter pe,

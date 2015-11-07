@@ -133,11 +133,11 @@ class ExprPlanEmitter implements PlanVisitor {
         EmittedVariable emitVar = context.getVariable(name);
 
         var = thisVar;
-        int bottom = context.classStack.size() - 1;
+        int bottom = emitVar.depth;
         for (int i = context.classStack.size() - 1; i >= bottom; --i) {
             var = var.getField("this$owner", ValueType.object(context.classStack.get(i)));
         }
-        var = var.getField("cache$" + name, emitVar.type);
+        var = var.getField("var$" + name, emitVar.type);
     }
 
     @Override
@@ -440,7 +440,7 @@ class ExprPlanEmitter implements PlanVisitor {
     private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
             List<String> boundVarList, Map<String, ComputationEmitter> outerBoundVars,
             Map<String, ValueType> outerBoundTypes, boolean updateTemplates, Location location) {
-        ClassHolder cls = new ClassHolder(context.dependencyAgent.generateClassName());
+        ClassHolder cls = new ClassHolder(context.modelClassName + "$Flavour_Lambda" + context.suffixGenerator++);
         cls.setLevel(AccessLevel.PUBLIC);
         cls.setParent(Object.class.getName());
         cls.getInterfaces().add(className);

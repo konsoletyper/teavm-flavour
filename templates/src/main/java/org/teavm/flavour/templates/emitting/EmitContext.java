@@ -39,6 +39,8 @@ import org.teavm.model.emit.ValueEmitter;
  */
 class EmitContext {
     String sourceFileName;
+    String modelClassName;
+    int suffixGenerator;
     DependencyAgent dependencyAgent;
     List<String> classStack = new ArrayList<>();
     List<Map<String, EmittedVariable>> boundVariableStack = new ArrayList<>();

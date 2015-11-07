@@ -228,6 +228,7 @@ public class Parser {
                 }
                 continue;
             }
+            MethodDescriber getter = attrMeta.getter;
             MethodDescriber setter = attrMeta.setter;
             switch (attrMeta.type) {
                 case VARIABLE: {
@@ -239,7 +240,8 @@ public class Parser {
                         declaredVars.put(varName, attrMeta.valueType);
                     }
                     DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
-                            setter.getOwner().getName(), setter.getName(), varName, attrMeta.valueType);
+                            getter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(),
+                            attrMeta.valueType);
                     directive.getVariables().add(varBinding);
                     break;
                 }
@@ -305,12 +307,14 @@ public class Parser {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
 
+        MethodDescriber getter = directiveMeta.getter;
         MethodDescriber setter = directiveMeta.setter;
         switch (directiveMeta.type) {
             case VARIABLE: {
                 String varName = attr.getValue();
                 DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
-                        setter.getOwner().getName(), setter.getName(), varName, directiveMeta.valueType);
+                        setter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(),
+                        directiveMeta.valueType);
                 directive.getVariables().add(varBinding);
                 break;
             }
