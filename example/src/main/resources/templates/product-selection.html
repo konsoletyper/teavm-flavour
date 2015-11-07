@@ -14,10 +14,10 @@
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
         <tr>
-          <td><std:text value="i + offset + 1"/></td>
-          <td><std:text value="product.sku"/></td>
-          <td><std:text value="product.name"/></td>
-          <td align="right"><std:text value="'$' + product.unitPrice"/></td>
+          <td><html:text value="i + offset + 1"/></td>
+          <td><html:text value="product.sku"/></td>
+          <td><html:text value="product.name"/></td>
+          <td align="right"><html:text value="'$' + product.unitPrice"/></td>
           <td><button event:click="choose(i)">Choose</button></td>
         </tr>
       </std:foreach>
@@ -30,9 +30,9 @@
   </table>
 </div>
 <nav>
-  <button event:click="previousPage()" std:enabled="currentPage > 0">Previous</button>
+  <button event:click="previousPage()" html:enabled="currentPage > 0">Previous</button>
   Page
-  <input type="text" size="3" std:value="currentPage + 1" std:change="str -> parseCurrentPage(str)">
-  of <std:text value="pageCount"/>
-  <button event:click="nextPage()" std:enabled="currentPage < pageCount - 1">Next</button>
+  <input type="text" size="3" html:value="currentPage + 1" html:change="str -> parseCurrentPage(str)">
+  of <html:text value="pageCount"/>
+  <button event:click="nextPage()" html:enabled="currentPage < pageCount - 1">Next</button>
 </nav>

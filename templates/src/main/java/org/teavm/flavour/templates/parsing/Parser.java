@@ -99,6 +99,7 @@ public class Parser {
         use(source, "std", "org.teavm.flavour.directives.standard");
         use(source, "event", "org.teavm.flavour.directives.events");
         use(source, "attr", "org.teavm.flavour.directives.attributes");
+        use(source, "html", "org.teavm.flavour.directives.html");
         pushVar("this", new GenericClass(className));
         position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();

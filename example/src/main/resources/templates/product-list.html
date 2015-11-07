@@ -5,7 +5,7 @@
   </div>
 </div>
 <div>
-  <input type="text" std:change="t -> setFilter(t)"/>
+  <input type="text" html:change="t -> setFilter(t)"/>
 </div>
 <nav>
   <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
@@ -23,10 +23,10 @@
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
         <tr>
-          <td><a std:link="c -> edit(product.id, c)">Edit</a></td>
-          <td><std:text value="product.sku"/></td>
-          <td><std:text value="product.name"/></td>
-          <td align="right"><std:text value="'$' + product.unitPrice"/></td>
+          <td><a html:link="c -> edit(product.id, c)">Edit</a></td>
+          <td><html:text value="product.sku"/></td>
+          <td><html:text value="product.name"/></td>
+          <td align="right"><html:text value="'$' + product.unitPrice"/></td>
         </tr>
       </std:foreach>
       <std:if condition="cursor.fetch().empty">

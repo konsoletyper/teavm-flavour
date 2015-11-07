@@ -15,9 +15,9 @@
     <tbody>
       <std:foreach var="order" index="i" in="orders">
         <tr attr:class="i % 2 == 0 ? 'even' : 'odd'">
-          <td><std:text value="order.id"/></td>
-          <td><std:text value="order.receiver"/></td>
-          <td><std:text value="order.date"/></td>
+          <td><html:text value="order.id"/></td>
+          <td><html:text value="order.receiver"/></td>
+          <td><html:text value="order.date"/></td>
           <td><button event:click="view(i)">View</button></td>
         </tr>
       </std:foreach>

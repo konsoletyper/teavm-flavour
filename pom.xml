@@ -49,6 +49,11 @@
     <slf4j.version>1.7.7</slf4j.version>
     <teavm.version>0.4.1-SNAPSHOT</teavm.version>
     <jackson.version>2.5.4</jackson.version>
+
+    <teavm.flavour.test.incremental>false</teavm.flavour.test.incremental>
+    <teavm.flavour.test.threads>1</teavm.flavour.test.threads>
+    <teavm.flavour.test.selenium></teavm.flavour.test.selenium>
+    <teavm.flavour.test.skip>true</teavm.flavour.test.skip>
   </properties>
 
   <dependencyManagement>

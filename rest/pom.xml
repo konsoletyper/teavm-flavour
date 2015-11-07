@@ -34,10 +34,6 @@
     <jetty.version>9.3.5.v20151012</jetty.version>
     <teavm.flavour.rest.test.url>http://localhost:8080/</teavm.flavour.rest.test.url>
     <teavm.flavour.rest.test.port>8080</teavm.flavour.rest.test.port>
-    <teavm.flavour.test.incremental>false</teavm.flavour.test.incremental>
-    <teavm.flavour.test.threads>1</teavm.flavour.test.threads>
-    <teavm.flavour.test.selenium></teavm.flavour.test.selenium>
-    <teavm.flavour.test.skip>true</teavm.flavour.test.skip>
   </properties>
 
   <dependencies>

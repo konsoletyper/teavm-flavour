@@ -30,12 +30,12 @@ public abstract class DomComponentTemplate extends AbstractComponent {
 
     @Override
     public void render() {
+        update();
         if (renderables == null) {
             DomBuilder builder = new DomBuilder(getSlot());
             buildDom(builder);
             renderables = builder.getRenderables();
         }
-        update();
         for (Renderable renderable : renderables) {
             renderable.render();
         }
