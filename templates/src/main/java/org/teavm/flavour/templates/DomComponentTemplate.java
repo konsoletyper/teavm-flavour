@@ -35,6 +35,7 @@ public abstract class DomComponentTemplate extends AbstractComponent {
             buildDom(builder);
             renderables = builder.getRenderables();
         }
+        update();
         for (Renderable renderable : renderables) {
             renderable.render();
         }
@@ -50,6 +51,8 @@ public abstract class DomComponentTemplate extends AbstractComponent {
         }
         super.destroy();
     }
+
+    protected abstract void update();
 
     protected abstract void buildDom(DomBuilder builder);
 }

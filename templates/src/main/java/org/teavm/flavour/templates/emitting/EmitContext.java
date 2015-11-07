@@ -25,6 +25,7 @@ import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.expr.Location;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassHolder;
+import org.teavm.model.ClassReaderSource;
 import org.teavm.model.FieldHolder;
 import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodHolder;
@@ -87,7 +88,7 @@ class EmitContext {
     }
 
     void addConstructor(ClassHolder cls, Location location) {
-        String ownerType = classStack.get(classStack.size() - 1);
+        String ownerType = currentTypeName();
         FieldHolder ownerField = new FieldHolder("this$owner");
         ownerField.setType(ValueType.object(ownerType));
         ownerField.setLevel(AccessLevel.PUBLIC);
@@ -111,5 +112,21 @@ class EmitContext {
         if (location != null) {
             pe.setCurrentLocation(new InstructionLocation(sourceFileName, location.getStart()));
         }
+    }
+
+    public String currentTypeName() {
+        return classStack.get(classStack.size() - 1);
+    }
+
+    public ValueType currentType() {
+        return ValueType.object(currentTypeName());
+    }
+
+    public String generateTypeName(String name) {
+        return modelClassName + "$Flavour_" + name + suffixGenerator++;
+    }
+
+    public ClassReaderSource getClassSource() {
+        return dependencyAgent.getClassSource();
     }
 }

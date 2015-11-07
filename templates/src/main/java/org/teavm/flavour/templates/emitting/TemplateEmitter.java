@@ -66,11 +66,11 @@ public class TemplateEmitter {
             List<TemplateNode> fragment) {
         EmitContext context = new EmitContext();
         context.sourceFileName = sourceFileName;
-        context.addVariable("this", ValueType.object(modelClassName));
         context.classStack.add(cls.getName());
+        context.addVariable("this", ValueType.object(modelClassName));
         context.dependencyAgent = dependencyAgent;
         context.modelClassName = modelClassName;
-        return new FragmentEmitter(context).emitTemplate(fragment);
+        return new FragmentEmitter(context).emitTemplate(null, fragment);
     }
 
     private void emitConstructor(ClassHolder cls, String modelClassName, String innerName) {

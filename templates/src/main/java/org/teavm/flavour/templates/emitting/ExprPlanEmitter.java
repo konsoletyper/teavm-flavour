@@ -135,7 +135,7 @@ class ExprPlanEmitter implements PlanVisitor {
         var = thisVar;
         int bottom = emitVar.depth;
         for (int i = context.classStack.size() - 1; i >= bottom; --i) {
-            var = var.getField("this$owner", ValueType.object(context.classStack.get(i)));
+            var = var.getField("this$owner", ValueType.object(context.classStack.get(i - 1)));
         }
         var = var.getField("var$" + name, emitVar.type);
     }
@@ -418,7 +418,7 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, boundVarTypes,
                 updateTemplates, plan.getLocation());
 
-        String ownerCls = context.classStack.get(context.classStack.size() - 1);
+        String ownerCls = context.currentTypeName();
         FieldReference ownerField = new FieldReference(thisClassName, "this$owner");
         ValueType ownerType = ValueType.object(ownerCls);
         List<ValueType> ctorArgTypes = new ArrayList<>();
@@ -447,7 +447,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
         workerMethod.setLevel(AccessLevel.PUBLIC);
-        pe = ProgramEmitter.create(workerMethod, context.dependencyAgent.getClassSource());
+        pe = ProgramEmitter.create(workerMethod, context.getClassSource());
         thisVar = pe.var(0, cls);
         for (String outerClosure : outerBoundVars.keySet()) {
             boundVarTypes.put(outerClosure, outerBoundTypes.get(outerClosure));
@@ -494,7 +494,7 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, Location location) {
-        String ownerCls = context.classStack.get(context.classStack.size() - 1);
+        String ownerCls = context.currentTypeName();
 
         List<ValueType> ctorArgTypes = new ArrayList<>();
         ctorArgTypes.add(ValueType.object(ownerCls));
