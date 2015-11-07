@@ -133,9 +133,9 @@ class ExprPlanEmitter implements PlanVisitor {
         EmittedVariable emitVar = context.getVariable(name);
 
         var = thisVar;
-        int bottom = emitVar.depth;
+        int bottom = emitVar.depth - 1;
         for (int i = context.classStack.size() - 1; i >= bottom; --i) {
-            var = var.getField("this$owner", ValueType.object(context.classStack.get(i - 1)));
+            var = var.getField("this$owner", ValueType.object(context.classStack.get(i)));
         }
         var = var.getField("var$" + name, emitVar.type);
     }
@@ -418,13 +418,10 @@ class ExprPlanEmitter implements PlanVisitor {
                 plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, boundVarTypes,
                 updateTemplates, plan.getLocation());
 
-        String ownerCls = context.currentTypeName();
-        FieldReference ownerField = new FieldReference(thisClassName, "this$owner");
-        ValueType ownerType = ValueType.object(ownerCls);
         List<ValueType> ctorArgTypes = new ArrayList<>();
         List<ValueEmitter> ctorArgs = new ArrayList<>();
 
-        ctorArgs.add(thisVar.getField(ownerField.getFieldName(), ownerType));
+        ctorArgs.add(thisVar);
         Set<String> localBoundVars = new HashSet<>(plan.getBoundVars());
         for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
             String closedVar = innerEmitter.innerClosureList.get(i);
