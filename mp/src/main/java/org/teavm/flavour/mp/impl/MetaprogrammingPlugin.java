@@ -13,11 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.emitting;
+package org.teavm.flavour.mp.impl;
 
-import org.teavm.flavour.templates.Fragment;
-import org.teavm.flavour.templates.Templates;
-import org.teavm.model.MethodReference;
 import org.teavm.vm.spi.TeaVMHost;
 import org.teavm.vm.spi.TeaVMPlugin;
 
@@ -25,12 +22,9 @@ import org.teavm.vm.spi.TeaVMPlugin;
  *
  * @author Alexey Andreev
  */
-public class TemplatingPlugin implements TeaVMPlugin {
+public class MetaprogrammingPlugin implements TeaVMPlugin {
     @Override
     public void install(TeaVMHost host) {
-        TemplatingDependencyListener dependencyListener = new TemplatingDependencyListener();
-        host.add(dependencyListener);
-        host.add(new MethodReference(Templates.class, "createImpl", Object.class, String.class, Fragment.class),
-                new TemplatingRenderer(dependencyListener.templateMapping));
+        host.add(new MetaprogrammingDependencyListener());
     }
 }

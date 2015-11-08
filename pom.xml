@@ -220,6 +220,7 @@
 
   <modules>
     <module>expr</module>
+    <module>mp</module>
     <module>templates</module>
     <module>widgets</module>
     <module>regex</module>

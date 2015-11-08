@@ -21,8 +21,8 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.expr.Location;
+import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
@@ -42,7 +42,7 @@ class EmitContext {
     String sourceFileName;
     String modelClassName;
     int suffixGenerator;
-    DependencyAgent dependencyAgent;
+    ProxyGeneratorContext dependencyAgent;
     List<String> classStack = new ArrayList<>();
     List<Map<String, EmittedVariable>> boundVariableStack = new ArrayList<>();
     Map<String, Deque<EmittedVariable>> variables = new HashMap<>();

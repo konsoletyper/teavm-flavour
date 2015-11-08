@@ -19,17 +19,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import org.teavm.dependency.AbstractDependencyListener;
-import org.teavm.dependency.DependencyAgent;
-import org.teavm.dependency.MethodDependency;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
+import org.teavm.flavour.mp.ProxyGenerator;
+import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
@@ -37,74 +33,67 @@ import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
 import org.teavm.model.InstructionLocation;
-import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
+import org.teavm.model.emit.ProgramEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-class TemplatingDependencyListener extends AbstractDependencyListener {
-    Map<String, String> templateMapping = new HashMap<>();
+public class TemplatingProxyGenerator implements ProxyGenerator {
+    private ProxyGeneratorContext context;
 
     @Override
-    public void methodReached(final DependencyAgent agent, final MethodDependency method,
-            final CallLocation location) {
-        if (method.getReference().getClassName().equals(Templates.class.getName())
-                && method.getReference().getName().equals("createImpl")) {
-            method.getVariable(1).addConsumer(type -> {
-                TemplateEmitter emitter = new TemplateEmitter(agent);
-                TemplateInfo template = parseForModel(agent, type.getName(), location);
-                if (template != null) {
-                    String templateClass = emitter.emitTemplate(type.getName(), template.sourceFileName,
-                            template.body);
-                    agent.linkClass(templateClass, location);
-                    MethodDependency ctor = agent.linkMethod(new MethodReference(templateClass, "<init>",
-                            ValueType.object(type.getName()), ValueType.VOID), location);
-                    ctor.getVariable(0).propagate(agent.getType(templateClass));
-                    ctor.getVariable(1).propagate(type);
-                    ctor.use();
-                    method.getResult().propagate(agent.getType(templateClass));
-                    templateMapping.put(type.getName(), templateClass);
-                }
-            });
+    public void setContext(ProxyGeneratorContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public void generate(String type, ProgramEmitter pe, CallLocation location) {
+        TemplateEmitter emitter = new TemplateEmitter(context);
+        TemplateInfo template = parseForModel(type, location);
+        if (template != null) {
+            String templateClass = emitter.emitTemplate(type, template.sourceFileName, template.body);
+            pe.construct(templateClass, pe.var(1, ValueType.object(type))).returnValue();
+        } else {
+            pe.constantNull(ValueType.object(type)).returnValue();
         }
     }
 
-    private TemplateInfo parseForModel(DependencyAgent agent, String typeName, CallLocation location) {
-        ClassReader cls = agent.getClassSource().get(typeName);
+    private TemplateInfo parseForModel(String typeName, CallLocation location) {
+        ClassReader cls = context.getClassSource().get(typeName);
         if (cls == null) {
             return null;
         }
         AnnotationReader annot = cls.getAnnotations().get(BindTemplate.class.getName());
         if (annot == null) {
-            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+            context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
                     + "no BindTemplate annotation supplied", typeName);
             return null;
         }
         String path = annot.getValue("value").getString();
         ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(
-                agent.getClassLoader());
-        ClassPathClassResolver classResolver = new ClassPathClassResolver(agent.getClassLoader());
-        ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(agent.getClassLoader());
+                context.getClassLoader());
+        ClassPathClassResolver classResolver = new ClassPathClassResolver(context.getClassLoader());
+        ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(context.getClassLoader());
         Parser parser = new Parser(classRepository, classResolver, resourceProvider);
         List<TemplateNode> fragment;
-        try (InputStream input = agent.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream input = context.getClassLoader().getResourceAsStream(path)) {
             if (input == null) {
                 return null;
             }
              fragment = parser.parse(new InputStreamReader(input, "UTF-8"), typeName);
         } catch (IOException e) {
-            agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+            context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
                     + "template " + path + " was not found", typeName);
             return null;
         }
         if (!parser.getDiagnostics().isEmpty()) {
             OffsetToLineMapper mapper = new OffsetToLineMapper();
-            try (Reader reader = new InputStreamReader(agent.getClassLoader().getResourceAsStream(path), "UTF-8")) {
+            try (Reader reader = new InputStreamReader(context.getClassLoader().getResourceAsStream(path), "UTF-8")) {
                 mapper.prepare(reader);
             } catch (IOException e) {
-                agent.getDiagnostics().error(location, "Can't create template for {{c0}}: "
+                context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
                         + "template " + path + " was not found", typeName);
                 return null;
             }
@@ -112,7 +101,7 @@ class TemplatingDependencyListener extends AbstractDependencyListener {
                 InstructionLocation textualLocation = new InstructionLocation(path,
                         mapper.getLine(diagnostic.getStart()) + 1);
                 CallLocation diagnosticLocation = new CallLocation(location.getMethod(), textualLocation);
-                agent.getDiagnostics().error(diagnosticLocation, diagnostic.getMessage());
+                context.getDiagnostics().error(diagnosticLocation, diagnostic.getMessage());
             }
         }
         TemplateInfo info = new TemplateInfo();
