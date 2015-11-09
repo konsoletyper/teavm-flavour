@@ -18,7 +18,7 @@ package org.teavm.flavour.example.client;
 import org.teavm.flavour.example.api.ProductDTO;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Templates;
+import org.teavm.flavour.widgets.BackgroundWorker;
 import org.teavm.jso.browser.Window;
 
 /**
@@ -31,10 +31,10 @@ public class ProductEditView {
     private ProductDTO product;
     private boolean nameEmpty;
     private boolean skuEmpty;
-    private boolean loading;
     private ProductFacade facade;
     private boolean priceInvalid;
     private boolean priceNegative;
+    private BackgroundWorker background = new BackgroundWorker();
 
     public ProductEditView(ProductFacade facade) {
         this.facade = facade;
@@ -56,34 +56,21 @@ public class ProductEditView {
     }
 
     private void load() {
-        loading = true;
-        new Thread(() -> {
-            try {
-                product = facade.get(id);
-            } finally {
-                loading = false;
-            }
-            Templates.update();
-        }).start();
+        background.run(() -> product = facade.get(id));
     }
 
     public void save() {
         if (!validate()) {
             return;
         }
-        new Thread(() -> {
-            try {
-                if (id == null) {
-                    facade.create(product);
-                } else {
-                    facade.update(id, product);
-                }
-                Window.current().getHistory().back();
-            } finally {
-                loading = false;
+        background.run(() -> {
+            if (id == null) {
+                facade.create(product);
+            } else {
+                facade.update(id, product);
             }
-            Templates.update();
-        }).start();
+            Window.current().getHistory().back();
+        });
     }
 
     private boolean validate() {
@@ -115,7 +102,7 @@ public class ProductEditView {
     }
 
     public boolean isLoading() {
-        return loading;
+        return background.isBusy();
     }
 
     public boolean isNameEmpty() {

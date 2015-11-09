@@ -18,7 +18,6 @@ package org.teavm.flavour.widgets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.teavm.flavour.templates.Templates;
 
 /**
  *
@@ -31,7 +30,7 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
     private int currentPage;
     private int pageCount;
     private int pageSize = 20;
-    private boolean loading;
+    private BackgroundWorker background = new BackgroundWorker();
 
     public PagedCursor(DataSource<T> dataSource) {
         this.dataSource = dataSource;
@@ -39,21 +38,14 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
 
     @Override
     public void refresh() {
-        loading = true;
-        new Thread(() -> {
-            try {
-                int count = dataSource.count();
-                int newPageCount = (count - 1) / pageSize + 1;
-                List<T> newList = dataSource.fetch(currentPage * pageSize, pageSize);
-
-                list.clear();
-                list.addAll(newList);
-                pageCount = newPageCount;
-            } finally {
-                loading = false;
-            }
-            Templates.update();
-        }).start();
+        background.run(() -> {
+            int count = dataSource.count();
+            int newPageCount = (count - 1) / pageSize + 1;
+            List<T> newList = dataSource.fetch(currentPage * pageSize, pageSize);
+            list.clear();
+            list.addAll(newList);
+            pageCount = newPageCount;
+        });
     }
 
     public void nextPage() {
@@ -112,6 +104,6 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
 
     @Override
     public boolean isLoading() {
-        return loading;
+        return background.isBusy();
     }
 }
