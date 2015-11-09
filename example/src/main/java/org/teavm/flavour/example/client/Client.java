@@ -17,19 +17,16 @@ package org.teavm.flavour.example.client;
 
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.rest.RESTClient;
-import org.teavm.flavour.routing.Conductor;
 import org.teavm.flavour.templates.BindTemplate;
-import org.teavm.flavour.templates.Fragment;
-import org.teavm.flavour.templates.Templates;
+import org.teavm.flavour.widgets.ApplicationTemplate;
+import org.teavm.flavour.widgets.RouteBinder;
 
 /**
  *
  * @author Alexey Andreev
  */
 @BindTemplate("templates/main.html")
-public final class Client implements ApplicationRoute {
-    private Fragment content;
-    private Object currentView;
+public final class Client extends ApplicationTemplate implements ApplicationRoute {
     private ProductFacade facade = RESTClient.factory(ProductFacade.class).createResource("api");
 
     private Client() {
@@ -37,33 +34,26 @@ public final class Client implements ApplicationRoute {
 
     public static void main(String[] args) {
         Client client = new Client();
-        new Conductor().add(client);
-        //Route.open(ApplicationRoute.class).productList();
-        Templates.bind(client, "application-content");
-        client.parse();
-        Templates.update();
+        new RouteBinder()
+                .add(client)
+                .withDefault(ApplicationRoute.class, route -> route.productList())
+                .update();
+        client.bind("application-content");
     }
 
     @Override
     public void orderList() {
-        content = Templates.create(new OrderListView());
-        Templates.update();
+        setView(new OrderListView());
     }
 
     @Override
     public void order(int id) {
-        content = Templates.create(new OrderView());
-        Templates.update();
+        setView(new OrderView());
     }
 
     @Override
     public void newOrder() {
-        content = Templates.create(new OrderView());
-        Templates.update();
-    }
-
-    public Fragment getContent() {
-        return content;
+        setView(new OrderView());
     }
 
     public ProductDataSource productDataSet() {
@@ -77,8 +67,8 @@ public final class Client implements ApplicationRoute {
 
     @Override
     public void productPage(int page) {
-        if (currentView instanceof ProductListView) {
-            ((ProductListView) currentView).selectPage(page);
+        if (getCurrentView() instanceof ProductListView) {
+            ((ProductListView) getCurrentView()).selectPage(page);
         } else {
             setView(new ProductListView(productDataSet(), page));
         }
@@ -92,11 +82,5 @@ public final class Client implements ApplicationRoute {
     @Override
     public void newProduct() {
         setView(new ProductEditView(facade));
-    }
-
-    private void setView(Object view) {
-        this.currentView = view;
-        content = Templates.create(view);
-        Templates.update();
     }
 }
