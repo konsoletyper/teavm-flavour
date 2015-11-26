@@ -32,6 +32,7 @@ import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.ElementModifier;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
@@ -162,6 +163,24 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             choice.otherwise(() -> pe.constantNull(typeInfo.baseType).returnValue());
 
             agent.submitMethod(method, pe.getProgram());
+        }
+    }
+
+    private ProxyModel getModel(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
+        Diagnostics diagnostics = agent.getDiagnostics();
+        MethodReader method = methodDep.getMethod();
+
+        boolean valid = true;
+        if (!method.hasModifier(ElementModifier.STATIC)) {
+            diagnostics.error(location, "Proxy method should be static");
+            valid = false;
+        }
+        if (method.parameterCount() > 0) {
+            diagnostics.error(location, "Proxy method shoud take at least one parameter");
+            valid = false;
+        }
+        if (!valid) {
+            return null;
         }
     }
 
