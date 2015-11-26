@@ -15,17 +15,24 @@
  */
 package org.teavm.flavour.mp;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Proxy {
-    Class<?> value();
+public class ReflectValue<T> {
+    T value;
+    String className;
+
+    ReflectValue(T value, String className) {
+        this.value = value;
+        this.className = className;
+    }
+
+    public T get() {
+        return value;
+    }
+
+    public String getClassName() {
+        return className;
+    }
 }

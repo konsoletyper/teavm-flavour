@@ -15,17 +15,27 @@
  */
 package org.teavm.flavour.mp;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
  *
  * @author Alexey Andreev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Proxy {
-    Class<?> value();
+public class Value<T> {
+    private T value;
+
+    Value() {
+    }
+
+    public T get() {
+        if (!Emitter.emitting) {
+            throw new IllegalStateException("Can only get value in emitter context");
+        }
+        return value;
+    }
+
+    public void set(T value) {
+        if (!Emitter.emitting) {
+            throw new IllegalStateException("Can only set value in emitter context");
+        }
+        this.value = value;
+    }
 }
