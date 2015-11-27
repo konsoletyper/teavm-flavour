@@ -26,24 +26,30 @@ import org.teavm.model.MethodReference;
  */
 public class ProxyModel {
     private MethodReference method;
+    private MethodReference proxyMethod;
     private List<ProxyParameter> parameters = new ArrayList<>();
     private List<ProxyParameter> readonlyParameters = Collections.unmodifiableList(parameters);
-    private List<ProxyParameter> dynamicParameters = new ArrayList<>();
-    private List<ProxyParameter> readonlyDynamicParameters = Collections.unmodifiableList(dynamicParameters);
+    private List<ProxyUsage> usages = new ArrayList<>();
 
-    ProxyModel(MethodReference method) {
+    ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters) {
         this.method = method;
+        this.proxyMethod = proxyMethod;
+        parameters.addAll(parameters);
     }
 
     public MethodReference getMethod() {
         return method;
     }
 
+    public MethodReference getProxyMethod() {
+        return proxyMethod;
+    }
+
     public List<ProxyParameter> getParameters() {
         return readonlyParameters;
     }
 
-    public List<ProxyParameter> getDynamicParameters() {
-        return readonlyDynamicParameters;
+    public List<ProxyUsage> getUsages() {
+        return usages;
     }
 }

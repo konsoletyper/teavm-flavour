@@ -25,9 +25,11 @@ import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.Proxy;
 import org.teavm.flavour.mp.ProxyGenerator;
 import org.teavm.flavour.mp.ProxyGeneratorContext;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
@@ -100,7 +102,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         getClassDep.getThrown().connect(methodDep.getThrown());
 
         MethodReader factoryMethod = methodDep.getMethod();
-        ProxyGeneratorContextImpl context = new ProxyGeneratorContextImpl(agent);
+        ProxyGeneratorContextImpl<Object> context = new ProxyGeneratorContextImpl<>(agent);
         generator.setContext(context);
         methodDep.getVariable(1).addConsumer(type -> {
             MethodReference ref = new MethodReference(factoryMethod.getOwnerName(),
@@ -182,6 +184,8 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         if (!valid) {
             return null;
         }
+
+        return null;
     }
 
     static class ProxyTypeInfo {
@@ -190,7 +194,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         Map<String, MethodReference> typeHandlers = new HashMap<>();
     }
 
-    static class ProxyGeneratorContextImpl implements ProxyGeneratorContext {
+    static class ProxyGeneratorContextImpl<T> implements ProxyGeneratorContext<T> {
         private DependencyAgent agent;
 
         public ProxyGeneratorContextImpl(DependencyAgent agent) {
@@ -220,6 +224,21 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         @Override
         public void submitClass(ClassHolder cls) {
             agent.submitClass(cls);
+        }
+
+        @Override
+        public Emitter<T> getEmitter() {
+            return null;
+        }
+
+        @Override
+        public <S> ReflectClass<S> findClass(Class<S> cls) {
+            return null;
+        }
+
+        @Override
+        public ReflectClass<?> findClass(String name) {
+            return null;
         }
     }
 }

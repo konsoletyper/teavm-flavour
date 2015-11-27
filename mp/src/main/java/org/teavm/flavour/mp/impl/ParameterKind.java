@@ -13,29 +13,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
-
-import org.teavm.common.ServiceRepository;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.ClassReaderSource;
+package org.teavm.flavour.mp.impl;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ProxyGeneratorContext<T> extends ServiceRepository {
-    Diagnostics getDiagnostics();
-
-    ClassReaderSource getClassSource();
-
-    ClassLoader getClassLoader();
-
-    void submitClass(ClassHolder cls);
-
-    Emitter<T> getEmitter();
-
-    <S> ReflectClass<S> findClass(Class<S> cls);
-
-    ReflectClass<?> findClass(String name);
+public enum ParameterKind {
+    VALUE,
+    REFLECT_VALUE,
+    CONSTANT
 }

@@ -24,25 +24,12 @@ import org.teavm.model.ValueType;
 public class ProxyParameter {
     private int index;
     private ValueType type;
-    private boolean dynamic;
-    private String delegationMarker;
+    private ParameterKind kind;
 
-    ProxyParameter(int index, ValueType type, boolean dynamic) {
+    ProxyParameter(int index, ValueType type, ParameterKind kind) {
         this.index = index;
         this.type = type;
-        this.dynamic = dynamic;
-    }
-
-    public boolean isDynamic() {
-        return dynamic;
-    }
-
-    public String getDelegationMarker() {
-        return delegationMarker;
-    }
-
-    public void setDelegationMarker(String delegationMarker) {
-        this.delegationMarker = delegationMarker;
+        this.kind = kind;
     }
 
     public int getIndex() {
@@ -51,5 +38,9 @@ public class ProxyParameter {
 
     public ValueType getType() {
         return type;
+    }
+
+    public ParameterKind getKind() {
+        return kind;
     }
 }
