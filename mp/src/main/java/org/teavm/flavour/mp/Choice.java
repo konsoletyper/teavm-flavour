@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.mp;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
@@ -24,7 +24,7 @@ import java.util.Map;
  */
 public class Choice<T> {
     Emitter<?> parent;
-    Map<Integer, Emitter<T>> options = new HashMap<>();
+    List<Option<T>> options = new ArrayList<>();
     Value<Integer> argument;
     Value<T> returnValue = new Value<>();
     Emitter<T> defaultOption = new Emitter<>(returnValue);
@@ -34,10 +34,13 @@ public class Choice<T> {
         this.argument = argument;
     }
 
-    public Emitter<T> option(int value) {
+    public Emitter<T> option(Computation<Boolean> condition) {
         parent.acquire();
         Emitter<T> emitter = new Emitter<>(returnValue);
-        options.put(value, emitter);
+        Option<T> option = new Option<>();
+        option.condition = condition;
+        option.consequent = emitter;
+        options.add(option);
         return emitter;
     }
 
@@ -46,14 +49,20 @@ public class Choice<T> {
     }
 
     void lock() {
-        options.values().forEach(option -> option.lock());
+        options.forEach(option -> option.consequent.lock());
     }
 
     T eval() {
-        Emitter<T> option = options.get(argument.get());
-        if (option == null) {
-            option = defaultOption;
+        for (Option<T> option : options) {
+            if (option.condition.compute()) {
+                return option.consequent.eval();
+            }
         }
-        return option.eval();
+        return defaultOption.eval();
+    }
+
+    static class Option<S> {
+        Computation<Boolean> condition;
+        Emitter<S> consequent;
     }
 }

@@ -19,20 +19,10 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class ReflectValue<T> {
-    T value;
-    ReflectClass<T> reflectClass;
+public interface ReflectMember {
+    ReflectClass<?> getDeclaringClass();
 
-    ReflectValue(T value, ReflectClass<T> reflectClass) {
-        this.value = value;
-        this.reflectClass = reflectClass;
-    }
+    String getName();
 
-    public T get() {
-        return value;
-    }
-
-    public ReflectClass<T> getReflectClass() {
-        return reflectClass;
-    }
+    int getModifiers();
 }

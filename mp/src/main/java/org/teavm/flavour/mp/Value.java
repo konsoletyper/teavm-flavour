@@ -19,7 +19,7 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class Value<T> {
+public class Value<T> implements Computation<T> {
     private T value;
 
     Value() {
@@ -32,10 +32,12 @@ public class Value<T> {
         return value;
     }
 
-    public void set(T value) {
-        if (!Emitter.emitting) {
-            throw new IllegalStateException("Can only set value in emitter context");
-        }
+    void set(T value) {
         this.value = value;
+    }
+
+    @Override
+    public T compute() {
+        return value;
     }
 }

@@ -32,4 +32,8 @@ public interface ProxyGeneratorContext extends ServiceRepository {
     ClassLoader getClassLoader();
 
     void submitClass(ClassHolder cls);
+
+    <T> ReflectClass<T> findClass(Class<T> cls);
+
+    ReflectClass<?> findClass(String name);
 }

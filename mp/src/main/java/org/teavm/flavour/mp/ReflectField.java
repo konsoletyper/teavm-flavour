@@ -19,20 +19,12 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class ReflectValue<T> {
-    T value;
-    ReflectClass<T> reflectClass;
+public interface ReflectField extends ReflectMember {
+    boolean isEnumConstant();
 
-    ReflectValue(T value, ReflectClass<T> reflectClass) {
-        this.value = value;
-        this.reflectClass = reflectClass;
-    }
+    ReflectClass<?> getType();
 
-    public T get() {
-        return value;
-    }
+    Object get(Object target);
 
-    public ReflectClass<T> getReflectClass() {
-        return reflectClass;
-    }
+    void set(Object target, Object value);
 }

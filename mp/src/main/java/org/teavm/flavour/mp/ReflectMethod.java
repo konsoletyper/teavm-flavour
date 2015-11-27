@@ -19,20 +19,16 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class ReflectValue<T> {
-    T value;
-    ReflectClass<T> reflectClass;
+public interface ReflectMethod extends ReflectMember {
+    boolean isConstructor();
 
-    ReflectValue(T value, ReflectClass<T> reflectClass) {
-        this.value = value;
-        this.reflectClass = reflectClass;
-    }
+    ReflectClass<?> getReturnType();
 
-    public T get() {
-        return value;
-    }
+    ReflectClass<?> getParameterTypes();
 
-    public ReflectClass<T> getReflectClass() {
-        return reflectClass;
-    }
+    int getParameterCount();
+
+    Object invoke(Object obj, Object... args);
+
+    Object construct(Object... args);
 }
