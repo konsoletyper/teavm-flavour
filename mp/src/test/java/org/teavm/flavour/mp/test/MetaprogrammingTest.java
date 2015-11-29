@@ -30,8 +30,8 @@ import org.teavm.flavour.mp.Value;
 public class MetaprogrammingTest {
     @Test
     public void works() {
-        assertEquals("java.lang.Object".length(), classNameLength(new Object(), 2));
-        assertEquals("java.lang.Integer".length(), classNameLength(5, 3));
+        assertEquals("java.lang.Object".length() + 2, classNameLength(new Object(), 2));
+        assertEquals("java.lang.Integer".length() + 3, classNameLength(5, 3));
     }
 
     @Reflected
