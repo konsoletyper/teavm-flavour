@@ -16,6 +16,8 @@
 package org.teavm.flavour.mp;
 
 import java.util.Arrays;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *

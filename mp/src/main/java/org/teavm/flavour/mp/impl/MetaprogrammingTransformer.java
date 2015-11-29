@@ -16,6 +16,8 @@
 package org.teavm.flavour.mp.impl;
 
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.impl.meta.ProxyDescriber;
+import org.teavm.flavour.mp.impl.meta.ProxyUsageFinder;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassHolderTransformer;
 import org.teavm.model.ClassReaderSource;

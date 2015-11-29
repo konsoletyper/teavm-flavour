@@ -13,22 +13,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl.meta;
+
+import org.teavm.model.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ReflectMethod extends ReflectMember {
-    boolean isConstructor();
+public class ProxyParameter {
+    private int index;
+    private ValueType type;
+    private ParameterKind kind;
 
-    ReflectClass<?> getReturnType();
+    ProxyParameter(int index, ValueType type, ParameterKind kind) {
+        this.index = index;
+        this.type = type;
+        this.kind = kind;
+    }
 
-    ReflectClass<?> getParameterTypes();
+    public int getIndex() {
+        return index;
+    }
 
-    int getParameterCount();
+    public ValueType getType() {
+        return type;
+    }
 
-    Object invoke(Object obj, Object... args);
-
-    Object construct(Object... args);
+    public ParameterKind getKind() {
+        return kind;
+    }
 }

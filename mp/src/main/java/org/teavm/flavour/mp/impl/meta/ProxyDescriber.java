@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp.impl;
+package org.teavm.flavour.mp.impl.meta;
 
 import java.util.ArrayList;
 import java.util.Arrays;

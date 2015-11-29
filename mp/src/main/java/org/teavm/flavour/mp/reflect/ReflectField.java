@@ -13,34 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp.impl;
+package org.teavm.flavour.mp.reflect;
 
-import org.teavm.model.ValueType;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ProxyParameter {
-    private int index;
-    private ValueType type;
-    private ParameterKind kind;
+public interface ReflectField extends ReflectMember {
+    boolean isEnumConstant();
 
-    ProxyParameter(int index, ValueType type, ParameterKind kind) {
-        this.index = index;
-        this.type = type;
-        this.kind = kind;
-    }
+    ReflectClass<?> getType();
 
-    public int getIndex() {
-        return index;
-    }
+    Object get(Object target);
 
-    public ValueType getType() {
-        return type;
-    }
-
-    public ParameterKind getKind() {
-        return kind;
-    }
+    void set(Object target, Object value);
 }

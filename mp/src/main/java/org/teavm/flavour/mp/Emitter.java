@@ -15,76 +15,16 @@
  */
 package org.teavm.flavour.mp;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  *
  * @author Alexey Andreev
  */
-public class Emitter<S> {
-    static boolean emitting;
-    List<Runnable> steps = new ArrayList<>();
-    private Value<S> returnValue;
-    private boolean locked;
-    private List<Choice<?>> choices = new ArrayList<>();
+public interface Emitter<S> {
+    <T> Value<T> emit(Computation<T> computation);
 
-    Emitter(Value<S> returnValue) {
-        this.returnValue = returnValue;
-    }
+    void emit(Runnable runnable);
 
-    public <T> Value<T> emit(Computation<T> computation) {
-        acquire();
-        Value<T> result = new Value<>();
-        emit(() -> result.set(computation.compute()));
-        return result;
-    }
+    <T> Choice<T> choose(Value<Integer> value);
 
-    public void emit(Runnable runnable) {
-        acquire();
-        steps.add(runnable);
-    }
-
-    public <T> Choice<T> choose(Value<Integer> value) {
-        Choice<T> choice = new Choice<>(this, value);
-        choices.add(choice);
-        emit(() -> choice.eval());
-        return choice;
-    }
-
-    public void returnValue(Computation<S> computation) {
-        emit(() -> returnValue.set(computation.compute()));
-    }
-
-    void acquire() {
-        if (locked) {
-            throw new IllegalStateException("Can't change this emitter as it's already locked");
-        }
-    }
-
-    void lock() {
-        if (locked) {
-            return;
-        }
-        locked = true;
-        for (Choice<?> choice : choices) {
-            choice.lock();
-        }
-    }
-
-    S eval() {
-        for (Runnable step : steps) {
-            step.run();
-        }
-        return returnValue.get();
-    }
-
-    S run() {
-        emitting = true;
-        try {
-            return eval();
-        } finally {
-            emitting = false;
-        }
-    }
+    void returnValue(Computation<S> computation);
 }

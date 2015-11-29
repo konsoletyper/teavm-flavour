@@ -13,18 +13,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.reflect;
+
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ReflectField extends ReflectMember {
-    boolean isEnumConstant();
+public interface ReflectMethod extends ReflectMember {
+    boolean isConstructor();
 
-    ReflectClass<?> getType();
+    ReflectClass<?> getReturnType();
 
-    Object get(Object target);
+    ReflectClass<?> getParameterTypes();
 
-    void set(Object target, Object value);
+    int getParameterCount();
+
+    Object invoke(Object obj, Object... args);
+
+    Object construct(Object... args);
 }

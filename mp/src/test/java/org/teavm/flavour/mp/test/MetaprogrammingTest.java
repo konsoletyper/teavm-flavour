@@ -18,10 +18,10 @@ package org.teavm.flavour.mp.test;
 import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectField;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectField;
 
 /**
  *

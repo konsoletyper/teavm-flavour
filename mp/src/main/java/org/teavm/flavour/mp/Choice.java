@@ -15,54 +15,12 @@
  */
 package org.teavm.flavour.mp;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  *
  * @author Alexey Andreev
  */
-public class Choice<T> {
-    Emitter<?> parent;
-    List<Option<T>> options = new ArrayList<>();
-    Value<Integer> argument;
-    Value<T> returnValue = new Value<>();
-    Emitter<T> defaultOption = new Emitter<>(returnValue);
+public interface Choice<T> {
+    Emitter<T> option(Computation<Boolean> condition);
 
-    public Choice(Emitter<?> parent, Value<Integer> argument) {
-        this.parent = parent;
-        this.argument = argument;
-    }
-
-    public Emitter<T> option(Computation<Boolean> condition) {
-        parent.acquire();
-        Emitter<T> emitter = new Emitter<>(returnValue);
-        Option<T> option = new Option<>();
-        option.condition = condition;
-        option.consequent = emitter;
-        options.add(option);
-        return emitter;
-    }
-
-    public Emitter<T> defaultOption() {
-        return defaultOption;
-    }
-
-    void lock() {
-        options.forEach(option -> option.consequent.lock());
-    }
-
-    T eval() {
-        for (Option<T> option : options) {
-            if (option.condition.compute()) {
-                return option.consequent.eval();
-            }
-        }
-        return defaultOption.eval();
-    }
-
-    static class Option<S> {
-        Computation<Boolean> condition;
-        Emitter<S> consequent;
-    }
+    Emitter<T> defaultOption();
 }

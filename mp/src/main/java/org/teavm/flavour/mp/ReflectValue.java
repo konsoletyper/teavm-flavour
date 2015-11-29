@@ -19,20 +19,6 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class ReflectValue<T> {
-    T value;
-    ReflectClass<T> reflectClass;
-
-    ReflectValue(T value, ReflectClass<T> reflectClass) {
-        this.value = value;
-        this.reflectClass = reflectClass;
-    }
-
-    public T get() {
-        return value;
-    }
-
-    public ReflectClass<T> getReflectClass() {
-        return reflectClass;
-    }
+public interface ReflectValue<T> extends Value<T> {
+    ReflectClass<T> getReflectClass();
 }

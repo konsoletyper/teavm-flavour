@@ -19,25 +19,6 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public class Value<T> implements Computation<T> {
-    private T value;
-
-    Value() {
-    }
-
-    public T get() {
-        if (!Emitter.emitting) {
-            throw new IllegalStateException("Can only get value in emitter context");
-        }
-        return value;
-    }
-
-    void set(T value) {
-        this.value = value;
-    }
-
-    @Override
-    public T compute() {
-        return value;
-    }
+public interface Value<T> extends Computation<T> {
+    T get();
 }
