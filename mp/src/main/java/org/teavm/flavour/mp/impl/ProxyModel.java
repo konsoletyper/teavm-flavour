@@ -17,9 +17,9 @@ package org.teavm.flavour.mp.impl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import org.teavm.dependency.DependencyAgent;
-import org.teavm.dependency.DependencyNode;
+import java.util.Map;
 import org.teavm.model.MethodReference;
 
 /**
@@ -30,23 +30,12 @@ public class ProxyModel {
     private MethodReference method;
     private MethodReference proxyMethod;
     private List<ProxyParameter> parameters;
-    private List<ProxyUsage> usages = new ArrayList<>();
-    private List<DependencyNode> nodes;
+    private Map<String, MethodReference> usages = new HashMap<>();
 
-    ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters,
-            DependencyAgent agent) {
+    ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters) {
         this.method = method;
         this.proxyMethod = proxyMethod;
         this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
-        List<DependencyNode> nodes = new ArrayList<>();
-        for (int i = 0; i < parameters.size(); ++i) {
-            if (parameters.get(i).getKind() == ParameterKind.REFLECT_VALUE) {
-                nodes.add(agent.createNode());
-            } else {
-                nodes.add(null);
-            }
-        }
-        this.nodes = Collections.unmodifiableList(nodes);
     }
 
     public MethodReference getMethod() {
@@ -61,11 +50,7 @@ public class ProxyModel {
         return parameters;
     }
 
-    public List<ProxyUsage> getUsages() {
+    public Map<String, MethodReference> getUsages() {
         return usages;
-    }
-
-    public List<DependencyNode> getNodes() {
-        return nodes;
     }
 }

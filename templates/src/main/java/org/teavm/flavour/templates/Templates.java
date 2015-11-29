@@ -17,8 +17,6 @@ package org.teavm.flavour.templates;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.flavour.mp.Proxy;
-import org.teavm.flavour.templates.emitting.TemplatingProxyGenerator;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLElement;
 
@@ -51,7 +49,7 @@ public final class Templates {
         }
     }
 
-    @Proxy(TemplatingProxyGenerator.class)
+    //@Proxy(TemplatingProxyGenerator.class)
     public static native Fragment create(Object model);
 
     public static void update() {

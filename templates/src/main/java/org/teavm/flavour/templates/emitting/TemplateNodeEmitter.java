@@ -138,7 +138,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         context.addConstructor(fragmentCls, node.getLocation());
         emitAttributeDirectiveWorker(fragmentCls, node);
 
-        context.dependencyAgent.submitClass(fragmentCls);
+        //context.dependencyAgent.submitClass(fragmentCls);
         return className;
     }
 

@@ -22,11 +22,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.teavm.dependency.DependencyAgent;
 import org.teavm.diagnostics.Diagnostics;
-import org.teavm.flavour.mp.Proxy;
 import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
@@ -44,19 +43,25 @@ public class ProxyDescriber {
     private static Set<ValueType> validConstantTypes = new HashSet<>(Arrays.asList(ValueType.BOOLEAN, ValueType.BYTE,
             ValueType.SHORT, ValueType.CHARACTER, ValueType.INTEGER, ValueType.LONG, ValueType.FLOAT,
             ValueType.DOUBLE, ValueType.parse(String.class), ValueType.parse(Class.class)));
-    private DependencyAgent agent;
     private Diagnostics diagnostics;
     private ClassReaderSource classSource;
     private Map<MethodReference, ProxyModel> cache = new HashMap<>();
 
-    public ProxyDescriber(DependencyAgent agent) {
-        this.agent = agent;
-        this.diagnostics = agent.getDiagnostics();
-        this.classSource = agent.getClassSource();
+    public ProxyDescriber(Diagnostics diagnostics, ClassReaderSource classSource) {
+        this.diagnostics = diagnostics;
+        this.classSource = classSource;
     }
 
     public ProxyModel getProxy(MethodReference method) {
         return cache.computeIfAbsent(method, key -> describeProxy(key));
+    }
+
+    public ProxyModel getKnownProxy(MethodReference method) {
+        return cache.get(method);
+    }
+
+    public Iterable<ProxyModel> getKnownProxies() {
+        return cache.values();
     }
 
     private ProxyModel describeProxy(MethodReference methodRef) {
@@ -64,7 +69,7 @@ public class ProxyDescriber {
         if (method == null) {
             return null;
         }
-        if (method.getAnnotations().get(Proxy.class.getName()) == null) {
+        if (method.getAnnotations().get(Reflected.class.getName()) == null) {
             return null;
         }
         CallLocation location = new CallLocation(methodRef);
@@ -118,7 +123,7 @@ public class ProxyDescriber {
                 }
             }
 
-            return new ProxyModel(method.getReference(), proxy.getReference(), parameters, agent);
+            return new ProxyModel(method.getReference(), proxy.getReference(), parameters);
         }
         return null;
     }

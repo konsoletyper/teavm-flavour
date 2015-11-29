@@ -17,8 +17,6 @@ package org.teavm.flavour.mp;
 
 import org.teavm.common.ServiceRepository;
 import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.ClassReaderSource;
 
 /**
  *
@@ -27,11 +25,7 @@ import org.teavm.model.ClassReaderSource;
 public interface ProxyGeneratorContext<T> extends ServiceRepository {
     Diagnostics getDiagnostics();
 
-    ClassReaderSource getClassSource();
-
     ClassLoader getClassLoader();
-
-    void submitClass(ClassHolder cls);
 
     Emitter<T> getEmitter();
 

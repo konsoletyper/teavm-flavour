@@ -76,7 +76,7 @@ class FragmentEmitter {
         result.returnValue();
 
         cls.addMethod(method);
-        context.dependencyAgent.submitClass(cls);
+        //context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
@@ -106,7 +106,7 @@ class FragmentEmitter {
         context.classStack.remove(context.classStack.size() - 1);
         context.popBoundVars();
 
-        context.dependencyAgent.submitClass(cls);
+        //context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 

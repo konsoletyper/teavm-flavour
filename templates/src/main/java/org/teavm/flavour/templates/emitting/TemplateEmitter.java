@@ -58,7 +58,7 @@ public class TemplateEmitter {
         emitConstructor(cls, modelClassName, innerName);
         emitWorker(cls, innerName);
 
-        dependencyAgent.submitClass(cls);
+        //dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 

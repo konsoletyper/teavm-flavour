@@ -96,7 +96,7 @@ class EmitContext {
 
         MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
         ctor.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(ctor, dependencyAgent.getClassSource());
+        ProgramEmitter pe = ProgramEmitter.create(ctor, /*dependencyAgent.getClassSource()*/ null);
         location(pe, location);
         ValueEmitter thisVar = pe.var(0, cls);
         ValueEmitter ownerVar = pe.var(1, ValueType.object(ownerType));
@@ -127,6 +127,7 @@ class EmitContext {
     }
 
     public ClassReaderSource getClassSource() {
-        return dependencyAgent.getClassSource();
+        //return dependencyAgent.getClassSource();
+        return null;
     }
 }

@@ -20,31 +20,59 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.common.DisjointSet;
-import org.teavm.dependency.DependencyNode;
-import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.BasicBlockReader;
+import org.teavm.flavour.mp.Reflected;
+import org.teavm.model.AnnotationHolder;
+import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
-import org.teavm.model.FieldReference;
-import org.teavm.model.InstructionLocation;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.ElementModifier;
+import org.teavm.model.Instruction;
+import org.teavm.model.InvokeDynamicInstruction;
 import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodHandle;
-import org.teavm.model.MethodReader;
+import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
-import org.teavm.model.ProgramReader;
-import org.teavm.model.RuntimeConstant;
+import org.teavm.model.Program;
 import org.teavm.model.ValueType;
-import org.teavm.model.VariableReader;
-import org.teavm.model.instructions.ArrayElementType;
-import org.teavm.model.instructions.BinaryBranchingCondition;
-import org.teavm.model.instructions.BinaryOperation;
-import org.teavm.model.instructions.BranchingCondition;
-import org.teavm.model.instructions.CastIntegerDirection;
-import org.teavm.model.instructions.InstructionReader;
-import org.teavm.model.instructions.IntegerSubtype;
+import org.teavm.model.Variable;
+import org.teavm.model.instructions.ArrayLengthInstruction;
+import org.teavm.model.instructions.AssignInstruction;
+import org.teavm.model.instructions.BinaryBranchingInstruction;
+import org.teavm.model.instructions.BinaryInstruction;
+import org.teavm.model.instructions.BranchingInstruction;
+import org.teavm.model.instructions.CastInstruction;
+import org.teavm.model.instructions.CastIntegerInstruction;
+import org.teavm.model.instructions.CastNumberInstruction;
+import org.teavm.model.instructions.ClassConstantInstruction;
+import org.teavm.model.instructions.CloneArrayInstruction;
+import org.teavm.model.instructions.ConstructArrayInstruction;
+import org.teavm.model.instructions.ConstructInstruction;
+import org.teavm.model.instructions.ConstructMultiArrayInstruction;
+import org.teavm.model.instructions.DoubleConstantInstruction;
+import org.teavm.model.instructions.EmptyInstruction;
+import org.teavm.model.instructions.ExitInstruction;
+import org.teavm.model.instructions.FloatConstantInstruction;
+import org.teavm.model.instructions.GetElementInstruction;
+import org.teavm.model.instructions.GetFieldInstruction;
+import org.teavm.model.instructions.InitClassInstruction;
+import org.teavm.model.instructions.InstructionVisitor;
+import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.InvocationType;
-import org.teavm.model.instructions.NumericOperandType;
-import org.teavm.model.instructions.SwitchTableEntryReader;
+import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.IsInstanceInstruction;
+import org.teavm.model.instructions.JumpInstruction;
+import org.teavm.model.instructions.LongConstantInstruction;
+import org.teavm.model.instructions.MonitorEnterInstruction;
+import org.teavm.model.instructions.MonitorExitInstruction;
+import org.teavm.model.instructions.NegateInstruction;
+import org.teavm.model.instructions.NullCheckInstruction;
+import org.teavm.model.instructions.NullConstantInstruction;
+import org.teavm.model.instructions.PutElementInstruction;
+import org.teavm.model.instructions.PutFieldInstruction;
+import org.teavm.model.instructions.RaiseInstruction;
+import org.teavm.model.instructions.StringConstantInstruction;
+import org.teavm.model.instructions.SwitchInstruction;
+import org.teavm.model.instructions.UnwrapArrayInstruction;
 
 /**
  *
@@ -53,171 +81,414 @@ import org.teavm.model.instructions.SwitchTableEntryReader;
 public class ProxyUsageFinder {
     private ProxyDescriber describer;
     private Diagnostics diagnostics;
+    private int suffixGenerator;
 
     public ProxyUsageFinder(ProxyDescriber describer, Diagnostics diagnostics) {
         this.describer = describer;
         this.diagnostics = diagnostics;
     }
 
-    public void findUsages(MethodDependency dependency) {
-        MethodReader method = dependency.getMethod();
-        ProgramReader program = method.getProgram();
+    public void findUsages(ClassHolder cls, MethodHolder method) {
+        Program program = method.getProgram();
         ProgramAnalyzer analyzer = new ProgramAnalyzer();
         for (int i = 0; i < program.variableCount(); ++i) {
             analyzer.variableSets.create();
         }
         for (int i = 0; i < program.basicBlockCount(); ++i) {
-            BasicBlockReader block = program.basicBlockAt(i);
-            block.readAllInstructions(analyzer);
+            BasicBlock block = program.basicBlockAt(i);
+            analyzer.block = block;
+            for (int j = 0; j < block.getInstructions().size(); ++j) {
+                analyzer.index = j;
+                block.getInstructions().get(j).acceptVisitor(analyzer);
+            }
         }
 
         for (Invocation invocation : analyzer.invocations) {
-            invocation.proxy.getUsages().add(getUsage(dependency, analyzer, invocation));
+            processUsage(cls, method, analyzer, invocation);
         }
     }
 
-    private ProxyUsage getUsage(MethodDependency dependency, ProgramAnalyzer analyzer, Invocation invocation) {
-        CallLocation location = new CallLocation(dependency.getReference(), invocation.location);
+    private void processUsage(ClassHolder cls, MethodHolder method, ProgramAnalyzer analyzer, Invocation invocation) {
+        CallLocation location = new CallLocation(method.getReference(), invocation.insn.getLocation());
         List<ProxyParameter> parameters = invocation.proxy.getParameters();
         List<Object> constants = new ArrayList<>();
-        List<DependencyNode> nodes = new ArrayList<>();
-        boolean error = false;
+        List<ValueType> usageSignatureBuilder = new ArrayList<>();
         for (int i = 0; i < parameters.size(); ++i) {
             ProxyParameter proxyParam = parameters.get(i);
-            VariableReader arg = invocation.arguments.get(i);
+            Variable arg = invocation.insn.getArguments().get(i);
             if (proxyParam.getKind() == ParameterKind.CONSTANT) {
                 Object cst = analyzer.constant(arg.getIndex());
                 if (cst == null) {
-                    error = true;
                     diagnostics.error(location, "Parameter " + (i + 1) + " of proxy method has type {{c0}}, "
                             + "this means that you can only pass constant literals to parameter " + i
                             + "of method {{m1}}", invocation.proxy.getProxyMethod().parameterType(i + 1),
                             invocation.proxy.getMethod());
                 }
                 constants.add(cst);
-                nodes.add(null);
-            } else if (proxyParam.getKind() == ParameterKind.REFLECT_VALUE) {
-                constants.add(null);
-                nodes.add(dependency.getVariable(arg.getIndex()));
             } else {
                 constants.add(null);
-                nodes.add(null);
+                usageSignatureBuilder.add(parameters.get(i).getType());
+            }
+        }
+        usageSignatureBuilder.add(method.getResultType());
+        ValueType[] usageSignature = usageSignatureBuilder.toArray(new ValueType[0]);
+        if (usageSignature.length == method.parameterCount()) {
+            return;
+        }
+
+        MethodDescriptor descriptor;
+        do {
+            String name = method.getName() + "$usage" + suffixGenerator++;
+            descriptor = new MethodDescriptor(name, usageSignature);
+        } while (cls.getMethod(descriptor) != null);
+
+        MethodHolder usageMethod = new MethodHolder(descriptor);
+        usageMethod.getModifiers().add(ElementModifier.STATIC);
+        usageMethod.getModifiers().add(ElementModifier.NATIVE);
+        usageMethod.getAnnotations().add(new AnnotationHolder(Reflected.class.getName()));
+        Program usageProgram = new Program();
+        usageMethod.setProgram(usageProgram);
+        BasicBlock block = usageProgram.createBasicBlock();
+        usageProgram.createVariable();
+        for (int i = 0; i < usageMethod.parameterCount(); ++i) {
+            usageProgram.createVariable();
+        }
+
+        InvokeInstruction invoke = new InvokeInstruction();
+        invoke.setReceiver(method.getResultType() != ValueType.VOID ? usageProgram.createVariable() : null);
+        invoke.setMethod(new MethodReference(cls.getName(), descriptor));
+        invoke.setType(InvocationType.SPECIAL);
+
+        ExitInstruction exit = new ExitInstruction();
+        exit.setValueToReturn(invoke.getReceiver());
+
+        int j = 1;
+        for (int i = 0; i < parameters.size(); ++i) {
+            ProxyParameter param = parameters.get(i);
+            if (param.getKind() == ParameterKind.CONSTANT) {
+                if (constants.get(i) == null) {
+                    invoke.getArguments().add(emitDefault(block, param.getType()));
+                } else {
+                    invoke.getArguments().add(emitConstant(block, constants));
+                }
+            } else {
+                invoke.getArguments().add(usageProgram.variableAt(j++));
             }
         }
 
-        return !error ? new ProxyUsage(location, constants, nodes) : null;
+        block.getInstructions().add(invoke);
+        block.getInstructions().add(exit);
+
+        for (Instruction insn : block.getInstructions()) {
+            insn.setLocation(invocation.insn.getLocation());
+        }
+
+        cls.addMethod(usageMethod);
     }
 
-    class ProgramAnalyzer implements InstructionReader {
-        private InstructionLocation location;
+    private Variable emitConstant(BasicBlock block, Object constant) {
+        Program program = block.getProgram();
+        Variable var = program.createVariable();
+        if (constant instanceof Boolean) {
+            IntegerConstantInstruction insn = new IntegerConstantInstruction();
+            insn.setConstant((Boolean) constant ? 1 : 0);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Byte) {
+            IntegerConstantInstruction insn = new IntegerConstantInstruction();
+            insn.setConstant((Byte) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Short) {
+            IntegerConstantInstruction insn = new IntegerConstantInstruction();
+            insn.setConstant((Short) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Character) {
+            IntegerConstantInstruction insn = new IntegerConstantInstruction();
+            insn.setConstant((Character) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Integer) {
+            IntegerConstantInstruction insn = new IntegerConstantInstruction();
+            insn.setConstant((Integer) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Long) {
+            LongConstantInstruction insn = new LongConstantInstruction();
+            insn.setConstant((Long) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Float) {
+            FloatConstantInstruction insn = new FloatConstantInstruction();
+            insn.setConstant((Float) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof Double) {
+            DoubleConstantInstruction insn = new DoubleConstantInstruction();
+            insn.setConstant((Double) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof String) {
+            StringConstantInstruction insn = new StringConstantInstruction();
+            insn.setConstant((String) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else if (constant instanceof ValueType) {
+            ClassConstantInstruction insn = new ClassConstantInstruction();
+            insn.setConstant((ValueType) constant);
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        } else {
+            NullConstantInstruction insn = new NullConstantInstruction();
+            insn.setReceiver(var);
+            block.getInstructions().add(insn);
+            return var;
+        }
+    }
+
+    private Variable emitDefault(BasicBlock block, ValueType type) {
+        Program program = block.getProgram();
+        Variable var = program.createVariable();
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                case BYTE:
+                case SHORT:
+                case CHARACTER:
+                case INTEGER: {
+                    IntegerConstantInstruction insn = new IntegerConstantInstruction();
+                    insn.setConstant(0);
+                    insn.setReceiver(var);
+                    block.getInstructions().add(insn);
+                    return var;
+                }
+                case LONG: {
+                    LongConstantInstruction insn = new LongConstantInstruction();
+                    insn.setConstant(0);
+                    insn.setReceiver(var);
+                    block.getInstructions().add(insn);
+                    return var;
+                }
+                case FLOAT: {
+                    FloatConstantInstruction insn = new FloatConstantInstruction();
+                    insn.setConstant(0);
+                    insn.setReceiver(var);
+                    block.getInstructions().add(insn);
+                    return var;
+                }
+                case DOUBLE: {
+                    DoubleConstantInstruction insn = new DoubleConstantInstruction();
+                    insn.setConstant(0);
+                    insn.setReceiver(var);
+                    block.getInstructions().add(insn);
+                    return var;
+                }
+            }
+        }
+        NullConstantInstruction insn = new NullConstantInstruction();
+        insn.setReceiver(var);
+        block.getInstructions().add(insn);
+        return var;
+    }
+
+    class ProgramAnalyzer implements InstructionVisitor {
         DisjointSet variableSets = new DisjointSet();
         Map<Integer, Object> constants = new HashMap<>();
         List<Invocation> invocations = new ArrayList<>();
+        BasicBlock block;
+        int index;
 
         Object constant(int index) {
             return constants.get(variableSets.find(index));
         }
 
-        @Override public void location(InstructionLocation location) {
-            this.location = location;
-        }
-        @Override public void nop() { }
-
-        @Override public void classConstant(VariableReader receiver, ValueType cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
-        }
-        @Override public void nullConstant(VariableReader receiver) { }
-        @Override public void integerConstant(VariableReader receiver, int cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
-        }
-        @Override public void longConstant(VariableReader receiver, long cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
-        }
-        @Override public void floatConstant(VariableReader receiver, float cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
-        }
-        @Override public void doubleConstant(VariableReader receiver, double cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
-        }
-        @Override public void stringConstant(VariableReader receiver, String cst) {
-            constants.put(variableSets.find(receiver.getIndex()), cst);
+        @Override
+        public void visit(EmptyInstruction insn) {
         }
 
-        @Override public void binary(BinaryOperation op, VariableReader receiver, VariableReader first,
-                VariableReader second, NumericOperandType type) { }
-        @Override public void negate(VariableReader receiver, VariableReader operand, NumericOperandType type) { }
+        @Override
+        public void visit(ClassConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
 
-        @Override public void assign(VariableReader receiver, VariableReader assignee) {
-            Object cst = constants.get(variableSets.find(receiver.getIndex()));
+        @Override
+        public void visit(NullConstantInstruction insn) {
+        }
+
+        @Override
+        public void visit(IntegerConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
+
+        @Override
+        public void visit(LongConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
+
+        @Override
+        public void visit(FloatConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
+
+        @Override
+        public void visit(DoubleConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
+
+        @Override
+        public void visit(StringConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+        }
+
+        @Override
+        public void visit(BinaryInstruction insn) {
+        }
+
+        @Override
+        public void visit(NegateInstruction insn) {
+        }
+
+        @Override
+        public void visit(AssignInstruction insn) {
+            Object cst = constants.get(variableSets.find(insn.getReceiver().getIndex()));
             if (cst == null) {
-                cst = constants.get(variableSets.find(assignee.getIndex()));
+                cst = constants.get(variableSets.find(insn.getAssignee().getIndex()));
             }
-            int result = variableSets.union(receiver.getIndex(), assignee.getIndex());
+            int result = variableSets.union(insn.getAssignee().getIndex(), insn.getReceiver().getIndex());
             if (cst != null) {
                 constants.put(result, cst);
             }
         }
 
-        @Override public void cast(VariableReader receiver, VariableReader value, ValueType targetType) { }
-        @Override public void cast(VariableReader receiver, VariableReader value, NumericOperandType sourceType,
-                NumericOperandType targetType) { }
-        @Override public void cast(VariableReader receiver, VariableReader value, IntegerSubtype type,
-                CastIntegerDirection targetType) { }
-        @Override public void jumpIf(BranchingCondition cond, VariableReader operand, BasicBlockReader consequent,
-                BasicBlockReader alternative) { }
-        @Override public void jumpIf(BinaryBranchingCondition cond, VariableReader first, VariableReader second,
-                BasicBlockReader consequent, BasicBlockReader alternative) { }
-        @Override public void jump(BasicBlockReader target) { }
-        @Override public void choose(VariableReader condition, List<? extends SwitchTableEntryReader> table,
-                BasicBlockReader defaultTarget) { }
-        @Override public void exit(VariableReader valueToReturn) { }
-        @Override public void raise(VariableReader exception) { }
-        @Override public void createArray(VariableReader receiver, ValueType itemType, VariableReader size) { }
-        @Override public void createArray(VariableReader receiver, ValueType itemType,
-                List<? extends VariableReader> dimensions) { }
-        @Override public void create(VariableReader receiver, String type) { }
-        @Override public void getField(VariableReader receiver, VariableReader instance, FieldReference field,
-                ValueType fieldType) { }
-        @Override public void putField(VariableReader instance, FieldReference field, VariableReader value,
-                ValueType fieldType) { }
-        @Override public void arrayLength(VariableReader receiver, VariableReader array) { }
-        @Override public void cloneArray(VariableReader receiver, VariableReader array) { }
-        @Override public void unwrapArray(VariableReader receiver, VariableReader array,
-                ArrayElementType elementType) { }
-        @Override public void getElement(VariableReader receiver, VariableReader array, VariableReader index) { }
-        @Override public void putElement(VariableReader array, VariableReader index, VariableReader value) { }
+        @Override
+        public void visit(CastInstruction insn) {
+        }
 
-        @Override public void invoke(VariableReader receiver, VariableReader instance, MethodReference method,
-                List<? extends VariableReader> arguments, InvocationType type) {
-            ProxyModel model = describer.getProxy(method);
-            if (model == null) {
+        @Override
+        public void visit(CastNumberInstruction insn) {
+        }
+
+        @Override
+        public void visit(CastIntegerInstruction insn) {
+        }
+
+        @Override
+        public void visit(BranchingInstruction insn) {
+        }
+
+        @Override
+        public void visit(BinaryBranchingInstruction insn) {
+        }
+
+        @Override
+        public void visit(JumpInstruction insn) {
+        }
+
+        @Override
+        public void visit(SwitchInstruction insn) {
+        }
+
+        @Override
+        public void visit(ExitInstruction insn) {
+        }
+
+        @Override
+        public void visit(RaiseInstruction insn) {
+        }
+
+        @Override
+        public void visit(ConstructArrayInstruction insn) {
+        }
+
+        @Override
+        public void visit(ConstructInstruction insn) {
+        }
+
+        @Override
+        public void visit(ConstructMultiArrayInstruction insn) {
+        }
+
+        @Override
+        public void visit(GetFieldInstruction insn) {
+        }
+
+        @Override
+        public void visit(PutFieldInstruction insn) {
+        }
+
+        @Override
+        public void visit(ArrayLengthInstruction insn) {
+        }
+
+        @Override
+        public void visit(CloneArrayInstruction insn) {
+        }
+
+        @Override
+        public void visit(UnwrapArrayInstruction insn) {
+        }
+
+        @Override
+        public void visit(GetElementInstruction insn) {
+        }
+
+        @Override
+        public void visit(PutElementInstruction insn) {
+        }
+
+        @Override
+        public void visit(InvokeInstruction insn) {
+            if (insn.getType() != InvocationType.SPECIAL || insn.getInstance() == null) {
                 return;
             }
-
             Invocation invocation = new Invocation();
-            invocation.receiver = receiver;
-            invocation.instance = instance;
-            invocation.proxy = model;
-            invocation.arguments = arguments;
-            invocation.location = this.location;
+            invocation.insn = insn;
+            invocation.index = index;
+            invocation.block = block;
+            invocation.proxy = describer.getProxy(insn.getMethod());
             invocations.add(invocation);
         }
 
-        @Override public void invokeDynamic(VariableReader receiver, VariableReader instance, MethodDescriptor method,
-                List<? extends VariableReader> arguments, MethodHandle bootstrapMethod,
-                List<RuntimeConstant> bootstrapArguments) { }
-        @Override public void isInstance(VariableReader receiver, VariableReader value, ValueType type) { }
-        @Override public void initClass(String className) { }
-        @Override public void nullCheck(VariableReader receiver, VariableReader value) { }
-        @Override public void monitorEnter(VariableReader objectRef) { }
-        @Override public void monitorExit(VariableReader objectRef) { }
+        @Override
+        public void visit(InvokeDynamicInstruction insn) {
+        }
+
+        @Override
+        public void visit(IsInstanceInstruction insn) {
+        }
+
+        @Override
+        public void visit(InitClassInstruction insn) {
+        }
+
+        @Override
+        public void visit(NullCheckInstruction insn) {
+        }
+
+        @Override
+        public void visit(MonitorEnterInstruction insn) {
+        }
+
+        @Override
+        public void visit(MonitorExitInstruction insn) {
+        }
     }
 
     static class Invocation {
-        VariableReader receiver;
-        VariableReader instance;
+        InvokeInstruction insn;
         ProxyModel proxy;
-        List<? extends VariableReader> arguments;
-        InstructionLocation location;
+        BasicBlock block;
+        int index;
     }
 }

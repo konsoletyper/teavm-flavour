@@ -486,7 +486,7 @@ class ExprPlanEmitter implements PlanVisitor {
         }
         emitLambdaConstructor(cls, closedVars, location);
 
-        context.dependencyAgent.submitClass(cls);
+        //context.dependencyAgent.submitClass(cls);
         return cls.getName();
     }
 
@@ -503,7 +503,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
         MethodHolder ctor = new MethodHolder("<init>", ctorArgTypes.toArray(new ValueType[0]));
         ctor.setLevel(AccessLevel.PUBLIC);
-        pe = ProgramEmitter.create(ctor, context.dependencyAgent.getClassSource());
+        pe = ProgramEmitter.create(ctor, null/*context.dependencyAgent.getClassSource()*/);
         thisVar = pe.var(0, cls);
         ValueEmitter ownerVar = pe.var(1, ValueType.object(ownerCls));
 
