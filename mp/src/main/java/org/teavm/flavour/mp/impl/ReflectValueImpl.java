@@ -13,18 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl;
+
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.ReflectValue;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Emitter<S> {
-    <T> Value<T> emit(Computation<T> computation);
+public class ReflectValueImpl<T> implements ReflectValue<T> {
 
-    void emit(Action action);
+    @Override
+    public T get() {
+        return null;
+    }
 
-    <T> Choice<T> choose(Value<Integer> value);
+    @Override
+    public T compute() {
+        return null;
+    }
 
-    void returnValue(Computation<S> computation);
+    @Override
+    public ReflectClass<T> getReflectClass() {
+        return null;
+    }
 }

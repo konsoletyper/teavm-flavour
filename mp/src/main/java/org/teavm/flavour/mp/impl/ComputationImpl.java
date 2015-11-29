@@ -13,18 +13,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl;
+
+import java.util.function.Function;
+import org.teavm.flavour.mp.Computation;
+import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Emitter<S> {
-    <T> Value<T> emit(Computation<T> computation);
+public class ComputationImpl<T> implements Computation<T> {
+    Function<ProgramEmitter, ValueEmitter> generator;
 
-    void emit(Action action);
+    public ComputationImpl(Function<ProgramEmitter, ValueEmitter> generator) {
+        this.generator = generator;
+    }
 
-    <T> Choice<T> choose(Value<Integer> value);
-
-    void returnValue(Computation<S> computation);
+    @Override
+    public T compute() {
+        throw new IllegalStateException("Don't call this method directly");
+    }
 }

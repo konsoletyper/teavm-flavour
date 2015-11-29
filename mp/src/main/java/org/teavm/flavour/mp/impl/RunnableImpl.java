@@ -13,18 +13,25 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl;
+
+import java.util.function.Consumer;
+import org.teavm.flavour.mp.Action;
+import org.teavm.model.emit.ProgramEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Emitter<S> {
-    <T> Value<T> emit(Computation<T> computation);
+public class RunnableImpl implements Action {
+    Consumer<ProgramEmitter> generator;
 
-    void emit(Action action);
+    public RunnableImpl(Consumer<ProgramEmitter> generator) {
+        this.generator = generator;
+    }
 
-    <T> Choice<T> choose(Value<Integer> value);
-
-    void returnValue(Computation<S> computation);
+    @Override
+    public void run() {
+        throw new IllegalStateException("Don't call this method directly");
+    }
 }

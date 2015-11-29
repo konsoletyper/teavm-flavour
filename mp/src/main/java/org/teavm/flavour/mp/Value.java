@@ -21,4 +21,9 @@ package org.teavm.flavour.mp;
  */
 public interface Value<T> extends Computation<T> {
     T get();
+
+    @Override
+    default T compute() {
+        return get();
+    }
 }

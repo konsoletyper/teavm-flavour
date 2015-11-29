@@ -13,18 +13,24 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl;
+
+import org.teavm.flavour.mp.Value;
+import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface Emitter<S> {
-    <T> Value<T> emit(Computation<T> computation);
+public class ValueImpl<T> implements Value<T> {
+    ValueEmitter innerValue;
 
-    void emit(Action action);
+    public ValueImpl(ValueEmitter innerValue) {
+        this.innerValue = innerValue;
+    }
 
-    <T> Choice<T> choose(Value<Integer> value);
-
-    void returnValue(Computation<S> computation);
+    @Override
+    public T get() {
+        throw new IllegalStateException("Can only read this value in emitter domain");
+    }
 }
