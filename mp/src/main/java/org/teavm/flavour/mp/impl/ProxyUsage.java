@@ -17,7 +17,9 @@ package org.teavm.flavour.mp.impl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.teavm.dependency.DependencyNode;
 import org.teavm.model.CallLocation;
 
@@ -27,24 +29,36 @@ import org.teavm.model.CallLocation;
  */
 public class ProxyUsage {
     private CallLocation location;
-    private ProxyCase proxyCase;
+    private List<Object> constants;
     private List<DependencyNode> nodes;
+    private List<Set<String>> actualTypes;
 
-    ProxyUsage(CallLocation location, ProxyCase proxyCase, List<DependencyNode> nodes) {
+    ProxyUsage(CallLocation location, List<Object> constants, List<DependencyNode> nodes) {
         this.location = location;
-        this.proxyCase = proxyCase;
+        this.constants = Collections.unmodifiableList(new ArrayList<>(constants));
         this.nodes = Collections.unmodifiableList(new ArrayList<>(nodes));
+        List<Set<String>> actualTypes = new ArrayList<>(nodes.size());
+        for (int i = 0; i < nodes.size(); ++i) {
+            if (nodes.get(i) != null) {
+                actualTypes.add(new HashSet<String>());
+            }
+        }
+        this.actualTypes = Collections.unmodifiableList(actualTypes);
     }
 
     public CallLocation getLocation() {
         return location;
     }
 
-    public ProxyCase getProxyCase() {
-        return proxyCase;
+    public List<Object> getConstants() {
+        return constants;
     }
 
     public List<DependencyNode> getNodes() {
         return nodes;
+    }
+
+    public List<Set<String>> getActualTypes() {
+        return actualTypes;
     }
 }

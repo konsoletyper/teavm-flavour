@@ -15,12 +15,16 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.common.DisjointSet;
+import org.teavm.dependency.DependencyNode;
+import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.model.BasicBlockReader;
+import org.teavm.model.CallLocation;
 import org.teavm.model.FieldReference;
 import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodDescriptor;
@@ -50,7 +54,13 @@ public class ProxyUsageFinder {
     private ProxyDescriber describer;
     private Diagnostics diagnostics;
 
-    public void findUsages(MethodReader method) {
+    public ProxyUsageFinder(ProxyDescriber describer, Diagnostics diagnostics) {
+        this.describer = describer;
+        this.diagnostics = diagnostics;
+    }
+
+    public void findUsages(MethodDependency dependency) {
+        MethodReader method = dependency.getMethod();
         ProgramReader program = method.getProgram();
         ProgramAnalyzer analyzer = new ProgramAnalyzer();
         for (int i = 0; i < program.variableCount(); ++i) {
@@ -60,12 +70,53 @@ public class ProxyUsageFinder {
             BasicBlockReader block = program.basicBlockAt(i);
             block.readAllInstructions(analyzer);
         }
+
+        for (Invocation invocation : analyzer.invocations) {
+            invocation.proxy.getUsages().add(getUsage(dependency, analyzer, invocation));
+        }
+    }
+
+    private ProxyUsage getUsage(MethodDependency dependency, ProgramAnalyzer analyzer, Invocation invocation) {
+        CallLocation location = new CallLocation(dependency.getReference(), invocation.location);
+        List<ProxyParameter> parameters = invocation.proxy.getParameters();
+        List<Object> constants = new ArrayList<>();
+        List<DependencyNode> nodes = new ArrayList<>();
+        boolean error = false;
+        for (int i = 0; i < parameters.size(); ++i) {
+            ProxyParameter proxyParam = parameters.get(i);
+            VariableReader arg = invocation.arguments.get(i);
+            if (proxyParam.getKind() == ParameterKind.CONSTANT) {
+                Object cst = analyzer.constant(arg.getIndex());
+                if (cst == null) {
+                    error = true;
+                    diagnostics.error(location, "Parameter " + (i + 1) + " of proxy method has type {{c0}}, "
+                            + "this means that you can only pass constant literals to parameter " + i
+                            + "of method {{m1}}", invocation.proxy.getProxyMethod().parameterType(i + 1),
+                            invocation.proxy.getMethod());
+                }
+                constants.add(cst);
+                nodes.add(null);
+            } else if (proxyParam.getKind() == ParameterKind.REFLECT_VALUE) {
+                constants.add(null);
+                nodes.add(dependency.getVariable(arg.getIndex()));
+            } else {
+                constants.add(null);
+                nodes.add(null);
+            }
+        }
+
+        return !error ? new ProxyUsage(location, constants, nodes) : null;
     }
 
     class ProgramAnalyzer implements InstructionReader {
         private InstructionLocation location;
         DisjointSet variableSets = new DisjointSet();
         Map<Integer, Object> constants = new HashMap<>();
+        List<Invocation> invocations = new ArrayList<>();
+
+        Object constant(int index) {
+            return constants.get(variableSets.find(index));
+        }
 
         @Override public void location(InstructionLocation location) {
             this.location = location;
@@ -142,6 +193,14 @@ public class ProxyUsageFinder {
             if (model == null) {
                 return;
             }
+
+            Invocation invocation = new Invocation();
+            invocation.receiver = receiver;
+            invocation.instance = instance;
+            invocation.proxy = model;
+            invocation.arguments = arguments;
+            invocation.location = this.location;
+            invocations.add(invocation);
         }
 
         @Override public void invokeDynamic(VariableReader receiver, VariableReader instance, MethodDescriptor method,
@@ -152,5 +211,13 @@ public class ProxyUsageFinder {
         @Override public void nullCheck(VariableReader receiver, VariableReader value) { }
         @Override public void monitorEnter(VariableReader objectRef) { }
         @Override public void monitorExit(VariableReader objectRef) { }
+    }
+
+    static class Invocation {
+        VariableReader receiver;
+        VariableReader instance;
+        ProxyModel proxy;
+        List<? extends VariableReader> arguments;
+        InstructionLocation location;
     }
 }

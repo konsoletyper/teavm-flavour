@@ -34,7 +34,6 @@ import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
-import org.teavm.model.ElementModifier;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
@@ -50,10 +49,19 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private int suffixGenerator;
     private Set<MethodReference> installedProxyGenerators = new HashSet<>();
     private Map<MethodReference, ProxyTypeInfo> proxyTypeMap = new HashMap<>();
+    private ProxyUsageFinder usageFinder;
+    private ProxyDescriber describer;
+
+    @Override
+    public void started(DependencyAgent agent) {
+        describer = new ProxyDescriber(agent);
+        usageFinder = new ProxyUsageFinder(describer, agent.getDiagnostics());
+    }
 
     @Override
     public void methodReached(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
         MethodReader method = methodDep.getMethod();
+        usageFinder.findUsages(methodDep);
         AnnotationReader instanceProxyAnnot = method.getAnnotations().get(Proxy.class.getName());
         if (instanceProxyAnnot != null) {
             installInstanceProxyEmitter(agent, methodDep, instanceProxyAnnot, location);
@@ -168,26 +176,6 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         }
     }
 
-    private ProxyModel getModel(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
-        Diagnostics diagnostics = agent.getDiagnostics();
-        MethodReader method = methodDep.getMethod();
-
-        boolean valid = true;
-        if (!method.hasModifier(ElementModifier.STATIC)) {
-            diagnostics.error(location, "Proxy method should be static");
-            valid = false;
-        }
-        if (method.parameterCount() > 0) {
-            diagnostics.error(location, "Proxy method shoud take at least one parameter");
-            valid = false;
-        }
-        if (!valid) {
-            return null;
-        }
-
-        return null;
-    }
-
     static class ProxyTypeInfo {
         ValueType baseType;
         String paramType;
@@ -202,7 +190,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         }
 
         @Override
-        public <T> T getService(Class<T> type) {
+        public <S> S getService(Class<S> type) {
             return agent.getService(type);
         }
 
