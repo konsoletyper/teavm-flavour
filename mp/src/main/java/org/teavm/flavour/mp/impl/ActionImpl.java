@@ -15,23 +15,25 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import java.util.function.Consumer;
+import java.util.List;
 import org.teavm.flavour.mp.Action;
-import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.MethodReference;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class RunnableImpl implements Action {
-    Consumer<ProgramEmitter> generator;
-
-    public RunnableImpl(Consumer<ProgramEmitter> generator) {
-        this.generator = generator;
+public class ActionImpl extends Fragment implements Action {
+    public ActionImpl(List<Object> capturedValues, MethodReference method) {
+        super(capturedValues, method);
     }
 
     @Override
     public void run() {
         throw new IllegalStateException("Don't call this method directly");
+    }
+
+    public static ActionImpl create(List<Object> capturedValues, MethodReference method) {
+        return new ActionImpl(capturedValues, method);
     }
 }

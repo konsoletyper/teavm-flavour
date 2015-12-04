@@ -116,14 +116,13 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
                             model.getMethod().getName() + "$proxy" + suffixGenerator++, signature);
                     model.getUsages().put(sb.toString(), implRef);
 
-                    ProgramEmitter pe = ProgramEmitter.create(implRef.getDescriptor(), agent.getClassSource());
-                    context.pe = pe;
+                    proxyArgs[0] = context;
                     try {
                         proxyMethod.invoke(null, proxyArgs);
                     } catch (IllegalAccessException | InvocationTargetException e) {
                         diagnostics.error(location, "Error calling proxy method {{m0}}", model.getProxyMethod());
                     }
-                    agent.submitMethod(implRef, pe.getProgram());
+                    agent.submitMethod(implRef, context.generator.getProgram());
 
                     MethodDependency implMethod = agent.linkMethod(implRef, location);
                     for (i = 0; i < variants.length; ++i) {
@@ -275,10 +274,13 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
     static class ProxyGeneratorContextImpl<T> implements ProxyGeneratorContext<T> {
         private DependencyAgent agent;
-        ProgramEmitter pe;
+        private EmitterImpl<T> emitter;
+        CompoundMethodGenerator generator;
 
         public ProxyGeneratorContextImpl(DependencyAgent agent) {
             this.agent = agent;
+            generator = new CompoundMethodGenerator();
+            emitter = new EmitterImpl<>(agent.getClassSource(), generator);
         }
 
         @Override
@@ -298,7 +300,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
         @Override
         public Emitter<T> getEmitter() {
-            return null;
+            return emitter;
         }
 
         @Override

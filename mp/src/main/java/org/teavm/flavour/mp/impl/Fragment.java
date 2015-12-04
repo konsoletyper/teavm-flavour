@@ -16,24 +16,18 @@
 package org.teavm.flavour.mp.impl;
 
 import java.util.List;
-import org.teavm.flavour.mp.Computation;
 import org.teavm.model.MethodReference;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ComputationImpl<T> extends Fragment implements Computation<T> {
-    public ComputationImpl(List<Object> capturedValues, MethodReference method) {
-        super(capturedValues, method);
-    }
+public class Fragment {
+    List<Object> capturedValues;
+    MethodReference method;
 
-    @Override
-    public T compute() {
-        throw new IllegalStateException("Don't call this method directly");
-    }
-
-    public static <S> ComputationImpl<S> create(List<Object> capturedValues, MethodReference method) {
-        return new ComputationImpl<>(capturedValues, method);
+    public Fragment(List<Object> capturedValues, MethodReference method) {
+        this.capturedValues = capturedValues;
+        this.method = method;
     }
 }

@@ -16,16 +16,16 @@
 package org.teavm.flavour.mp.impl;
 
 import org.teavm.flavour.mp.Value;
-import org.teavm.model.emit.ValueEmitter;
+import org.teavm.model.Variable;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class ValueImpl<T> implements Value<T> {
-    ValueEmitter innerValue;
+    Variable innerValue;
 
-    public ValueImpl(ValueEmitter innerValue) {
+    public ValueImpl(Variable innerValue) {
         this.innerValue = innerValue;
     }
 

@@ -20,29 +20,37 @@ import org.teavm.flavour.mp.Choice;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.Value;
-import org.teavm.model.emit.ProgramEmitter;
+import org.teavm.model.ClassReaderSource;
+import org.teavm.model.MethodReader;
+import org.teavm.model.Program;
+import org.teavm.model.instructions.ExitInstruction;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class EmitterImpl<T> implements Emitter<T> {
-    private ProgramEmitter pe;
+    private ClassReaderSource classSource;
+    private CompoundMethodGenerator generator;
 
-    public EmitterImpl(ProgramEmitter pe) {
-        this.pe = pe;
+    public EmitterImpl(ClassReaderSource classSource, CompoundMethodGenerator generator) {
+        this.classSource = classSource;
+        this.generator = generator;
     }
 
     @Override
     public <S> Value<S> emit(Computation<S> computation) {
-        ComputationImpl<S> impl = (ComputationImpl<S>) computation;
-        return new ValueImpl<>(impl.generator.apply(pe));
+        Fragment fragment = (Fragment) computation;
+        MethodReader method = classSource.resolve(fragment.method);
+        generator.addProgram(method.getProgram(), fragment.capturedValues);
+        return new ValueImpl<>(generator.getResultVar());
     }
 
     @Override
     public void emit(Action action) {
-        RunnableImpl impl = (RunnableImpl) action;
-        impl.generator.accept(pe);
+        Fragment fragment = (Fragment) action;
+        MethodReader method = classSource.resolve(fragment.method);
+        generator.addProgram(method.getProgram(), fragment.capturedValues);
     }
 
     @Override
@@ -52,7 +60,14 @@ public class EmitterImpl<T> implements Emitter<T> {
 
     @Override
     public void returnValue(Computation<T> computation) {
-        ComputationImpl<T> impl = (ComputationImpl<T>) computation;
-        impl.generator.apply(pe).returnValue();
+        Fragment fragment = (Fragment) computation;
+        MethodReader method = classSource.resolve(fragment.method);
+        generator.addProgram(method.getProgram(), fragment.capturedValues);
+
+        Program targetProgram = generator.program;
+        targetProgram.basicBlockAt(targetProgram.basicBlockCount() - 1);
+        ExitInstruction insn = new ExitInstruction();
+        insn.setValueToReturn(generator.getResultVar());
+        generator.add(insn);
     }
 }

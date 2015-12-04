@@ -15,25 +15,17 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import java.util.List;
-import org.teavm.flavour.mp.Computation;
-import org.teavm.model.MethodReference;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ComputationImpl<T> extends Fragment implements Computation<T> {
-    public ComputationImpl(List<Object> capturedValues, MethodReference method) {
-        super(capturedValues, method);
-    }
-
-    @Override
-    public T compute() {
-        throw new IllegalStateException("Don't call this method directly");
-    }
-
-    public static <S> ComputationImpl<S> create(List<Object> capturedValues, MethodReference method) {
-        return new ComputationImpl<>(capturedValues, method);
-    }
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.METHOD)
+public @interface ProxyMethod {
+    String value();
 }

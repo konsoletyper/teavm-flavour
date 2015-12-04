@@ -16,24 +16,37 @@
 package org.teavm.flavour.mp.impl;
 
 import java.util.List;
-import org.teavm.flavour.mp.Computation;
-import org.teavm.model.MethodReference;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ComputationImpl<T> extends Fragment implements Computation<T> {
-    public ComputationImpl(List<Object> capturedValues, MethodReference method) {
-        super(capturedValues, method);
+public final class ProxyRuntimeHelper {
+    private ProxyRuntimeHelper() {
     }
 
-    @Override
-    public T compute() {
-        throw new IllegalStateException("Don't call this method directly");
+    public static List<Object> add(int value, List<Object> args) {
+        args.add(value);
+        return args;
     }
 
-    public static <S> ComputationImpl<S> create(List<Object> capturedValues, MethodReference method) {
-        return new ComputationImpl<>(capturedValues, method);
+    public static List<Object> add(long value, List<Object> args) {
+        args.add(value);
+        return args;
+    }
+
+    public static List<Object> add(float value, List<Object> args) {
+        args.add(value);
+        return args;
+    }
+
+    public static List<Object> add(double value, List<Object> args) {
+        args.add(value);
+        return args;
+    }
+
+    public static List<Object> add(Object value, List<Object> args) {
+        args.add(value);
+        return args;
     }
 }
