@@ -28,4 +28,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface ProxyMethod {
     String value();
+
+    String[] arguments();
 }
