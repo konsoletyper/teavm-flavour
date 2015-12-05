@@ -23,10 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.ProxyMethod;
+import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ClassReaderSource;
@@ -79,7 +82,7 @@ public class ProxyDescriber {
             diagnostics.error(location, "Proxy method should be static");
             valid = false;
         }
-        if (method.parameterCount() > 0) {
+        if (method.parameterCount() < 1) {
             diagnostics.error(location, "Proxy method shoud take at least one parameter");
             valid = false;
         }
@@ -97,14 +100,23 @@ public class ProxyDescriber {
     }
 
     private ProxyModel findProxyMethod(MethodReader method) {
+        AnnotationReader proxyAnnot = method.getAnnotations().get(ProxyMethod.class.getName());
+        if (proxyAnnot != null) {
+            return getExplicitProxyModel(method, proxyAnnot);
+        }
+
         ClassReader cls = classSource.get(method.getOwnerName());
         nextMethod: for (MethodReader proxy : cls.getMethods()) {
             if (proxy == method
                     || !proxy.hasModifier(ElementModifier.STATIC)
                     || !proxy.getName().equals(method.getName())
                     || proxy.getResultType() != ValueType.VOID
-                    || proxy.parameterCount() != method.parameterCount() + 1
-                    || !proxy.parameterType(0).isObject(ProxyGeneratorContext.class)) {
+                    || proxy.parameterCount() != method.parameterCount() + 1) {
+                continue;
+            }
+
+            if (!proxy.parameterType(0).isObject(ProxyGeneratorContext.class)
+                    && !proxy.parameterType(0).isObject(Emitter.class)) {
                 continue;
             }
 
@@ -113,18 +125,74 @@ public class ProxyDescriber {
                 ValueType proxyParam = proxy.parameterType(i + 1);
                 ValueType param = proxy.parameterType(i);
                 if (proxyParam.isObject(Value.class)) {
-                    parameters.add(new ProxyParameter(i, param, ParameterKind.VALUE));
+                    parameters.add(new ProxyParameter(i, i, param, ParameterKind.VALUE, null));
                 } else if (proxyParam.isObject(ReflectValue.class)) {
-                    parameters.add(new ProxyParameter(i, param, ParameterKind.REFLECT_VALUE));
+                    parameters.add(new ProxyParameter(i, i, param, ParameterKind.REFLECT_VALUE, null));
                 } else if (validConstantTypes.contains(proxyParam) && proxyParam.equals(param)) {
-                    parameters.add(new ProxyParameter(i, param, ParameterKind.CONSTANT));
+                    parameters.add(new ProxyParameter(i, i, param, ParameterKind.CONSTANT, null));
                 } else {
                     continue nextMethod;
                 }
             }
 
-            return new ProxyModel(method.getReference(), proxy.getReference(), parameters);
+            return new ProxyModel(method.getReference(), proxy.getReference(), parameters, parameters);
         }
         return null;
+    }
+
+    private ProxyModel getExplicitProxyModel(MethodReader method, AnnotationReader proxyAnnot) {
+        MethodReference proxyRef = MethodReference.parse(proxyAnnot.getValue("value").getString());
+        List<ProxyParameter> parameters = new ArrayList<>();
+        List<ProxyParameter> callParameters = new ArrayList<>();
+        String[] parameterValues = proxyAnnot.getValue("arguments").getList().stream()
+                .map(item -> item.getString())
+                .toArray(sz -> new String[sz]);
+
+        for (int i = 1; i < proxyRef.parameterCount(); ++i) {
+            String valueString = parameterValues[i - 1];
+            ValueType paramType = proxyRef.parameterType(i);
+            if (paramType.isObject(Value.class)) {
+                int delegateParamIndex = Integer.parseInt(valueString);
+                ProxyParameter parameter = new ProxyParameter(parameters.size(), callParameters.size(),
+                        method.parameterType(delegateParamIndex), ParameterKind.VALUE, null);
+                parameters.add(parameter);
+                callParameters.add(parameter);
+            } else if (paramType.isObject(ReflectValue.class)) {
+                int delegateParamIndex = Integer.parseInt(valueString);
+                ProxyParameter parameter = new ProxyParameter(parameters.size(), callParameters.size(),
+                        method.parameterType(delegateParamIndex), ParameterKind.REFLECT_VALUE, null);
+                parameters.add(parameter);
+                callParameters.add(parameter);
+            } else if (paramType.isObject(Boolean.class) || paramType == ValueType.BOOLEAN) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Boolean.parseBoolean(valueString)));
+            } else if (paramType.isObject(Byte.class) || paramType == ValueType.BYTE) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Byte.parseByte(valueString)));
+            } else if (paramType.isObject(Short.class) || paramType == ValueType.SHORT) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Short.parseShort(valueString)));
+            } else if (paramType.isObject(Character.class) || paramType == ValueType.CHARACTER) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, valueString.charAt(0)));
+            } else if (paramType.isObject(Integer.class) || paramType == ValueType.INTEGER) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Integer.parseInt(valueString)));
+            } else if (paramType.isObject(Long.class) || paramType == ValueType.LONG) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Long.parseLong(valueString)));
+            } else if (paramType.isObject(Float.class) || paramType == ValueType.FLOAT) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Float.parseFloat(valueString)));
+            } else if (paramType.isObject(Double.class) || paramType == ValueType.DOUBLE) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, Float.parseFloat(valueString)));
+            } else if (paramType.isObject(String.class)) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, valueString));
+            }
+        }
+
+        return new ProxyModel(method.getReference(), proxyRef, parameters, callParameters);
     }
 }

@@ -17,8 +17,12 @@ package org.teavm.flavour.mp.impl;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Value;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.BasicBlockReader;
+import org.teavm.model.CallLocation;
 import org.teavm.model.FieldReference;
 import org.teavm.model.Incoming;
 import org.teavm.model.IncomingReader;
@@ -89,22 +93,26 @@ import org.teavm.model.instructions.UnwrapArrayInstruction;
  * @author Alexey Andreev
  */
 public class CompoundMethodGenerator {
+    private Diagnostics diagnostics;
     Program program = new Program();
     private InstructionLocation location;
     private int blockIndex;
     private Variable resultVar;
     private Phi resultPhi;
+    private MethodReference templateMethod;
 
-    public CompoundMethodGenerator() {
+    public CompoundMethodGenerator(Diagnostics diagnostics) {
+        this.diagnostics = diagnostics;
         program.createBasicBlock();
     }
 
-    public void addProgram(ProgramReader template, List<Object> capturedValues) {
+    public void addProgram(MethodReference templateMethod, ProgramReader template, List<Object> capturedValues) {
+        this.templateMethod = templateMethod;
         resultVar = null;
         resultPhi = null;
         blockIndex = program.basicBlockCount() - 1;
         List<Variable> capturedVars = capturedValues.stream().map(this::captureValue).collect(Collectors.toList());
-        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, template.basicBlockCount() - 1,
+        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, program.basicBlockCount() - 1,
                 program.variableCount() - capturedVars.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
@@ -141,6 +149,8 @@ public class CompoundMethodGenerator {
 
             templateBlock.readAllInstructions(substitutor);
         }
+
+        blockIndex = program.basicBlockCount() - 1;
     }
 
     public Variable getResultVar() {
@@ -229,8 +239,8 @@ public class CompoundMethodGenerator {
             if (variable == null) {
                 return null;
             }
-            if (variable.getIndex() < capturedVars.size()) {
-                return capturedVars.get(variable.getIndex());
+            if (variable.getIndex() > 0 && variable.getIndex() <= capturedVars.size()) {
+                return capturedVars.get(variable.getIndex() - 1);
             }
             return program.variableAt(variableOffset + variable.getIndex());
         }
@@ -375,6 +385,7 @@ public class CompoundMethodGenerator {
         public void jump(BasicBlockReader target) {
             JumpInstruction insn = new JumpInstruction();
             insn.setTarget(block(target));
+            add(insn);
         }
 
         @Override
@@ -515,6 +526,21 @@ public class CompoundMethodGenerator {
         @Override
         public void invoke(VariableReader receiver, VariableReader instance, MethodReference method,
                 List<? extends VariableReader> arguments, InvocationType type) {
+            if (type == InvocationType.VIRTUAL && instance != null) {
+                if (method.getClassName().equals(Value.class.getName())
+                        || method.getClassName().equals(ReflectValue.class.getName())) {
+                    if (method.getName().equals("get")) {
+                        AssignInstruction insn = new AssignInstruction();
+                        insn.setReceiver(var(receiver));
+                        insn.setAssignee(var(instance));
+                        add(insn);
+                        return;
+                    } else {
+                        diagnostics.error(new CallLocation(templateMethod, location),
+                                "Can't call method {{m0}} in runtime domain", method);
+                    }
+                }
+            }
             InvokeInstruction insn = new InvokeInstruction();
             insn.setInstance(var(instance));
             insn.setReceiver(var(receiver));

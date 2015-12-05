@@ -23,17 +23,25 @@ import org.teavm.model.ValueType;
  */
 public class ProxyParameter {
     private int index;
+    private int callIndex;
     private ValueType type;
     private ParameterKind kind;
+    private Object value;
 
-    ProxyParameter(int index, ValueType type, ParameterKind kind) {
+    ProxyParameter(int index, int callIndex, ValueType type, ParameterKind kind, Object value) {
         this.index = index;
+        this.callIndex = callIndex;
         this.type = type;
         this.kind = kind;
+        this.value = value;
     }
 
     public int getIndex() {
         return index;
+    }
+
+    public int getCallIndex() {
+        return callIndex;
     }
 
     public ValueType getType() {
@@ -42,5 +50,9 @@ public class ProxyParameter {
 
     public ParameterKind getKind() {
         return kind;
+    }
+
+    public Object getValue() {
+        return value;
     }
 }

@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.io.PrintWriter;
 import java.lang.invoke.LambdaMetafactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.util.CheckClassAdapter;
 import org.teavm.flavour.mp.Action;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.model.MethodReference;
@@ -36,8 +38,6 @@ import org.teavm.model.MethodReference;
  */
 public class ProxyMethodInstrumentation {
     private static String lambdaMetafactory = LambdaMetafactory.class.getName().replace('.', '/');
-    private static String actionType = Action.class.getName().replace('.', '/');
-    private static String computationType = Computation.class.getName().replace('.', '/');
     private static String proxyHelperType = Type.getInternalName(ProxyRuntimeHelper.class);
     private static String listDesc = Type.getDescriptor(List.class);
 
@@ -46,7 +46,10 @@ public class ProxyMethodInstrumentation {
         ClassWriter writer = new ClassWriter(0);
         ClassTransformer transformer = new ClassTransformer(writer);
         reader.accept(transformer, 0);
-        return writer.toByteArray();
+        byte[] result = writer.toByteArray();
+
+        CheckClassAdapter.verify(new ClassReader(result), false, new PrintWriter(System.out));
+        return result;
     }
 
     class ClassTransformer extends ClassVisitor {
@@ -62,6 +65,8 @@ public class ProxyMethodInstrumentation {
     }
 
     class MethodTransformer extends MethodVisitor {
+        private boolean instrumented;
+
         public MethodTransformer(MethodVisitor mv) {
             super(Opcodes.ASM5, mv);
         }
@@ -71,10 +76,12 @@ public class ProxyMethodInstrumentation {
             if (!bsm.getOwner().equals(lambdaMetafactory) || bsm.getName().equals("metafactory")) {
                 Type returnType = Type.getReturnType(desc);
                 if (returnType.getSort() == Type.OBJECT) {
-                    if (returnType.getClassName().equals(actionType)) {
+                    if (returnType.getClassName().equals(Action.class.getName())) {
+                        instrumented = true;
                         transformAction(desc, bsmArgs);
                         return;
-                    } else if (returnType.getClassName().equals(computationType)) {
+                    } else if (returnType.getClassName().equals(Computation.class.getName())) {
+                        instrumented = true;
                         transformComputation(desc, bsmArgs);
                         return;
                     }
@@ -112,6 +119,7 @@ public class ProxyMethodInstrumentation {
                 transformArgument(argTypes[i]);
             }
 
+            super.visitInsn(Opcodes.DUP);
             super.visitMethodInsn(Opcodes.INVOKESTATIC, Type.getInternalName(Collections.class), "reverse",
                     "(" + listDesc + ")V", false);
         }
@@ -156,11 +164,11 @@ public class ProxyMethodInstrumentation {
             Type[] argTypes = Type.getArgumentTypes(handle.getDesc());
             Type resultType = Type.getReturnType(handle.getDesc());
             super.visitIntInsn(Opcodes.SIPUSH, argTypes.length + 1);
-            super.visitTypeInsn(Opcodes.ANEWARRAY, "[Ljava/lang/Class;");
+            super.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Class");
             for (int i = 0; i < argTypes.length; ++i) {
                 super.visitInsn(Opcodes.DUP);
                 super.visitIntInsn(Opcodes.SIPUSH, i);
-                super.visitLdcInsn(argTypes[i]);
+                emitClassLiteral(argTypes[i]);
                 super.visitInsn(Opcodes.AASTORE);
             }
             super.visitInsn(Opcodes.DUP);
@@ -170,6 +178,45 @@ public class ProxyMethodInstrumentation {
 
             super.visitMethodInsn(Opcodes.INVOKESPECIAL, Type.getInternalName(MethodReference.class),
                     "<init>", "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;)V", false);
+        }
+
+        private void emitClassLiteral(Type type) {
+            switch (type.getSort()) {
+                case Type.BOOLEAN:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Boolean", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.BYTE:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Byte", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.SHORT:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Short", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.CHAR:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Character", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.INT:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Integer", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.LONG:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Long", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.FLOAT:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Float", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.DOUBLE:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Double", "TYPE", "Ljava/lang/Class;");
+                    break;
+                case Type.VOID:
+                    super.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Void", "TYPE", "Ljava/lang/Class;");
+                    break;
+                default:
+                    super.visitLdcInsn(type);
+            }
+        }
+
+        @Override
+        public void visitMaxs(int maxStack, int maxLocals) {
+            super.visitMaxs(instrumented ? maxStack + 7 : maxStack, maxLocals);
         }
     }
 }

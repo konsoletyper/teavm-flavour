@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -22,13 +24,21 @@ import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ProxyGeneratorContext;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.MetaprogrammingDependencyListener.ProxyGeneratorContextImpl;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
+import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.MethodReference;
+import org.teavm.model.Program;
 import org.teavm.model.ValueType;
+import org.teavm.model.Variable;
+import org.teavm.model.instructions.InvocationType;
+import org.teavm.model.instructions.InvokeInstruction;
 
 /**
  *
@@ -37,6 +47,7 @@ import org.teavm.model.ValueType;
 class PermutationGenerator {
     private int suffixGenerator;
     DependencyAgent agent;
+    private ReflectContext reflectContext;
     ProxyModel model;
     MethodDependency methodDep;
     CallLocation location;
@@ -47,12 +58,13 @@ class PermutationGenerator {
     int[] indexes;
 
     public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
-            CallLocation location) {
+            CallLocation location, ReflectContext reflectContext) {
         this.agent = agent;
         this.diagnostics = agent.getDiagnostics();
         this.model = model;
         this.methodDep = methodDep;
         this.location = location;
+        this.reflectContext = reflectContext;
     }
 
     public void installProxyEmitter() {
@@ -62,17 +74,21 @@ class PermutationGenerator {
                 location);
         getClassDep.getThrown().connect(methodDep.getThrown());
 
-        context = new ProxyGeneratorContextImpl<>(agent);
+        ProxyClassLoader proxyClassLoader = new ProxyClassLoader(agent.getClassLoader(),
+                model.getProxyMethod().getClassName());
         try {
-            proxyMethod = getJavaMethod(agent.getClassLoader(), model.getProxyMethod());
+            proxyMethod = getJavaMethod(proxyClassLoader, model.getProxyMethod());
             proxyMethod.setAccessible(true);
         } catch (ReflectiveOperationException e) {
-            diagnostics.error(location, "Error accessing proxy method {{m0}}", model.getProxyMethod());
+            StringWriter stackTraceWriter = new StringWriter();
+            e.printStackTrace(new PrintWriter(stackTraceWriter));
+            diagnostics.error(location, "Error accessing proxy method {{m0}}: " + stackTraceWriter.getBuffer(),
+                    model.getProxyMethod());
             return;
         }
 
         for (ProxyParameter param : model.getParameters()) {
-            methodDep.getVariable(param.getIndex() + 1).addConsumer(type -> consumeType(param, type));
+            methodDep.getVariable(param.getIndex() + 1).addConsumer(type -> consumeType(param, type, getClassDep));
         }
 
         installAdditionalDependencies(getClassDep);
@@ -118,7 +134,7 @@ class PermutationGenerator {
         hashCodeDep.use();
     }
 
-    private void consumeType(ProxyParameter param, DependencyType type) {
+    private void consumeType(ProxyParameter param, DependencyType type, MethodDependency getClassDep) {
         variants = new String[model.getParameters().size()][];
         indexes = new int[variants.length];
         for (ProxyParameter otherParam : model.getParameters()) {
@@ -134,7 +150,7 @@ class PermutationGenerator {
 
         int i;
         do {
-            emitPermutation(param, type);
+            emitPermutation(param, type, getClassDep);
             for (i = 0; i < variants.length; ++i) {
                 if (variants[i] != null) {
                     if (++indexes[i] < variants[i].length) {
@@ -146,25 +162,58 @@ class PermutationGenerator {
         } while (i < variants.length);
     }
 
-    private void emitPermutation(ProxyParameter param, DependencyType type) {
-        MethodReference implRef = buildMethodReference(param, type);
-
-        Object[] proxyArgs = new Object[model.getParameters().size() + 1];
-        proxyArgs[0] = context;
-        try {
-            proxyMethod.invoke(null, proxyArgs);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            diagnostics.error(location, "Error calling proxy method {{m0}}", model.getProxyMethod());
+    private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
+        context = new ProxyGeneratorContextImpl<>(agent, reflectContext, model.getProxyMethod(),
+                model.getMethod().getReturnType());
+        for (int i = 0; i <= model.getParameters().size(); ++i) {
+            context.generator.getProgram().createVariable();
         }
-        agent.submitMethod(implRef, context.generator.getProgram());
 
-        MethodDependency implMethod = agent.linkMethod(implRef, location);
-        for (int i = 0; i < variants.length; ++i) {
-            if (variants[i] != null) {
-                DependencyType variant = agent.getType(variants[i][indexes[i]]);
-                implMethod.getVariable(i + 1).propagate(variant);
+        MethodReference implRef = buildMethodReference(masterParam, type);
+
+        Object[] proxyArgs = new Object[model.getCallParameters().size() + 1];
+        proxyArgs[0] = getContextParameter(model.getProxyMethod().parameterType(0));
+
+        for (int i = 0; i < model.getCallParameters().size(); ++i) {
+            ProxyParameter param = model.getCallParameters().get(i);
+            int j = param.getIndex();
+            switch (param.getKind()) {
+                case CONSTANT:
+                    proxyArgs[i + 1] = param.getValue();
+                    break;
+                case VALUE:
+                    proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param));
+                    break;
+                case REFLECT_VALUE: {
+                    ReflectClass<?> cls = context.findClass(param != masterParam
+                            ? variants[j][indexes[j]] : type.getName());
+                    proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls);
+                    break;
+                }
             }
         }
+
+        try {
+            proxyMethod.invoke(null, proxyArgs);
+            agent.submitMethod(implRef, context.generator.getProgram());
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            StringWriter writer = new StringWriter();
+            e.printStackTrace(new PrintWriter(writer));
+            diagnostics.error(location, "Error calling proxy method {{m0}}: " + writer.toString(),
+                    model.getProxyMethod());
+        }
+
+        MethodDependency implMethod = agent.linkMethod(implRef, location);
+        for (int i = 0; i < implRef.parameterCount(); ++i) {
+            methodDep.getVariable(i + 1).connect(implMethod.getVariable(i + 1));
+        }
+
+        for (int i = 0; i < model.getParameters().size(); ++i) {
+            if (model.getParameters().get(i).getKind() == ParameterKind.REFLECT_VALUE) {
+                implMethod.getVariable(i + 1).connect(getClassDep.getVariable(0));
+            }
+        }
+
         implMethod.getResult().connect(methodDep.getResult());
         implMethod.getThrown().connect(methodDep.getThrown());
         implMethod.use();
@@ -179,12 +228,14 @@ class PermutationGenerator {
                 String variant = variants[i][indexes[i]];
                 sb.append(variant);
                 signature[i] = ValueType.object(variant);
+            } else if (param.getIndex() == i) {
+                signature[param.getIndex()] = ValueType.object(type.getName());
+                sb.append(type.getName());
             } else {
                 signature[i] = model.getParameters().get(i).getType();
             }
         }
         signature[i] = model.getMethod().getReturnType();
-        signature[param.getIndex()] = ValueType.object(type.getName());
 
         MethodReference implRef = new MethodReference(model.getMethod().getClassName(),
                 model.getMethod().getName() + "$proxy" + suffixGenerator++, signature);
@@ -199,7 +250,7 @@ class PermutationGenerator {
         for (int i = 0; i < parameterTypes.length; ++i) {
             parameterTypes[i] = getJavaType(classLoader, ref.parameterType(i));
         }
-        return cls.getMethod(ref.getName(), parameterTypes);
+        return cls.getDeclaredMethod(ref.getName(), parameterTypes);
     }
 
     private Class<?> getJavaType(ClassLoader classLoader, ValueType type) throws ReflectiveOperationException {
@@ -232,5 +283,65 @@ class PermutationGenerator {
             return void.class;
         }
         throw new AssertionError("Don't know how to map type: " + type);
+    }
+
+    private Object getContextParameter(ValueType type) {
+        if (type.isObject(Emitter.class)) {
+            return context.getEmitter();
+        } else if (type.isObject(ProxyGeneratorContext.class)) {
+            return context;
+        } else {
+            return null;
+        }
+    }
+
+    private Variable getParameterVar(ProxyParameter param) {
+        Program program = context.generator.getProgram();
+        Variable var = program.variableAt(param.getIndex() + 1);
+        ValueType type = model.getMethod().parameterType(param.getIndex());
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                    var = box(var, Boolean.class, boolean.class);
+                    break;
+                case BYTE:
+                    var = box(var, Byte.class, byte.class);
+                    break;
+                case SHORT:
+                    var = box(var, Short.class, short.class);
+                    break;
+                case CHARACTER:
+                    var = box(var, Character.class, char.class);
+                    break;
+                case INTEGER:
+                    var = box(var, Integer.class, int.class);
+                    break;
+                case LONG:
+                    var = box(var, Long.class, long.class);
+                    break;
+                case FLOAT:
+                    var = box(var, Float.class, float.class);
+                    break;
+                case DOUBLE:
+                    var = box(var, Double.class, double.class);
+                    break;
+            }
+        }
+        return var;
+    }
+
+    private Variable box(Variable var, Class<?> boxed, Class<?> primitive) {
+        Program program = context.generator.getProgram();
+        BasicBlock block = program.basicBlockAt(0);
+
+        InvokeInstruction insn = new InvokeInstruction();
+        insn.setType(InvocationType.SPECIAL);
+        insn.setMethod(new MethodReference(boxed, "valueOf", primitive, boxed));
+        insn.getArguments().add(var);
+        var = program.createVariable();
+        insn.setReceiver(var);
+
+        block.getInstructions().add(insn);
+        return var;
     }
 }

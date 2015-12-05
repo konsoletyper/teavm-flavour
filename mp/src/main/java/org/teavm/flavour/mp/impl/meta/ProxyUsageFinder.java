@@ -27,11 +27,9 @@ import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ElementModifier;
-import org.teavm.model.Instruction;
 import org.teavm.model.InvokeDynamicInstruction;
 import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
 import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
@@ -146,160 +144,35 @@ public class ProxyUsageFinder {
         usageMethod.getModifiers().add(ElementModifier.STATIC);
         usageMethod.getModifiers().add(ElementModifier.NATIVE);
         usageMethod.getAnnotations().add(new AnnotationHolder(Reflected.class.getName()));
-        Program usageProgram = new Program();
-        usageMethod.setProgram(usageProgram);
-        BasicBlock block = usageProgram.createBasicBlock();
-        usageProgram.createVariable();
-        for (int i = 0; i < usageMethod.parameterCount(); ++i) {
-            usageProgram.createVariable();
-        }
 
-        InvokeInstruction invoke = new InvokeInstruction();
-        invoke.setReceiver(method.getResultType() != ValueType.VOID ? usageProgram.createVariable() : null);
-        invoke.setMethod(new MethodReference(cls.getName(), descriptor));
-        invoke.setType(InvocationType.SPECIAL);
-
-        ExitInstruction exit = new ExitInstruction();
-        exit.setValueToReturn(invoke.getReceiver());
-
-        int j = 1;
+        int j = 0;
+        List<String> textualArguments = new ArrayList<>();
         for (int i = 0; i < parameters.size(); ++i) {
             ProxyParameter param = parameters.get(i);
             if (param.getKind() == ParameterKind.CONSTANT) {
-                if (constants.get(i) == null) {
-                    invoke.getArguments().add(emitDefault(block, param.getType()));
-                } else {
-                    invoke.getArguments().add(emitConstant(block, constants));
-                }
+                textualArguments.add(emitConstant(constants.get(i)));
             } else {
-                invoke.getArguments().add(usageProgram.variableAt(j++));
+                textualArguments.add(String.valueOf(j++));
             }
-        }
-
-        block.getInstructions().add(invoke);
-        block.getInstructions().add(exit);
-
-        for (Instruction insn : block.getInstructions()) {
-            insn.setLocation(invocation.insn.getLocation());
         }
 
         cls.addMethod(usageMethod);
     }
 
-    private Variable emitConstant(BasicBlock block, Object constant) {
-        Program program = block.getProgram();
-        Variable var = program.createVariable();
-        if (constant instanceof Boolean) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Boolean) constant ? 1 : 0);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Byte) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Byte) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Short) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Short) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Character) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Character) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Integer) {
-            IntegerConstantInstruction insn = new IntegerConstantInstruction();
-            insn.setConstant((Integer) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Long) {
-            LongConstantInstruction insn = new LongConstantInstruction();
-            insn.setConstant((Long) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Float) {
-            FloatConstantInstruction insn = new FloatConstantInstruction();
-            insn.setConstant((Float) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof Double) {
-            DoubleConstantInstruction insn = new DoubleConstantInstruction();
-            insn.setConstant((Double) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof String) {
-            StringConstantInstruction insn = new StringConstantInstruction();
-            insn.setConstant((String) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else if (constant instanceof ValueType) {
-            ClassConstantInstruction insn = new ClassConstantInstruction();
-            insn.setConstant((ValueType) constant);
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
-        } else {
-            NullConstantInstruction insn = new NullConstantInstruction();
-            insn.setReceiver(var);
-            block.getInstructions().add(insn);
-            return var;
+    private String emitConstant(Object constant) {
+        if (constant instanceof Boolean
+                || constant instanceof Byte
+                || constant instanceof Short
+                || constant instanceof Character
+                || constant instanceof Integer
+                || constant instanceof Long
+                || constant instanceof Float
+                || constant instanceof Double
+                || constant instanceof String
+                || constant instanceof ValueType) {
+            return String.valueOf(constant);
         }
-    }
-
-    private Variable emitDefault(BasicBlock block, ValueType type) {
-        Program program = block.getProgram();
-        Variable var = program.createVariable();
-        if (type instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive) type).getKind()) {
-                case BOOLEAN:
-                case BYTE:
-                case SHORT:
-                case CHARACTER:
-                case INTEGER: {
-                    IntegerConstantInstruction insn = new IntegerConstantInstruction();
-                    insn.setConstant(0);
-                    insn.setReceiver(var);
-                    block.getInstructions().add(insn);
-                    return var;
-                }
-                case LONG: {
-                    LongConstantInstruction insn = new LongConstantInstruction();
-                    insn.setConstant(0);
-                    insn.setReceiver(var);
-                    block.getInstructions().add(insn);
-                    return var;
-                }
-                case FLOAT: {
-                    FloatConstantInstruction insn = new FloatConstantInstruction();
-                    insn.setConstant(0);
-                    insn.setReceiver(var);
-                    block.getInstructions().add(insn);
-                    return var;
-                }
-                case DOUBLE: {
-                    DoubleConstantInstruction insn = new DoubleConstantInstruction();
-                    insn.setConstant(0);
-                    insn.setReceiver(var);
-                    block.getInstructions().add(insn);
-                    return var;
-                }
-            }
-        }
-        NullConstantInstruction insn = new NullConstantInstruction();
-        insn.setReceiver(var);
-        block.getInstructions().add(insn);
-        return var;
+        return "";
     }
 
     class ProgramAnalyzer implements InstructionVisitor {

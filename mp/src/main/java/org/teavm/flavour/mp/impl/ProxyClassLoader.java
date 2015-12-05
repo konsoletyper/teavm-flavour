@@ -34,7 +34,7 @@ public class ProxyClassLoader extends ClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        if (name.startsWith(className)) {
+        if (!name.startsWith(className)) {
             return super.loadClass(name, resolve);
         } else {
             try (InputStream input = getResourceAsStream(name.replace('.', '/') + ".class")) {

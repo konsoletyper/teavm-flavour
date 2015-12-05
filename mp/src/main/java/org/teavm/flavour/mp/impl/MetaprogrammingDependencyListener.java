@@ -31,6 +31,7 @@ import org.teavm.flavour.mp.impl.meta.ProxyDescriber;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
 import org.teavm.model.CallLocation;
+import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ProgramEmitter;
@@ -44,17 +45,19 @@ import org.teavm.model.emit.ValueEmitter;
 class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private ProxyDescriber describer;
     private Set<ProxyModel> installedProxies = new HashSet<>();
+    private ReflectContext reflectContext;
 
     @Override
     public void started(DependencyAgent agent) {
         describer = new ProxyDescriber(agent.getDiagnostics(), agent.getClassSource());
+        reflectContext = new ReflectContext(agent.getClassSource(), agent.getClassLoader());
     }
 
     @Override
     public void methodReached(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
         ProxyModel proxy = describer.getProxy(methodDep.getReference());
         if (proxy != null && installedProxies.add(proxy)) {
-            new PermutationGenerator(agent, proxy, methodDep, location).installProxyEmitter();
+            new PermutationGenerator(agent, proxy, methodDep, location, reflectContext).installProxyEmitter();
         }
     }
 
@@ -68,7 +71,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             ValueEmitter sb = pe.construct(StringBuilder.class);
             ValueEmitter[] paramVars = new ValueEmitter[proxy.getParameters().size()];
             for (ProxyParameter param : proxy.getParameters()) {
-                paramVars[param.getIndex()] = pe.var(param.getIndex(), param.getType());
+                paramVars[param.getIndex()] = pe.var(param.getIndex() + 1, param.getType());
                 if (param.getKind() == ParameterKind.REFLECT_VALUE) {
                     ValueEmitter paramVar = paramVars[param.getIndex()];
                     ValueEmitter typeNameVar = paramVar
@@ -84,12 +87,12 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
             StringChooseEmitter choice = pe.stringChoice(sb.invokeVirtual("toString", String.class));
             for (Map.Entry<String, MethodReference> usageEntry : proxy.getUsages().entrySet()) {
-                MethodReference implMethod = usageEntry.getValue();
-                ValueEmitter[] castParamVars = new ValueEmitter[paramVars.length];
-                for (int i = 0; i < castParamVars.length; ++i) {
-                    castParamVars[i] = paramVars[i].cast(implMethod.parameterType(i));
-                }
                 choice.option(usageEntry.getKey(), () -> {
+                    MethodReference implMethod = usageEntry.getValue();
+                    ValueEmitter[] castParamVars = new ValueEmitter[paramVars.length];
+                    for (int i = 0; i < castParamVars.length; ++i) {
+                        castParamVars[i] = paramVars[i].cast(implMethod.parameterType(i));
+                    }
                     ValueEmitter result = pe.invoke(implMethod, castParamVars);
                     if (implMethod.getReturnType() == ValueType.VOID) {
                         pe.exit();
@@ -99,6 +102,14 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
                 });
             }
 
+            choice.otherwise(() -> {
+                if (methodDep.getReference().getReturnType() == ValueType.VOID) {
+                    pe.exit();
+                } else {
+                    pe.constantNull(Object.class).returnValue();
+                }
+            });
+
             agent.submitMethod(proxy.getMethod(), pe.getProgram());
         }
     }
@@ -107,11 +118,14 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         private DependencyAgent agent;
         private EmitterImpl<T> emitter;
         CompoundMethodGenerator generator;
+        ReflectContext reflectContext;
 
-        public ProxyGeneratorContextImpl(DependencyAgent agent) {
+        public ProxyGeneratorContextImpl(DependencyAgent agent, ReflectContext reflectContext,
+                MethodReference templateMethod, ValueType returnType) {
             this.agent = agent;
-            generator = new CompoundMethodGenerator();
-            emitter = new EmitterImpl<>(agent.getClassSource(), generator);
+            generator = new CompoundMethodGenerator(agent.getDiagnostics());
+            emitter = new EmitterImpl<>(agent.getClassSource(), generator, templateMethod, returnType);
+            this.reflectContext = reflectContext;
         }
 
         @Override
@@ -134,14 +148,19 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             return emitter;
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public <S> ReflectClass<S> findClass(Class<S> cls) {
-            return null;
+            return (ReflectClass<S>) findClass(cls.getName());
         }
 
         @Override
         public ReflectClass<?> findClass(String name) {
-            return null;
+            ClassReaderSource classSource = reflectContext.getClassSource();
+            if (classSource.get(name) == null) {
+                return null;
+            }
+            return reflectContext.getClass(ValueType.object(name));
         }
     }
 }

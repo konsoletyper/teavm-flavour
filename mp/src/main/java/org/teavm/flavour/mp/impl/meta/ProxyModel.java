@@ -30,12 +30,15 @@ public class ProxyModel {
     private MethodReference method;
     private MethodReference proxyMethod;
     private List<ProxyParameter> parameters;
+    private List<ProxyParameter> callParameters;
     private Map<String, MethodReference> usages = new HashMap<>();
 
-    ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters) {
+    ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters,
+            List<ProxyParameter> callParameters) {
         this.method = method;
         this.proxyMethod = proxyMethod;
         this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
+        this.callParameters = Collections.unmodifiableList(new ArrayList<>(callParameters));
     }
 
     public MethodReference getMethod() {
@@ -48,6 +51,10 @@ public class ProxyModel {
 
     public List<ProxyParameter> getParameters() {
         return parameters;
+    }
+
+    public List<ProxyParameter> getCallParameters() {
+        return callParameters;
     }
 
     public Map<String, MethodReference> getUsages() {

@@ -41,7 +41,7 @@ public class MetaprogrammingTest {
         em.returnValue(() -> length + add.get());
     }
 
-    @Test
+    //@Test
     public void parser() {
         Context ctx = new Context();
         ctx.a = 2;
