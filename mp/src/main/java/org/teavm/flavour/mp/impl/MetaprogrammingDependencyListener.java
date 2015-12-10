@@ -30,6 +30,7 @@ import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyDescriber;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
+import org.teavm.flavour.mp.impl.reflect.ReflectContext;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
@@ -117,13 +118,13 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     static class ProxyGeneratorContextImpl<T> implements ProxyGeneratorContext<T> {
         private DependencyAgent agent;
         private EmitterImpl<T> emitter;
-        CompoundMethodGenerator generator;
+        CompositeMethodGenerator generator;
         ReflectContext reflectContext;
 
         public ProxyGeneratorContextImpl(DependencyAgent agent, ReflectContext reflectContext,
                 MethodReference templateMethod, ValueType returnType) {
             this.agent = agent;
-            generator = new CompoundMethodGenerator(agent.getDiagnostics());
+            generator = new CompositeMethodGenerator(agent.getDiagnostics());
             emitter = new EmitterImpl<>(agent.getClassSource(), generator, templateMethod, returnType);
             this.reflectContext = reflectContext;
         }

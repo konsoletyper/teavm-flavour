@@ -13,16 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp.impl;
+package org.teavm.flavour.mp.impl.reflect;
 
 import java.lang.reflect.Array;
-import java.lang.reflect.Modifier;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ElementModifier;
+import org.teavm.model.FieldReader;
 import org.teavm.model.ValueType;
 
 /**
@@ -35,10 +39,16 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     private ClassReader classReader;
     private boolean resolved;
     private Class<?> cls;
+    private Map<String, ReflectFieldImpl> declaredFields = new HashMap<>();
+    private ReflectField[] fieldsCache;
 
-    public ReflectClassImpl(ValueType type, ReflectContext context) {
+    ReflectClassImpl(ValueType type, ReflectContext context) {
         this.type = type;
         this.context = context;
+    }
+
+    public ReflectContext getContext() {
+        return context;
     }
 
     @Override
@@ -92,49 +102,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         if (classReader == null) {
             return 0;
         }
-        int modifiers = 0;
-        switch (classReader.getLevel()) {
-            case PUBLIC:
-                modifiers |= Modifier.PUBLIC;
-                break;
-            case PROTECTED:
-                modifiers |= Modifier.PROTECTED;
-                break;
-            case PRIVATE:
-                modifiers |= Modifier.PRIVATE;
-                break;
-            case PACKAGE_PRIVATE:
-                break;
-        }
-        Set<ElementModifier> modifierSet = classReader.readModifiers();
-        if (modifierSet.contains(ElementModifier.ABSTRACT)) {
-            modifiers |= Modifier.ABSTRACT;
-        }
-        if (modifierSet.contains(ElementModifier.FINAL)) {
-            modifiers |= Modifier.FINAL;
-        }
-        if (modifierSet.contains(ElementModifier.INTERFACE)) {
-            modifiers |= Modifier.INTERFACE;
-        }
-        if (modifierSet.contains(ElementModifier.NATIVE)) {
-            modifiers |= Modifier.NATIVE;
-        }
-        if (modifierSet.contains(ElementModifier.STATIC)) {
-            modifiers |= Modifier.STATIC;
-        }
-        if (modifierSet.contains(ElementModifier.STRICT)) {
-            modifiers |= Modifier.STRICT;
-        }
-        if (modifierSet.contains(ElementModifier.SYNCHRONIZED)) {
-            modifiers |= Modifier.SYNCHRONIZED;
-        }
-        if (modifierSet.contains(ElementModifier.TRANSIENT)) {
-            modifiers |= Modifier.TRANSIENT;
-        }
-        if (modifierSet.contains(ElementModifier.VOLATILE)) {
-            modifiers |= Modifier.VOLATILE;
-        }
-        return modifiers;
+        return ReflectContext.getModifiers(classReader);
     }
 
     @Override
@@ -235,22 +203,44 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
 
     @Override
     public ReflectField[] getDeclaringFields() {
-        return null;
+        return classReader.getFields().stream()
+                .map(fld -> getDeclaringField(fld.getName()))
+                .toArray(sz -> new ReflectField[sz]);
     }
 
     @Override
     public ReflectField[] getFields() {
-        return null;
+        if (fieldsCache == null) {
+            Set<String> visited = new HashSet<>();
+            fieldsCache = context.getClassSource()
+                    .getAncestors(classReader.getName())
+                    .flatMap(cls -> cls.getFields().stream().filter(fld -> fld.getLevel() == AccessLevel.PUBLIC))
+                    .filter(fld -> visited.add(fld.getName()))
+                    .map(fld -> context.getClass(ValueType.object(fld.getOwnerName()))
+                            .getDeclaringField(fld.getName()))
+                    .toArray(sz -> new ReflectField[sz]);
+        }
+        return fieldsCache.clone();
     }
 
     @Override
     public ReflectField getDeclaringField(String name) {
-        return null;
+        return declaredFields.computeIfAbsent(name, n -> {
+            FieldReader fld = classReader.getField(n);
+            return new ReflectFieldImpl(this, fld);
+        });
     }
 
     @Override
     public ReflectField getField(String name) {
-        return null;
+        resolve();
+        if (classReader == null) {
+            return null;
+        }
+        FieldReader fieldReader = classReader.getField(name);
+        return fieldReader != null && fieldReader.getLevel() == AccessLevel.PUBLIC
+                ? getDeclaringField(name)
+                : null;
     }
 
     private void resolve() {

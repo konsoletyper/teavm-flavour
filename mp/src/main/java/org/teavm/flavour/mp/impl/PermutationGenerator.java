@@ -31,6 +31,7 @@ import org.teavm.flavour.mp.impl.MetaprogrammingDependencyListener.ProxyGenerato
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
+import org.teavm.flavour.mp.impl.reflect.ReflectContext;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.MethodReference;

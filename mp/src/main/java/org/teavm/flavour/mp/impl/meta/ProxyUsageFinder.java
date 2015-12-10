@@ -19,10 +19,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.teavm.common.DisjointSet;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.impl.ProxyMethod;
 import org.teavm.model.AnnotationHolder;
+import org.teavm.model.AnnotationValue;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
@@ -88,6 +91,10 @@ public class ProxyUsageFinder {
 
     public void findUsages(ClassHolder cls, MethodHolder method) {
         Program program = method.getProgram();
+        if (program == null) {
+            return;
+        }
+
         ProgramAnalyzer analyzer = new ProgramAnalyzer();
         for (int i = 0; i < program.variableCount(); ++i) {
             analyzer.variableSets.create();
@@ -128,15 +135,15 @@ public class ProxyUsageFinder {
                 usageSignatureBuilder.add(parameters.get(i).getType());
             }
         }
-        usageSignatureBuilder.add(method.getResultType());
-        ValueType[] usageSignature = usageSignatureBuilder.toArray(new ValueType[0]);
-        if (usageSignature.length == method.parameterCount()) {
+        if (usageSignatureBuilder.size() == invocation.insn.getMethod().parameterCount()) {
             return;
         }
 
+        usageSignatureBuilder.add(invocation.insn.getMethod().getReturnType());
+        ValueType[] usageSignature = usageSignatureBuilder.toArray(new ValueType[0]);
         MethodDescriptor descriptor;
         do {
-            String name = method.getName() + "$usage" + suffixGenerator++;
+            String name = invocation.insn.getMethod().getName() + "$usage" + suffixGenerator++;
             descriptor = new MethodDescriptor(name, usageSignature);
         } while (cls.getMethod(descriptor) != null);
 
@@ -147,16 +154,28 @@ public class ProxyUsageFinder {
 
         int j = 0;
         List<String> textualArguments = new ArrayList<>();
+        List<Variable> nonConstantArgs = new ArrayList<>();
         for (int i = 0; i < parameters.size(); ++i) {
             ProxyParameter param = parameters.get(i);
             if (param.getKind() == ParameterKind.CONSTANT) {
                 textualArguments.add(emitConstant(constants.get(i)));
             } else {
+                nonConstantArgs.add(invocation.insn.getArguments().get(i));
                 textualArguments.add(String.valueOf(j++));
             }
         }
 
         cls.addMethod(usageMethod);
+        invocation.insn.setMethod(usageMethod.getReference());
+        invocation.insn.getArguments().clear();
+        invocation.insn.getArguments().addAll(nonConstantArgs);
+
+        AnnotationHolder proxyMethodAnnot = new AnnotationHolder(ProxyMethod.class.getName());
+        proxyMethodAnnot.getValues().put("value", new AnnotationValue(invocation.proxy.getProxyMethod().toString()));
+        proxyMethodAnnot.getValues().put("arguments", new AnnotationValue(textualArguments.stream()
+                .map(arg -> new AnnotationValue(arg))
+                .collect(Collectors.toList())));
+        usageMethod.getAnnotations().add(proxyMethodAnnot);
     }
 
     private String emitConstant(Object constant) {
@@ -322,7 +341,7 @@ public class ProxyUsageFinder {
 
         @Override
         public void visit(InvokeInstruction insn) {
-            if (insn.getType() != InvocationType.SPECIAL || insn.getInstance() == null) {
+            if (insn.getType() != InvocationType.SPECIAL || insn.getInstance() != null) {
                 return;
             }
             Invocation invocation = new Invocation();
@@ -330,7 +349,9 @@ public class ProxyUsageFinder {
             invocation.index = index;
             invocation.block = block;
             invocation.proxy = describer.getProxy(insn.getMethod());
-            invocations.add(invocation);
+            if (invocation.proxy != null) {
+                invocations.add(invocation);
+            }
         }
 
         @Override

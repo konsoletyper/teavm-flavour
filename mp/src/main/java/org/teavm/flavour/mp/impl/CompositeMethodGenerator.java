@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.reflect.ReflectFieldImpl;
+import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
@@ -92,7 +94,7 @@ import org.teavm.model.instructions.UnwrapArrayInstruction;
  *
  * @author Alexey Andreev
  */
-public class CompoundMethodGenerator {
+public class CompositeMethodGenerator {
     private Diagnostics diagnostics;
     Program program = new Program();
     private InstructionLocation location;
@@ -101,7 +103,7 @@ public class CompoundMethodGenerator {
     private Phi resultPhi;
     private MethodReference templateMethod;
 
-    public CompoundMethodGenerator(Diagnostics diagnostics) {
+    public CompositeMethodGenerator(Diagnostics diagnostics) {
         this.diagnostics = diagnostics;
         program.createBasicBlock();
     }
@@ -112,8 +114,8 @@ public class CompoundMethodGenerator {
         resultPhi = null;
         blockIndex = program.basicBlockCount() - 1;
         List<Variable> capturedVars = capturedValues.stream().map(this::captureValue).collect(Collectors.toList());
-        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, program.basicBlockCount() - 1,
-                program.variableCount() - capturedVars.size());
+        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, capturedValues,
+                program.basicBlockCount() - 1, program.variableCount() - capturedVars.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             program.createBasicBlock();
@@ -206,6 +208,8 @@ public class CompoundMethodGenerator {
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
             return ((ValueImpl<?>) value).innerValue;
+        } else if (value instanceof ReflectFieldImpl) {
+            return program.createVariable();
         } else {
             throw new WrongCapturedValueException();
         }
@@ -219,16 +223,19 @@ public class CompoundMethodGenerator {
         private int blockOffset;
         private int variableOffset;
         List<Variable> capturedVars;
+        List<Object> capturedValues;
 
-        public TemplateSubstitutor(List<Variable> capturedVars, int blockOffset, int variableOffset) {
+        public TemplateSubstitutor(List<Variable> capturedVars, List<Object> capturedValues,
+                int blockOffset, int variableOffset) {
             this.capturedVars = capturedVars;
+            this.capturedValues = capturedValues;
             this.blockOffset = blockOffset;
             this.variableOffset = variableOffset;
         }
 
         @Override
         public void location(InstructionLocation location) {
-            CompoundMethodGenerator.this.location = location;
+            CompositeMethodGenerator.this.location = location;
         }
 
         @Override
@@ -539,6 +546,10 @@ public class CompoundMethodGenerator {
                         diagnostics.error(new CallLocation(templateMethod, location),
                                 "Can't call method {{m0}} in runtime domain", method);
                     }
+                } else if (method.getClassName().equals(ReflectField.class.getName())) {
+                    if (replaceFieldGetSet(receiver, instance, method, arguments)) {
+                        return;
+                    }
                 }
             }
             InvokeInstruction insn = new InvokeInstruction();
@@ -548,6 +559,47 @@ public class CompoundMethodGenerator {
             insn.setType(type);
             insn.getArguments().addAll(arguments.stream().map(this::var).collect(Collectors.toList()));
             add(insn);
+        }
+
+        private boolean replaceFieldGetSet(VariableReader receiver, VariableReader instance, MethodReference method,
+                List<? extends VariableReader> arguments) {
+            if (instance.getIndex() >= capturedValues.size()) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Can call {{m0}} method "
+                        + "only on a reflected field captured by lambda from outer context", method);
+                return false;
+            }
+
+            Object value = capturedValues.get(instance.getIndex());
+            if (!(value instanceof ReflectFieldImpl)) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Wrong call to {{m0}} method ", method);
+                return false;
+            }
+
+            ReflectFieldImpl field = (ReflectFieldImpl) value;
+            switch (method.getName()) {
+                case "get": {
+                    GetFieldInstruction insn = new GetFieldInstruction();
+                    insn.setInstance(var(arguments.get(0)));
+                    insn.setReceiver(var(receiver));
+                    insn.setField(field.getBackingField().getReference());
+                    insn.setFieldType(field.getBackingField().getType());
+                    add(insn);
+                    return true;
+                }
+                case "set": {
+                    PutFieldInstruction insn = new PutFieldInstruction();
+                    insn.setInstance(var(arguments.get(0)));
+                    insn.setValue(var(arguments.get(1)));
+                    insn.setField(field.getBackingField().getReference());
+                    insn.setFieldType(field.getBackingField().getType());
+                    add(insn);
+                    return true;
+                }
+                default:
+                    diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
+                            + "method from runtime domain", method);
+                    return true;
+            }
         }
 
         @Override

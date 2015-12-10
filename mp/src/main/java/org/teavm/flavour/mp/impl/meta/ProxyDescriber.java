@@ -123,7 +123,7 @@ public class ProxyDescriber {
             List<ProxyParameter> parameters = new ArrayList<>();
             for (int i = 0; i < method.parameterCount(); ++i) {
                 ValueType proxyParam = proxy.parameterType(i + 1);
-                ValueType param = proxy.parameterType(i);
+                ValueType param = method.parameterType(i);
                 if (proxyParam.isObject(Value.class)) {
                     parameters.add(new ProxyParameter(i, i, param, ParameterKind.VALUE, null));
                 } else if (proxyParam.isObject(ReflectValue.class)) {

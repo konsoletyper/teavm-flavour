@@ -37,7 +37,7 @@ public class MetaprogrammingTransformer implements ClassHolderTransformer {
             describer = new ProxyDescriber(diagnostics, innerSource);
             usageFinder = new ProxyUsageFinder(describer, diagnostics);
         }
-        for (MethodHolder method : cls.getMethods()) {
+        for (MethodHolder method : cls.getMethods().toArray(new MethodHolder[0])) {
             usageFinder.findUsages(cls, method);
         }
     }

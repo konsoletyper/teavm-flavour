@@ -41,7 +41,7 @@ public class MetaprogrammingTest {
         em.returnValue(() -> length + add.get());
     }
 
-    //@Test
+    @Test
     public void parser() {
         Context ctx = new Context();
         ctx.a = 2;
@@ -54,12 +54,13 @@ public class MetaprogrammingTest {
         public int b;
     }
 
+    @Reflected
     static native int eval(Object context, String expression);
     static void eval(Emitter<Integer> em, ReflectValue<Object> context, String expression) {
         Parser parser = new Parser();
         parser.em = em;
         parser.evalContext = context;
-        parser.string = expression;
+        parser.string = expression + "$";
         em.returnValue(parser.additive());
     }
 
@@ -149,9 +150,10 @@ public class MetaprogrammingTest {
         Value<Integer> parseIdentifier() {
             StringBuilder sb = new StringBuilder();
             while (isIdentifierPart(string.charAt(index))) {
-                sb.append(string.charAt(index));
+                sb.append(string.charAt(index++));
             }
             String name = sb.toString();
+            ReflectValue<Object> evalContext = this.evalContext;
             ReflectField field = evalContext.getReflectClass().getField(name);
             return em.emit(() -> (Integer) field.get(evalContext));
         }

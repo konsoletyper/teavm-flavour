@@ -36,11 +36,11 @@ import org.teavm.model.instructions.InvokeInstruction;
  */
 public class EmitterImpl<T> implements Emitter<T> {
     private ClassReaderSource classSource;
-    private CompoundMethodGenerator generator;
+    private CompositeMethodGenerator generator;
     private MethodReference templateMethod;
     private ValueType returnType;
 
-    public EmitterImpl(ClassReaderSource classSource, CompoundMethodGenerator generator,
+    public EmitterImpl(ClassReaderSource classSource, CompositeMethodGenerator generator,
             MethodReference templateMethod, ValueType returnType) {
         this.classSource = classSource;
         this.generator = generator;
@@ -70,15 +70,24 @@ public class EmitterImpl<T> implements Emitter<T> {
 
     @Override
     public void returnValue(Computation<T> computation) {
-        Fragment fragment = (Fragment) computation;
-        MethodReader method = classSource.resolve(fragment.method);
-        generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
+        if (computation instanceof Fragment) {
+            Fragment fragment = (Fragment) computation;
+            MethodReader method = classSource.resolve(fragment.method);
+            generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
 
-        Program targetProgram = generator.program;
-        targetProgram.basicBlockAt(targetProgram.basicBlockCount() - 1);
-        ExitInstruction insn = new ExitInstruction();
-        insn.setValueToReturn(unbox(generator.getResultVar()));
-        generator.add(insn);
+            Program targetProgram = generator.program;
+            targetProgram.basicBlockAt(targetProgram.basicBlockCount() - 1);
+            ExitInstruction insn = new ExitInstruction();
+            insn.setValueToReturn(unbox(generator.getResultVar()));
+            generator.add(insn);
+        } else if (computation instanceof ValueImpl) {
+            ValueImpl<?> value = (ValueImpl<?>) computation;
+            ExitInstruction insn = new ExitInstruction();
+            insn.setValueToReturn(unbox(value.innerValue));
+            generator.add(insn);
+        } else {
+            throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
+        }
     }
 
     private Variable unbox(Variable var) {

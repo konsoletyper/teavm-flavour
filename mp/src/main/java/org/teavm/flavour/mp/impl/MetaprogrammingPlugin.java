@@ -25,6 +25,7 @@ import org.teavm.vm.spi.TeaVMPlugin;
 public class MetaprogrammingPlugin implements TeaVMPlugin {
     @Override
     public void install(TeaVMHost host) {
+        host.add(new MetaprogrammingTransformer());
         host.add(new MetaprogrammingDependencyListener());
     }
 }
