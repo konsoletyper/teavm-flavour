@@ -42,6 +42,40 @@ public class MetaprogrammingTest {
     }
 
     @Test
+    public void getsField() {
+        Context ctx = new Context();
+        ctx.a = 2;
+        ctx.b = 3;
+
+        assertEquals(2, getField(ctx, "a"));
+        assertEquals(3, getField(ctx, "b"));
+    }
+
+    @Reflected
+    private static native Object getField(Object obj, String name);
+    private static void getField(Emitter<Object> em, ReflectValue<Object> obj, String name) {
+        ReflectField field = obj.getReflectClass().getField(name);
+        em.returnValue(() -> field.get(obj));
+    }
+
+    @Test
+    public void setsField() {
+        Context ctx = new Context();
+        setField(ctx, "a", 3);
+        setField(ctx, "b", 2);
+
+        assertEquals(3, ctx.a);
+        assertEquals(2, ctx.b);
+    }
+
+    @Reflected
+    private static native void setField(Object obj, String name, Object value);
+    private static void setField(Emitter<Void> em, ReflectValue<Object> obj, String name, Value<Object> value) {
+        ReflectField field = obj.getReflectClass().getField(name);
+        em.emit(() -> field.set(obj, value));
+    }
+
+    @Test
     public void parser() {
         Context ctx = new Context();
         ctx.a = 2;

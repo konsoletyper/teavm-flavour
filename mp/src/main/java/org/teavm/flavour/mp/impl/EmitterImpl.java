@@ -26,9 +26,14 @@ import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
 import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
+import org.teavm.model.instructions.DoubleConstantInstruction;
 import org.teavm.model.instructions.ExitInstruction;
+import org.teavm.model.instructions.FloatConstantInstruction;
+import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.InvocationType;
 import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.LongConstantInstruction;
+import org.teavm.model.instructions.NullConstantInstruction;
 
 /**
  *
@@ -39,6 +44,7 @@ public class EmitterImpl<T> implements Emitter<T> {
     private CompositeMethodGenerator generator;
     private MethodReference templateMethod;
     private ValueType returnType;
+    private boolean hasReturn;
 
     public EmitterImpl(ClassReaderSource classSource, CompositeMethodGenerator generator,
             MethodReference templateMethod, ValueType returnType) {
@@ -70,6 +76,7 @@ public class EmitterImpl<T> implements Emitter<T> {
 
     @Override
     public void returnValue(Computation<T> computation) {
+        hasReturn = true;
         if (computation instanceof Fragment) {
             Fragment fragment = (Fragment) computation;
             MethodReader method = classSource.resolve(fragment.method);
@@ -88,6 +95,58 @@ public class EmitterImpl<T> implements Emitter<T> {
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
+    }
+
+    public void close() {
+        if (hasReturn) {
+            return;
+        }
+
+        ExitInstruction insn = new ExitInstruction();
+        if (returnType instanceof ValueType.Void) {
+            // do nothing
+        } else if (returnType instanceof ValueType.Primitive) {
+            Variable var = generator.program.createVariable();
+            insn.setValueToReturn(var);
+            switch (((ValueType.Primitive) returnType).getKind()) {
+                case BOOLEAN:
+                case BYTE:
+                case SHORT:
+                case CHARACTER:
+                case INTEGER: {
+                    IntegerConstantInstruction constantInsn = new IntegerConstantInstruction();
+                    constantInsn.setReceiver(var);
+                    generator.add(constantInsn);
+                    break;
+                }
+                case LONG: {
+                    LongConstantInstruction constantInsn = new LongConstantInstruction();
+                    constantInsn.setReceiver(var);
+                    generator.add(constantInsn);
+                    break;
+                }
+                case FLOAT: {
+                    FloatConstantInstruction constantInsn = new FloatConstantInstruction();
+                    constantInsn.setReceiver(var);
+                    generator.add(constantInsn);
+                    break;
+                }
+                case DOUBLE: {
+                    DoubleConstantInstruction constantInsn = new DoubleConstantInstruction();
+                    constantInsn.setReceiver(var);
+                    generator.add(constantInsn);
+                    break;
+                }
+            }
+        } else {
+            NullConstantInstruction constantInsn = new NullConstantInstruction();
+            Variable var = generator.program.createVariable();
+            constantInsn.setReceiver(var);
+            generator.add(constantInsn);
+            insn.setValueToReturn(var);
+        }
+
+        generator.add(insn);
     }
 
     private Variable unbox(Variable var) {

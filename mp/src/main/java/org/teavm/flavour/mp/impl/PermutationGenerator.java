@@ -196,6 +196,7 @@ class PermutationGenerator {
 
         try {
             proxyMethod.invoke(null, proxyArgs);
+            context.emitter.close();
             agent.submitMethod(implRef, context.generator.getProgram());
         } catch (IllegalAccessException | InvocationTargetException e) {
             StringWriter writer = new StringWriter();
@@ -215,7 +216,9 @@ class PermutationGenerator {
             }
         }
 
-        implMethod.getResult().connect(methodDep.getResult());
+        if (implMethod.getResult() != null) {
+            implMethod.getResult().connect(methodDep.getResult());
+        }
         implMethod.getThrown().connect(methodDep.getThrown());
         implMethod.use();
     }

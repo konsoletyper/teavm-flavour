@@ -115,7 +115,8 @@ public class CompositeMethodGenerator {
         blockIndex = program.basicBlockCount() - 1;
         List<Variable> capturedVars = capturedValues.stream().map(this::captureValue).collect(Collectors.toList());
         TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, capturedValues,
-                program.basicBlockCount() - 1, program.variableCount() - capturedVars.size());
+                AliasFinder.findAliases(template), program.basicBlockCount() - 1,
+                program.variableCount() - capturedVars.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             program.createBasicBlock();
@@ -215,6 +216,76 @@ public class CompositeMethodGenerator {
         }
     }
 
+    Variable box(Variable var, ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                    return box(var, boolean.class, Boolean.class);
+                case BYTE:
+                    return box(var, byte.class, Byte.class);
+                case SHORT:
+                    return box(var, short.class, Short.class);
+                case CHARACTER:
+                    return box(var, char.class, Character.class);
+                case INTEGER:
+                    return box(var, int.class, Integer.class);
+                case LONG:
+                    return box(var, long.class, Long.class);
+                case FLOAT:
+                    return box(var, float.class, Float.class);
+                case DOUBLE:
+                    return box(var, double.class, Double.class);
+            }
+        }
+        return var;
+    }
+
+    private Variable box(Variable var, Class<?> primitive, Class<?> wrapper) {
+        InvokeInstruction insn = new InvokeInstruction();
+        insn.setMethod(new MethodReference(wrapper, "valueOf", primitive, wrapper));
+        insn.setType(InvocationType.SPECIAL);
+        insn.getArguments().add(var);
+        var = program.createVariable();
+        insn.setReceiver(var);
+        add(insn);
+        return var;
+    }
+
+    Variable unbox(Variable var, ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                    return unbox(var, boolean.class, Boolean.class);
+                case BYTE:
+                    return unbox(var, byte.class, Byte.class);
+                case SHORT:
+                    return unbox(var, short.class, Short.class);
+                case CHARACTER:
+                    return unbox(var, char.class, Character.class);
+                case INTEGER:
+                    return unbox(var, int.class, Integer.class);
+                case LONG:
+                    return unbox(var, long.class, Long.class);
+                case FLOAT:
+                    return unbox(var, float.class, Float.class);
+                case DOUBLE:
+                    return unbox(var, double.class, Double.class);
+            }
+        }
+        return var;
+    }
+
+    private Variable unbox(Variable var, Class<?> primitive, Class<?> wrapper) {
+        InvokeInstruction insn = new InvokeInstruction();
+        insn.setMethod(new MethodReference(wrapper, primitive.getName() + "Value", primitive));
+        insn.setType(InvocationType.VIRTUAL);
+        insn.setInstance(var);
+        var = program.createVariable();
+        insn.setReceiver(var);
+        add(insn);
+        return var;
+    }
+
     public Program getProgram() {
         return program;
     }
@@ -222,13 +293,15 @@ public class CompositeMethodGenerator {
     private class TemplateSubstitutor implements InstructionReader {
         private int blockOffset;
         private int variableOffset;
+        int[] variableMapping;
         List<Variable> capturedVars;
         List<Object> capturedValues;
 
-        public TemplateSubstitutor(List<Variable> capturedVars, List<Object> capturedValues,
+        public TemplateSubstitutor(List<Variable> capturedVars, List<Object> capturedValues, int[] variableMapping,
                 int blockOffset, int variableOffset) {
             this.capturedVars = capturedVars;
             this.capturedValues = capturedValues;
+            this.variableMapping = variableMapping;
             this.blockOffset = blockOffset;
             this.variableOffset = variableOffset;
         }
@@ -246,8 +319,9 @@ public class CompositeMethodGenerator {
             if (variable == null) {
                 return null;
             }
-            if (variable.getIndex() > 0 && variable.getIndex() <= capturedVars.size()) {
-                return capturedVars.get(variable.getIndex() - 1);
+            int index = variableMapping[variable.getIndex()];
+            if (index > 0 && index <= capturedVars.size()) {
+                return capturedVars.get(index - 1);
             }
             return program.variableAt(variableOffset + variable.getIndex());
         }
@@ -563,13 +637,14 @@ public class CompositeMethodGenerator {
 
         private boolean replaceFieldGetSet(VariableReader receiver, VariableReader instance, MethodReference method,
                 List<? extends VariableReader> arguments) {
-            if (instance.getIndex() >= capturedValues.size()) {
+            int instanceIndex = variableMapping[instance.getIndex()] - 1;
+            if (instanceIndex < 0 || instanceIndex >= capturedValues.size()) {
                 diagnostics.error(new CallLocation(templateMethod, location), "Can call {{m0}} method "
                         + "only on a reflected field captured by lambda from outer context", method);
                 return false;
             }
 
-            Object value = capturedValues.get(instance.getIndex());
+            Object value = capturedValues.get(instanceIndex);
             if (!(value instanceof ReflectFieldImpl)) {
                 diagnostics.error(new CallLocation(templateMethod, location), "Wrong call to {{m0}} method ", method);
                 return false;
@@ -578,18 +653,27 @@ public class CompositeMethodGenerator {
             ReflectFieldImpl field = (ReflectFieldImpl) value;
             switch (method.getName()) {
                 case "get": {
+                    Variable var = program.createVariable();
                     GetFieldInstruction insn = new GetFieldInstruction();
                     insn.setInstance(var(arguments.get(0)));
-                    insn.setReceiver(var(receiver));
+                    insn.setReceiver(var);
                     insn.setField(field.getBackingField().getReference());
                     insn.setFieldType(field.getBackingField().getType());
                     add(insn);
+
+                    var = box(var, field.getBackingField().getType());
+
+                    AssignInstruction assign = new AssignInstruction();
+                    assign.setAssignee(var);
+                    assign.setReceiver(var(receiver));
+                    add(assign);
+
                     return true;
                 }
                 case "set": {
                     PutFieldInstruction insn = new PutFieldInstruction();
                     insn.setInstance(var(arguments.get(0)));
-                    insn.setValue(var(arguments.get(1)));
+                    insn.setValue(unbox(var(arguments.get(1)), field.getBackingField().getType()));
                     insn.setField(field.getBackingField().getReference());
                     insn.setFieldType(field.getBackingField().getType());
                     add(insn);

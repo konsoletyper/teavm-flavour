@@ -117,7 +117,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
     static class ProxyGeneratorContextImpl<T> implements ProxyGeneratorContext<T> {
         private DependencyAgent agent;
-        private EmitterImpl<T> emitter;
+        EmitterImpl<T> emitter;
         CompositeMethodGenerator generator;
         ReflectContext reflectContext;
 

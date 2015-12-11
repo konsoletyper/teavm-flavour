@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import java.io.PrintWriter;
 import java.lang.invoke.LambdaMetafactory;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +26,6 @@ import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.util.CheckClassAdapter;
 import org.teavm.flavour.mp.Action;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.model.MethodReference;
@@ -47,8 +45,6 @@ public class ProxyMethodInstrumentation {
         ClassTransformer transformer = new ClassTransformer(writer);
         reader.accept(transformer, 0);
         byte[] result = writer.toByteArray();
-
-        CheckClassAdapter.verify(new ClassReader(result), false, new PrintWriter(System.out));
         return result;
     }
 
@@ -173,7 +169,7 @@ public class ProxyMethodInstrumentation {
             }
             super.visitInsn(Opcodes.DUP);
             super.visitIntInsn(Opcodes.SIPUSH, argTypes.length);
-            super.visitLdcInsn(resultType);
+            emitClassLiteral(resultType);
             super.visitInsn(Opcodes.AASTORE);
 
             super.visitMethodInsn(Opcodes.INVOKESPECIAL, Type.getInternalName(MethodReference.class),
