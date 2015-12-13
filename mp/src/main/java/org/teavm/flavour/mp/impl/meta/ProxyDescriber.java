@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
@@ -115,8 +114,7 @@ public class ProxyDescriber {
                 continue;
             }
 
-            if (!proxy.parameterType(0).isObject(ProxyGeneratorContext.class)
-                    && !proxy.parameterType(0).isObject(Emitter.class)) {
+            if (!proxy.parameterType(0).isObject(Emitter.class)) {
                 continue;
             }
 

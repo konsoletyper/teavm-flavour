@@ -16,7 +16,7 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.List;
-import org.teavm.flavour.mp.ProxyGeneratorContext;
+import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.TemplateNode;
@@ -42,9 +42,9 @@ import org.teavm.model.instructions.PutFieldInstruction;
  * @author Alexey Andreev
  */
 public class TemplateEmitter {
-    private ProxyGeneratorContext dependencyAgent;
+    private EmitterContext dependencyAgent;
 
-    public TemplateEmitter(ProxyGeneratorContext dependencyAgent) {
+    public TemplateEmitter(EmitterContext dependencyAgent) {
         this.dependencyAgent = dependencyAgent;
     }
 

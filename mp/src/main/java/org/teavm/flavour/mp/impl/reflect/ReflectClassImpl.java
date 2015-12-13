@@ -34,7 +34,7 @@ import org.teavm.model.ValueType;
  * @author Alexey Andreev
  */
 public class ReflectClassImpl<T> implements ReflectClass<T> {
-    private ValueType type;
+    public final ValueType type;
     private ReflectContext context;
     private ClassReader classReader;
     private boolean resolved;

@@ -23,7 +23,7 @@ import java.util.List;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
-import org.teavm.flavour.mp.ProxyGeneratorContext;
+import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
@@ -40,10 +40,10 @@ import org.teavm.model.emit.ProgramEmitter;
  * @author Alexey Andreev
  */
 public class TemplatingProxyGenerator /*implements ProxyGenerator*/ {
-    private ProxyGeneratorContext context;
+    private EmitterContext context;
 
     //@Override
-    public void setContext(ProxyGeneratorContext context) {
+    public void setContext(EmitterContext context) {
         this.context = context;
     }
 

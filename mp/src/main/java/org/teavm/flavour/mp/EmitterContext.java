@@ -22,14 +22,14 @@ import org.teavm.diagnostics.Diagnostics;
  *
  * @author Alexey Andreev
  */
-public interface ProxyGeneratorContext<T> extends ServiceRepository {
+public interface EmitterContext extends ServiceRepository {
     Diagnostics getDiagnostics();
 
     ClassLoader getClassLoader();
 
-    Emitter<T> getEmitter();
-
-    <S> ReflectClass<S> findClass(Class<S> cls);
+    <T> ReflectClass<T> findClass(Class<T> cls);
 
     ReflectClass<?> findClass(String name);
+
+    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
 }

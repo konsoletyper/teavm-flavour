@@ -25,9 +25,7 @@ import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ProxyGeneratorContext;
 import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.impl.MetaprogrammingDependencyListener.ProxyGeneratorContextImpl;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
@@ -53,7 +51,7 @@ class PermutationGenerator {
     MethodDependency methodDep;
     CallLocation location;
     Diagnostics diagnostics;
-    ProxyGeneratorContextImpl<Object> context;
+    EmitterImpl<Object> emitter;
     Method proxyMethod;
     String[][] variants;
     int[] indexes;
@@ -164,10 +162,12 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
-        context = new ProxyGeneratorContextImpl<>(agent, reflectContext, model.getProxyMethod(),
-                model.getMethod().getReturnType());
+        EmitterContextImpl context = new EmitterContextImpl(agent, reflectContext);
+        emitter = new EmitterImpl<>(context, agent.getClassSource(), new CompositeMethodGenerator(diagnostics),
+                model.getProxyMethod(), model.getMethod().getReturnType());
+
         for (int i = 0; i <= model.getParameters().size(); ++i) {
-            context.generator.getProgram().createVariable();
+            emitter.generator.getProgram().createVariable();
         }
 
         MethodReference implRef = buildMethodReference(masterParam, type);
@@ -196,8 +196,8 @@ class PermutationGenerator {
 
         try {
             proxyMethod.invoke(null, proxyArgs);
-            context.emitter.close();
-            agent.submitMethod(implRef, context.generator.getProgram());
+            emitter.close();
+            agent.submitMethod(implRef, emitter.generator.getProgram());
         } catch (IllegalAccessException | InvocationTargetException e) {
             StringWriter writer = new StringWriter();
             e.printStackTrace(new PrintWriter(writer));
@@ -291,16 +291,14 @@ class PermutationGenerator {
 
     private Object getContextParameter(ValueType type) {
         if (type.isObject(Emitter.class)) {
-            return context.getEmitter();
-        } else if (type.isObject(ProxyGeneratorContext.class)) {
-            return context;
+            return emitter;
         } else {
             return null;
         }
     }
 
     private Variable getParameterVar(ProxyParameter param) {
-        Program program = context.generator.getProgram();
+        Program program = emitter.generator.getProgram();
         Variable var = program.variableAt(param.getIndex() + 1);
         ValueType type = model.getMethod().parameterType(param.getIndex());
         if (type instanceof ValueType.Primitive) {
@@ -335,7 +333,7 @@ class PermutationGenerator {
     }
 
     private Variable box(Variable var, Class<?> boxed, Class<?> primitive) {
-        Program program = context.generator.getProgram();
+        Program program = emitter.generator.getProgram();
         BasicBlock block = program.basicBlockAt(0);
 
         InvokeInstruction insn = new InvokeInstruction();

@@ -22,17 +22,12 @@ import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.dependency.MethodDependencyInfo;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ProxyGeneratorContext;
-import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyDescriber;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
 import org.teavm.flavour.mp.impl.reflect.ReflectContext;
 import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.emit.ProgramEmitter;
@@ -112,56 +107,6 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             });
 
             agent.submitMethod(proxy.getMethod(), pe.getProgram());
-        }
-    }
-
-    static class ProxyGeneratorContextImpl<T> implements ProxyGeneratorContext<T> {
-        private DependencyAgent agent;
-        EmitterImpl<T> emitter;
-        CompositeMethodGenerator generator;
-        ReflectContext reflectContext;
-
-        public ProxyGeneratorContextImpl(DependencyAgent agent, ReflectContext reflectContext,
-                MethodReference templateMethod, ValueType returnType) {
-            this.agent = agent;
-            generator = new CompositeMethodGenerator(agent.getDiagnostics());
-            emitter = new EmitterImpl<>(agent.getClassSource(), generator, templateMethod, returnType);
-            this.reflectContext = reflectContext;
-        }
-
-        @Override
-        public <S> S getService(Class<S> type) {
-            return agent.getService(type);
-        }
-
-        @Override
-        public Diagnostics getDiagnostics() {
-            return agent.getDiagnostics();
-        }
-
-        @Override
-        public ClassLoader getClassLoader() {
-            return agent.getClassLoader();
-        }
-
-        @Override
-        public Emitter<T> getEmitter() {
-            return emitter;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public <S> ReflectClass<S> findClass(Class<S> cls) {
-            return (ReflectClass<S>) findClass(cls.getName());
-        }
-
-        @Override
-        public ReflectClass<?> findClass(String name) {
-            ClassReaderSource classSource = reflectContext.getClassSource();
-            if (classSource.get(name) == null) {
-                return null;
-            }
-            return reflectContext.getClass(ValueType.object(name));
         }
     }
 }

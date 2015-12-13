@@ -19,12 +19,16 @@ package org.teavm.flavour.mp;
  *
  * @author Alexey Andreev
  */
-public interface Emitter<S> {
-    <T> Value<T> emit(Computation<T> computation);
+public interface Emitter<T> {
+    EmitterContext getContext();
+
+    <S> Value<S> emit(Computation<S> computation);
 
     void emit(Action action);
 
-    <T> Choice<T> choose(Value<Integer> value);
+    <S> Choice<S> choose(ReflectClass<S> type);
 
-    void returnValue(Computation<S> computation);
+    <S> Choice<S> choose(Class<S> type);
+
+    void returnValue(Computation<T> computation);
 }
