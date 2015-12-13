@@ -97,8 +97,8 @@ import org.teavm.model.instructions.UnwrapArrayInstruction;
 public class CompositeMethodGenerator {
     private Diagnostics diagnostics;
     Program program = new Program();
-    private InstructionLocation location;
-    private int blockIndex;
+    InstructionLocation location;
+    int blockIndex;
     private Variable resultVar;
     private Phi resultPhi;
     private MethodReference templateMethod;
@@ -109,10 +109,10 @@ public class CompositeMethodGenerator {
     }
 
     public void addProgram(MethodReference templateMethod, ProgramReader template, List<Object> capturedValues) {
+        location = null;
         this.templateMethod = templateMethod;
         resultVar = null;
         resultPhi = null;
-        blockIndex = program.basicBlockCount() - 1;
         List<Variable> capturedVars = capturedValues.stream().map(this::captureValue).collect(Collectors.toList());
         TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, capturedValues,
                 AliasFinder.findAliases(template), program.basicBlockCount() - 1,
@@ -127,7 +127,9 @@ public class CompositeMethodGenerator {
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             BasicBlockReader templateBlock = template.basicBlockAt(i);
-            blockIndex = substitutor.blockOffset + i;
+            if (i > 0) {
+                blockIndex = substitutor.blockOffset + i;
+            }
             BasicBlock targetBlock = program.basicBlockAt(blockIndex);
 
             for (PhiReader templatePhi : templateBlock.readPhis()) {
@@ -158,6 +160,10 @@ public class CompositeMethodGenerator {
 
     public Variable getResultVar() {
         return resultVar;
+    }
+
+    public BasicBlock currentBlock() {
+        return program.basicBlockAt(blockIndex);
     }
 
     void add(Instruction insn) {

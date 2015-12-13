@@ -23,4 +23,6 @@ public interface Choice<T> {
     Emitter<T> option(Computation<Boolean> condition);
 
     Emitter<T> defaultOption();
+
+    Value<T> getValue();
 }

@@ -16,8 +16,12 @@
 package org.teavm.flavour.mp.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import java.util.function.Consumer;
 import org.junit.Test;
+import org.teavm.flavour.mp.Choice;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
@@ -73,6 +77,63 @@ public class MetaprogrammingTest {
     private static void setField(Emitter<Void> em, ReflectValue<Object> obj, String name, Value<Object> value) {
         ReflectField field = obj.getReflectClass().getField(name);
         em.emit(() -> field.set(obj, value));
+    }
+
+    @Test
+    public void conditionalWorks() {
+        Context ctx = new Context();
+
+        assertEquals("int", fieldType(ctx, "a"));
+        assertEquals("int", fieldType(ctx, "b"));
+        assertNull(fieldType(ctx, "c"));
+    }
+
+    @Reflected
+    private static native String fieldType(Object obj, String name);
+    private static void fieldType(Emitter<String> em, ReflectValue<Object> obj, Value<String> name) {
+        Choice<String> result = em.choose(String.class);
+        ReflectClass<Object> cls = obj.getReflectClass();
+        for (ReflectField field : cls.getDeclaringFields()) {
+            String type = field.getType().getName();
+            String fieldName = field.getName();
+            result.option(() -> fieldName.equals(name.get())).returnValue(() -> type);
+        }
+        em.returnValue(result.getValue());
+    }
+
+    @Test
+    public void conditionalActionWorks() {
+        Context ctx = new Context();
+        class TypeConsumer implements Consumer<String> {
+            String type;
+            @Override public void accept(String t) {
+                type = t;
+            }
+        }
+        TypeConsumer consumer = new TypeConsumer();
+
+        fieldType(ctx, "a", consumer);
+        assertEquals("int", consumer.type);
+
+        fieldType(ctx, "b", consumer);
+        assertEquals("int", consumer.type);
+
+        fieldType(ctx, "c", consumer);
+        assertNull(consumer.type);
+    }
+
+    @Reflected
+    private static native void fieldType(Object obj, String name, Consumer<String> typeConsumer);
+    private static void fieldType(Emitter<String> em, ReflectValue<Object> obj, Value<String> name,
+            Value<Consumer<String>> typeConsumer) {
+        Choice<Void> result = em.choose(Void.class);
+        ReflectClass<Object> cls = obj.getReflectClass();
+        for (ReflectField field : cls.getDeclaringFields()) {
+            String type = field.getType().getName();
+            String fieldName = field.getName();
+            result.option(() -> fieldName.equals(name.get())).emit(() -> typeConsumer.get().accept(type));
+        }
+        result.defaultOption().emit(() -> typeConsumer.get().accept(null));
     }
 
     @Test

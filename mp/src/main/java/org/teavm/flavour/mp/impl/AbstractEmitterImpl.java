@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.teavm.flavour.mp.Action;
 import org.teavm.flavour.mp.Choice;
 import org.teavm.flavour.mp.Computation;
@@ -46,12 +48,16 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     private MethodReference templateMethod;
     private ValueType returnType;
     private boolean hasReturn;
+    private boolean closed;
+    private List<ChoiceImpl<?>> choices = new ArrayList<>();
+    int blockIndex;
 
     public AbstractEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
             CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType) {
         this.context = context;
         this.classSource = classSource;
         this.generator = generator;
+        blockIndex = generator.blockIndex;
         this.templateMethod = templateMethod;
         this.returnType = returnType;
     }
@@ -63,9 +69,11 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Value<S> emit(Computation<S> computation) {
+        generator.blockIndex = blockIndex;
         Fragment fragment = (Fragment) computation;
         MethodReader method = classSource.resolve(fragment.method);
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
+        blockIndex = generator.blockIndex;
         return new ValueImpl<>(generator.getResultVar());
     }
 
@@ -73,21 +81,27 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     public void emit(Action action) {
         Fragment fragment = (Fragment) action;
         MethodReader method = classSource.resolve(fragment.method);
+        generator.blockIndex = blockIndex;
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
+        blockIndex = generator.blockIndex;
     }
 
     @Override
     public <S> Choice<S> choose(ReflectClass<S> type) {
-        return null;
+        ChoiceImpl<S> choice = new ChoiceImpl<>(context, classSource, templateMethod, generator, returnType);
+        choices.add(choice);
+        blockIndex = generator.blockIndex;
+        return choice;
     }
 
     @Override
     public <S> Choice<S> choose(Class<S> type) {
-        return null;
+        return choose(context.findClass(type));
     }
 
     @Override
     public void returnValue(Computation<T> computation) {
+        generator.blockIndex = blockIndex;
         hasReturn = true;
         if (computation instanceof Fragment) {
             Fragment fragment = (Fragment) computation;
@@ -103,15 +117,26 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
+        blockIndex = generator.blockIndex;
     }
 
     protected abstract void returnValue(Variable var);
 
     public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        for (ChoiceImpl<?> choice : choices) {
+            choice.close();
+        }
+
         if (hasReturn) {
             return;
         }
 
+        hasReturn = true;
+        generator.blockIndex = blockIndex;
         Variable var;
         if (returnType instanceof ValueType.Void) {
             var = null;

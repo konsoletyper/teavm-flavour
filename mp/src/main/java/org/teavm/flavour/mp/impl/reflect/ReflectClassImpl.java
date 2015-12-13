@@ -203,6 +203,10 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
 
     @Override
     public ReflectField[] getDeclaringFields() {
+        resolve();
+        if (classReader == null) {
+            return new ReflectField[0];
+        }
         return classReader.getFields().stream()
                 .map(fld -> getDeclaringField(fld.getName()))
                 .toArray(sz -> new ReflectField[sz]);
