@@ -16,6 +16,8 @@
 package org.teavm.flavour.mp.impl.reflect;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -27,6 +29,8 @@ import org.teavm.model.AccessLevel;
 import org.teavm.model.ClassReader;
 import org.teavm.model.ElementModifier;
 import org.teavm.model.FieldReader;
+import org.teavm.model.MethodDescriptor;
+import org.teavm.model.MethodReader;
 import org.teavm.model.ValueType;
 
 /**
@@ -41,6 +45,9 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     private Class<?> cls;
     private Map<String, ReflectFieldImpl> declaredFields = new HashMap<>();
     private ReflectField[] fieldsCache;
+    private Map<MethodDescriptor, ReflectMethodImpl> methods = new HashMap<>();
+    private Map<String, ReflectMethodImpl> declaredMethods = new HashMap<>();
+    private ReflectMethod[] methodsCache;
 
     ReflectClassImpl(ValueType type, ReflectContext context) {
         this.type = type;
@@ -173,7 +180,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
 
     @Override
     public boolean isInstance(Object obj) {
-        throw new IllegalStateException("Can call this method only from runtime domain");
+        throw new IllegalStateException("Don't call this method from compile domain");
     }
 
     @Override
@@ -182,33 +189,103 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     }
 
     @Override
-    public ReflectMethod[] getDeclaringMethods() {
-        return null;
+    public ReflectMethod[] getDeclaredMethods() {
+        resolve();
+        if (classReader == null) {
+            return new ReflectMethod[0];
+        }
+        return classReader.getMethods().stream()
+                .filter(method -> !method.getName().equals("<clinit>"))
+                .map(method -> getDeclaredMethod(method.getDescriptor()))
+                .toArray(sz -> new ReflectMethod[sz]);
     }
 
     @Override
     public ReflectMethod[] getMethods() {
-        return null;
+        resolve();
+        if (classReader == null) {
+            return new ReflectMethod[0];
+        }
+        if (methodsCache == null) {
+            Set<String> visited = new HashSet<>();
+            methodsCache = context.getClassSource().getAncestorClasses(classReader.getName())
+                    .flatMap(cls -> cls.getMethods().stream())
+                    .filter(method -> !method.getName().equals("<clinit>"))
+                    .filter(method -> visited.add(method.getDescriptor().toString()))
+                    .map(method -> getDeclaredMethod(method.getDescriptor()))
+                    .toArray(sz -> new ReflectMethod[sz]);
+        }
+        return methodsCache.clone();
     }
 
     @Override
-    public ReflectMethod getDeclaringMethod(String name, ReflectClass<?>... parameterTypes) {
-        return null;
+    public ReflectMethod getDeclaredMethod(String name, ReflectClass<?>... parameterTypes) {
+        resolve();
+        if (classReader == null) {
+            return null;
+        }
+
+        ValueType[] internalParameterTypes = Arrays.stream(parameterTypes)
+                .map(type -> ((ReflectClassImpl<?>) type).type)
+                .toArray(sz -> new ValueType[sz]);
+        String key = name + "(" + ValueType.manyToString(internalParameterTypes) + ")";
+        return declaredMethods.computeIfAbsent(key, k -> {
+            MethodReader candidate = null;
+            for (MethodReader method : classReader.getMethods()) {
+                if (!Arrays.equals(method.getParameterTypes(), internalParameterTypes)) {
+                    continue;
+                }
+                if (candidate == null) {
+                    candidate = method;
+                } else {
+                    boolean moreSpecial = context.getClassSource()
+                            .isSuperType(candidate.getResultType(), method.getResultType())
+                            .orElse(false);
+                    if (moreSpecial) {
+                        candidate = method;
+                    }
+                }
+            }
+
+            return candidate != null ? getDeclaredMethod(candidate.getDescriptor()) : null;
+        });
+    }
+
+    private ReflectMethodImpl getDeclaredMethod(MethodDescriptor method) {
+        resolve();
+        return methods.computeIfAbsent(method, m -> {
+            MethodReader methodReader = classReader.getMethod(m);
+            return methodReader != null ? new ReflectMethodImpl(this, methodReader) : null;
+        });
     }
 
     @Override
     public ReflectMethod getMethod(String name, ReflectClass<?>... parameterTypes) {
+        resolve();
+        if (classReader == null) {
+            return null;
+        }
+
+        Iterable<ClassReader> ancestors = () -> context.getClassSource().getAncestors(classReader.getName())
+                .iterator();
+        for (ClassReader cls : ancestors) {
+            ReflectClassImpl<?> reflectClass = context.getClass(ValueType.object(cls.getName()));
+            ReflectMethod method = reflectClass.getDeclaredMethod(name, parameterTypes);
+            if (method != null && Modifier.isPublic(method.getModifiers())) {
+                return method;
+            }
+        }
         return null;
     }
 
     @Override
-    public ReflectField[] getDeclaringFields() {
+    public ReflectField[] getDeclaredFields() {
         resolve();
         if (classReader == null) {
             return new ReflectField[0];
         }
         return classReader.getFields().stream()
-                .map(fld -> getDeclaringField(fld.getName()))
+                .map(fld -> getDeclaredField(fld.getName()))
                 .toArray(sz -> new ReflectField[sz]);
     }
 
@@ -221,17 +298,18 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
                     .flatMap(cls -> cls.getFields().stream().filter(fld -> fld.getLevel() == AccessLevel.PUBLIC))
                     .filter(fld -> visited.add(fld.getName()))
                     .map(fld -> context.getClass(ValueType.object(fld.getOwnerName()))
-                            .getDeclaringField(fld.getName()))
+                            .getDeclaredField(fld.getName()))
                     .toArray(sz -> new ReflectField[sz]);
         }
         return fieldsCache.clone();
     }
 
     @Override
-    public ReflectField getDeclaringField(String name) {
+    public ReflectField getDeclaredField(String name) {
+        resolve();
         return declaredFields.computeIfAbsent(name, n -> {
             FieldReader fld = classReader.getField(n);
-            return new ReflectFieldImpl(this, fld);
+            return fld != null ? new ReflectFieldImpl(this, fld) : null;
         });
     }
 
@@ -243,7 +321,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         }
         FieldReader fieldReader = classReader.getField(name);
         return fieldReader != null && fieldReader.getLevel() == AccessLevel.PUBLIC
-                ? getDeclaringField(name)
+                ? getDeclaredField(name)
                 : null;
     }
 

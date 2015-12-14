@@ -27,7 +27,7 @@ import org.teavm.model.FieldReader;
 public class ReflectFieldImpl implements ReflectField {
     private ReflectContext context;
     private ReflectClassImpl<?> declaringClass;
-    private FieldReader field;
+    public final FieldReader field;
     private ReflectClassImpl<?> type;
 
     public ReflectFieldImpl(ReflectClassImpl<?> declaringClass, FieldReader field) {

@@ -26,7 +26,9 @@ public interface ReflectMethod extends ReflectMember {
 
     ReflectClass<?> getReturnType();
 
-    ReflectClass<?> getParameterTypes();
+    ReflectClass<?>[] getParameterTypes();
+
+    ReflectClass<?> getParameterType(int index);
 
     int getParameterCount();
 

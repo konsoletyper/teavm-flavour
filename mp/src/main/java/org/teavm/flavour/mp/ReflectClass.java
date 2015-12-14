@@ -55,19 +55,19 @@ public interface ReflectClass<T> {
                 || Arrays.stream(getInterfaces()).anyMatch(c -> c.isAssignableFrom(cls));
     }
 
-    ReflectMethod[] getDeclaringMethods();
+    ReflectMethod[] getDeclaredMethods();
 
     ReflectMethod[] getMethods();
 
-    ReflectMethod getDeclaringMethod(String name, ReflectClass<?>... parameterTypes);
+    ReflectMethod getDeclaredMethod(String name, ReflectClass<?>... parameterTypes);
 
     ReflectMethod getMethod(String name, ReflectClass<?>... parameterTypes);
 
-    ReflectField[] getDeclaringFields();
+    ReflectField[] getDeclaredFields();
 
     ReflectField[] getFields();
 
-    ReflectField getDeclaringField(String name);
+    ReflectField getDeclaredField(String name);
 
     ReflectField getField(String name);
 }

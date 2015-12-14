@@ -55,7 +55,7 @@ public class EmitterContextImpl implements EmitterContext {
     @SuppressWarnings("unchecked")
     @Override
     public <T> ReflectClass<T> findClass(Class<T> cls) {
-        return (ReflectClass<T>) findClass(cls.getName());
+        return (ReflectClass<T>) reflectContext.getClass(ValueType.parse(cls));
     }
 
     @Override

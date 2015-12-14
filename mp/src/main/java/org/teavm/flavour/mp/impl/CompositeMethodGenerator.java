@@ -15,16 +15,20 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.impl.reflect.ReflectFieldImpl;
+import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.CallLocation;
+import org.teavm.model.ElementModifier;
 import org.teavm.model.FieldReference;
 import org.teavm.model.Incoming;
 import org.teavm.model.IncomingReader;
@@ -215,7 +219,7 @@ public class CompositeMethodGenerator {
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
             return ((ValueImpl<?>) value).innerValue;
-        } else if (value instanceof ReflectFieldImpl) {
+        } else if (value instanceof ReflectFieldImpl || value instanceof ReflectMethodImpl) {
             return program.createVariable();
         } else {
             throw new WrongCapturedValueException();
@@ -630,6 +634,10 @@ public class CompositeMethodGenerator {
                     if (replaceFieldGetSet(receiver, instance, method, arguments)) {
                         return;
                     }
+                } else if (method.getClassName().equals(ReflectMethod.class.getName())) {
+                    if (replaceMethodInvocation(receiver, instance, method, arguments)) {
+                        return;
+                    }
                 }
             }
             InvokeInstruction insn = new InvokeInstruction();
@@ -661,7 +669,7 @@ public class CompositeMethodGenerator {
                 case "get": {
                     Variable var = program.createVariable();
                     GetFieldInstruction insn = new GetFieldInstruction();
-                    insn.setInstance(var(arguments.get(0)));
+                    insn.setInstance(!field.field.hasModifier(ElementModifier.STATIC) ? var(arguments.get(0)) : null);
                     insn.setReceiver(var);
                     insn.setField(field.getBackingField().getReference());
                     insn.setFieldType(field.getBackingField().getType());
@@ -678,7 +686,8 @@ public class CompositeMethodGenerator {
                 }
                 case "set": {
                     PutFieldInstruction insn = new PutFieldInstruction();
-                    insn.setInstance(var(arguments.get(0)));
+                    insn.setInstance(!field.field.hasModifier(ElementModifier.STATIC) ? var(arguments.get(0)) : null);
+                    // TODO: cast value
                     insn.setValue(unbox(var(arguments.get(1)), field.getBackingField().getType()));
                     insn.setField(field.getBackingField().getReference());
                     insn.setFieldType(field.getBackingField().getType());
@@ -688,7 +697,84 @@ public class CompositeMethodGenerator {
                 default:
                     diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
                             + "method from runtime domain", method);
+                    return false;
+            }
+        }
+
+        private boolean replaceMethodInvocation(VariableReader receiver, VariableReader instance,
+                MethodReference method, List<? extends VariableReader> arguments) {
+            int instanceIndex = variableMapping[instance.getIndex()] - 1;
+            if (instanceIndex < 0 || instanceIndex >= capturedValues.size()) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Can call {{m0}} method "
+                        + "only on a reflected field captured by lambda from outer context", method);
+                return false;
+            }
+
+            Object value = capturedValues.get(instanceIndex);
+            if (!(value instanceof ReflectMethodImpl)) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Wrong call to {{m0}} method ", method);
+                return false;
+            }
+
+            ReflectMethodImpl reflectMethod = (ReflectMethodImpl) value;
+            switch (method.getName()) {
+                case "invoke": {
+                    InvokeInstruction insn = new InvokeInstruction();
+                    insn.setInstance(!Modifier.isStatic(reflectMethod.getModifiers()) ? var(arguments.get(0)) : null);
+                    insn.setType(Modifier.isStatic(reflectMethod.getModifiers()) ? InvocationType.SPECIAL
+                            : InvocationType.VIRTUAL);
+                    insn.setMethod(reflectMethod.method.getReference());
+
+                    Variable argumentsVar = var(arguments.get(1));
+                    UnwrapArrayInstruction unwrapInsn = new UnwrapArrayInstruction(ArrayElementType.OBJECT);
+                    unwrapInsn.setArray(argumentsVar);
+                    unwrapInsn.setReceiver(program.createVariable());
+                    add(unwrapInsn);
+                    argumentsVar = unwrapInsn.getReceiver();
+
+                    for (int i = 0; i < reflectMethod.getParameterCount(); ++i) {
+                        IntegerConstantInstruction indexInsn = new IntegerConstantInstruction();
+                        indexInsn.setConstant(i);
+                        indexInsn.setReceiver(program.createVariable());
+                        add(indexInsn);
+
+                        GetElementInstruction extractArgInsn = new GetElementInstruction();
+                        extractArgInsn.setArray(argumentsVar);
+                        extractArgInsn.setIndex(indexInsn.getReceiver());
+                        extractArgInsn.setReceiver(program.createVariable());
+                        add(extractArgInsn);
+
+                        // TODO: cast argument
+
+                        insn.getArguments().add(unbox(extractArgInsn.getReceiver(),
+                                reflectMethod.method.parameterType(i)));
+                    }
+
+                    add(insn);
+
+                    if (receiver != null) {
+                        if (reflectMethod.method.getResultType() == ValueType.VOID) {
+                            NullConstantInstruction nullInsn = new NullConstantInstruction();
+                            nullInsn.setReceiver(var(receiver));
+                            add(nullInsn);
+                        } else {
+                            Variable var = program.createVariable();
+                            insn.setReceiver(var);
+                            var = box(var, reflectMethod.method.getResultType());
+
+                            AssignInstruction assign = new AssignInstruction();
+                            assign.setAssignee(var);
+                            assign.setReceiver(var(receiver));
+                            add(assign);
+                        }
+                    }
+
                     return true;
+                }
+                default:
+                    diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
+                            + "method from runtime domain", method);
+                    return false;
             }
         }
 

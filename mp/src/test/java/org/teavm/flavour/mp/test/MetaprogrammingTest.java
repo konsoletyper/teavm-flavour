@@ -26,6 +26,7 @@ import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
@@ -93,7 +94,7 @@ public class MetaprogrammingTest {
     private static void fieldType(Emitter<String> em, ReflectValue<Object> obj, Value<String> name) {
         Choice<String> result = em.choose(String.class);
         ReflectClass<Object> cls = obj.getReflectClass();
-        for (ReflectField field : cls.getDeclaringFields()) {
+        for (ReflectField field : cls.getDeclaredFields()) {
             String type = field.getType().getName();
             String fieldName = field.getName();
             result.option(() -> fieldName.equals(name.get())).returnValue(() -> type);
@@ -124,16 +125,60 @@ public class MetaprogrammingTest {
 
     @Reflected
     private static native void fieldType(Object obj, String name, Consumer<String> typeConsumer);
-    private static void fieldType(Emitter<String> em, ReflectValue<Object> obj, Value<String> name,
+    private static void fieldType(Emitter<Void> em, ReflectValue<Object> obj, Value<String> name,
             Value<Consumer<String>> typeConsumer) {
         Choice<Void> result = em.choose(Void.class);
         ReflectClass<Object> cls = obj.getReflectClass();
-        for (ReflectField field : cls.getDeclaringFields()) {
+        for (ReflectField field : cls.getDeclaredFields()) {
             String type = field.getType().getName();
             String fieldName = field.getName();
             result.option(() -> fieldName.equals(name.get())).emit(() -> typeConsumer.get().accept(type));
         }
         result.defaultOption().emit(() -> typeConsumer.get().accept(null));
+    }
+
+    @Test
+    public void methodInvoked() {
+        assertEquals("debug!", callDebug(new A()));
+        assertEquals("missing", callDebug(new B()));
+        assertEquals("missing", callDebug(new A(), "foo", 23));
+        assertEquals("debug!foo:23", callDebug(new B(), "foo", 23));
+    }
+
+    @Reflected
+    private static native String callDebug(Object obj);
+    private static void callDebug(Emitter<String> em, ReflectValue<Object> obj) {
+        ReflectMethod method = obj.getReflectClass().getMethod("debug");
+        if (method == null) {
+            em.returnValue(() -> "missing");
+        } else {
+            em.returnValue(() -> (String) method.invoke(obj.get()));
+        }
+    }
+
+    @Reflected
+    private static native String callDebug(Object obj, String a, int b);
+    private static void callDebug(Emitter<String> em, ReflectValue<Object> obj, Value<String> a, Value<Integer> b) {
+        ReflectClass<String> stringClass = em.getContext().findClass(String.class);
+        ReflectClass<Integer> intClass = em.getContext().findClass(int.class);
+        ReflectMethod method = obj.getReflectClass().getMethod("debug", stringClass, intClass);
+        if (method == null) {
+            em.returnValue(() -> "missing");
+        } else {
+            em.returnValue(() -> (String) method.invoke(obj.get(), a.get(), b.get()));
+        }
+    }
+
+    class A {
+        public String debug() {
+            return "debug!";
+        }
+    }
+
+    class B {
+        public String debug(String a, int b) {
+            return "debug!" + a + ":" + b;
+        }
     }
 
     @Test
