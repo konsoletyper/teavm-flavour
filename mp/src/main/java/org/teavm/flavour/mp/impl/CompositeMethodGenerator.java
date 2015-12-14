@@ -281,15 +281,28 @@ public class CompositeMethodGenerator {
                 case DOUBLE:
                     return unbox(var, double.class, Double.class);
             }
+        } else if (!type.isObject(Object.class)) {
+            CastInstruction castInsn = new CastInstruction();
+            castInsn.setValue(var);
+            castInsn.setReceiver(program.createVariable());
+            castInsn.setTargetType(type);
+            var = castInsn.getReceiver();
+            add(castInsn);
         }
         return var;
     }
 
     private Variable unbox(Variable var, Class<?> primitive, Class<?> wrapper) {
+        CastInstruction castInsn = new CastInstruction();
+        castInsn.setValue(var);
+        castInsn.setReceiver(program.createVariable());
+        castInsn.setTargetType(ValueType.parse(wrapper));
+        add(castInsn);
+
         InvokeInstruction insn = new InvokeInstruction();
         insn.setMethod(new MethodReference(wrapper, primitive.getName() + "Value", primitive));
         insn.setType(InvocationType.VIRTUAL);
-        insn.setInstance(var);
+        insn.setInstance(castInsn.getReceiver());
         var = program.createVariable();
         insn.setReceiver(var);
         add(insn);
@@ -421,7 +434,9 @@ public class CompositeMethodGenerator {
             AssignInstruction insn = new AssignInstruction();
             insn.setReceiver(var(receiver));
             insn.setAssignee(var(assignee));
-            add(insn);
+            if (insn.getReceiver() != insn.getAssignee()) {
+                add(insn);
+            }
         }
 
         @Override
@@ -687,7 +702,6 @@ public class CompositeMethodGenerator {
                 case "set": {
                     PutFieldInstruction insn = new PutFieldInstruction();
                     insn.setInstance(!field.field.hasModifier(ElementModifier.STATIC) ? var(arguments.get(0)) : null);
-                    // TODO: cast value
                     insn.setValue(unbox(var(arguments.get(1)), field.getBackingField().getType()));
                     insn.setField(field.getBackingField().getReference());
                     insn.setFieldType(field.getBackingField().getType());
@@ -724,32 +738,7 @@ public class CompositeMethodGenerator {
                     insn.setType(Modifier.isStatic(reflectMethod.getModifiers()) ? InvocationType.SPECIAL
                             : InvocationType.VIRTUAL);
                     insn.setMethod(reflectMethod.method.getReference());
-
-                    Variable argumentsVar = var(arguments.get(1));
-                    UnwrapArrayInstruction unwrapInsn = new UnwrapArrayInstruction(ArrayElementType.OBJECT);
-                    unwrapInsn.setArray(argumentsVar);
-                    unwrapInsn.setReceiver(program.createVariable());
-                    add(unwrapInsn);
-                    argumentsVar = unwrapInsn.getReceiver();
-
-                    for (int i = 0; i < reflectMethod.getParameterCount(); ++i) {
-                        IntegerConstantInstruction indexInsn = new IntegerConstantInstruction();
-                        indexInsn.setConstant(i);
-                        indexInsn.setReceiver(program.createVariable());
-                        add(indexInsn);
-
-                        GetElementInstruction extractArgInsn = new GetElementInstruction();
-                        extractArgInsn.setArray(argumentsVar);
-                        extractArgInsn.setIndex(indexInsn.getReceiver());
-                        extractArgInsn.setReceiver(program.createVariable());
-                        add(extractArgInsn);
-
-                        // TODO: cast argument
-
-                        insn.getArguments().add(unbox(extractArgInsn.getReceiver(),
-                                reflectMethod.method.parameterType(i)));
-                    }
-
+                    emitArguments(var(arguments.get(1)), reflectMethod, insn.getArguments());
                     add(insn);
 
                     if (receiver != null) {
@@ -771,10 +760,50 @@ public class CompositeMethodGenerator {
 
                     return true;
                 }
+                case "construct": {
+                    ConstructInstruction constructInsn = new ConstructInstruction();
+                    constructInsn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    constructInsn.setType(reflectMethod.method.getOwnerName());
+                    add(constructInsn);
+
+                    InvokeInstruction insn = new InvokeInstruction();
+                    insn.setInstance(constructInsn.getReceiver());
+                    insn.setType(InvocationType.SPECIAL);
+                    insn.setMethod(reflectMethod.method.getReference());
+                    emitArguments(var(arguments.get(0)), reflectMethod, insn.getArguments());
+                    add(insn);
+
+                    return true;
+                }
                 default:
                     diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
                             + "method from runtime domain", method);
                     return false;
+            }
+        }
+
+        private void emitArguments(Variable argumentsVar, ReflectMethodImpl reflectMethod,
+                List<Variable> arguments) {
+            UnwrapArrayInstruction unwrapInsn = new UnwrapArrayInstruction(ArrayElementType.OBJECT);
+            unwrapInsn.setArray(argumentsVar);
+            unwrapInsn.setReceiver(program.createVariable());
+            add(unwrapInsn);
+            argumentsVar = unwrapInsn.getReceiver();
+
+            for (int i = 0; i < reflectMethod.getParameterCount(); ++i) {
+                IntegerConstantInstruction indexInsn = new IntegerConstantInstruction();
+                indexInsn.setConstant(i);
+                indexInsn.setReceiver(program.createVariable());
+                add(indexInsn);
+
+                GetElementInstruction extractArgInsn = new GetElementInstruction();
+                extractArgInsn.setArray(argumentsVar);
+                extractArgInsn.setIndex(indexInsn.getReceiver());
+                extractArgInsn.setReceiver(program.createVariable());
+                add(extractArgInsn);
+
+                arguments.add(unbox(extractArgInsn.getReceiver(),
+                        reflectMethod.method.parameterType(i)));
             }
         }
 

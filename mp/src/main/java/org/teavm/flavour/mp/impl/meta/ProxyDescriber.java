@@ -81,10 +81,6 @@ public class ProxyDescriber {
             diagnostics.error(location, "Proxy method should be static");
             valid = false;
         }
-        if (method.parameterCount() < 1) {
-            diagnostics.error(location, "Proxy method shoud take at least one parameter");
-            valid = false;
-        }
         if (!valid) {
             return null;
         }

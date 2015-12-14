@@ -232,6 +232,9 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         return declaredMethods.computeIfAbsent(key, k -> {
             MethodReader candidate = null;
             for (MethodReader method : classReader.getMethods()) {
+                if (!method.getName().equals(name)) {
+                    continue;
+                }
                 if (!Arrays.equals(method.getParameterTypes(), internalParameterTypes)) {
                     continue;
                 }

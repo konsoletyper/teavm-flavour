@@ -182,6 +182,61 @@ public class MetaprogrammingTest {
     }
 
     @Test
+    public void constructorInvoked() {
+        assertEquals(C.class.getName(), callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$C")
+                .getClass().getName());
+        assertNull(callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$D"));
+
+        assertNull(callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$C", "foo", 23));
+
+        D instance = (D) callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$D", "foo", 23);
+        assertEquals(D.class.getName(), instance.getClass().getName());
+        assertEquals("foo", instance.a);
+        assertEquals(23, instance.b);
+    }
+
+    @Reflected
+    private static native Object callConstructor(String type);
+    private static void callConstructor(Emitter<Object> em, String type) {
+        ReflectClass<?> cls = em.getContext().findClass(type);
+        ReflectMethod ctor = cls.getMethod("<init>");
+        if (ctor != null) {
+            em.returnValue(() -> ctor.construct());
+        } else {
+            em.returnValue(() -> null);
+        }
+    }
+
+    @Reflected
+    private static native Object callConstructor(String type, String a, int b);
+    private static void callConstructor(Emitter<Object> em, String type, Value<String> a, Value<Integer> b) {
+        ReflectClass<String> stringClass = em.getContext().findClass(String.class);
+        ReflectClass<Integer> intClass = em.getContext().findClass(int.class);
+        ReflectClass<?> cls = em.getContext().findClass(type);
+        ReflectMethod ctor = cls.getMethod("<init>", stringClass, intClass);
+        if (ctor != null) {
+            em.returnValue(() -> ctor.construct(a, b));
+        } else {
+            em.returnValue(() -> null);
+        }
+    }
+
+    class C {
+        C() {
+        }
+    }
+
+    class D {
+        String a;
+        int b;
+
+        D(String a, int b) {
+            this.a = a;
+            this.b = b;
+        }
+    }
+
+    @Test
     public void parser() {
         Context ctx = new Context();
         ctx.a = 2;
