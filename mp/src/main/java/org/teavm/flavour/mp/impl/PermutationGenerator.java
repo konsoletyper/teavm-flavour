@@ -86,8 +86,16 @@ class PermutationGenerator {
             return;
         }
 
+        boolean dependenciesInstalled = false;
         for (ProxyParameter param : model.getParameters()) {
-            methodDep.getVariable(param.getIndex() + 1).addConsumer(type -> consumeType(param, type, getClassDep));
+            if (param.getKind() == ParameterKind.REFLECT_VALUE) {
+                methodDep.getVariable(param.getIndex() + 1).addConsumer(type -> consumeType(param, type, getClassDep));
+                dependenciesInstalled = true;
+            }
+        }
+
+        if (!dependenciesInstalled) {
+            emitPermutation(null, null, getClassDep);
         }
 
         installAdditionalDependencies(getClassDep);
@@ -224,6 +232,13 @@ class PermutationGenerator {
     }
 
     private MethodReference buildMethodReference(ProxyParameter param, DependencyType type) {
+        if (variants == null) {
+            MethodReference ref = new MethodReference(model.getMethod().getClassName(),
+                    model.getMethod().getName() + "$defaultUsage", model.getMethod().getSignature());
+            model.getUsages().put("", ref);
+            return ref;
+        }
+
         int i = 0;
         StringBuilder sb = new StringBuilder();
         ValueType[] signature = new ValueType[model.getParameters().size() + 1];
@@ -232,7 +247,7 @@ class PermutationGenerator {
                 String variant = variants[i][indexes[i]];
                 sb.append(variant);
                 signature[i] = ValueType.object(variant);
-            } else if (param.getIndex() == i) {
+            } else if (param != null && param.getIndex() == i) {
                 signature[param.getIndex()] = ValueType.object(type.getName());
                 sb.append(type.getName());
             } else {

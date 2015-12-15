@@ -221,16 +221,16 @@ public class MetaprogrammingTest {
         }
     }
 
-    class C {
-        C() {
+    static class C {
+        public C() {
         }
     }
 
-    class D {
+    static class D {
         String a;
         int b;
 
-        D(String a, int b) {
+        public D(String a, int b) {
             this.a = a;
             this.b = b;
         }
