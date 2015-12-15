@@ -117,15 +117,15 @@ public class CompositeMethodGenerator {
         this.templateMethod = templateMethod;
         resultVar = null;
         resultPhi = null;
-        List<Variable> capturedVars = capturedValues.stream().map(this::captureValue).collect(Collectors.toList());
-        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedVars, capturedValues,
+        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedValues,
                 AliasFinder.findAliases(template), program.basicBlockCount() - 1,
-                program.variableCount() - capturedVars.size());
+                program.variableCount() - capturedValues.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             program.createBasicBlock();
         }
-        for (int i = capturedVars.size(); i < template.variableCount(); ++i) {
+
+        for (int i = capturedValues.size(); i < template.variableCount(); ++i) {
             program.createVariable();
         }
 
@@ -175,13 +175,8 @@ public class CompositeMethodGenerator {
         program.basicBlockAt(blockIndex).getInstructions().add(insn);
     }
 
-    private Variable captureValue(Object value) {
-        if (value == null) {
-            NullConstantInstruction insn = new NullConstantInstruction();
-            insn.setReceiver(program.createVariable());
-            add(insn);
-            return insn.getReceiver();
-        } else if (value instanceof Integer) {
+    Variable captureValue(Object value) {
+        if (value instanceof Integer) {
             IntegerConstantInstruction insn = new IntegerConstantInstruction();
             insn.setReceiver(program.createVariable());
             insn.setConstant((Integer) value);
@@ -219,8 +214,29 @@ public class CompositeMethodGenerator {
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
             return ((ValueImpl<?>) value).innerValue;
-        } else if (value instanceof ReflectFieldImpl || value instanceof ReflectMethodImpl) {
-            return program.createVariable();
+        } else if (value instanceof ReflectFieldImpl) {
+            ReflectFieldImpl reflectField = (ReflectFieldImpl) value;
+            diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this ReflectField {{f0}} "
+                    + "directly except for calling special methods on it", reflectField.field.getReference());
+            NullConstantInstruction insn = new NullConstantInstruction();
+            insn.setReceiver(program.createVariable());
+            add(insn);
+            return insn.getReceiver();
+        } else if (value instanceof ReflectMethodImpl) {
+            ReflectMethodImpl reflectMethod = (ReflectMethodImpl) value;
+            diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this ReflectMethod {{m0}} "
+                    + "directly except for calling special methods on it", reflectMethod.method.getReference());
+            NullConstantInstruction insn = new NullConstantInstruction();
+            insn.setReceiver(program.createVariable());
+            add(insn);
+            return insn.getReceiver();
+        } else if (value != null && value.getClass().getComponentType() != null) {
+            diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this array directly "
+                    + "except for fetching by constant index");
+            NullConstantInstruction insn = new NullConstantInstruction();
+            insn.setReceiver(program.createVariable());
+            add(insn);
+            return insn.getReceiver();
         } else {
             throw new WrongCapturedValueException();
         }
@@ -317,12 +333,10 @@ public class CompositeMethodGenerator {
         private int blockOffset;
         private int variableOffset;
         int[] variableMapping;
-        List<Variable> capturedVars;
         List<Object> capturedValues;
 
-        public TemplateSubstitutor(List<Variable> capturedVars, List<Object> capturedValues, int[] variableMapping,
+        public TemplateSubstitutor(List<Object> capturedValues, int[] variableMapping,
                 int blockOffset, int variableOffset) {
-            this.capturedVars = capturedVars;
             this.capturedValues = capturedValues;
             this.variableMapping = variableMapping;
             this.blockOffset = blockOffset;
@@ -342,11 +356,11 @@ public class CompositeMethodGenerator {
             if (variable == null) {
                 return null;
             }
-            int index = variableMapping[variable.getIndex()];
-            if (index > 0 && index <= capturedVars.size()) {
-                return capturedVars.get(index - 1);
+            int index = variableMapping[variable.getIndex()] - 1;
+            if (index < 0 || index >= capturedValues.size() || capturedValues.get(index) == null) {
+                return program.variableAt(variableOffset + variable.getIndex());
             }
-            return program.variableAt(variableOffset + variable.getIndex());
+            return captureValue(capturedValues.get(index));
         }
 
         public BasicBlock block(BasicBlockReader block) {
@@ -431,6 +445,11 @@ public class CompositeMethodGenerator {
 
         @Override
         public void assign(VariableReader receiver, VariableReader assignee) {
+            int index = assignee.getIndex() - 1;
+            if (index >= 0 && index < capturedValues.size() && capturedValues.get(index) != null) {
+                return;
+            }
+
             AssignInstruction insn = new AssignInstruction();
             insn.setReceiver(var(receiver));
             insn.setAssignee(var(assignee));
