@@ -212,7 +212,7 @@ public class ProxyMethodInstrumentation {
 
         @Override
         public void visitMaxs(int maxStack, int maxLocals) {
-            super.visitMaxs(instrumented ? maxStack + 7 : maxStack, maxLocals);
+            super.visitMaxs(instrumented ? maxStack + 9 : maxStack, maxLocals);
         }
     }
 }

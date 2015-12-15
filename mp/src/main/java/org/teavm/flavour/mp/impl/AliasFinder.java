@@ -115,6 +115,10 @@ public class AliasFinder {
         return constants.clone();
     }
 
+    public ArrayElement[] getArrayElements() {
+        return arrayElements.clone();
+    }
+
     static class AliasReader implements InstructionReader {
         DisjointSet disjointSet;
         Object[] constants;
@@ -255,6 +259,7 @@ public class AliasFinder {
 
         @Override
         public void unwrapArray(VariableReader receiver, VariableReader array, ArrayElementType elementType) {
+            disjointSet.union(receiver.getIndex(), array.getIndex());
         }
 
         @Override

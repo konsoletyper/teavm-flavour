@@ -237,6 +237,18 @@ public class MetaprogrammingTest {
     }
 
     @Test
+    public void capturesArray() {
+        assertEquals("23:foo", captureArray(23, "foo"));
+    }
+
+    @Reflected
+    private static native String captureArray(int a, String b);
+    private static void captureArray(Emitter<String> em, Value<Integer> a, Value<String> b) {
+        Value<?>[] array = { a, em.emit(() -> ":"), b };
+        em.returnValue(() -> String.valueOf(array[0].get()) + array[1].get() + array[2].get());
+    }
+
+    @Test
     public void parser() {
         Context ctx = new Context();
         ctx.a = 2;

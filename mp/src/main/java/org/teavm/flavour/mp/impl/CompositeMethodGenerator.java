@@ -15,12 +15,14 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.AliasFinder.ArrayElement;
 import org.teavm.flavour.mp.impl.reflect.ReflectFieldImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectField;
@@ -119,8 +121,8 @@ public class CompositeMethodGenerator {
         resultPhi = null;
         AliasFinder aliasFinder = new AliasFinder();
         aliasFinder.findAliases(template);
-        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedValues,
-                aliasFinder.getAliases(), aliasFinder.getConstants(), program.basicBlockCount() - 1,
+        TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedValues, aliasFinder.getAliases(),
+                aliasFinder.getArrayElements(), program.basicBlockCount() - 1,
                 program.variableCount() - capturedValues.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
@@ -336,13 +338,13 @@ public class CompositeMethodGenerator {
         private int variableOffset;
         int[] variableMapping;
         List<Object> capturedValues;
-        Object[] constants;
+        ArrayElement[] arrayElements;
 
-        public TemplateSubstitutor(List<Object> capturedValues, int[] variableMapping, Object[] constants,
+        public TemplateSubstitutor(List<Object> capturedValues, int[] variableMapping, ArrayElement[] arrayElements,
                 int blockOffset, int variableOffset) {
             this.capturedValues = capturedValues;
             this.variableMapping = variableMapping;
-            this.constants = constants;
+            this.arrayElements = arrayElements;
             this.blockOffset = blockOffset;
             this.variableOffset = variableOffset;
         }
@@ -361,10 +363,18 @@ public class CompositeMethodGenerator {
                 return null;
             }
             int index = variableMapping[variable.getIndex()] - 1;
-            if (index < 0 || index >= capturedValues.size() || capturedValues.get(index) == null) {
-                return program.variableAt(variableOffset + variable.getIndex());
+            if (index >= 0 && index < capturedValues.size() && capturedValues.get(index) != null) {
+                return captureValue(capturedValues.get(index));
             }
-            return captureValue(capturedValues.get(index));
+            ArrayElement elem = arrayElements[index + 1];
+            if (elem != null) {
+                int arrayVar = variableMapping[elem.array] - 1;
+                if (arrayVar >= 0 && arrayVar < capturedValues.size() && capturedValues.get(arrayVar) != null) {
+                    Object capturedArray = capturedValues.get(arrayVar);
+                    return captureValue(Array.get(capturedArray, elem.index));
+                }
+            }
+            return program.variableAt(variableOffset + variable.getIndex());
         }
 
         public BasicBlock block(BasicBlockReader block) {
@@ -628,6 +638,13 @@ public class CompositeMethodGenerator {
 
         @Override
         public void unwrapArray(VariableReader receiver, VariableReader array, ArrayElementType elementType) {
+            int arrayIndex = variableMapping[array.getIndex()] - 1;
+            if (arrayIndex >= 0 && arrayIndex < capturedValues.size()) {
+                if (capturedValues.get(arrayIndex) != null) {
+                    return;
+                }
+            }
+
             UnwrapArrayInstruction insn = new UnwrapArrayInstruction(elementType);
             insn.setArray(var(array));
             insn.setReceiver(var(receiver));
@@ -636,7 +653,19 @@ public class CompositeMethodGenerator {
 
         @Override
         public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
-            int indexVar = variableMapping[index.getIndex()] - 1;
+            int arrayIndex = variableMapping[array.getIndex()] - 1;
+
+            ArrayElement elem = arrayElements[receiver.getIndex()];
+            if (elem != null && arrayIndex >= 0 && arrayIndex < capturedValues.size()) {
+                Object capturedValue = capturedValues.get(arrayIndex);
+                if (capturedValue != null) {
+                    AssignInstruction insn = new AssignInstruction();
+                    insn.setAssignee(var(receiver));
+                    insn.setReceiver(program.variableAt(variableOffset + receiver.getIndex()));
+                    add(insn);
+                    return;
+                }
+            }
 
             GetElementInstruction insn = new GetElementInstruction();
             insn.setArray(var(array));
