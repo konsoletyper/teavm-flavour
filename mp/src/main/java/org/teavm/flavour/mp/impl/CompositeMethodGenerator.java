@@ -117,8 +117,10 @@ public class CompositeMethodGenerator {
         this.templateMethod = templateMethod;
         resultVar = null;
         resultPhi = null;
+        AliasFinder aliasFinder = new AliasFinder();
+        aliasFinder.findAliases(template);
         TemplateSubstitutor substitutor = new TemplateSubstitutor(capturedValues,
-                AliasFinder.findAliases(template), program.basicBlockCount() - 1,
+                aliasFinder.getAliases(), aliasFinder.getConstants(), program.basicBlockCount() - 1,
                 program.variableCount() - capturedValues.size());
 
         for (int i = 0; i < template.basicBlockCount(); ++i) {
@@ -334,11 +336,13 @@ public class CompositeMethodGenerator {
         private int variableOffset;
         int[] variableMapping;
         List<Object> capturedValues;
+        Object[] constants;
 
-        public TemplateSubstitutor(List<Object> capturedValues, int[] variableMapping,
+        public TemplateSubstitutor(List<Object> capturedValues, int[] variableMapping, Object[] constants,
                 int blockOffset, int variableOffset) {
             this.capturedValues = capturedValues;
             this.variableMapping = variableMapping;
+            this.constants = constants;
             this.blockOffset = blockOffset;
             this.variableOffset = variableOffset;
         }
@@ -445,7 +449,7 @@ public class CompositeMethodGenerator {
 
         @Override
         public void assign(VariableReader receiver, VariableReader assignee) {
-            int index = assignee.getIndex() - 1;
+            int index = variableMapping[assignee.getIndex()] - 1;
             if (index >= 0 && index < capturedValues.size() && capturedValues.get(index) != null) {
                 return;
             }
@@ -632,6 +636,8 @@ public class CompositeMethodGenerator {
 
         @Override
         public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
+            int indexVar = variableMapping[index.getIndex()] - 1;
+
             GetElementInstruction insn = new GetElementInstruction();
             insn.setArray(var(array));
             insn.setIndex(var(index));

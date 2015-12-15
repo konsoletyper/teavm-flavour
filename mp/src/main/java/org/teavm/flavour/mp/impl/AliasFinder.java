@@ -46,17 +46,18 @@ import org.teavm.model.instructions.SwitchTableEntryReader;
  *
  * @author Alexey Andreev
  */
-public final class AliasFinder {
-    private AliasFinder() {
-    }
+public class AliasFinder {
+    int[] aliases;
+    Object[] constants;
+    ArrayElement[] arrayElements;
 
-    public static int[] findAliases(ProgramReader program) {
+    public void findAliases(ProgramReader program) {
         DisjointSet set = new DisjointSet();
         for (int i = 0; i < program.variableCount(); ++i) {
             set.create();
         }
 
-        AliasReader reader = new AliasReader(set);
+        AliasReader reader = new AliasReader(set, program.variableCount());
         for (int i = 0; i < program.basicBlockCount(); ++i) {
             BasicBlockReader block = program.basicBlockAt(i);
             block.readAllInstructions(reader);
@@ -83,14 +84,46 @@ public final class AliasFinder {
             variables[i] = master;
         }
 
-        return variables;
+        aliases = variables;
+        constants = reader.constants;
+        arrayElements = reader.arrayElements;
+
+        for (int i = 0; i < arrayElements.length; ++i) {
+            ArrayElement elem = arrayElements[i];
+            if (elem == null) {
+                continue;
+            }
+            elem.index = aliases[elem.index];
+            if (constants[elem.index] instanceof Integer) {
+                elem.index = (Integer) constants[elem.index];
+            } else {
+                arrayElements[i] = null;
+            }
+        }
+    }
+
+    public static class ArrayElement {
+        public int array;
+        public int index;
+    }
+
+    public int[] getAliases() {
+        return aliases.clone();
+    }
+
+    public Object[] getConstants() {
+        return constants.clone();
     }
 
     static class AliasReader implements InstructionReader {
         DisjointSet disjointSet;
+        Object[] constants;
+        ArrayElement[] arrayElements;
 
-        public AliasReader(DisjointSet disjointSet) {
+        public AliasReader(DisjointSet disjointSet, int variableCount) {
             this.disjointSet = disjointSet;
+            this.constants = new Object[variableCount];
+            this.arrayElements = new ArrayElement[variableCount];
         }
 
         @Override
@@ -103,6 +136,7 @@ public final class AliasFinder {
 
         @Override
         public void classConstant(VariableReader receiver, ValueType cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
@@ -111,22 +145,27 @@ public final class AliasFinder {
 
         @Override
         public void integerConstant(VariableReader receiver, int cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
         public void longConstant(VariableReader receiver, long cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
         public void floatConstant(VariableReader receiver, float cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
         public void doubleConstant(VariableReader receiver, double cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
         public void stringConstant(VariableReader receiver, String cst) {
+            constants[receiver.getIndex()] = cst;
         }
 
         @Override
@@ -220,6 +259,10 @@ public final class AliasFinder {
 
         @Override
         public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
+            ArrayElement elem = new ArrayElement();
+            elem.array = array.getIndex();
+            elem.index = index.getIndex();
+            arrayElements[receiver.getIndex()] = elem;
         }
 
         @Override
