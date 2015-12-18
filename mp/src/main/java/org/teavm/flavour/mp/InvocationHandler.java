@@ -15,26 +15,12 @@
  */
 package org.teavm.flavour.mp;
 
+import org.teavm.flavour.mp.reflect.ReflectMethod;
+
 /**
  *
  * @author Alexey Andreev
  */
-public interface Emitter<T> {
-    EmitterContext getContext();
-
-    <S> Value<S> emit(Computation<S> computation);
-
-    void emit(Action action);
-
-    <S> Choice<S> choose(ReflectClass<S> type);
-
-    <S> Choice<S> choose(Class<S> type);
-
-    void returnValue(Computation<T> computation);
-
-    default <S> Value<S> proxy(Class<S> type, InvocationHandler<S> handler)  {
-        return proxy(getContext().findClass(type), handler);
-    }
-
-    <S> Value<S> proxy(ReflectClass<S> type, InvocationHandler<S> handler);
+public interface InvocationHandler<T> {
+    Computation<? extends Object> invoke(Value<T> proxy, ReflectMethod method, Value<Object>[] args);
 }

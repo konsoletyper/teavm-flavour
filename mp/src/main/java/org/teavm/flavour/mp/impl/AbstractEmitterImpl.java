@@ -21,9 +21,14 @@ import org.teavm.flavour.mp.Action;
 import org.teavm.flavour.mp.Choice;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.InvocationHandler;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
@@ -118,6 +123,27 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
         blockIndex = generator.blockIndex;
+    }
+
+    @Override
+    public <S> Value<S> proxy(ReflectClass<S> type, InvocationHandler<S> handler) {
+        ClassHolder cls = new ClassHolder(context.createProxyName(type.getName()));
+        for (ReflectMethod method : type.getMethods()) {
+            ReflectMethodImpl methodImpl = (ReflectMethodImpl) method;
+            MethodHolder methodHolder = new MethodHolder(methodImpl.method.getDescriptor());
+            Program program = new Program();
+            methodHolder.setProgram(program);
+            Variable thisVar = program.createVariable();
+            @SuppressWarnings("unchecked")
+            ValueImpl<Object>[] arguments = (ValueImpl<Object>[]) new ValueImpl<?>[methodImpl.method.parameterCount()];
+            for (int i = 0; i < arguments.length; ++i) {
+                arguments[i] = new ValueImpl<>(program.createVariable());
+            }
+            handler.invoke(new ValueImpl<S>(thisVar), methodImpl, arguments);
+            cls.addMethod(methodHolder);
+        }
+
+        return null;
     }
 
     protected abstract void returnValue(Variable var);

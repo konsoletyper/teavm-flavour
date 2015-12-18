@@ -42,18 +42,20 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private ProxyDescriber describer;
     private Set<ProxyModel> installedProxies = new HashSet<>();
     private ReflectContext reflectContext;
+    private EmitterContextImpl emitterContext;
 
     @Override
     public void started(DependencyAgent agent) {
         describer = new ProxyDescriber(agent.getDiagnostics(), agent.getClassSource());
         reflectContext = new ReflectContext(agent.getClassSource(), agent.getClassLoader());
+        emitterContext = new EmitterContextImpl(agent, reflectContext);
     }
 
     @Override
     public void methodReached(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
         ProxyModel proxy = describer.getProxy(methodDep.getReference());
         if (proxy != null && installedProxies.add(proxy)) {
-            new PermutationGenerator(agent, proxy, methodDep, location, reflectContext).installProxyEmitter();
+            new PermutationGenerator(agent, proxy, methodDep, location, emitterContext).installProxyEmitter();
         }
     }
 

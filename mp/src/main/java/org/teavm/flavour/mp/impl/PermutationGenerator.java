@@ -29,7 +29,6 @@ import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
-import org.teavm.flavour.mp.impl.reflect.ReflectContext;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.MethodReference;
@@ -46,7 +45,7 @@ import org.teavm.model.instructions.InvokeInstruction;
 class PermutationGenerator {
     private int suffixGenerator;
     DependencyAgent agent;
-    private ReflectContext reflectContext;
+    private EmitterContextImpl emitterContext;
     ProxyModel model;
     MethodDependency methodDep;
     CallLocation location;
@@ -57,13 +56,13 @@ class PermutationGenerator {
     int[] indexes;
 
     public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
-            CallLocation location, ReflectContext reflectContext) {
+            CallLocation location, EmitterContextImpl emitterContext) {
         this.agent = agent;
         this.diagnostics = agent.getDiagnostics();
         this.model = model;
         this.methodDep = methodDep;
         this.location = location;
-        this.reflectContext = reflectContext;
+        this.emitterContext = emitterContext;
     }
 
     public void installProxyEmitter() {
@@ -170,8 +169,7 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
-        EmitterContextImpl context = new EmitterContextImpl(agent, reflectContext);
-        emitter = new EmitterImpl<>(context, agent.getClassSource(), new CompositeMethodGenerator(diagnostics),
+        emitter = new EmitterImpl<>(emitterContext, agent.getClassSource(), new CompositeMethodGenerator(diagnostics),
                 model.getProxyMethod(), model.getMethod().getReturnType());
 
         for (int i = 0; i <= model.getParameters().size(); ++i) {
@@ -194,7 +192,7 @@ class PermutationGenerator {
                     proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param));
                     break;
                 case REFLECT_VALUE: {
-                    ReflectClass<?> cls = context.findClass(param != masterParam
+                    ReflectClass<?> cls = emitterContext.findClass(param != masterParam
                             ? variants[j][indexes[j]] : type.getName());
                     proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls);
                     break;

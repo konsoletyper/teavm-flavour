@@ -15,12 +15,15 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectContext;
+import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ValueType;
 
@@ -31,6 +34,7 @@ import org.teavm.model.ValueType;
 public class EmitterContextImpl implements EmitterContext {
     private DependencyAgent agent;
     ReflectContext reflectContext;
+    private Map<String, Integer> proxySuffixGenerators = new HashMap<>();
 
     public EmitterContextImpl(DependencyAgent agent, ReflectContext reflectContext) {
         this.agent = agent;
@@ -50,6 +54,10 @@ public class EmitterContextImpl implements EmitterContext {
     @Override
     public ClassLoader getClassLoader() {
         return agent.getClassLoader();
+    }
+
+    public void submitClass(ClassHolder cls) {
+        agent.submitClass(cls);
     }
 
     @SuppressWarnings("unchecked")
@@ -72,5 +80,11 @@ public class EmitterContextImpl implements EmitterContext {
     public <T> ReflectClass<T[]> arrayClass(ReflectClass<T> componentType) {
         ReflectClassImpl<T> componentTypeImpl = (ReflectClassImpl<T>) componentType;
         return (ReflectClass<T[]>) reflectContext.getClass(ValueType.arrayOf(componentTypeImpl.type));
+    }
+
+    public String createProxyName(String className) {
+        int suffix = proxySuffixGenerators.getOrDefault(className, 0);
+        proxySuffixGenerators.put(className, suffix + 1);
+        return className + "$proxy" + className;
     }
 }
