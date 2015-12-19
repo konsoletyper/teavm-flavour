@@ -20,9 +20,11 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.impl.AliasFinder.ArrayElement;
+import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectFieldImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectField;
@@ -709,6 +711,10 @@ public class CompositeMethodGenerator {
                     if (replaceMethodInvocation(receiver, instance, method, arguments)) {
                         return;
                     }
+                } else if (method.getClassName().equals(ReflectClass.class.getName())) {
+                    if (replaceClassInvocation(receiver, instance, method, arguments)) {
+                        return;
+                    }
                 }
             }
             InvokeInstruction insn = new InvokeInstruction();
@@ -829,6 +835,38 @@ public class CompositeMethodGenerator {
                     emitArguments(var(arguments.get(0)), reflectMethod, insn.getArguments());
                     add(insn);
 
+                    return true;
+                }
+                default:
+                    diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
+                            + "method from runtime domain", method);
+                    return false;
+            }
+        }
+
+        private boolean replaceClassInvocation(VariableReader receiver, VariableReader instance,
+                MethodReference method, List<? extends VariableReader> arguments) {
+            int instanceIndex = variableMapping[instance.getIndex()] - 1;
+            if (instanceIndex < 0 || instanceIndex >= capturedValues.size()) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Can call {{m0}} method "
+                        + "only on a reflected class captured by lambda from outer context", method);
+                return false;
+            }
+
+            Object value = capturedValues.get(instanceIndex);
+            if (!(value instanceof ReflectClassImpl)) {
+                diagnostics.error(new CallLocation(templateMethod, location), "Wrong call to {{m0}} method ", method);
+                return false;
+            }
+
+            ReflectClassImpl<?> reflectClass = (ReflectClassImpl<?>) value;
+            switch (method.getName()) {
+                case "isInstance": {
+                    IsInstanceInstruction insn = new IsInstanceInstruction();
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    insn.setValue(var(arguments.get(0)));
+                    insn.setType(reflectClass.type);
+                    add(insn);
                     return true;
                 }
                 default:

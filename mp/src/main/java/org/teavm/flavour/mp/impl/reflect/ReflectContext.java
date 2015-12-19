@@ -19,6 +19,7 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import org.teavm.flavour.mp.impl.EmitterContextImpl;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
 import org.teavm.model.ElementReader;
@@ -30,12 +31,17 @@ import org.teavm.model.ValueType;
  */
 public class ReflectContext {
     private ClassReaderSource classSource;
+    private EmitterContextImpl emitterContext;
     private Map<ValueType, ReflectClassImpl<?>> classes = new HashMap<>();
     private ClassLoader classLoader;
 
     public ReflectContext(ClassReaderSource classSource, ClassLoader classLoader) {
         this.classSource = classSource;
         this.classLoader = classLoader;
+    }
+
+    public void setEmitterContext(EmitterContextImpl emitterContext) {
+        this.emitterContext = emitterContext;
     }
 
     public ClassLoader getClassLoader() {
@@ -47,7 +53,7 @@ public class ReflectContext {
     }
 
     public ReflectClassImpl<?> getClass(ValueType type) {
-        return classes.computeIfAbsent(type, t -> new ReflectClassImpl<>(type, this));
+        return classes.computeIfAbsent(type, t -> new ReflectClassImpl<>(type, emitterContext));
     }
 
     public static int getModifiers(ElementReader element) {

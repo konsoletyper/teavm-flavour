@@ -15,8 +15,7 @@
  */
 package org.teavm.flavour.mp.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 import java.util.function.Consumer;
 import org.junit.Test;
 import org.teavm.flavour.mp.Choice;
@@ -261,6 +260,18 @@ public class MetaprogrammingTest {
             proxyEm.returnValue(() -> name + add.get());
         });
         em.returnValue(proxy);
+    }
+
+    @Test
+    public void isInstanceWorks() {
+        assertTrue(isInstance("foo", String.class));
+        assertFalse(isInstance(23, String.class));
+    }
+
+    @Reflected
+    private static native boolean isInstance(Object obj, Class<?> type);
+    private static void isInstance(Emitter<Boolean> em, Value<Object> obj, ReflectClass<?> type) {
+        em.returnValue(() -> type.isInstance(obj.get()));
     }
 
     interface E {

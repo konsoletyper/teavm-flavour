@@ -23,7 +23,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.impl.EmitterContextImpl;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.AccessLevel;
@@ -40,6 +42,7 @@ import org.teavm.model.ValueType;
  */
 public class ReflectClassImpl<T> implements ReflectClass<T> {
     public final ValueType type;
+    private EmitterContextImpl emitterContext;
     private ReflectContext context;
     private ClassReader classReader;
     private boolean resolved;
@@ -50,13 +53,19 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     private Map<String, ReflectMethodImpl> declaredMethods = new HashMap<>();
     private ReflectMethod[] methodsCache;
 
-    ReflectClassImpl(ValueType type, ReflectContext context) {
+    ReflectClassImpl(ValueType type, EmitterContextImpl emitterContext) {
         this.type = type;
-        this.context = context;
+        this.emitterContext = emitterContext;
+        context = emitterContext.getReflectContext();
     }
 
-    public ReflectContext getContext() {
+    public ReflectContext getReflectContext() {
         return context;
+    }
+
+    @Override
+    public EmitterContext getContext() {
+        return emitterContext;
     }
 
     @Override
@@ -184,9 +193,14 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         throw new IllegalStateException("Don't call this method from compile domain");
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <U> ReflectClass<U> asSubclass(Class<U> cls) {
-        return null;
+        ReflectClass<U> reflectClass = emitterContext.findClass(cls);
+        if (!isAssignableFrom(reflectClass)) {
+            throw new IllegalArgumentException(cls.getName() + " is not subclass of " + getName());
+        }
+        return (ReflectClass<U>) this;
     }
 
     @Override

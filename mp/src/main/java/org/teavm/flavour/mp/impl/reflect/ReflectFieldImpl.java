@@ -31,7 +31,7 @@ public class ReflectFieldImpl implements ReflectField {
     private ReflectClassImpl<?> type;
 
     public ReflectFieldImpl(ReflectClassImpl<?> declaringClass, FieldReader field) {
-        context = declaringClass.getContext();
+        context = declaringClass.getReflectContext();
         this.declaringClass = declaringClass;
         this.field = field;
     }

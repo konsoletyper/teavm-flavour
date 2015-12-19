@@ -41,6 +41,10 @@ public class EmitterContextImpl implements EmitterContext {
         this.reflectContext = reflectContext;
     }
 
+    public ReflectContext getReflectContext() {
+        return reflectContext;
+    }
+
     @Override
     public <S> S getService(Class<S> type) {
         return agent.getService(type);

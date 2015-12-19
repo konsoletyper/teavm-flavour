@@ -49,6 +49,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
         describer = new ProxyDescriber(agent.getDiagnostics(), agent.getClassSource());
         reflectContext = new ReflectContext(agent.getClassSource(), agent.getClassLoader());
         emitterContext = new EmitterContextImpl(agent, reflectContext);
+        reflectContext.setEmitterContext(emitterContext);
     }
 
     @Override

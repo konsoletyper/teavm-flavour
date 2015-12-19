@@ -24,6 +24,8 @@ import org.teavm.flavour.mp.reflect.ReflectMethod;
  * @author Alexey Andreev
  */
 public interface ReflectClass<T> {
+    EmitterContext getContext();
+
     boolean isPrimitive();
 
     boolean isInterface();
@@ -55,6 +57,10 @@ public interface ReflectClass<T> {
                 || Arrays.stream(getInterfaces()).anyMatch(c -> c.isAssignableFrom(cls));
     }
 
+    default boolean isAssignableFrom(Class<?> cls) {
+        return isAssignableFrom(getContext().findClass(cls));
+    }
+
     ReflectMethod[] getDeclaredMethods();
 
     ReflectMethod[] getMethods();
@@ -62,6 +68,13 @@ public interface ReflectClass<T> {
     ReflectMethod getDeclaredMethod(String name, ReflectClass<?>... parameterTypes);
 
     ReflectMethod getMethod(String name, ReflectClass<?>... parameterTypes);
+
+    default ReflectMethod getJMethod(String name, Class<?>... parameterTypes) {
+        ReflectClass<?>[] mappedParamTypes = Arrays.stream(parameterTypes)
+                .map(param -> getContext().findClass(param))
+                .toArray(sz -> new ReflectClass<?>[sz]);
+        return getMethod(name, mappedParamTypes);
+    }
 
     ReflectField[] getDeclaredFields();
 

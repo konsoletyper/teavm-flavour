@@ -34,7 +34,7 @@ public class ReflectMethodImpl implements ReflectMethod {
     public ReflectMethodImpl(ReflectClassImpl<?> declaringClass, MethodReader method) {
         this.declaringClass = declaringClass;
         this.method = method;
-        context = declaringClass.getContext();
+        context = declaringClass.getReflectContext();
     }
 
     @Override
