@@ -22,5 +22,5 @@ import org.teavm.flavour.mp.reflect.ReflectMethod;
  * @author Alexey Andreev
  */
 public interface InvocationHandler<T> {
-    Computation<? extends Object> invoke(Value<T> proxy, ReflectMethod method, Value<Object>[] args);
+    void invoke(Emitter<Object> emitter, Value<T> proxy, ReflectMethod method, Value<Object>[] args);
 }

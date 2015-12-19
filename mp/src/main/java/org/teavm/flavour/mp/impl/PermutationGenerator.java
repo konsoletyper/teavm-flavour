@@ -169,8 +169,10 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
-        emitter = new EmitterImpl<>(emitterContext, agent.getClassSource(), new CompositeMethodGenerator(diagnostics),
-                model.getProxyMethod(), model.getMethod().getReturnType());
+        VariableContext varContext = new TopLevelVariableContext();
+        emitter = new EmitterImpl<>(emitterContext, agent.getClassSource(),
+                new CompositeMethodGenerator(diagnostics, varContext),
+                model.getProxyMethod(), model.getMethod().getReturnType(), varContext);
 
         for (int i = 0; i <= model.getParameters().size(); ++i) {
             emitter.generator.getProgram().createVariable();
@@ -186,15 +188,19 @@ class PermutationGenerator {
             int j = param.getIndex();
             switch (param.getKind()) {
                 case CONSTANT:
-                    proxyArgs[i + 1] = param.getValue();
+                    Object value = param.getValue();
+                    if (value instanceof ValueType) {
+                        value = emitterContext.reflectContext.getClass((ValueType) value);
+                    }
+                    proxyArgs[i + 1] = value;
                     break;
                 case VALUE:
-                    proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param));
+                    proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param), varContext, param.getType());
                     break;
                 case REFLECT_VALUE: {
                     ReflectClass<?> cls = emitterContext.findClass(param != masterParam
                             ? variants[j][indexes[j]] : type.getName());
-                    proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls);
+                    proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls, varContext);
                     break;
                 }
             }

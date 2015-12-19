@@ -24,8 +24,11 @@ import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.InvocationHandler;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.model.AccessLevel;
+import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodHolder;
@@ -39,6 +42,7 @@ import org.teavm.model.instructions.FloatConstantInstruction;
 import org.teavm.model.instructions.IntegerConstantInstruction;
 import org.teavm.model.instructions.InvocationType;
 import org.teavm.model.instructions.InvokeInstruction;
+import org.teavm.model.instructions.JumpInstruction;
 import org.teavm.model.instructions.LongConstantInstruction;
 import org.teavm.model.instructions.NullConstantInstruction;
 
@@ -55,16 +59,19 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     private boolean hasReturn;
     private boolean closed;
     private List<ChoiceImpl<?>> choices = new ArrayList<>();
+    private VariableContext varContext;
     int blockIndex;
 
     public AbstractEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
-            CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType) {
+            CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType,
+            VariableContext varContext) {
         this.context = context;
         this.classSource = classSource;
         this.generator = generator;
         blockIndex = generator.blockIndex;
         this.templateMethod = templateMethod;
         this.returnType = returnType;
+        this.varContext = varContext;
     }
 
     @Override
@@ -79,7 +86,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         MethodReader method = classSource.resolve(fragment.method);
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
         blockIndex = generator.blockIndex;
-        return new ValueImpl<>(generator.getResultVar());
+        return new ValueImpl<>(generator.getResultVar(), varContext, templateMethod.getReturnType());
     }
 
     @Override
@@ -93,7 +100,8 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Choice<S> choose(ReflectClass<S> type) {
-        ChoiceImpl<S> choice = new ChoiceImpl<>(context, classSource, templateMethod, generator, returnType);
+        ChoiceImpl<S> choice = new ChoiceImpl<>(context, classSource, templateMethod, generator, returnType,
+                varContext);
         choices.add(choice);
         blockIndex = generator.blockIndex;
         return choice;
@@ -118,7 +126,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             returnValue(unbox(generator.getResultVar()));
         } else if (computation instanceof ValueImpl) {
             ValueImpl<?> value = (ValueImpl<?>) computation;
-            returnValue(unbox(value.innerValue));
+            returnValue(unbox(varContext.emitVariable(value)));
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
@@ -127,23 +135,49 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Value<S> proxy(ReflectClass<S> type, InvocationHandler<S> handler) {
+        ValueType innerType = ((ReflectClassImpl<?>) type).type;
         ClassHolder cls = new ClassHolder(context.createProxyName(type.getName()));
+        cls.setLevel(AccessLevel.PUBLIC);
+        cls.setParent("java.lang.Object");
+        cls.getInterfaces().add(((ValueType.Object) innerType).getClassName());
+
+        ProxyVariableContext nestedVarContext = new ProxyVariableContext(varContext, cls);
         for (ReflectMethod method : type.getMethods()) {
             ReflectMethodImpl methodImpl = (ReflectMethodImpl) method;
             MethodHolder methodHolder = new MethodHolder(methodImpl.method.getDescriptor());
-            Program program = new Program();
+            methodHolder.setLevel(AccessLevel.PUBLIC);
+
+            CompositeMethodGenerator nestedGenerator = new CompositeMethodGenerator(context.getDiagnostics(),
+                    nestedVarContext);
+            Program program = nestedGenerator.program;
+            EmitterImpl<Object> nestedEmitter = new EmitterImpl<>(context, classSource, nestedGenerator,
+                    templateMethod, methodHolder.getResultType(), nestedVarContext);
+            BasicBlock startBlock = nestedGenerator.currentBlock();
+            nestedEmitter.blockIndex = program.createBasicBlock().getIndex();
+            nestedVarContext.init(startBlock);
+
             methodHolder.setProgram(program);
             Variable thisVar = program.createVariable();
             @SuppressWarnings("unchecked")
             ValueImpl<Object>[] arguments = (ValueImpl<Object>[]) new ValueImpl<?>[methodImpl.method.parameterCount()];
             for (int i = 0; i < arguments.length; ++i) {
-                arguments[i] = new ValueImpl<>(program.createVariable());
+                arguments[i] = new ValueImpl<>(program.createVariable(), nestedVarContext,
+                        methodImpl.method.parameterType(i));
             }
-            handler.invoke(new ValueImpl<S>(thisVar), methodImpl, arguments);
+
+            handler.invoke(nestedEmitter, new ValueImpl<S>(thisVar, nestedVarContext, innerType),
+                    methodImpl, arguments);
+
+            JumpInstruction jumpToStart = new JumpInstruction();
+            jumpToStart.setTarget(program.basicBlockAt(startBlock.getIndex() + 1));
+            startBlock.getInstructions().add(jumpToStart);
+
             cls.addMethod(methodHolder);
         }
 
-        return null;
+        ValueImpl<S> result = new ValueImpl<>(nestedVarContext.createInstance(generator), varContext, innerType);
+        context.submitClass(cls);
+        return result;
     }
 
     protected abstract void returnValue(Variable var);

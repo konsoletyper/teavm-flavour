@@ -15,25 +15,22 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.model.Variable;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ReflectValueImpl<T> extends ValueImpl<T> implements ReflectValue<T> {
-    private ReflectClass<T> reflectClass;
+public abstract class VariableContext {
+    private VariableContext parent;
 
-    public ReflectValueImpl(Variable innerValue, ReflectClass<T> reflectClass, VariableContext context) {
-        super(innerValue, context, ((ReflectClassImpl<?>) reflectClass).type);
-        this.reflectClass = reflectClass;
+    public VariableContext(VariableContext parent) {
+        this.parent = parent;
     }
 
-    @Override
-    public ReflectClass<T> getReflectClass() {
-        return reflectClass;
+    public VariableContext getParent() {
+        return parent;
     }
+
+    public abstract Variable emitVariable(ValueImpl<?> value);
 }

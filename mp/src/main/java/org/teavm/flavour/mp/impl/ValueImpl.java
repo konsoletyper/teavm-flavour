@@ -16,6 +16,7 @@
 package org.teavm.flavour.mp.impl;
 
 import org.teavm.flavour.mp.Value;
+import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
 
 /**
@@ -24,9 +25,13 @@ import org.teavm.model.Variable;
  */
 public class ValueImpl<T> implements Value<T> {
     Variable innerValue;
+    VariableContext context;
+    ValueType type;
 
-    public ValueImpl(Variable innerValue) {
+    public ValueImpl(Variable innerValue, VariableContext context, ValueType type) {
         this.innerValue = innerValue;
+        this.context = context;
+        this.type = type;
     }
 
     @Override

@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.reflect.ReflectField;
@@ -213,6 +214,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
                     .filter(method -> !method.getName().equals("<clinit>"))
                     .filter(method -> visited.add(method.getDescriptor().toString()))
                     .map(method -> getDeclaredMethod(method.getDescriptor()))
+                    .filter(Objects::nonNull)
                     .toArray(sz -> new ReflectMethod[sz]);
         }
         return methodsCache.clone();

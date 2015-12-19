@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
@@ -44,7 +45,7 @@ import org.teavm.model.ValueType;
 public class ProxyDescriber {
     private static Set<ValueType> validConstantTypes = new HashSet<>(Arrays.asList(ValueType.BOOLEAN, ValueType.BYTE,
             ValueType.SHORT, ValueType.CHARACTER, ValueType.INTEGER, ValueType.LONG, ValueType.FLOAT,
-            ValueType.DOUBLE, ValueType.parse(String.class), ValueType.parse(Class.class)));
+            ValueType.DOUBLE, ValueType.parse(String.class)));
     private Diagnostics diagnostics;
     private ClassReaderSource classSource;
     private Map<MethodReference, ProxyModel> cache = new HashMap<>();
@@ -124,6 +125,8 @@ public class ProxyDescriber {
                     parameters.add(new ProxyParameter(i, i, param, ParameterKind.REFLECT_VALUE, null));
                 } else if (validConstantTypes.contains(proxyParam) && proxyParam.equals(param)) {
                     parameters.add(new ProxyParameter(i, i, param, ParameterKind.CONSTANT, null));
+                } else if (proxyParam.isObject(ReflectClass.class) && param.isObject(Class.class)) {
+                    parameters.add(new ProxyParameter(i, i, param, ParameterKind.CONSTANT, null));
                 } else {
                     continue nextMethod;
                 }
@@ -184,6 +187,9 @@ public class ProxyDescriber {
             } else if (paramType.isObject(String.class)) {
                 callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
                         ParameterKind.CONSTANT, valueString));
+            } else if (paramType.isObject(ReflectClass.class)) {
+                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                        ParameterKind.CONSTANT, ValueType.parse(valueString)));
             }
         }
 

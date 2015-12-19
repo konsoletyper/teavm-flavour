@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import java.util.function.Consumer;
 import org.junit.Test;
 import org.teavm.flavour.mp.Choice;
+import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
@@ -183,23 +184,21 @@ public class MetaprogrammingTest {
 
     @Test
     public void constructorInvoked() {
-        assertEquals(C.class.getName(), callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$C")
-                .getClass().getName());
-        assertNull(callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$D"));
+        assertEquals(C.class.getName(), callConstructor(C.class).getClass().getName());
+        assertNull(callConstructor(D.class));
 
-        assertNull(callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$C", "foo", 23));
+        assertNull(callConstructor(C.class, "foo", 23));
 
-        D instance = (D) callConstructor("org.teavm.flavour.mp.test.MetaprogrammingTest$D", "foo", 23);
+        D instance = (D) callConstructor(D.class, "foo", 23);
         assertEquals(D.class.getName(), instance.getClass().getName());
         assertEquals("foo", instance.a);
         assertEquals(23, instance.b);
     }
 
     @Reflected
-    private static native Object callConstructor(String type);
-    private static void callConstructor(Emitter<Object> em, String type) {
-        ReflectClass<?> cls = em.getContext().findClass(type);
-        ReflectMethod ctor = cls.getMethod("<init>");
+    private static native Object callConstructor(Class<?> type);
+    private static void callConstructor(Emitter<Object> em, ReflectClass<?> type) {
+        ReflectMethod ctor = type.getMethod("<init>");
         if (ctor != null) {
             em.returnValue(() -> ctor.construct());
         } else {
@@ -208,12 +207,11 @@ public class MetaprogrammingTest {
     }
 
     @Reflected
-    private static native Object callConstructor(String type, String a, int b);
-    private static void callConstructor(Emitter<Object> em, String type, Value<String> a, Value<Integer> b) {
+    private static native Object callConstructor(Class<?> type, String a, int b);
+    private static void callConstructor(Emitter<Object> em, ReflectClass<?> type, Value<String> a, Value<Integer> b) {
         ReflectClass<String> stringClass = em.getContext().findClass(String.class);
         ReflectClass<Integer> intClass = em.getContext().findClass(int.class);
-        ReflectClass<?> cls = em.getContext().findClass(type);
-        ReflectMethod ctor = cls.getMethod("<init>", stringClass, intClass);
+        ReflectMethod ctor = type.getMethod("<init>", stringClass, intClass);
         if (ctor != null) {
             em.returnValue(() -> ctor.construct(a, b));
         } else {
@@ -246,6 +244,29 @@ public class MetaprogrammingTest {
     private static void captureArray(Emitter<String> em, Value<Integer> a, Value<String> b) {
         Value<?>[] array = { a, em.emit(() -> ":"), b };
         em.returnValue(() -> String.valueOf(array[0].get()) + array[1].get() + array[2].get());
+    }
+
+    @Test
+    public void createsProxy() {
+        E proxy = createProxy(E.class, "!");
+        assertEquals("foo!", proxy.foo());
+        assertEquals("bar!", proxy.bar());
+    }
+
+    @Reflected
+    private static native <T> T createProxy(Class<T> proxyType, String add);
+    private static <T> void createProxy(Emitter<T> em, ReflectClass<T> proxyType, Value<String> add) {
+        Computation<T> proxy = em.proxy(proxyType, (proxyEm, instance, method, args) -> {
+            String name = method.getName();
+            proxyEm.returnValue(() -> name + add.get());
+        });
+        em.returnValue(proxy);
+    }
+
+    interface E {
+        String foo();
+
+        String bar();
     }
 
     @Test

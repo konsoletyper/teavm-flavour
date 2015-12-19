@@ -52,14 +52,16 @@ public class ChoiceImpl<T> implements Choice<T> {
     private ChoiceEmitterImpl defaultOption;
     private Phi phi;
     private List<ChoiceEmitterImpl> options = new ArrayList<>();
+    private VariableContext varContext;
 
     ChoiceImpl(EmitterContextImpl context, ClassReaderSource classSource, MethodReference templateMethod,
-            CompositeMethodGenerator generator, ValueType type) {
+            CompositeMethodGenerator generator, ValueType type, VariableContext varContext) {
         this.context = context;
         this.classSource = classSource;
         this.templateMethod = templateMethod;
         this.generator = generator;
         this.type = type;
+        this.varContext = varContext;
         predecessor = generator.currentBlock();
         successor = generator.program.createBasicBlock();
 
@@ -73,9 +75,9 @@ public class ChoiceImpl<T> implements Choice<T> {
         generator.add(insn);
 
         if (type != ValueType.VOID) {
-            value = new ValueImpl<>(generator.program.createVariable());
+            value = new ValueImpl<>(generator.program.createVariable(), varContext, type);
             phi = new Phi();
-            phi.setReceiver(value.innerValue);
+            phi.setReceiver(varContext.emitVariable(value));
             successor.getPhis().add(phi);
         }
 
@@ -131,7 +133,7 @@ public class ChoiceImpl<T> implements Choice<T> {
     }
 
     private ChoiceEmitterImpl createEmitter() {
-        return new ChoiceEmitterImpl(context, classSource, templateMethod);
+        return new ChoiceEmitterImpl(context, classSource, templateMethod, varContext);
     }
 
     public void close() {
@@ -143,8 +145,8 @@ public class ChoiceImpl<T> implements Choice<T> {
 
     class ChoiceEmitterImpl extends AbstractEmitterImpl<T> {
         public ChoiceEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
-                MethodReference templateMethod) {
-            super(context, classSource, ChoiceImpl.this.generator, templateMethod, type);
+                MethodReference templateMethod, VariableContext varContext) {
+            super(context, classSource, ChoiceImpl.this.generator, templateMethod, type, varContext);
         }
 
         @Override

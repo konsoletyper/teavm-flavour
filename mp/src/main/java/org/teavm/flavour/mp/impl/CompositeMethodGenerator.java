@@ -108,10 +108,12 @@ public class CompositeMethodGenerator {
     private Variable resultVar;
     private Phi resultPhi;
     private MethodReference templateMethod;
+    private VariableContext varContext;
 
-    public CompositeMethodGenerator(Diagnostics diagnostics) {
+    public CompositeMethodGenerator(Diagnostics diagnostics, VariableContext varContext) {
         this.diagnostics = diagnostics;
         program.createBasicBlock();
+        this.varContext = varContext;
     }
 
     public void addProgram(MethodReference templateMethod, ProgramReader template, List<Object> capturedValues) {
@@ -217,7 +219,7 @@ public class CompositeMethodGenerator {
             add(insn);
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
-            return ((ValueImpl<?>) value).innerValue;
+            return varContext.emitVariable((ValueImpl<?>) value);
         } else if (value instanceof ReflectFieldImpl) {
             ReflectFieldImpl reflectField = (ReflectFieldImpl) value;
             diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this ReflectField {{f0}} "
