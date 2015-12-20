@@ -23,6 +23,7 @@ import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectContext;
+import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ValueType;
@@ -35,6 +36,7 @@ public class EmitterContextImpl implements EmitterContext {
     private DependencyAgent agent;
     ReflectContext reflectContext;
     private Map<String, Integer> proxySuffixGenerators = new HashMap<>();
+    CallLocation location;
 
     public EmitterContextImpl(DependencyAgent agent, ReflectContext reflectContext) {
         this.agent = agent;
@@ -58,6 +60,11 @@ public class EmitterContextImpl implements EmitterContext {
     @Override
     public ClassLoader getClassLoader() {
         return agent.getClassLoader();
+    }
+
+    @Override
+    public CallLocation getLocation() {
+        return location;
     }
 
     public void submitClass(ClassHolder cls) {

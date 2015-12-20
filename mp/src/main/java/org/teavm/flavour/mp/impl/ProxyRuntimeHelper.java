@@ -25,28 +25,28 @@ public final class ProxyRuntimeHelper {
     private ProxyRuntimeHelper() {
     }
 
-    public static List<Object> add(int value, List<Object> args) {
-        args.add(value);
+    public static List<CapturedValue> add(int value, List<CapturedValue> args) {
+        args.add(new CapturedValue(value));
         return args;
     }
 
-    public static List<Object> add(long value, List<Object> args) {
-        args.add(value);
+    public static List<CapturedValue> add(long value, List<CapturedValue> args) {
+        args.add(new CapturedValue(value));
         return args;
     }
 
-    public static List<Object> add(float value, List<Object> args) {
-        args.add(value);
+    public static List<CapturedValue> add(float value, List<CapturedValue> args) {
+        args.add(new CapturedValue(value));
         return args;
     }
 
-    public static List<Object> add(double value, List<Object> args) {
-        args.add(value);
+    public static List<CapturedValue> add(double value, List<CapturedValue> args) {
+        args.add(new CapturedValue(value));
         return args;
     }
 
-    public static List<Object> add(Object value, List<Object> args) {
-        args.add(value);
+    public static List<CapturedValue> add(Object value, List<CapturedValue> args) {
+        args.add(new CapturedValue(value));
         return args;
     }
 }

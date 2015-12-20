@@ -22,6 +22,7 @@ import org.teavm.flavour.mp.Choice;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.InvocationHandler;
+import org.teavm.flavour.mp.LazyComputation;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
@@ -99,6 +100,11 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     }
 
     @Override
+    public <S> Value<S> lazyFragment(LazyComputation<S> computation) {
+        return new LazyValueImpl<>(varContext, computation, returnType);
+    }
+
+    @Override
     public <S> Choice<S> choose(ReflectClass<S> type) {
         ChoiceImpl<S> choice = new ChoiceImpl<>(context, classSource, templateMethod, generator, returnType,
                 varContext);
@@ -113,7 +119,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     }
 
     @Override
-    public void returnValue(Computation<T> computation) {
+    public void returnValue(Computation<? extends T> computation) {
         generator.blockIndex = blockIndex;
         hasReturn = true;
         if (computation instanceof Fragment) {

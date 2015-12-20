@@ -169,6 +169,8 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
+        emitterContext.location = location;
+
         VariableContext varContext = new TopLevelVariableContext();
         emitter = new EmitterImpl<>(emitterContext, agent.getClassSource(),
                 new CompositeMethodGenerator(diagnostics, varContext),

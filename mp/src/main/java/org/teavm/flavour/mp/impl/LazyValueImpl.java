@@ -13,26 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+package org.teavm.flavour.mp.impl;
 
-import org.teavm.common.ServiceRepository;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.CallLocation;
+import org.teavm.flavour.mp.LazyComputation;
+import org.teavm.flavour.mp.Value;
+import org.teavm.model.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface EmitterContext extends ServiceRepository {
-    Diagnostics getDiagnostics();
+public class LazyValueImpl<T> implements Value<T> {
+    boolean evaluated;
+    VariableContext context;
+    LazyComputation<T> computation;
+    ValueType type;
 
-    CallLocation getLocation();
+    public LazyValueImpl(VariableContext context, LazyComputation<T> computation, ValueType type) {
+        this.context = context;
+        this.computation = computation;
+        this.type = type;
+    }
 
-    ClassLoader getClassLoader();
-
-    <T> ReflectClass<T> findClass(Class<T> cls);
-
-    ReflectClass<?> findClass(String name);
-
-    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
+    @Override
+    public T get() {
+        throw new IllegalStateException("Can only read this value in emitter domain");
+    }
 }

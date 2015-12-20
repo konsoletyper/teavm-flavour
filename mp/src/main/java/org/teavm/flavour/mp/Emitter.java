@@ -26,11 +26,17 @@ public interface Emitter<T> {
 
     void emit(Action action);
 
+    <S> Value<S> lazyFragment(LazyComputation<S> computation);
+
+    default <S> Value<S> lazy(Computation<S> computation) {
+        return lazyFragment(lem -> lem.returnValue(computation));
+    }
+
     <S> Choice<S> choose(ReflectClass<S> type);
 
     <S> Choice<S> choose(Class<S> type);
 
-    void returnValue(Computation<T> computation);
+    void returnValue(Computation<? extends T> computation);
 
     default <S> Value<S> proxy(Class<S> type, InvocationHandler<S> handler)  {
         return proxy(getContext().findClass(type), handler);

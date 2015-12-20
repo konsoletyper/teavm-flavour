@@ -23,10 +23,10 @@ import org.teavm.model.MethodReference;
  * @author Alexey Andreev
  */
 public class Fragment {
-    List<Object> capturedValues;
+    List<CapturedValue> capturedValues;
     MethodReference method;
 
-    public Fragment(List<Object> capturedValues, MethodReference method) {
+    public Fragment(List<CapturedValue> capturedValues, MethodReference method) {
         this.capturedValues = capturedValues;
         this.method = method;
     }

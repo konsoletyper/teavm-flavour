@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp.impl.reflect;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -193,6 +194,11 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         throw new IllegalStateException("Don't call this method from compile domain");
     }
 
+    @Override
+    public T cast(Object obj) {
+        throw new IllegalStateException("Don't call this method from compile domain");
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <U> ReflectClass<U> asSubclass(Class<U> cls) {
@@ -342,6 +348,12 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         return fieldReader != null && fieldReader.getLevel() == AccessLevel.PUBLIC
                 ? getDeclaredField(name)
                 : null;
+    }
+
+    @Override
+    public <S extends Annotation> S getAnnotation(Class<S> type) {
+        // TODO: implement
+        return null;
     }
 
     private void resolve() {

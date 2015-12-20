@@ -13,26 +13,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
-
-import org.teavm.common.ServiceRepository;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.CallLocation;
+package org.teavm.flavour.mp.impl;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface EmitterContext extends ServiceRepository {
-    Diagnostics getDiagnostics();
+public class CapturedValue {
+    public Object obj;
 
-    CallLocation getLocation();
-
-    ClassLoader getClassLoader();
-
-    <T> ReflectClass<T> findClass(Class<T> cls);
-
-    ReflectClass<?> findClass(String name);
-
-    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
+    public CapturedValue(Object obj) {
+        super();
+        this.obj = obj;
+    }
 }

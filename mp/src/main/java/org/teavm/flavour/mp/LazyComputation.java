@@ -15,24 +15,10 @@
  */
 package org.teavm.flavour.mp;
 
-import org.teavm.common.ServiceRepository;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.CallLocation;
-
 /**
  *
  * @author Alexey Andreev
  */
-public interface EmitterContext extends ServiceRepository {
-    Diagnostics getDiagnostics();
-
-    CallLocation getLocation();
-
-    ClassLoader getClassLoader();
-
-    <T> ReflectClass<T> findClass(Class<T> cls);
-
-    ReflectClass<?> findClass(String name);
-
-    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
+public interface LazyComputation<T> {
+    void compute(Emitter<T> emitter);
 }

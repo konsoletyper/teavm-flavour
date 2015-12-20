@@ -15,25 +15,26 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import java.util.List;
-import org.teavm.flavour.mp.Action;
+import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
+import org.teavm.model.ValueType;
+import org.teavm.model.Variable;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ActionImpl extends Fragment implements Action {
-    public ActionImpl(List<CapturedValue> capturedValues, MethodReference method) {
-        super(capturedValues, method);
+public class LazyEmitterImpl<T> extends AbstractEmitterImpl<T> {
+    Variable result;
+
+    public LazyEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
+            CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType,
+            VariableContext varContext) {
+        super(context, classSource, generator, templateMethod, returnType, varContext);
     }
 
     @Override
-    public void run() {
-        throw new IllegalStateException("Don't call this method directly");
-    }
-
-    public static ActionImpl create(List<CapturedValue> capturedValues, MethodReference method) {
-        return new ActionImpl(capturedValues, method);
+    protected void returnValue(Variable var) {
+        this.result = var;
     }
 }

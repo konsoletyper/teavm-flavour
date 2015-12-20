@@ -24,7 +24,7 @@ import org.teavm.model.MethodReference;
  * @author Alexey Andreev
  */
 public class ComputationImpl<T> extends Fragment implements Computation<T> {
-    public ComputationImpl(List<Object> capturedValues, MethodReference method) {
+    public ComputationImpl(List<CapturedValue> capturedValues, MethodReference method) {
         super(capturedValues, method);
     }
 
@@ -33,7 +33,7 @@ public class ComputationImpl<T> extends Fragment implements Computation<T> {
         throw new IllegalStateException("Don't call this method directly");
     }
 
-    public static <S> ComputationImpl<S> create(List<Object> capturedValues, MethodReference method) {
+    public static <S> ComputationImpl<S> create(List<CapturedValue> capturedValues, MethodReference method) {
         return new ComputationImpl<>(capturedValues, method);
     }
 }

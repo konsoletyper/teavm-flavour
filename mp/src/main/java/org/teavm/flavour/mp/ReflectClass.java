@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp;
 
+import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
@@ -50,6 +51,8 @@ public interface ReflectClass<T> {
 
     boolean isInstance(Object obj);
 
+    T cast(Object obj);
+
     <U> ReflectClass<U> asSubclass(Class<U> cls);
 
     default boolean isAssignableFrom(ReflectClass<?> cls) {
@@ -83,4 +86,6 @@ public interface ReflectClass<T> {
     ReflectField getDeclaredField(String name);
 
     ReflectField getField(String name);
+
+    <S extends Annotation> S getAnnotation(Class<S> type);
 }
