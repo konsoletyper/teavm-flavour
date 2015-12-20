@@ -103,6 +103,7 @@ import org.teavm.model.instructions.UnwrapArrayInstruction;
  * @author Alexey Andreev
  */
 public class CompositeMethodGenerator {
+    private EmitterContextImpl context;
     private Diagnostics diagnostics;
     Program program = new Program();
     InstructionLocation location;
@@ -110,10 +111,11 @@ public class CompositeMethodGenerator {
     private Variable resultVar;
     private Phi resultPhi;
     private MethodReference templateMethod;
-    private VariableContext varContext;
+    VariableContext varContext;
 
-    public CompositeMethodGenerator(Diagnostics diagnostics, VariableContext varContext) {
-        this.diagnostics = diagnostics;
+    public CompositeMethodGenerator(EmitterContextImpl context, VariableContext varContext) {
+        this.context = context;
+        this.diagnostics = context.getDiagnostics();
         program.createBasicBlock();
         this.varContext = varContext;
     }
@@ -234,6 +236,12 @@ public class CompositeMethodGenerator {
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
             return varContext.emitVariable((ValueImpl<?>) value);
+        } else if (value instanceof LazyValueImpl) {
+            @SuppressWarnings("unchecked")
+            LazyValueImpl<Object> lazyImpl = (LazyValueImpl<Object>) value;
+            LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, this, templateMethod, lazyImpl.type);
+            lazyImpl.computation.compute(lazyEmitter);
+            return lazyEmitter.result;
         } else if (value instanceof ReflectFieldImpl) {
             ReflectFieldImpl reflectField = (ReflectFieldImpl) value;
             diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this ReflectField {{f0}} "

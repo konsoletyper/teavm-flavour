@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
@@ -26,9 +25,15 @@ import org.teavm.model.instructions.ExitInstruction;
  * @author Alexey Andreev
  */
 public class EmitterImpl<T> extends AbstractEmitterImpl<T> {
-    public EmitterImpl(EmitterContextImpl context, ClassReaderSource classSource, CompositeMethodGenerator generator,
-            MethodReference templateMethod, ValueType returnType, VariableContext varContext) {
-        super(context, classSource, generator, templateMethod, returnType, varContext);
+    public EmitterImpl(EmitterContextImpl context, MethodReference templateMethod, ValueType returnType) {
+        super(context, new CompositeMethodGenerator(context, new TopLevelVariableContext()), templateMethod,
+                returnType);
+    }
+
+    public EmitterImpl(EmitterContextImpl context, MethodReference templateMethod, ValueType returnType,
+            VariableContext varContext) {
+        super(context, new CompositeMethodGenerator(context, varContext), templateMethod,
+                returnType);
     }
 
     @Override

@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.mp.impl;
 
-import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
@@ -27,10 +26,9 @@ import org.teavm.model.Variable;
 public class LazyEmitterImpl<T> extends AbstractEmitterImpl<T> {
     Variable result;
 
-    public LazyEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
-            CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType,
-            VariableContext varContext) {
-        super(context, classSource, generator, templateMethod, returnType, varContext);
+    public LazyEmitterImpl(EmitterContextImpl context, CompositeMethodGenerator generator,
+            MethodReference templateMethod, ValueType returnType) {
+        super(context, generator, templateMethod, returnType);
     }
 
     @Override

@@ -52,16 +52,14 @@ public class ChoiceImpl<T> implements Choice<T> {
     private ChoiceEmitterImpl defaultOption;
     private Phi phi;
     private List<ChoiceEmitterImpl> options = new ArrayList<>();
-    private VariableContext varContext;
 
-    ChoiceImpl(EmitterContextImpl context, ClassReaderSource classSource, MethodReference templateMethod,
-            CompositeMethodGenerator generator, ValueType type, VariableContext varContext) {
+    ChoiceImpl(EmitterContextImpl context, MethodReference templateMethod,
+            CompositeMethodGenerator generator, ValueType type) {
         this.context = context;
-        this.classSource = classSource;
+        this.classSource = context.getReflectContext().getClassSource();
         this.templateMethod = templateMethod;
         this.generator = generator;
         this.type = type;
-        this.varContext = varContext;
         predecessor = generator.currentBlock();
         successor = generator.program.createBasicBlock();
 
@@ -75,9 +73,9 @@ public class ChoiceImpl<T> implements Choice<T> {
         generator.add(insn);
 
         if (type != ValueType.VOID) {
-            value = new ValueImpl<>(generator.program.createVariable(), varContext, type);
+            value = new ValueImpl<>(generator.program.createVariable(), generator.varContext, type);
             phi = new Phi();
-            phi.setReceiver(varContext.emitVariable(value));
+            phi.setReceiver(generator.varContext.emitVariable(value));
             successor.getPhis().add(phi);
         }
 
@@ -133,7 +131,7 @@ public class ChoiceImpl<T> implements Choice<T> {
     }
 
     private ChoiceEmitterImpl createEmitter() {
-        return new ChoiceEmitterImpl(context, classSource, templateMethod, varContext);
+        return new ChoiceEmitterImpl(context, templateMethod);
     }
 
     public void close() {
@@ -144,9 +142,8 @@ public class ChoiceImpl<T> implements Choice<T> {
     }
 
     class ChoiceEmitterImpl extends AbstractEmitterImpl<T> {
-        public ChoiceEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
-                MethodReference templateMethod, VariableContext varContext) {
-            super(context, classSource, ChoiceImpl.this.generator, templateMethod, type, varContext);
+        public ChoiceEmitterImpl(EmitterContextImpl context, MethodReference templateMethod) {
+            super(context, ChoiceImpl.this.generator, templateMethod, type);
         }
 
         @Override

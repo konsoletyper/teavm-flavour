@@ -53,26 +53,25 @@ import org.teavm.model.instructions.NullConstantInstruction;
  */
 public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     private EmitterContextImpl context;
-    private ClassReaderSource classSource;
+    ClassReaderSource classSource;
     CompositeMethodGenerator generator;
-    private MethodReference templateMethod;
+    MethodReference templateMethod;
     private ValueType returnType;
     private boolean hasReturn;
     private boolean closed;
     private List<ChoiceImpl<?>> choices = new ArrayList<>();
-    private VariableContext varContext;
+    VariableContext varContext;
     int blockIndex;
 
-    public AbstractEmitterImpl(EmitterContextImpl context, ClassReaderSource classSource,
-            CompositeMethodGenerator generator, MethodReference templateMethod, ValueType returnType,
-            VariableContext varContext) {
+    public AbstractEmitterImpl(EmitterContextImpl context, CompositeMethodGenerator generator,
+            MethodReference templateMethod, ValueType returnType) {
         this.context = context;
-        this.classSource = classSource;
+        this.classSource = context.getReflectContext().getClassSource();
         this.generator = generator;
         blockIndex = generator.blockIndex;
         this.templateMethod = templateMethod;
         this.returnType = returnType;
-        this.varContext = varContext;
+        this.varContext = generator.varContext;
     }
 
     @Override
@@ -106,8 +105,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Choice<S> choose(ReflectClass<S> type) {
-        ChoiceImpl<S> choice = new ChoiceImpl<>(context, classSource, templateMethod, generator, returnType,
-                varContext);
+        ChoiceImpl<S> choice = new ChoiceImpl<>(context, templateMethod, generator, returnType);
         choices.add(choice);
         blockIndex = generator.blockIndex;
         return choice;
@@ -153,11 +151,10 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             MethodHolder methodHolder = new MethodHolder(methodImpl.method.getDescriptor());
             methodHolder.setLevel(AccessLevel.PUBLIC);
 
-            CompositeMethodGenerator nestedGenerator = new CompositeMethodGenerator(context.getDiagnostics(),
-                    nestedVarContext);
+            EmitterImpl<Object> nestedEmitter = new EmitterImpl<>(context, templateMethod,
+                    methodHolder.getResultType(), nestedVarContext);
+            CompositeMethodGenerator nestedGenerator = nestedEmitter.generator;
             Program program = nestedGenerator.program;
-            EmitterImpl<Object> nestedEmitter = new EmitterImpl<>(context, classSource, nestedGenerator,
-                    templateMethod, methodHolder.getResultType(), nestedVarContext);
             BasicBlock startBlock = nestedGenerator.currentBlock();
             nestedEmitter.blockIndex = program.createBasicBlock().getIndex();
             nestedVarContext.init(startBlock);

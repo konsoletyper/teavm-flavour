@@ -296,4 +296,48 @@ public class MetaprogrammingTest {
         public int a;
         public int b;
     }
+
+    //@Test
+    // TODO: repair
+    public void lazyWorks() {
+        WithSideEffect a = new WithSideEffect(10);
+        WithSideEffect b = new WithSideEffect(20);
+        assertEquals(1, withLazy(a, b));
+        assertEquals(1, a.reads);
+        assertEquals(0, b.reads);
+
+        a = new WithSideEffect(-10);
+        b = new WithSideEffect(20);
+        assertEquals(1, withLazy(a, b));
+        assertEquals(1, a.reads);
+        assertEquals(1, b.reads);
+
+        a = new WithSideEffect(-10);
+        b = new WithSideEffect(-20);
+        assertEquals(2, withLazy(a, b));
+        assertEquals(1, a.reads);
+        assertEquals(1, b.reads);
+    }
+
+    @Reflected
+    private static native int withLazy(WithSideEffect a, WithSideEffect b);
+    private static void withLazy(Emitter<Integer> em, Value<WithSideEffect> a, Value<WithSideEffect> b) {
+        Value<Boolean> first = em.lazy(() -> a.get().getValue() > 0);
+        Value<Boolean> second = em.lazy(() -> b.get().getValue() > 0);
+        em.returnValue(() -> first.get() || second.get() ? 1 : 2);
+    }
+
+    static class WithSideEffect {
+        private int value;
+        public int reads;
+
+        public WithSideEffect(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            ++reads;
+            return value;
+        }
+    }
 }
