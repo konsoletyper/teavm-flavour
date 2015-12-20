@@ -280,6 +280,18 @@ public class MetaprogrammingTest {
         String bar();
     }
 
+    @Test
+    public void capturesNull() {
+        assertEquals("foo:bar", captureArgument("foo", "bar"));
+        assertEquals("foo:null", captureArgument("foo", null));
+    }
+
+    @Reflected
+    private static native String captureArgument(String a, String b);
+    private static void captureArgument(Emitter<String> em, Value<String> a, String b) {
+        em.returnValue(() -> a.get() + ":" + b);
+    }
+
     static class Context {
         public int a;
         public int b;

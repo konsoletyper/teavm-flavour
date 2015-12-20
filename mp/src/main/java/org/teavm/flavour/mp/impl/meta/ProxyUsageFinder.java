@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.teavm.common.DisjointSet;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.impl.CapturedValue;
 import org.teavm.flavour.mp.impl.ProxyMethod;
 import org.teavm.model.AnnotationHolder;
 import org.teavm.model.AnnotationValue;
@@ -116,16 +117,16 @@ public class ProxyUsageFinder {
     private void processUsage(ClassHolder cls, MethodHolder method, ProgramAnalyzer analyzer, Invocation invocation) {
         CallLocation location = new CallLocation(method.getReference(), invocation.insn.getLocation());
         List<ProxyParameter> parameters = invocation.proxy.getParameters();
-        List<Object> constants = new ArrayList<>();
+        List<CapturedValue> constants = new ArrayList<>();
         List<ValueType> usageSignatureBuilder = new ArrayList<>();
         for (int i = 0; i < parameters.size(); ++i) {
             ProxyParameter proxyParam = parameters.get(i);
             Variable arg = invocation.insn.getArguments().get(i);
             if (proxyParam.getKind() == ParameterKind.CONSTANT) {
-                Object cst = analyzer.constant(arg.getIndex());
+                CapturedValue cst = analyzer.constant(arg.getIndex());
                 if (cst == null) {
                     diagnostics.error(location, "Parameter " + (i + 1) + " of proxy method has type {{c0}}, "
-                            + "this means that you can only pass constant literals to parameter " + i
+                            + "this means that you can only pass constant literals to parameter " + i + " "
                             + "of method {{m1}}", invocation.proxy.getProxyMethod().parameterType(i + 1),
                             invocation.proxy.getMethod());
                 }
@@ -178,7 +179,11 @@ public class ProxyUsageFinder {
         usageMethod.getAnnotations().add(proxyMethodAnnot);
     }
 
-    private String emitConstant(Object constant) {
+    private String emitConstant(CapturedValue constantWrapper) {
+        Object constant = constantWrapper.obj;
+        if (constant == null) {
+            return "null";
+        }
         if (constant instanceof Boolean
                 || constant instanceof Byte
                 || constant instanceof Short
@@ -189,19 +194,19 @@ public class ProxyUsageFinder {
                 || constant instanceof Double
                 || constant instanceof String
                 || constant instanceof ValueType) {
-            return String.valueOf(constant);
+            return "#" + String.valueOf(constant);
         }
         return "";
     }
 
     class ProgramAnalyzer implements InstructionVisitor {
         DisjointSet variableSets = new DisjointSet();
-        Map<Integer, Object> constants = new HashMap<>();
+        Map<Integer, CapturedValue> constants = new HashMap<>();
         List<Invocation> invocations = new ArrayList<>();
         BasicBlock block;
         int index;
 
-        Object constant(int index) {
+        CapturedValue constant(int index) {
             return constants.get(variableSets.find(index));
         }
 
@@ -211,36 +216,37 @@ public class ProxyUsageFinder {
 
         @Override
         public void visit(ClassConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
         public void visit(NullConstantInstruction insn) {
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(null));
         }
 
         @Override
         public void visit(IntegerConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
         public void visit(LongConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
         public void visit(FloatConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
         public void visit(DoubleConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
         public void visit(StringConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), insn.getConstant());
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
         }
 
         @Override
@@ -259,7 +265,7 @@ public class ProxyUsageFinder {
             }
             int result = variableSets.union(insn.getAssignee().getIndex(), insn.getReceiver().getIndex());
             if (cst != null) {
-                constants.put(result, cst);
+                constants.put(result, new CapturedValue(cst));
             }
         }
 

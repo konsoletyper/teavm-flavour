@@ -160,36 +160,51 @@ public class ProxyDescriber {
                         method.parameterType(delegateParamIndex), ParameterKind.REFLECT_VALUE, null);
                 parameters.add(parameter);
                 callParameters.add(parameter);
-            } else if (paramType.isObject(Boolean.class) || paramType == ValueType.BOOLEAN) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Boolean.parseBoolean(valueString)));
-            } else if (paramType.isObject(Byte.class) || paramType == ValueType.BYTE) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Byte.parseByte(valueString)));
-            } else if (paramType.isObject(Short.class) || paramType == ValueType.SHORT) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Short.parseShort(valueString)));
-            } else if (paramType.isObject(Character.class) || paramType == ValueType.CHARACTER) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, valueString.charAt(0)));
-            } else if (paramType.isObject(Integer.class) || paramType == ValueType.INTEGER) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Integer.parseInt(valueString)));
-            } else if (paramType.isObject(Long.class) || paramType == ValueType.LONG) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Long.parseLong(valueString)));
-            } else if (paramType.isObject(Float.class) || paramType == ValueType.FLOAT) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Float.parseFloat(valueString)));
-            } else if (paramType.isObject(Double.class) || paramType == ValueType.DOUBLE) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, Float.parseFloat(valueString)));
-            } else if (paramType.isObject(String.class)) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, valueString));
-            } else if (paramType.isObject(ReflectClass.class)) {
-                callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
-                        ParameterKind.CONSTANT, ValueType.parse(valueString)));
+            } else {
+                Object value = null;
+                boolean computed = false;
+                if (valueString.equals("null")) {
+                    value = null;
+                    computed = true;
+                } else {
+                    valueString = valueString.substring(1);
+                    if (paramType.isObject(Boolean.class) || paramType == ValueType.BOOLEAN) {
+                        value = Boolean.parseBoolean(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Byte.class) || paramType == ValueType.BYTE) {
+                        value = Byte.parseByte(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Short.class) || paramType == ValueType.SHORT) {
+                        value = Short.parseShort(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Character.class) || paramType == ValueType.CHARACTER) {
+                        value = valueString.charAt(0);
+                        computed = true;
+                    } else if (paramType.isObject(Integer.class) || paramType == ValueType.INTEGER) {
+                        value = Integer.parseInt(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Long.class) || paramType == ValueType.LONG) {
+                        value = Long.parseLong(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Float.class) || paramType == ValueType.FLOAT) {
+                        value = Float.parseFloat(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(Double.class) || paramType == ValueType.DOUBLE) {
+                        value = Double.parseDouble(valueString);
+                        computed = true;
+                    } else if (paramType.isObject(String.class)) {
+                        value = valueString;
+                        computed = true;
+                    } else if (paramType.isObject(ReflectClass.class)) {
+                        value = ValueType.parse(valueString);
+                        computed = true;
+                    }
+                }
+
+                if (computed) {
+                    callParameters.add(new ProxyParameter(-1, callParameters.size(), paramType,
+                            ParameterKind.CONSTANT, value));
+                }
             }
         }
 
