@@ -16,148 +16,48 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.List;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.TemplateNode;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.Program;
-import org.teavm.model.ValueType;
-import org.teavm.model.Variable;
-import org.teavm.model.instructions.ConstructInstruction;
-import org.teavm.model.instructions.ExitInstruction;
-import org.teavm.model.instructions.GetFieldInstruction;
-import org.teavm.model.instructions.InvocationType;
-import org.teavm.model.instructions.InvokeInstruction;
-import org.teavm.model.instructions.PutFieldInstruction;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class TemplateEmitter {
-    private EmitterContext dependencyAgent;
+    private Emitter<Fragment> em;
 
-    public TemplateEmitter(EmitterContext dependencyAgent) {
-        this.dependencyAgent = dependencyAgent;
+    public TemplateEmitter(Emitter<Fragment> em) {
+        this.em = em;
     }
 
-    public String emitTemplate(String modelClassName, String sourceFileName, List<TemplateNode> fragment) {
-        ClassHolder cls = new ClassHolder(modelClassName + "$Flavour_Template");
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(Fragment.class.getName());
-
-        String innerName = emitInnerFragment(sourceFileName, cls, modelClassName, fragment);
-        emitConstructor(cls, modelClassName, innerName);
-        emitWorker(cls, innerName);
-
-        //dependencyAgent.submitClass(cls);
-        return cls.getName();
+    public Value<Fragment> emitTemplate(ReflectValue<Object> model, String sourceFileName,
+            List<TemplateNode> fragment) {
+        Value<Fragment> innerFragment = emitInnerFragment(sourceFileName, model, fragment);
+        return emitWorker(innerFragment);
     }
 
-    private String emitInnerFragment(String sourceFileName, ClassHolder cls, String modelClassName,
+    private Value<Fragment> emitInnerFragment(String sourceFileName, ReflectValue<Object> model,
             List<TemplateNode> fragment) {
         EmitContext context = new EmitContext();
         context.sourceFileName = sourceFileName;
-        context.classStack.add(cls.getName());
-        context.addVariable("this", ValueType.object(modelClassName));
-        context.dependencyAgent = dependencyAgent;
-        context.modelClassName = modelClassName;
-        return new FragmentEmitter(context).emitTemplate(null, fragment);
+        context.addVariable("this", model);
+        context.model = model;
+        return new FragmentEmitter(context).emitTemplate(em, null, fragment);
     }
 
-    private void emitConstructor(ClassHolder cls, String modelClassName, String innerName) {
-        FieldHolder model = new FieldHolder("var$this");
-        model.setType(ValueType.object(modelClassName));
-        model.setLevel(AccessLevel.PUBLIC);
-        cls.addField(model);
-
-        FieldHolder innerFragment = new FieldHolder("this$inner");
-        innerFragment.setType(ValueType.object(innerName));
-        innerFragment.setLevel(AccessLevel.PUBLIC);
-        cls.addField(innerFragment);
-
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.object(modelClassName), ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-        Program program = new Program();
-        Variable thisVar = program.createVariable();
-        Variable modelVar = program.createVariable();
-        BasicBlock block = program.createBasicBlock();
-
-        InvokeInstruction invokeSuper = new InvokeInstruction();
-        invokeSuper.setType(InvocationType.SPECIAL);
-        invokeSuper.setInstance(thisVar);
-        invokeSuper.setMethod(new MethodReference(Object.class, "<init>", void.class));
-        block.getInstructions().add(invokeSuper);
-
-        PutFieldInstruction putField = new PutFieldInstruction();
-        putField.setField(new FieldReference(cls.getName(), "var$this"));
-        putField.setFieldType(ValueType.object(modelClassName));
-        putField.setInstance(thisVar);
-        putField.setValue(modelVar);
-        block.getInstructions().add(putField);
-
-        Variable innerVar = program.createVariable();
-        ConstructInstruction createInner = new ConstructInstruction();
-        createInner.setReceiver(innerVar);
-        createInner.setType(innerName);
-        block.getInstructions().add(createInner);
-
-        InvokeInstruction initInner = new InvokeInstruction();
-        initInner.setInstance(innerVar);
-        initInner.setType(InvocationType.SPECIAL);
-        initInner.setMethod(new MethodReference(innerName, "<init>", ValueType.object(cls.getName()), ValueType.VOID));
-        initInner.getArguments().add(thisVar);
-        block.getInstructions().add(initInner);
-
-        PutFieldInstruction saveInner = new PutFieldInstruction();
-        saveInner.setFieldType(ValueType.object(innerName));
-        saveInner.setField(new FieldReference(cls.getName(), "this$inner"));
-        saveInner.setInstance(thisVar);
-        saveInner.setValue(innerVar);
-        block.getInstructions().add(saveInner);
-
-        block.getInstructions().add(new ExitInstruction());
-
-        ctor.setProgram(program);
-        cls.addMethod(ctor);
-    }
-
-    private void emitWorker(ClassHolder cls, String innerName) {
-        MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
-        method.setLevel(AccessLevel.PUBLIC);
-        Program program = new Program();
-        BasicBlock block = program.createBasicBlock();
-        Variable thisVar = program.createVariable();
-        Variable innerVar = program.createVariable();
-        Variable resultVar = program.createVariable();
-
-        GetFieldInstruction getInner = new GetFieldInstruction();
-        getInner.setField(new FieldReference(cls.getName(), "this$inner"));
-        getInner.setFieldType(ValueType.object(innerName));
-        getInner.setInstance(thisVar);
-        getInner.setReceiver(innerVar);
-        block.getInstructions().add(getInner);
-
-        InvokeInstruction invokeInner = new InvokeInstruction();
-        invokeInner.setInstance(innerVar);
-        invokeInner.setType(InvocationType.VIRTUAL);
-        invokeInner.setMethod(new MethodReference(innerName, "create", ValueType.parse(Component.class)));
-        invokeInner.setReceiver(resultVar);
-        block.getInstructions().add(invokeInner);
-
-        ExitInstruction exit = new ExitInstruction();
-        exit.setValueToReturn(resultVar);
-        block.getInstructions().add(exit);
-
-        method.setProgram(program);
-        cls.addMethod(method);
+    private Value<Fragment> emitWorker(Value<Fragment> innerFragment) {
+        return em.proxy(Fragment.class, (proxyEm, instance, method, args) -> {
+            int argCount = args.length;
+            Value<Object[]> innerArgs = em.emit(() -> new Object[argCount]);
+            for (int i = 0; i < argCount; ++i) {
+                int index = i;
+                em.emit(() -> innerArgs.get()[index] = args[index]);
+            }
+            Value<Object> result = proxyEm.emit(() -> method.invoke(innerFragment, innerArgs.get()));
+            proxyEm.returnValue(result);
+        });
     }
 }

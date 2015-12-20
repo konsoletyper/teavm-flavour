@@ -15,15 +15,7 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.teavm.flavour.expr.Location;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
-import org.teavm.flavour.expr.plan.ArithmeticType;
 import org.teavm.flavour.expr.plan.ArrayLengthPlan;
 import org.teavm.flavour.expr.plan.BinaryPlan;
 import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
@@ -40,27 +32,18 @@ import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
 import org.teavm.flavour.expr.plan.NegatePlan;
 import org.teavm.flavour.expr.plan.NotPlan;
-import org.teavm.flavour.expr.plan.Plan;
 import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ThisPlan;
 import org.teavm.flavour.expr.plan.VariablePlan;
-import org.teavm.flavour.templates.Templates;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.FieldReference;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ComputationEmitter;
-import org.teavm.model.emit.ConditionEmitter;
-import org.teavm.model.emit.PhiEmitter;
-import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
-import org.teavm.model.instructions.IntegerSubtype;
 
 /**
  *
@@ -68,15 +51,9 @@ import org.teavm.model.instructions.IntegerSubtype;
  */
 class ExprPlanEmitter implements PlanVisitor {
     private EmitContext context;
-    String thisClassName;
-    ProgramEmitter pe;
-    ValueEmitter var;
-    private ConditionEmitter branching;
+    Emitter<?> em;
+    Value<Object> var;
     ValueEmitter thisVar;
-    Set<String> innerClosure = new HashSet<>();
-    List<String> innerClosureList = new ArrayList<>();
-    private Map<String, ComputationEmitter> boundVars = new HashMap<>();
-    private Map<String, ValueType> boundVarTypes = new HashMap<>();
 
     public ExprPlanEmitter(EmitContext context) {
         this.context = context;
@@ -84,104 +61,211 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(ConstantPlan plan) {
-        context.location(pe, plan.getLocation());
         Object value = plan.getValue();
         if (value == null) {
-            var = pe.constantNull(ValueType.parse(Object.class));
-        } else if (value instanceof Boolean) {
-            var = pe.constant((Boolean) value ? 1 : 0);
-        } else if (value instanceof Byte) {
-            var = pe.constant(((Byte) value).intValue());
-        } else if (value instanceof Short) {
-            var = pe.constant(((Short) value).intValue());
-        } else if (value instanceof Character) {
-            var = pe.constant(((Character) value).charValue());
-        } else if (value instanceof Integer) {
-            var = pe.constant((Integer) value);
-        } else if (value instanceof Long) {
-            var = pe.constant((Long) value);
-        } else if (value instanceof Float) {
-            var = pe.constant((Float) value);
-        } else if (value instanceof Double) {
-            var = pe.constant((Double) value);
-        } else if (value instanceof String) {
-            var = pe.constant((String) value);
+            var = em.lazy(() -> null);
+        } else {
+            var = em.lazy(() -> value);
         }
     }
 
     @Override
     public void visit(VariablePlan plan) {
-        context.location(pe, plan.getLocation());
         emitVariable(plan.getName());
     }
 
     @Override
     public void visit(ThisPlan plan) {
-        context.location(pe, plan.getLocation());
         emitVariable("this");
     }
 
     private void emitVariable(String name) {
-        if (boundVars.containsKey(name)) {
-            var = boundVars.get(name).emit();
-            if (innerClosure.add(name)) {
-                innerClosureList.add(name);
-            }
-            return;
-        }
-
-        EmittedVariable emitVar = context.getVariable(name);
-
-        var = thisVar;
-        int bottom = emitVar.depth - 1;
-        for (int i = context.classStack.size() - 1; i >= bottom; --i) {
-            var = var.getField("this$owner", ValueType.object(context.classStack.get(i)));
-        }
-        var = var.getField("var$" + name, emitVar.type);
+        var = context.getVariable(name);
     }
 
     @Override
     public void visit(BinaryPlan plan) {
         plan.getFirstOperand().acceptVisitor(this);
-        requireValue();
-        ValueEmitter first = var;
+        Value<Object> first = var;
         plan.getSecondOperand().acceptVisitor(this);
-        requireValue();
-        ValueEmitter second = var;
+        Value<Object> second = var;
 
         switch (plan.getType()) {
             case ADD:
-                var = first.add(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() + (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() + (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() + (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() + (Double) second.get());
+                        break;
+                }
                 break;
             case SUBTRACT:
-                var = first.sub(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() - (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() - (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() - (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() - (Double) second.get());
+                        break;
+                }
                 break;
             case MULTIPLY:
-                var = first.mul(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() * (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() * (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() * (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() * (Double) second.get());
+                        break;
+                }
                 break;
             case DIVIDE:
-                var = first.div(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() / (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() / (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() / (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() / (Double) second.get());
+                        break;
+                }
                 break;
             case REMAINDER:
-                var = first.rem(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() % (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() % (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() % (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() % (Double) second.get());
+                        break;
+                }
                 break;
             case EQUAL:
-                branching = first.isEqualTo(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> ((Integer) first.get()).intValue() == (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> ((Long) first.get()).longValue() == (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> ((Float) first.get()).floatValue() == (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> ((Double) first.get()).doubleValue() == (Double) second.get());
+                        break;
+                }
                 break;
             case NOT_EQUAL:
-                branching = first.isNotEqualTo(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> ((Integer) first.get()).intValue() != (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> ((Long) first.get()).longValue() != (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> ((Float) first.get()).floatValue() != (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> ((Double) first.get()).doubleValue() != (Double) second.get());
+                        break;
+                }
                 break;
             case GREATER:
-                branching = first.isGreaterThan(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() > (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() > (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() > (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() > (Double) second.get());
+                        break;
+                }
                 break;
             case GREATER_OR_EQUAL:
-                branching = first.isGreaterOrEqualTo(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() >= (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() >= (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() >= (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() >= (Double) second.get());
+                        break;
+                }
                 break;
             case LESS:
-                branching = first.isLessThan(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() < (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() < (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() < (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() < (Double) second.get());
+                        break;
+                }
                 break;
             case LESS_OR_EQUAL:
-                branching = first.isLessOrEqualTo(second);
+                switch (plan.getValueType()) {
+                    case INT:
+                        var = em.lazy(() -> (Integer) first.get() <= (Integer) second.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (Long) first.get() <= (Long) second.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (Float) first.get() <= (Float) second.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (Double) first.get() <= (Double) second.get());
+                        break;
+                }
                 break;
         }
     }
@@ -189,176 +273,236 @@ class ExprPlanEmitter implements PlanVisitor {
     @Override
     public void visit(NegatePlan plan) {
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.neg();
+        Value<Object> operand = var;
+        switch (plan.getValueType()) {
+            case INT:
+                var = em.lazy(() -> -(Integer) operand.get());
+                break;
+            case LONG:
+                var = em.lazy(() -> -(Long) operand.get());
+                break;
+            case FLOAT:
+                var = em.lazy(() -> -(Float) operand.get());
+                break;
+            case DOUBLE:
+                var = em.lazy(() -> -(Double) operand.get());
+                break;
+        }
     }
 
     @Override
     public void visit(ReferenceEqualityPlan plan) {
         plan.getFirstOperand().acceptVisitor(this);
-        requireValue();
-        ValueEmitter first = var;
+        Value<Object> first = var;
         plan.getSecondOperand().acceptVisitor(this);
-        requireValue();
-        ValueEmitter second = var;
+        Value<Object> second = var;
 
-        context.location(pe, plan.getLocation());
         switch (plan.getType()) {
             case EQUAL:
-                branching = first.isSame(second);
+                var = em.lazy(() -> first == second);
                 break;
             case NOT_EQUAL:
-                branching = first.isNotSame(second);
+                var = em.lazy(() -> first != second);
                 break;
         }
     }
 
     @Override
     public void visit(LogicalBinaryPlan plan) {
-        context.location(pe, plan.getLocation());
+        plan.getFirstOperand().acceptVisitor(this);
+        Value<Object> first = var;
+        plan.getSecondOperand().acceptVisitor(this);
+        Value<Object> second = var;
         switch (plan.getType()) {
             case AND:
-                plan.getFirstOperand().acceptVisitor(this);
-                valueToBranching();
-                branching = branching.and(() -> {
-                    ConditionEmitter oldBranching = branching;
-                    branching = null;
-                    plan.getSecondOperand().acceptVisitor(this);
-                    valueToBranching();
-                    ConditionEmitter result = branching;
-                    branching = oldBranching;
-                    return result;
-                });
+                var = em.lazy(() -> (Boolean) first.get() && (Boolean) second.get());
                 break;
             case OR:
-                plan.getFirstOperand().acceptVisitor(this);
-                valueToBranching();
-                branching = branching.or(() -> {
-                    ConditionEmitter oldBranching = branching;
-                    branching = null;
-                    plan.getSecondOperand().acceptVisitor(this);
-                    valueToBranching();
-                    ConditionEmitter result = branching;
-                    branching = oldBranching;
-                    return result;
-                });
+                var = em.lazy(() -> (Boolean) first.get() || (Boolean) second.get());
                 break;
         }
     }
 
     @Override
     public void visit(NotPlan plan) {
-        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
-        valueToBranching();
-        context.location(pe, plan.getLocation());
-        branching = branching.not();
+        Value<Object> operand = var;
+        var = em.lazy(() -> !(Boolean) operand.get());
     }
 
     @Override
     public void visit(CastPlan plan) {
-        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.cast(ValueType.parse(plan.getTargetType()));
+        Value<Object> operand = var;
+        ReflectClass<Object> cls = em.getContext().findClass(plan.getTargetType()).asSubclass(Object.class);
+        var = em.lazy(() -> cls.cast(operand.get()));
     }
 
     @Override
     public void visit(ArithmeticCastPlan plan) {
-        context.location(pe, plan.getLocation());
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.cast(mapArithmetic(plan.getTargetType()));
+        Value<Object> operand = var;
+        switch (plan.getSourceType()) {
+            case INT:
+                switch (plan.getTargetType()) {
+                    case INT:
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (long) (Integer) operand.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (float) (Integer) operand.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (double) (Integer) operand.get());
+                        break;
+                }
+                break;
+            case LONG:
+                switch (plan.getTargetType()) {
+                    case INT:
+                        var = em.lazy(() -> (int) (long) (Long) operand.get());
+                        break;
+                    case LONG:
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (float) (Long) operand.get());
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (double) (Long) operand.get());
+                        break;
+                }
+                break;
+            case FLOAT:
+                switch (plan.getTargetType()) {
+                    case INT:
+                        var = em.lazy(() -> (int) (float) (Float) operand.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (long) (float) (Float) operand.get());
+                        break;
+                    case FLOAT:
+                        break;
+                    case DOUBLE:
+                        var = em.lazy(() -> (double) (Float) operand.get());
+                        break;
+                }
+                break;
+            case DOUBLE:
+                switch (plan.getTargetType()) {
+                    case INT:
+                        var = em.lazy(() -> (int) (double) (Double) operand.get());
+                        break;
+                    case LONG:
+                        var = em.lazy(() -> (long) (double) (Double) operand.get());
+                        break;
+                    case FLOAT:
+                        var = em.lazy(() -> (float) (double) (Double) operand.get());
+                        break;
+                    case DOUBLE:
+                        break;
+                }
+                break;
+        }
     }
 
     @Override
     public void visit(CastFromIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.castFromInteger(mapInteger(plan.getType()));
+        Value<Object> value = var;
+        Value<Integer> intValue = em.lazy(() -> (Integer) value.get());
+        switch (plan.getType()) {
+            case BYTE:
+                var = em.lazy(() -> (byte) (int) intValue.get());
+                break;
+            case SHORT:
+                var = em.lazy(() -> (short) (int) intValue.get());
+                break;
+            case CHAR:
+                var = em.lazy(() -> (char) (int) intValue.get());
+                break;
+        }
     }
 
     @Override
     public void visit(CastToIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.cast(ValueType.INTEGER);
+        Value<Object> value = var;
+        switch (plan.getType()) {
+            case BYTE:
+                var = em.lazy(() -> (int) (Byte) value.get());
+                break;
+            case SHORT:
+                var = em.lazy(() -> (int) (Short) value.get());
+                break;
+            case CHAR:
+                var = em.lazy(() -> (int) (Character) value.get());
+                break;
+        }
     }
 
     @Override
     public void visit(GetArrayElementPlan plan) {
         plan.getArray().acceptVisitor(this);
-        requireValue();
-        ValueEmitter array = var;
+        Value<Object> array = var;
         plan.getIndex().acceptVisitor(this);
-        requireValue();
-        ValueEmitter index = var;
-        context.location(pe, plan.getLocation());
-        var = array.getElement(index);
+        Value<Object> index = var;
+        var = em.lazy(() -> ((Object[]) array.get())[(Integer) index.get()]);
     }
 
     @Override
     public void visit(ArrayLengthPlan plan) {
         plan.getArray().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.arrayLength();
+        Value<Object> array = var;
+        var = em.lazy(() -> ((Object[]) array.get()).length);
     }
 
     @Override
     public void visit(FieldPlan plan) {
-        FieldReference field = new FieldReference(plan.getClassName(), plan.getFieldName());
-        ValueType type = ValueType.parse(plan.getFieldDesc());
+        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
+        ReflectField field = cls.getField(plan.getFieldName());
 
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
-            requireValue();
-            context.location(pe, plan.getLocation());
-            var = var.cast(ValueType.object(field.getClassName())).getField(field.getFieldName(), type);
+            Value<Object> instance = var;
+            var = em.lazy(() -> field.get(instance.get()));
         } else {
-            context.location(pe, plan.getLocation());
-            var = pe.getField(field, type);
+            var = em.lazy(() -> field.get(null));
         }
     }
 
     @Override
     public void visit(InstanceOfPlan plan) {
+        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
         plan.getOperand().acceptVisitor(this);
-        requireValue();
-        context.location(pe, plan.getLocation());
-        var = var.instanceOf(ValueType.parse(plan.getClassName()));
+        Value<Object> value = var;
+        var = em.lazy(() -> cls.isInstance(value.get()));
     }
 
     @Override
     public void visit(InvocationPlan plan) {
-        ValueEmitter instance = null;
+        Value<Object> instance;
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
-            requireValue();
-            instance = var.cast(ValueType.object(plan.getClassName()));
-        }
-
-        MethodReference method = new MethodReference(plan.getClassName(), MethodDescriptor.parse(
-                plan.getMethodName() + plan.getMethodDesc()));
-        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
-        for (int i = 0; i < plan.getArguments().size(); ++i) {
-            plan.getArguments().get(i).acceptVisitor(this);
-            requireValue();
-            arguments[i] = var.cast(method.parameterType(i));
-        }
-
-        if (instance != null) {
-            context.location(pe, plan.getLocation());
-            var = instance.invokeVirtual(method, arguments);
+            instance = var;
         } else {
-            context.location(pe, plan.getLocation());
-            var = pe.invoke(method, arguments);
+            instance = null;
         }
+
+        var = em.lazyFragment(lem -> {
+            ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
+            ReflectMethod method = cls.getMethod(plan.getMethodName(), plan.getMethodDesc());
+            int argCount = method.getParameterCount();
+            Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
+            for (int i = 0; i < plan.getArguments().size(); ++i) {
+                int index = i;
+                plan.getArguments().get(i).acceptVisitor(this);
+                Value<Object> argValue = var;
+                lem.emit(() -> arguments.get()[index] = argValue.get());
+            }
+
+            lem.returnValue(() -> method.invoke(instance, arguments));
+        });
     }
 
     @Override
@@ -378,28 +522,12 @@ class ExprPlanEmitter implements PlanVisitor {
     @Override
     public void visit(ConditionalPlan plan) {
         plan.getCondition().acceptVisitor(this);
-        valueToBranching();
-
-        BasicBlock join = pe.prepareBlock();
-        PhiEmitter result = pe.phi(ValueType.object("java.lang.Object"), join);
-        ConditionEmitter branching = this.branching;
-        this.branching = null;
-        pe.when(branching)
-                .thenDo(() -> {
-                    plan.getConsequent().acceptVisitor(this);
-                    requireValue();
-                    var.propagateTo(result);
-                    pe.jump(join);
-                })
-                .elseDo(() -> {
-                    plan.getAlternative().acceptVisitor(this);
-                    requireValue();
-                    var.propagateTo(result);
-                    pe.jump(join);
-                });
-
-        pe.enter(join);
-        var = result.getValue();
+        Value<Object> condition = var;
+        plan.getConsequent().acceptVisitor(this);
+        Value<Object> consequent = var;
+        plan.getAlternative().acceptVisitor(this);
+        Value<Object> alternative = var;
+        var = em.lazy(() -> (Boolean) condition.get() ? consequent.get() : alternative.get());
     }
 
     @Override
@@ -408,182 +536,25 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     public void emit(LambdaPlan plan, boolean updateTemplates) {
-        Map<String, ComputationEmitter> innerBoundVars = new HashMap<>();
-        for (String boundVar : boundVars.keySet()) {
-            innerBoundVars.put(boundVar, () -> thisVar.getField("closure$" + boundVar, boundVarTypes.get(boundVar)));
-        }
-
-        ExprPlanEmitter innerEmitter = new ExprPlanEmitter(context);
-        String lambdaClass = innerEmitter.emitLambdaClass(plan.getClassName(), plan.getMethodName(),
-                plan.getMethodDesc(), plan.getBody(), plan.getBoundVars(), innerBoundVars, boundVarTypes,
-                updateTemplates, plan.getLocation());
-
-        List<ValueType> ctorArgTypes = new ArrayList<>();
-        List<ValueEmitter> ctorArgs = new ArrayList<>();
-
-        ctorArgs.add(thisVar);
-        Set<String> localBoundVars = new HashSet<>(plan.getBoundVars());
-        for (int i = 0; i < innerEmitter.innerClosureList.size(); ++i) {
-            String closedVar = innerEmitter.innerClosureList.get(i);
-            if (!localBoundVars.contains(closedVar)) {
-                ctorArgs.add(boundVars.get(closedVar).emit().cast(boundVarTypes.get(closedVar)));
+        ReflectClass<Object> cls = em.getContext().findClass(plan.getClassName()).asSubclass(Object.class);
+        var = em.proxy(cls, (bodyEm, instance, method, args) -> {
+            context.pushBoundVars();
+            for (int i = 0; i < args.length; ++i) {
+                context.addVariable(plan.getBoundVars().get(i), args[i]);
             }
-        }
-        ctorArgTypes.add(ValueType.VOID);
-        context.location(pe, plan.getLocation());
-        var = pe.construct(lambdaClass, ctorArgs.toArray(new ValueEmitter[0]));
+
+            Emitter<?> oldEm = em;
+            em = bodyEm;
+            plan.getBody().acceptVisitor(this);
+            Value<Object> result = var;
+            bodyEm.returnValue(result);
+            em = oldEm;
+
+            context.popBoundVars();
+        });
     }
 
-    private String emitLambdaClass(String className, String methodName, String methodDesc, Plan body,
-            List<String> boundVarList, Map<String, ComputationEmitter> outerBoundVars,
-            Map<String, ValueType> outerBoundTypes, boolean updateTemplates, Location location) {
-        ClassHolder cls = new ClassHolder(context.modelClassName + "$Flavour_Lambda" + context.suffixGenerator++);
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(className);
-
-        MethodHolder workerMethod = new MethodHolder(MethodDescriptor.parse(methodName + methodDesc));
-        workerMethod.setLevel(AccessLevel.PUBLIC);
-        pe = ProgramEmitter.create(workerMethod, context.getClassSource());
-        thisVar = pe.var(0, cls);
-        for (String outerClosure : outerBoundVars.keySet()) {
-            boundVarTypes.put(outerClosure, outerBoundTypes.get(outerClosure));
-        }
-        boundVars.putAll(outerBoundVars);
-        for (int i = 0; i < workerMethod.parameterCount(); ++i) {
-            String varName = boundVarList.get(i);
-            if (!varName.isEmpty()) {
-                ValueType paramType = workerMethod.parameterType(i);
-                int varIndex = i + 1;
-                boundVars.put(varName, () -> pe.var(varIndex, paramType));
-                boundVarTypes.put(varName, paramType);
-            }
-        }
-
-        thisClassName = cls.getName();
-        body.acceptVisitor(this);
-        requireValue();
-
-        if (updateTemplates) {
-            context.location(pe, location);
-            pe.invoke(Templates.class, "update");
-        }
-
-        if (workerMethod.getResultType() != ValueType.VOID) {
-            var.returnValue();
-        } else {
-            pe.exit();
-        }
-
-        cls.addMethod(workerMethod);
-
-        List<String> closedVars = new ArrayList<>(innerClosureList.size());
-        Set<String> boundVars = new HashSet<>(boundVarList);
-        for (String var : innerClosureList) {
-            if (!boundVars.contains(var)) {
-                closedVars.add(var);
-            }
-        }
-        emitLambdaConstructor(cls, closedVars, location);
-
-        //context.dependencyAgent.submitClass(cls);
-        return cls.getName();
-    }
-
-    private void emitLambdaConstructor(ClassHolder cls, List<String> closedVars, Location location) {
-        String ownerCls = context.currentTypeName();
-
-        List<ValueType> ctorArgTypes = new ArrayList<>();
-        ctorArgTypes.add(ValueType.object(ownerCls));
-        for (int i = 0; i < closedVars.size(); ++i) {
-            String closedVar = closedVars.get(i);
-            ctorArgTypes.add(boundVarTypes.get(closedVar));
-        }
-        ctorArgTypes.add(ValueType.VOID);
-
-        MethodHolder ctor = new MethodHolder("<init>", ctorArgTypes.toArray(new ValueType[0]));
-        ctor.setLevel(AccessLevel.PUBLIC);
-        pe = ProgramEmitter.create(ctor, null/*context.dependencyAgent.getClassSource()*/);
-        thisVar = pe.var(0, cls);
-        ValueEmitter ownerVar = pe.var(1, ValueType.object(ownerCls));
-
-        context.location(pe, location);
-        thisVar.invokeSpecial(new MethodReference(Object.class, "<init>", void.class));
-        FieldHolder ownerField = new FieldHolder("this$owner");
-        ownerField.setLevel(AccessLevel.PUBLIC);
-        ownerField.setType(ValueType.object(ownerCls));
-        cls.addField(ownerField);
-        thisVar.setField(ownerField.getName(), ownerVar);
-        for (int i = 0; i < closedVars.size(); ++i) {
-            String closedVar = closedVars.get(i);
-            FieldHolder closureField = new FieldHolder("closure$" + closedVar);
-            closureField.setLevel(AccessLevel.PUBLIC);
-            closureField.setType(boundVarTypes.get(closedVar));
-            cls.addField(closureField);
-            thisVar.setField(closureField.getName(), pe.var(2 + i, closureField.getType()));
-        }
-        pe.exit();
-
-        cls.addMethod(ctor);
-    }
-
-    void valueToBranching() {
-        if (branching != null) {
-            return;
-        }
-
-        branching = var.isTrue();
-    }
-
-    void requireValue() {
-        if (branching == null) {
-            return;
-        }
-
-        ConditionEmitter branching = this.branching;
-        this.branching = null;
-
-        BasicBlock join = pe.prepareBlock();
-        PhiEmitter result = pe.phi(ValueType.INTEGER, join);
-        pe.when(branching)
-                .thenDo(() -> {
-                    pe.constant(1).propagateTo(result);
-                    pe.jump(join);
-                })
-                .elseDo(() -> {
-                    pe.constant(0).propagateTo(result);
-                    pe.jump(join);
-                });
-
-        pe.enter(join);
-        var = result.getValue();
-    }
-
-    private ValueType mapArithmetic(ArithmeticType type) {
-        switch (type) {
-            case INT:
-                return ValueType.INTEGER;
-            case LONG:
-                return ValueType.LONG;
-            case FLOAT:
-                return ValueType.FLOAT;
-            case DOUBLE:
-                return ValueType.DOUBLE;
-            default:
-                throw new AssertionError();
-        }
-    }
-
-    private IntegerSubtype mapInteger(org.teavm.flavour.expr.plan.IntegerSubtype type) {
-        switch (type) {
-            case BYTE:
-                return IntegerSubtype.BYTE;
-            case CHAR:
-                return IntegerSubtype.CHARACTER;
-            case SHORT:
-                return IntegerSubtype.SHORT;
-            default:
-                throw new AssertionError();
-        }
+    interface VariableEmitter {
+        Value<Object> emit();
     }
 }

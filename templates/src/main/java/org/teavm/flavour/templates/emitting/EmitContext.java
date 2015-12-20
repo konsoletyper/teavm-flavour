@@ -21,18 +21,8 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.flavour.expr.Location;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.InstructionLocation;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ProgramEmitter;
-import org.teavm.model.emit.ValueEmitter;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Value;
 
 /**
  *
@@ -40,94 +30,43 @@ import org.teavm.model.emit.ValueEmitter;
  */
 class EmitContext {
     String sourceFileName;
-    String modelClassName;
-    int suffixGenerator;
-    EmitterContext dependencyAgent;
-    List<String> classStack = new ArrayList<>();
-    List<Map<String, EmittedVariable>> boundVariableStack = new ArrayList<>();
-    Map<String, Deque<EmittedVariable>> variables = new HashMap<>();
+    ReflectValue<Object> model;
+    List<Map<String, Value<Object>>> boundVariableStack = new ArrayList<>();
+    Map<String, Deque<Value<Object>>> variables = new HashMap<>();
 
     public void pushBoundVars() {
-        boundVariableStack.add(new HashMap<String, EmittedVariable>());
+        boundVariableStack.add(new HashMap<String, Value<Object>>());
     }
 
-    public Map<String, EmittedVariable> popBoundVars() {
-        Map<String, EmittedVariable> vars = boundVariableStack.get(boundVariableStack.size() - 1);
+    public Map<String, Value<Object>> popBoundVars() {
+        Map<String, Value<Object>> vars = boundVariableStack.get(boundVariableStack.size() - 1);
         boundVariableStack.remove(boundVariableStack.size() - 1);
         return vars;
     }
 
-    public EmittedVariable getVariable(String name) {
-        Deque<EmittedVariable> stack = variables.get(name);
-        EmittedVariable var = stack != null && !stack.isEmpty() ? stack.peek() : null;
+    public Value<Object> getVariable(String name) {
+        Deque<Value<Object>> stack = variables.get(name);
+        Value<Object> var = stack != null && !stack.isEmpty() ? stack.peek() : null;
         boundVariableStack.get(boundVariableStack.size() - 1).put(name, var);
         return var;
     }
 
-    public void addVariable(String name, ValueType type) {
-        Deque<EmittedVariable> stack = variables.get(name);
+    public void addVariable(String name, Value<Object> value) {
+        Deque<Value<Object>> stack = variables.get(name);
         if (stack == null) {
             stack = new ArrayDeque<>();
             variables.put(name, stack);
         }
-        EmittedVariable ev = new EmittedVariable();
-        ev.name = name;
-        ev.depth = classStack.size();
-        ev.type = type;
-        stack.push(ev);
+        stack.push(value);
     }
 
     public void removeVariable(String name) {
-        Deque<EmittedVariable> stack = variables.get(name);
+        Deque<Value<Object>> stack = variables.get(name);
         if (stack != null) {
             stack.pop();
             if (stack.isEmpty()) {
                 variables.remove(name);
             }
         }
-    }
-
-    void addConstructor(ClassHolder cls, Location location) {
-        String ownerType = currentTypeName();
-        FieldHolder ownerField = new FieldHolder("this$owner");
-        ownerField.setType(ValueType.object(ownerType));
-        ownerField.setLevel(AccessLevel.PUBLIC);
-        cls.addField(ownerField);
-
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.object(ownerType), ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(ctor, /*dependencyAgent.getClassSource()*/ null);
-        location(pe, location);
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter ownerVar = pe.var(1, ValueType.object(ownerType));
-
-        thisVar.invokeSpecial(new MethodReference(cls.getParent(), "<init>", ValueType.VOID));
-        thisVar.setField("this$owner", ownerVar);
-        pe.exit();
-
-        cls.addMethod(ctor);
-    }
-
-    void location(ProgramEmitter pe, Location location) {
-        if (location != null) {
-            pe.setCurrentLocation(new InstructionLocation(sourceFileName, location.getStart()));
-        }
-    }
-
-    public String currentTypeName() {
-        return classStack.get(classStack.size() - 1);
-    }
-
-    public ValueType currentType() {
-        return ValueType.object(currentTypeName());
-    }
-
-    public String generateTypeName(String name) {
-        return modelClassName + "$Flavour_" + name + suffixGenerator++;
-    }
-
-    public ClassReaderSource getClassSource() {
-        //return dependencyAgent.getClassSource();
-        return null;
     }
 }

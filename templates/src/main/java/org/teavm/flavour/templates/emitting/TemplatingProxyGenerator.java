@@ -20,87 +20,80 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
+import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
-import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
-import org.teavm.model.AnnotationReader;
 import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
 import org.teavm.model.InstructionLocation;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ProgramEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class TemplatingProxyGenerator /*implements ProxyGenerator*/ {
-    private EmitterContext context;
+public class TemplatingProxyGenerator {
 
-    //@Override
-    public void setContext(EmitterContext context) {
-        this.context = context;
-    }
-
-    //@Override
-    public void generate(String type, ProgramEmitter pe, CallLocation location) {
-        TemplateEmitter emitter = new TemplateEmitter(context);
-        TemplateInfo template = parseForModel(type, location);
+    public void generate(Emitter<Fragment> em, ReflectValue<Object> model) {
+        TemplateEmitter emitter = new TemplateEmitter(em);
+        TemplateInfo template = parseForModel(em, model.getReflectClass(), em.getContext().getLocation());
         if (template != null) {
-            String templateClass = emitter.emitTemplate(type, template.sourceFileName, template.body);
-            pe.construct(templateClass, pe.var(1, ValueType.object(type))).returnValue();
+            Value<Fragment> fragment = emitter.emitTemplate(model, template.sourceFileName, template.body);
+            em.returnValue(fragment);
         } else {
-            pe.constantNull(ValueType.object(type)).returnValue();
+            em.returnValue(() -> null);
         }
     }
 
-    private TemplateInfo parseForModel(String typeName, CallLocation location) {
-        ClassReader cls = /* context.getClassSource().get(typeName) */null;
-        if (cls == null) {
-            return null;
-        }
-        AnnotationReader annot = cls.getAnnotations().get(BindTemplate.class.getName());
+    private TemplateInfo parseForModel(Emitter<Fragment> em, ReflectClass<Object> cls, CallLocation location) {
+        Diagnostics diagnostics = em.getContext().getDiagnostics();
+        BindTemplate annot = cls.getAnnotation(BindTemplate.class);
         if (annot == null) {
-            context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
-                    + "no BindTemplate annotation supplied", typeName);
+            diagnostics.error(location, "Can't create template for {{c0}}: "
+                    + "no BindTemplate annotation supplied", cls.getName());
             return null;
         }
-        String path = annot.getValue("value").getString();
-        ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(
-                context.getClassLoader());
-        ClassPathClassResolver classResolver = new ClassPathClassResolver(context.getClassLoader());
-        ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(context.getClassLoader());
+
+        String path = annot.value();
+        ClassLoader classLoader = em.getContext().getClassLoader();
+        ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(classLoader);
+        ClassPathClassResolver classResolver = new ClassPathClassResolver(classLoader);
+        ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(classLoader);
         Parser parser = new Parser(classRepository, classResolver, resourceProvider);
         List<TemplateNode> fragment;
-        try (InputStream input = context.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream input = classLoader.getResourceAsStream(path)) {
             if (input == null) {
                 return null;
             }
-             fragment = parser.parse(new InputStreamReader(input, "UTF-8"), typeName);
+             fragment = parser.parse(new InputStreamReader(input, "UTF-8"), cls.getName());
         } catch (IOException e) {
-            context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
-                    + "template " + path + " was not found", typeName);
+            diagnostics.error(location, "Can't create template for {{c0}}: " + "template " + path
+                    + " was not found", cls.getName());
             return null;
         }
+
         if (!parser.getDiagnostics().isEmpty()) {
             OffsetToLineMapper mapper = new OffsetToLineMapper();
-            try (Reader reader = new InputStreamReader(context.getClassLoader().getResourceAsStream(path), "UTF-8")) {
+            try (Reader reader = new InputStreamReader(classLoader.getResourceAsStream(path), "UTF-8")) {
                 mapper.prepare(reader);
             } catch (IOException e) {
-                context.getDiagnostics().error(location, "Can't create template for {{c0}}: "
-                        + "template " + path + " was not found", typeName);
+                diagnostics.error(location, "Can't create template for {{c0}}: template " + path
+                        + " was not found", cls.getName());
                 return null;
             }
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
                 InstructionLocation textualLocation = new InstructionLocation(path,
                         mapper.getLine(diagnostic.getStart()) + 1);
                 CallLocation diagnosticLocation = new CallLocation(location.getMethod(), textualLocation);
-                context.getDiagnostics().error(diagnosticLocation, diagnostic.getMessage());
+                diagnostics.error(diagnosticLocation, diagnostic.getMessage());
             }
         }
         TemplateInfo info = new TemplateInfo();

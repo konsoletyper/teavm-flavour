@@ -17,6 +17,10 @@ package org.teavm.flavour.templates;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.templates.emitting.TemplatingProxyGenerator;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLElement;
 
@@ -49,8 +53,11 @@ public final class Templates {
         }
     }
 
-    //@Proxy(TemplatingProxyGenerator.class)
+    @Reflected
     public static native Fragment create(Object model);
+    private static void create(Emitter<Fragment> em, ReflectValue<Object> model) {
+        new TemplatingProxyGenerator().generate(em, model);
+    }
 
     public static void update() {
         if (updating) {

@@ -21,6 +21,9 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.DomComponentTemplate;
@@ -47,13 +50,12 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public String emitTemplate(DirectiveBinding directive, List<TemplateNode> fragment) {
-        ValueType ownerType = context.currentType();
-        ValueType componentType = directive != null ? ValueType.object(directive.getClassName()) : null;
-        ClassHolder cls = new ClassHolder(context.generateTypeName("Fragment"));
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(Object.class.getName());
-        cls.getInterfaces().add(Fragment.class.getName());
+    public Value<Fragment> emitTemplate(Emitter<Fragment> em, DirectiveBinding directive,
+            List<TemplateNode> fragment) {
+        @SuppressWarnings("unchecked")
+        ReflectClass<Component> componentType = directive != null
+                ? (ReflectClass<Component>) em.getContext().findClass(directive.getClassName())
+                : null;
 
         if (directive != null) {
             FieldHolder componentField = new FieldHolder("component");
