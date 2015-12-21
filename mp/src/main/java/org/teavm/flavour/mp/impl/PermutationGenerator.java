@@ -29,6 +29,7 @@ import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
+import org.teavm.flavour.mp.impl.optimize.CompositeProgramOptimizer;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.MethodReference;
@@ -211,6 +212,7 @@ class PermutationGenerator {
             proxyMethod.invoke(null, proxyArgs);
             emitter.close();
             Program program = emitter.generator.getProgram();
+            new CompositeProgramOptimizer().optimize(program);
             agent.submitMethod(implRef, program);
         } catch (IllegalAccessException | InvocationTargetException e) {
             StringWriter writer = new StringWriter();
