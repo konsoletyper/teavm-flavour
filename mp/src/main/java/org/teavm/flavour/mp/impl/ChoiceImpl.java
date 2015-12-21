@@ -54,18 +54,17 @@ public class ChoiceImpl<T> implements Choice<T> {
     private List<ChoiceEmitterImpl> options = new ArrayList<>();
 
     ChoiceImpl(EmitterContextImpl context, MethodReference templateMethod,
-            CompositeMethodGenerator outerGenerator, ValueType type) {
+            CompositeMethodGenerator generator, ValueType type) {
         this.context = context;
         this.classSource = context.getReflectContext().getClassSource();
         this.templateMethod = templateMethod;
-        this.generator = new CompositeMethodGenerator(context, outerGenerator.varContext, outerGenerator.program);
+        this.generator = generator;
         this.type = type;
         predecessor = generator.currentBlock();
         successor = generator.program.createBasicBlock();
 
         defaultBlock = generator.program.createBasicBlock();
         generator.blockIndex = defaultBlock.getIndex();
-        generator.location = outerGenerator.location;
         defaultOption = createEmitter();
 
         JumpInstruction insn = new JumpInstruction();
@@ -80,7 +79,7 @@ public class ChoiceImpl<T> implements Choice<T> {
             successor.getPhis().add(phi);
         }
 
-        outerGenerator.blockIndex = successor.getIndex();
+        generator.blockIndex = successor.getIndex();
     }
 
     @Override
@@ -117,6 +116,7 @@ public class ChoiceImpl<T> implements Choice<T> {
         defaultInsn.setTarget(defaultBlock);
         generator.add(defaultInsn);
 
+        generator.blockIndex = successor.getIndex();
         return optionEmitter;
     }
 
@@ -141,9 +141,17 @@ public class ChoiceImpl<T> implements Choice<T> {
         defaultOption.close();
     }
 
+    private static CompositeMethodGenerator createGenerator(ChoiceImpl<?> choice) {
+        CompositeMethodGenerator generator = new CompositeMethodGenerator(choice.context,
+                choice.generator.varContext, choice.generator.program);
+        generator.location = choice.generator.location;
+        generator.blockIndex = choice.generator.blockIndex;
+        return generator;
+    }
+
     class ChoiceEmitterImpl extends AbstractEmitterImpl<T> {
         public ChoiceEmitterImpl(EmitterContextImpl context, MethodReference templateMethod) {
-            super(context, ChoiceImpl.this.generator, templateMethod, type);
+            super(context, createGenerator(ChoiceImpl.this), templateMethod, type);
         }
 
         @Override

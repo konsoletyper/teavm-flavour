@@ -26,11 +26,13 @@ public interface Emitter<T> {
 
     void emit(Action action);
 
-    <S> Value<S> lazyFragment(LazyComputation<S> computation);
+    <S> Value<S> lazyFragment(ReflectClass<S> type, LazyComputation<S> computation);
 
-    default <S> Value<S> lazy(Computation<S> computation) {
-        return lazyFragment(lem -> lem.returnValue(computation));
+    default <S> Value<S> lazyFragment(Class<S> type, LazyComputation<S> computation) {
+        return lazyFragment(getContext().findClass(type), computation);
     }
+
+    <S> Value<S> lazy(Computation<S> computation);
 
     <S> Choice<S> choose(ReflectClass<S> type);
 

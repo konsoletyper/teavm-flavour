@@ -489,7 +489,7 @@ class ExprPlanEmitter implements PlanVisitor {
             instance = null;
         }
 
-        var = em.lazyFragment(lem -> {
+        var = em.lazyFragment(Object.class, lem -> {
             ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
             ReflectMethod method = cls.getMethod(plan.getMethodName(), plan.getMethodDesc());
             int argCount = method.getParameterCount();

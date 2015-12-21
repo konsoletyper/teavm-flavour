@@ -80,8 +80,7 @@ public class MetaprogrammingTest {
         em.emit(() -> field.set(obj, value));
     }
 
-    //@Test
-    // TODO: repair
+    @Test
     public void conditionalWorks() {
         Context ctx = new Context();
 
@@ -103,7 +102,7 @@ public class MetaprogrammingTest {
         em.returnValue(result.getValue());
     }
 
-    //@Test
+    @Test
     public void conditionalActionWorks() {
         Context ctx = new Context();
         class TypeConsumer implements Consumer<String> {
@@ -298,8 +297,7 @@ public class MetaprogrammingTest {
         public int b;
     }
 
-    //@Test
-    // TODO: repair
+    @Test
     public void lazyWorks() {
         WithSideEffect a = new WithSideEffect(10);
         WithSideEffect b = new WithSideEffect(20);

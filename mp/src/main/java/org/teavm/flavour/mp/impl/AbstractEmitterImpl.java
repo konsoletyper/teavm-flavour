@@ -93,8 +93,18 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     }
 
     @Override
-    public <S> Value<S> lazyFragment(LazyComputation<S> computation) {
-        return new LazyValueImpl<>(varContext, computation, returnType);
+    public <S> Value<S> lazyFragment(ReflectClass<S> type, LazyComputation<S> computation) {
+        return lazyFragment(((ReflectClassImpl<?>) type).type, computation);
+    }
+
+    @Override
+    public <S> Value<S> lazy(Computation<S> computation) {
+        Fragment fragment = (Fragment) computation;
+        return lazyFragment(fragment.method.getReturnType(), lem -> lem.returnValue(computation));
+    }
+
+    private <S> Value<S> lazyFragment(ValueType type, LazyComputation<S> computation) {
+        return new LazyValueImpl<>(varContext, computation, type);
     }
 
     @Override
