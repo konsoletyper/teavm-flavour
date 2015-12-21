@@ -61,14 +61,12 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     private boolean closed;
     private List<ChoiceImpl<?>> choices = new ArrayList<>();
     VariableContext varContext;
-    int blockIndex;
 
     public AbstractEmitterImpl(EmitterContextImpl context, CompositeMethodGenerator generator,
             MethodReference templateMethod, ValueType returnType) {
         this.context = context;
         this.classSource = context.getReflectContext().getClassSource();
         this.generator = generator;
-        blockIndex = generator.blockIndex;
         this.templateMethod = templateMethod;
         this.returnType = returnType;
         this.varContext = generator.varContext;
@@ -81,11 +79,9 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Value<S> emit(Computation<S> computation) {
-        generator.blockIndex = blockIndex;
         Fragment fragment = (Fragment) computation;
         MethodReader method = classSource.resolve(fragment.method);
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
-        blockIndex = generator.blockIndex;
         return new ValueImpl<>(generator.getResultVar(), varContext, templateMethod.getReturnType());
     }
 
@@ -93,9 +89,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     public void emit(Action action) {
         Fragment fragment = (Fragment) action;
         MethodReader method = classSource.resolve(fragment.method);
-        generator.blockIndex = blockIndex;
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
-        blockIndex = generator.blockIndex;
     }
 
     @Override
@@ -107,7 +101,6 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     public <S> Choice<S> choose(ReflectClass<S> type) {
         ChoiceImpl<S> choice = new ChoiceImpl<>(context, templateMethod, generator, returnType);
         choices.add(choice);
-        blockIndex = generator.blockIndex;
         return choice;
     }
 
@@ -118,15 +111,13 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public void returnValue(Computation<? extends T> computation) {
-        generator.blockIndex = blockIndex;
         hasReturn = true;
         if (computation instanceof Fragment) {
             Fragment fragment = (Fragment) computation;
             MethodReader method = classSource.resolve(fragment.method);
             generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
+            generator.blockIndex = generator.returnBlockIndex;
 
-            Program targetProgram = generator.program;
-            targetProgram.basicBlockAt(targetProgram.basicBlockCount() - 1);
             returnValue(unbox(generator.getResultVar()));
         } else if (computation instanceof ValueImpl) {
             ValueImpl<?> value = (ValueImpl<?>) computation;
@@ -134,7 +125,6 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
-        blockIndex = generator.blockIndex;
     }
 
     @Override
@@ -156,7 +146,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             CompositeMethodGenerator nestedGenerator = nestedEmitter.generator;
             Program program = nestedGenerator.program;
             BasicBlock startBlock = nestedGenerator.currentBlock();
-            nestedEmitter.blockIndex = program.createBasicBlock().getIndex();
+            nestedEmitter.generator.blockIndex = program.createBasicBlock().getIndex();
             nestedVarContext.init(startBlock);
 
             methodHolder.setProgram(program);
@@ -199,7 +189,6 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         }
 
         hasReturn = true;
-        generator.blockIndex = blockIndex;
         Variable var;
         if (returnType instanceof ValueType.Void) {
             var = null;

@@ -17,7 +17,9 @@ package org.teavm.flavour.mp.impl;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.ReflectClass;
@@ -105,18 +107,25 @@ import org.teavm.model.instructions.UnwrapArrayInstruction;
 public class CompositeMethodGenerator {
     private EmitterContextImpl context;
     private Diagnostics diagnostics;
-    Program program = new Program();
+    Program program;
     InstructionLocation location;
     int blockIndex;
+    int returnBlockIndex;
     private Variable resultVar;
     private Phi resultPhi;
     private MethodReference templateMethod;
+    private Map<BasicBlock, BasicBlock> phiBlockMap = new HashMap<>();
     VariableContext varContext;
 
-    public CompositeMethodGenerator(EmitterContextImpl context, VariableContext varContext) {
+    CompositeMethodGenerator(EmitterContextImpl context, VariableContext varContext) {
+        this(context, varContext, new Program());
+        program.createBasicBlock();
+    }
+
+    CompositeMethodGenerator(EmitterContextImpl context, VariableContext varContext, Program program) {
         this.context = context;
         this.diagnostics = context.getDiagnostics();
-        program.createBasicBlock();
+        this.program = program;
         this.varContext = varContext;
     }
 
@@ -141,11 +150,13 @@ public class CompositeMethodGenerator {
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             program.createBasicBlock();
         }
+        returnBlockIndex = program.basicBlockCount() - 1;
 
         for (int i = capturedValues.size(); i < template.variableCount(); ++i) {
             program.createVariable();
         }
 
+        int startBlock = blockIndex;
         for (int i = 0; i < template.basicBlockCount(); ++i) {
             BasicBlockReader templateBlock = template.basicBlockAt(i);
             if (i > 0) {
@@ -174,8 +185,22 @@ public class CompositeMethodGenerator {
             }
 
             templateBlock.readAllInstructions(substitutor);
+            phiBlockMap.put(targetBlock, currentBlock());
         }
 
+        for (int i = 0; i < template.basicBlockCount(); ++i) {
+            BasicBlock block = program.basicBlockAt(i == 0 ? startBlock : substitutor.blockOffset + i);
+            for (Phi phi : block.getPhis()) {
+                for (Incoming incoming : phi.getIncomings()) {
+                    BasicBlock mappedBlock = phiBlockMap.get(incoming.getSource());
+                    if (mappedBlock != null) {
+                        incoming.setSource(mappedBlock);
+                    }
+                }
+            }
+        }
+
+        phiBlockMap.clear();
         blockIndex = program.basicBlockCount() - 1;
     }
 
@@ -239,8 +264,13 @@ public class CompositeMethodGenerator {
         } else if (value instanceof LazyValueImpl) {
             @SuppressWarnings("unchecked")
             LazyValueImpl<Object> lazyImpl = (LazyValueImpl<Object>) value;
-            LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, this, templateMethod, lazyImpl.type);
+            CompositeMethodGenerator nestedGenerator = new CompositeMethodGenerator(context, varContext, program);
+            nestedGenerator.blockIndex = blockIndex;
+            nestedGenerator.location = location;
+            LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, nestedGenerator, templateMethod,
+                    lazyImpl.type);
             lazyImpl.computation.compute(lazyEmitter);
+            blockIndex = nestedGenerator.blockIndex;
             return lazyEmitter.result;
         } else if (value instanceof ReflectFieldImpl) {
             ReflectFieldImpl reflectField = (ReflectFieldImpl) value;
@@ -568,7 +598,7 @@ public class CompositeMethodGenerator {
 
         @Override
         public void exit(VariableReader valueToReturn) {
-            BasicBlock target = program.basicBlockAt(program.basicBlockCount() - 1);
+            BasicBlock target = program.basicBlockAt(returnBlockIndex);
 
             if (valueToReturn != null) {
                 if (resultVar == null) {

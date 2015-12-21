@@ -210,7 +210,8 @@ class PermutationGenerator {
         try {
             proxyMethod.invoke(null, proxyArgs);
             emitter.close();
-            agent.submitMethod(implRef, emitter.generator.getProgram());
+            Program program = emitter.generator.getProgram();
+            agent.submitMethod(implRef, program);
         } catch (IllegalAccessException | InvocationTargetException e) {
             StringWriter writer = new StringWriter();
             e.printStackTrace(new PrintWriter(writer));

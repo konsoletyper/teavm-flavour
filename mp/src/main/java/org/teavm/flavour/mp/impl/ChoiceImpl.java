@@ -54,17 +54,18 @@ public class ChoiceImpl<T> implements Choice<T> {
     private List<ChoiceEmitterImpl> options = new ArrayList<>();
 
     ChoiceImpl(EmitterContextImpl context, MethodReference templateMethod,
-            CompositeMethodGenerator generator, ValueType type) {
+            CompositeMethodGenerator outerGenerator, ValueType type) {
         this.context = context;
         this.classSource = context.getReflectContext().getClassSource();
         this.templateMethod = templateMethod;
-        this.generator = generator;
+        this.generator = new CompositeMethodGenerator(context, outerGenerator.varContext, outerGenerator.program);
         this.type = type;
         predecessor = generator.currentBlock();
         successor = generator.program.createBasicBlock();
 
         defaultBlock = generator.program.createBasicBlock();
         generator.blockIndex = defaultBlock.getIndex();
+        generator.location = outerGenerator.location;
         defaultOption = createEmitter();
 
         JumpInstruction insn = new JumpInstruction();
@@ -79,7 +80,7 @@ public class ChoiceImpl<T> implements Choice<T> {
             successor.getPhis().add(phi);
         }
 
-        generator.blockIndex = successor.getIndex();
+        outerGenerator.blockIndex = successor.getIndex();
     }
 
     @Override
@@ -116,7 +117,6 @@ public class ChoiceImpl<T> implements Choice<T> {
         defaultInsn.setTarget(defaultBlock);
         generator.add(defaultInsn);
 
-        generator.blockIndex = successor.getIndex();
         return optionEmitter;
     }
 
