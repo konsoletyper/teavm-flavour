@@ -15,7 +15,10 @@
  */
 package org.teavm.flavour.mp.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import java.util.function.Consumer;
 import org.junit.Test;
 import org.teavm.flavour.mp.Choice;
@@ -337,6 +340,58 @@ public class MetaprogrammingTest {
         public int getValue() {
             ++reads;
             return value;
+        }
+    }
+
+    @Test
+    public void annotationsWork() {
+        assertEquals(""
+                + "foo:23:Object\n"
+                + "foo=!:42:String:int\n"
+                + "f=!:23\n",
+                readAnnotations(new WithAnnotations()));
+    }
+
+    @Reflected
+    private static native String readAnnotations(Object obj);
+    private static void readAnnotations(Emitter<String> em, ReflectValue<Object> obj) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(describeAnnotation(obj.getReflectClass().getAnnotation(TestAnnotation.class))).append('\n');
+        for (ReflectMethod method : obj.getReflectClass().getDeclaredMethods()) {
+            TestAnnotation annot = method.getAnnotation(TestAnnotation.class);
+            if (annot == null) {
+                continue;
+            }
+            sb.append(method.getName()).append('=').append(describeAnnotation(annot)).append('\n');
+        }
+        for (ReflectField field : obj.getReflectClass().getDeclaredFields()) {
+            TestAnnotation annot = field.getAnnotation(TestAnnotation.class);
+            if (annot == null) {
+                continue;
+            }
+            sb.append(field.getName()).append('=').append(describeAnnotation(annot)).append('\n');
+        }
+        String result = sb.toString();
+        em.returnValue(() -> result);
+    }
+
+    private static String describeAnnotation(TestAnnotation annot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(annot.a()).append(':').append(annot.b());
+        for (Class<?> cls : annot.c()) {
+            sb.append(':').append(cls.getSimpleName());
+        }
+        return sb.toString();
+    }
+
+    @TestAnnotation(a = "foo", c = Object.class)
+    static class WithAnnotations {
+        @TestAnnotation(c = {})
+        int f;
+
+        @TestAnnotation(b = 42, c = { String.class, int.class })
+        int foo() {
+            return 0;
         }
     }
 }

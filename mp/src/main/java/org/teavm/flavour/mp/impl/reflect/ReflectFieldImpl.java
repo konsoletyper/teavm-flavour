@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp.impl.reflect;
 
+import java.lang.annotation.Annotation;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.model.ElementModifier;
@@ -29,6 +30,7 @@ public class ReflectFieldImpl implements ReflectField {
     private ReflectClassImpl<?> declaringClass;
     public final FieldReader field;
     private ReflectClassImpl<?> type;
+    private ReflectAnnotatedElementImpl annotations;
 
     public ReflectFieldImpl(ReflectClassImpl<?> declaringClass, FieldReader field) {
         context = declaringClass.getReflectContext();
@@ -76,5 +78,13 @@ public class ReflectFieldImpl implements ReflectField {
 
     public FieldReader getBackingField() {
         return field;
+    }
+
+    @Override
+    public <S extends Annotation> S getAnnotation(Class<S> type) {
+        if (annotations == null) {
+            annotations = new ReflectAnnotatedElementImpl(context, field.getAnnotations());
+        }
+        return annotations.getAnnotation(type);
     }
 }

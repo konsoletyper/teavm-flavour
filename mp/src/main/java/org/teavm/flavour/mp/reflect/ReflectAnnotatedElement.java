@@ -15,16 +15,12 @@
  */
 package org.teavm.flavour.mp.reflect;
 
-import org.teavm.flavour.mp.ReflectClass;
+import java.lang.annotation.Annotation;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ReflectMember extends ReflectAnnotatedElement {
-    ReflectClass<?> getDeclaringClass();
-
-    String getName();
-
-    int getModifiers();
+public interface ReflectAnnotatedElement {
+    <S extends Annotation> S getAnnotation(Class<S> type);
 }

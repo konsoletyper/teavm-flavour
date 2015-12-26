@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp.impl.reflect;
 
+import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
@@ -30,6 +31,7 @@ public class ReflectMethodImpl implements ReflectMethod {
     public final MethodReader method;
     private ReflectClassImpl<?> returnType;
     private ReflectClass<?>[] parameterTypes;
+    private ReflectAnnotatedElementImpl annotations;
 
     public ReflectMethodImpl(ReflectClassImpl<?> declaringClass, MethodReader method) {
         this.declaringClass = declaringClass;
@@ -89,6 +91,14 @@ public class ReflectMethodImpl implements ReflectMethod {
                     .map(type -> context.getClass(type))
                     .toArray(sz -> new ReflectClass<?>[sz]);
         }
+    }
+
+    @Override
+    public <S extends Annotation> S getAnnotation(Class<S> type) {
+        if (annotations == null) {
+            annotations = new ReflectAnnotatedElementImpl(context, method.getAnnotations());
+        }
+        return annotations.getAnnotation(type);
     }
 
     @Override

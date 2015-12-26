@@ -34,7 +34,6 @@ import org.teavm.model.Variable;
 import org.teavm.model.instructions.AssignInstruction;
 import org.teavm.model.instructions.CastInstruction;
 import org.teavm.model.instructions.InvokeInstruction;
-import org.teavm.model.util.ListingBuilder;
 import org.teavm.model.util.UsageExtractor;
 
 /**

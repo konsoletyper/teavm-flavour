@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.mp;
 
-import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 
@@ -24,7 +24,7 @@ import org.teavm.flavour.mp.reflect.ReflectMethod;
  *
  * @author Alexey Andreev
  */
-public interface ReflectClass<T> {
+public interface ReflectClass<T> extends ReflectAnnotatedElement {
     EmitterContext getContext();
 
     boolean isPrimitive();
@@ -86,6 +86,4 @@ public interface ReflectClass<T> {
     ReflectField getDeclaredField(String name);
 
     ReflectField getField(String name);
-
-    <S extends Annotation> S getAnnotation(Class<S> type);
 }

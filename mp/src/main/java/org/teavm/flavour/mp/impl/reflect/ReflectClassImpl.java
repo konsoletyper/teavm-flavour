@@ -53,6 +53,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     private Map<MethodDescriptor, ReflectMethodImpl> methods = new HashMap<>();
     private Map<String, ReflectMethodImpl> declaredMethods = new HashMap<>();
     private ReflectMethod[] methodsCache;
+    private ReflectAnnotatedElementImpl annotations;
 
     ReflectClassImpl(ValueType type, EmitterContextImpl emitterContext) {
         this.type = type;
@@ -352,8 +353,14 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
 
     @Override
     public <S extends Annotation> S getAnnotation(Class<S> type) {
-        // TODO: implement
-        return null;
+        resolve();
+        if (classReader == null) {
+            return null;
+        }
+        if (annotations == null) {
+            annotations = new ReflectAnnotatedElementImpl(context, classReader.getAnnotations());
+        }
+        return annotations.getAnnotation(type);
     }
 
     private void resolve() {

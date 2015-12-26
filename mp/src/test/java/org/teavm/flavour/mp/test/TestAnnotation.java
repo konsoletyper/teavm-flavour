@@ -13,18 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp.reflect;
+package org.teavm.flavour.mp.test;
 
-import org.teavm.flavour.mp.ReflectClass;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  *
  * @author Alexey Andreev
  */
-public interface ReflectMember extends ReflectAnnotatedElement {
-    ReflectClass<?> getDeclaringClass();
+@Retention(RetentionPolicy.RUNTIME)
+public @interface TestAnnotation {
+    String a() default "!";
 
-    String getName();
+    int b() default 23;
 
-    int getModifiers();
+    Class<?>[] c();
 }
