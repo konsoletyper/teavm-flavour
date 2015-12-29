@@ -37,7 +37,6 @@ import org.teavm.flavour.templates.tree.TemplateNodeVisitor;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.model.MethodDescriptor;
 import org.teavm.model.ValueType;
-import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -64,16 +63,20 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
 
         String tagName = node.getName();
-        if (hasInnerDirectives) {
-            builder = em.emit(() -> builder.get().openSlot(tagName));
-        } else {
-            builder = em.emit(() -> builder.get().open(tagName));
+        {
+            Value<DomBuilder> tmpBuilder = builder;
+            if (hasInnerDirectives) {
+                builder = em.emit(() -> tmpBuilder.get().openSlot(tagName));
+            } else {
+                builder = em.emit(() -> tmpBuilder.get().open(tagName));
+            }
         }
 
         for (DOMAttribute attr : node.getAttributes()) {
             String attrName = attr.getName();
             String attrValue = attr.getValue();
-            builder = em.emit(() -> builder.get().attribute(attrName, attrValue));
+            Value<DomBuilder> tmpBuilder = builder;
+            builder = em.emit(() -> tmpBuilder.get().attribute(attrName, attrValue));
         }
 
         for (AttributeDirectiveBinding binding : node.getAttributeDirectives()) {
@@ -84,13 +87,17 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             child.acceptVisitor(this);
         }
 
-        builder = em.emit(() -> builder.get().close());
+        {
+            Value<DomBuilder> tmpBuilder = builder;
+            builder = em.emit(() -> tmpBuilder.get().close());
+        }
     }
 
     @Override
     public void visit(DOMText node) {
         String value = node.getValue();
-        builder = em.emit(() -> builder.get().text(value));
+        Value<DomBuilder> tmpBuilder = builder;
+        builder = em.emit(() -> tmpBuilder.get().text(value));
     }
 
     @Override
@@ -108,10 +115,14 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
 
         if (node.getContentMethodName() != null) {
-            emitContent(node, em, component);
+            Value<Fragment> contentFragment = new FragmentEmitter(context)
+                    .emitTemplate(em, node, component, node.getContentNodes());
+            ReflectMethod setter = componentType.getJMethod(node.getContentMethodName(), Fragment.class);
+            em.emit(() -> setter.invoke(component, contentFragment));
         }
 
-        builder = em.emit(() -> builder.get().add(component.get()));
+        Value<DomBuilder> tmpBuilder = builder;
+        builder = em.emit(() -> tmpBuilder.get().add(component.get()));
     }
 
     private Value<Modifier> emitAttributeDirective(AttributeDirectiveBinding binding) {
@@ -147,13 +158,6 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         ReflectClass<?> lambdaCls = em.getContext().findClass(function.getLambdaType());
         ReflectMethod setter = cls.getMethod(function.getMethodName(), lambdaCls);
         em.emit(() -> setter.invoke(component, functionInstance));
-    }
-
-    private void emitContent(DirectiveBinding directive, Emitter<?> em, ValueEmitter componentVar) {
-        String contentClass = new FragmentEmitter(context).emitTemplate(em, directive, directive.getContentNodes());
-        ValueEmitter fragmentVar = pe.construct(contentClass, thisVar);
-        fragmentVar.setField("component", componentVar);
-        componentVar.invokeVirtual(directive.getContentMethodName(), fragmentVar.cast(Fragment.class));
     }
 
     private void emitDirectiveName(String methodName, String directiveName, Emitter<?> em,

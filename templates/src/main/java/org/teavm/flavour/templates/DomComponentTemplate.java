@@ -21,19 +21,21 @@ import java.util.List;
  *
  * @author Alexey Andreev
  */
-public abstract class DomComponentTemplate extends AbstractComponent {
+public class DomComponentTemplate extends AbstractComponent {
+    private DomComponentHandler handler;
     private List<Renderable> renderables;
 
-    public DomComponentTemplate() {
+    public DomComponentTemplate(DomComponentHandler handler) {
         super(Slot.create());
+        this.handler = handler;
     }
 
     @Override
     public void render() {
-        update();
+        handler.update();
         if (renderables == null) {
             DomBuilder builder = new DomBuilder(getSlot());
-            buildDom(builder);
+            handler.buildDom(builder);
             renderables = builder.getRenderables();
         }
         for (Renderable renderable : renderables) {
@@ -51,8 +53,4 @@ public abstract class DomComponentTemplate extends AbstractComponent {
         }
         super.destroy();
     }
-
-    protected abstract void update();
-
-    protected abstract void buildDom(DomBuilder builder);
 }

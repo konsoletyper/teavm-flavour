@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.Value;
 
 /**
  *
@@ -31,28 +30,28 @@ import org.teavm.flavour.mp.Value;
 class EmitContext {
     String sourceFileName;
     ReflectValue<Object> model;
-    List<Map<String, Value<Object>>> boundVariableStack = new ArrayList<>();
-    Map<String, Deque<Value<Object>>> variables = new HashMap<>();
+    List<Map<String, VariableEmitter>> boundVariableStack = new ArrayList<>();
+    Map<String, Deque<VariableEmitter>> variables = new HashMap<>();
 
     public void pushBoundVars() {
-        boundVariableStack.add(new HashMap<String, Value<Object>>());
+        boundVariableStack.add(new HashMap<String, VariableEmitter>());
     }
 
-    public Map<String, Value<Object>> popBoundVars() {
-        Map<String, Value<Object>> vars = boundVariableStack.get(boundVariableStack.size() - 1);
+    public Map<String, VariableEmitter> popBoundVars() {
+        Map<String, VariableEmitter> vars = boundVariableStack.get(boundVariableStack.size() - 1);
         boundVariableStack.remove(boundVariableStack.size() - 1);
         return vars;
     }
 
-    public Value<Object> getVariable(String name) {
-        Deque<Value<Object>> stack = variables.get(name);
-        Value<Object> var = stack != null && !stack.isEmpty() ? stack.peek() : null;
+    public VariableEmitter getVariable(String name) {
+        Deque<VariableEmitter> stack = variables.get(name);
+        VariableEmitter var = stack != null && !stack.isEmpty() ? stack.peek() : null;
         boundVariableStack.get(boundVariableStack.size() - 1).put(name, var);
         return var;
     }
 
-    public void addVariable(String name, Value<Object> value) {
-        Deque<Value<Object>> stack = variables.get(name);
+    public void addVariable(String name, VariableEmitter value) {
+        Deque<VariableEmitter> stack = variables.get(name);
         if (stack == null) {
             stack = new ArrayDeque<>();
             variables.put(name, stack);
@@ -61,7 +60,7 @@ class EmitContext {
     }
 
     public void removeVariable(String name) {
-        Deque<Value<Object>> stack = variables.get(name);
+        Deque<VariableEmitter> stack = variables.get(name);
         if (stack != null) {
             stack.pop();
             if (stack.isEmpty()) {

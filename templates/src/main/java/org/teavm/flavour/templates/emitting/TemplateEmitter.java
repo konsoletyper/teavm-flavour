@@ -43,9 +43,9 @@ public class TemplateEmitter {
             List<TemplateNode> fragment) {
         EmitContext context = new EmitContext();
         context.sourceFileName = sourceFileName;
-        context.addVariable("this", model);
+        context.addVariable("this", lem -> lem.emit(() -> model));
         context.model = model;
-        return new FragmentEmitter(context).emitTemplate(em, null, fragment);
+        return new FragmentEmitter(context).emitTemplate(em, null, null, fragment);
     }
 
     private Value<Fragment> emitWorker(Value<Fragment> innerFragment) {

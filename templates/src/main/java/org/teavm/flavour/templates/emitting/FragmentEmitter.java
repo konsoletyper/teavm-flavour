@@ -15,29 +15,21 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.HashMap;
 import java.util.List;
-import org.teavm.flavour.expr.type.GenericArray;
-import org.teavm.flavour.expr.type.GenericClass;
-import org.teavm.flavour.expr.type.GenericReference;
-import org.teavm.flavour.expr.type.Primitive;
-import org.teavm.flavour.expr.type.TypeVar;
+import java.util.Map;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
+import org.teavm.flavour.templates.DomComponentHandler;
 import org.teavm.flavour.templates.DomComponentTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.DirectiveBinding;
 import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ProgramEmitter;
-import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -50,152 +42,61 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public Value<Fragment> emitTemplate(Emitter<Fragment> em, DirectiveBinding directive,
+    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<Component> component,
             List<TemplateNode> fragment) {
         @SuppressWarnings("unchecked")
         ReflectClass<Component> componentType = directive != null
                 ? (ReflectClass<Component>) em.getContext().findClass(directive.getClassName())
                 : null;
 
-        if (directive != null) {
-            FieldHolder componentField = new FieldHolder("component");
-            componentField.setType(componentType);
-            componentField.setLevel(AccessLevel.PUBLIC);
-            cls.addField(componentField);
-        }
-        context.addConstructor(cls, null);
+        Value<Fragment> fragmentResult = em.proxy(Fragment.class, (fem, fProxy, fMethod, fArgs) -> {
+            context.pushBoundVars();
+            Map<String, Value<VariableImpl>> variables = new HashMap<>();
+            if (directive != null) {
+                for (DirectiveVariableBinding varBinding : directive.getVariables()) {
+                    Value<VariableImpl> variableImpl = em.emit(() -> new VariableImpl());
+                    variables.put(varBinding.getName(), variableImpl);
+                    context.addVariable(varBinding.getName(), innerEm -> {
+                        Value<VariableImpl> tmp = variableImpl;
+                        return innerEm.emit(() -> tmp.get().value);
+                    });
+                }
+            }
 
-        MethodHolder method = new MethodHolder("create", ValueType.parse(Component.class));
-        method.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(method, context.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
+            Value<DomComponentHandler> handler = em.proxy(DomComponentHandler.class, (bodyEm, proxy, method, args) -> {
+                switch (method.getName()) {
+                    case "update":
+                        if (componentType != null) {
+                            emitUpdateMethod(bodyEm, directive, componentType, component, variables);
+                        }
+                        break;
+                    case "buildDom":
+                        emitBuildDomMethod(bodyEm, em.emit(() -> (DomBuilder) args[0]), fragment);
+                        break;
+                }
+            });
 
-        String workerCls = emitWorkerClass(directive, fragment);
-        ValueEmitter result = pe.construct(workerCls, thisVar.getField("this$owner", ownerType));
-        if (directive != null) {
-            result.setField("component", thisVar.getField("component", componentType));
-        }
-        result.returnValue();
+            Value<Component> result = em.emit(() -> new DomComponentTemplate(handler.get()));
+            fem.returnValue(result);
+            context.popBoundVars();
+        });
 
-        cls.addMethod(method);
-        //context.dependencyAgent.submitClass(cls);
-        return cls.getName();
+        return fragmentResult;
     }
 
-    private String emitWorkerClass(DirectiveBinding directive, List<TemplateNode> fragment) {
-        ClassHolder cls = new ClassHolder(context.generateTypeName("DomComponent"));
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(DomComponentTemplate.class.getName());
-        context.addConstructor(cls, null);
-        context.pushBoundVars();
-
-        context.classStack.add(cls.getName());
-
-        if (directive != null) {
-            for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-                context.addVariable(varBinding.getName(), convertValueType(varBinding.getValueType()));
-            }
-        }
-
-        emitBuildDomMethod(cls, fragment);
-        emitUpdateMethod(cls, directive);
-
-        if (directive != null) {
-            for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-                context.removeVariable(varBinding.getName());
-            }
-        }
-        context.classStack.remove(context.classStack.size() - 1);
-        context.popBoundVars();
-
-        //context.dependencyAgent.submitClass(cls);
-        return cls.getName();
-    }
-
-    private void emitBuildDomMethod(ClassHolder cls, List<TemplateNode> fragment) {
-        MethodHolder buildDomMethod = new MethodHolder("buildDom", ValueType.object(DomBuilder.class.getName()),
-                ValueType.VOID);
-        buildDomMethod.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(buildDomMethod, context.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter builderVar = pe.var(1, DomBuilder.class);
-
-        TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, pe, thisVar, builderVar);
+    private void emitBuildDomMethod(Emitter<?> em, Value<DomBuilder> builder, List<TemplateNode> fragment) {
+        TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, em, builder);
         for (TemplateNode node : fragment) {
             node.acceptVisitor(nodeEmitter);
         }
-        pe.exit();
-
-        cls.addMethod(buildDomMethod);
     }
 
-    private void emitUpdateMethod(ClassHolder cls, DirectiveBinding directive) {
-        MethodHolder method = new MethodHolder("update", ValueType.VOID);
-        method.setLevel(AccessLevel.PROTECTED);
-        ProgramEmitter pe = ProgramEmitter.create(method, context.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-
-        if (directive != null) {
-            ValueType componentType = ValueType.object(directive.getClassName());
-            FieldHolder componentField = new FieldHolder("component");
-            componentField.setType(componentType);
-            componentField.setLevel(AccessLevel.PUBLIC);
-            cls.addField(componentField);
-
-            ValueEmitter componentVar = thisVar.getField("component", componentType);
-            for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-                FieldHolder varField = new FieldHolder("var$" + varBinding.getName());
-                varField.setLevel(AccessLevel.PUBLIC);
-                varField.setType(convertValueType(varBinding.getValueType()));
-                cls.addField(varField);
-
-                ValueEmitter varValue = componentVar.invokeVirtual(varBinding.getMethodName(),
-                        convertValueType(varBinding.getRawValueType()))
-                        .cast(varField.getType());
-                thisVar.setField(varField.getName(), varValue);
-            }
-        }
-
-        pe.exit();
-
-        cls.addMethod(method);
-    }
-
-    private ValueType convertValueType(org.teavm.flavour.expr.type.ValueType type) {
-        if (type instanceof Primitive) {
-            switch (((Primitive) type).getKind()) {
-                case BOOLEAN:
-                    return ValueType.BOOLEAN;
-                case CHAR:
-                    return ValueType.CHARACTER;
-                case BYTE:
-                    return ValueType.BYTE;
-                case SHORT:
-                    return ValueType.SHORT;
-                case INT:
-                    return ValueType.INTEGER;
-                case LONG:
-                    return ValueType.LONG;
-                case FLOAT:
-                    return ValueType.FLOAT;
-                case DOUBLE:
-                    return ValueType.DOUBLE;
-                default:
-                    throw new AssertionError();
-            }
-        } else if (type instanceof GenericClass) {
-            return ValueType.object(((GenericClass) type).getName());
-        } else if (type instanceof GenericArray) {
-            return ValueType.arrayOf(convertValueType(((GenericArray) type).getElementType()));
-        } else if (type instanceof GenericReference) {
-            TypeVar typeVar = ((GenericReference) type).getVar();
-            if (typeVar.getUpperBound() == null) {
-                return ValueType.object("java.lang.Object");
-            } else {
-                return convertValueType(typeVar.getUpperBound());
-            }
-        } else {
-            throw new AssertionError("Unsupported type: " + type);
+    private void emitUpdateMethod(Emitter<?> em, DirectiveBinding directive, ReflectClass<?> componentType,
+            Value<Component> component, Map<String, Value<VariableImpl>> variables) {
+        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
+            Value<VariableImpl> var = variables.get(varBinding.getName());
+            ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());
+            em.emit(() -> var.get().value = getter.invoke(component));
         }
     }
 }

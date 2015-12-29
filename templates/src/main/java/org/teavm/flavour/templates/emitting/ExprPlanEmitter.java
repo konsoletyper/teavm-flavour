@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
 import org.teavm.flavour.expr.plan.ArrayLengthPlan;
 import org.teavm.flavour.expr.plan.BinaryPlan;
@@ -37,12 +39,12 @@ import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ThisPlan;
 import org.teavm.flavour.expr.plan.VariablePlan;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodReference;
+import org.teavm.flavour.templates.Templates;
 import org.teavm.model.emit.ValueEmitter;
 
 /**
@@ -80,7 +82,7 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private void emitVariable(String name) {
-        var = context.getVariable(name);
+        var = context.getVariable(name).emit(em);
     }
 
     @Override
@@ -481,17 +483,17 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(InvocationPlan plan) {
-        Value<Object> instance;
-        if (plan.getInstance() != null) {
-            plan.getInstance().acceptVisitor(this);
-            instance = var;
-        } else {
-            instance = null;
-        }
-
         var = em.lazyFragment(Object.class, lem -> {
+            Value<Object> instance;
+            if (plan.getInstance() != null) {
+                plan.getInstance().acceptVisitor(this);
+                instance = var;
+            } else {
+                instance = null;
+            }
+
             ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
-            ReflectMethod method = cls.getMethod(plan.getMethodName(), plan.getMethodDesc());
+            ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
             int argCount = method.getParameterCount();
             Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
             for (int i = 0; i < plan.getArguments().size(); ++i) {
@@ -507,16 +509,34 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(ConstructionPlan plan) {
-        MethodReference ctor = new MethodReference(plan.getClassName(), MethodDescriptor.parse(
-                "<init>" + plan.getMethodDesc()));
-        ValueEmitter[] arguments = new ValueEmitter[plan.getArguments().size()];
-        for (int i = 0; i < plan.getArguments().size(); ++i) {
-            plan.getArguments().get(i).acceptVisitor(this);
-            requireValue();
-            arguments[i] = var.cast(ctor.parameterType(i));
+        var = em.lazyFragment(Object.class, lem -> {
+            ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
+            ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
+            int argCount = method.getParameterCount();
+            Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
+            for (int i = 0; i < plan.getArguments().size(); ++i) {
+                int index = i;
+                plan.getArguments().get(i).acceptVisitor(this);
+                Value<Object> argValue = var;
+                lem.emit(() -> arguments.get()[index] = argValue.get());
+            }
+
+            lem.returnValue(() -> method.construct(arguments));
+        });
+    }
+
+    private ReflectMethod findMethod(ReflectClass<?> owner, String name, String desc) {
+        TypeParser parser = new TypeParser(desc);
+        parser.index++;
+        List<ReflectClass<?>> argumentTypes = new ArrayList<>();
+        while (parser.text.charAt(parser.index) != ')') {
+            ReflectClass<?> argumentType = parser.parse();
+            if (argumentType == null) {
+                return null;
+            }
+            argumentTypes.add(argumentType);
         }
-        context.location(pe, plan.getLocation());
-        var = pe.construct(plan.getClassName(), arguments);
+        return owner.getMethod(name, argumentTypes.toArray(new ReflectClass<?>[0]));
     }
 
     @Override
@@ -540,7 +560,8 @@ class ExprPlanEmitter implements PlanVisitor {
         var = em.proxy(cls, (bodyEm, instance, method, args) -> {
             context.pushBoundVars();
             for (int i = 0; i < args.length; ++i) {
-                context.addVariable(plan.getBoundVars().get(i), args[i]);
+                int argIndex = i;
+                context.addVariable(plan.getBoundVars().get(i), innerEm -> innerEm.emit(args[argIndex]));
             }
 
             Emitter<?> oldEm = em;
@@ -548,13 +569,72 @@ class ExprPlanEmitter implements PlanVisitor {
             plan.getBody().acceptVisitor(this);
             Value<Object> result = var;
             bodyEm.returnValue(result);
+            if (updateTemplates) {
+                em.emit(() -> Templates.update());
+            }
             em = oldEm;
 
             context.popBoundVars();
         });
     }
 
-    interface VariableEmitter {
-        Value<Object> emit();
+    class TypeParser {
+        int index;
+        String text;
+        EmitterContext context;
+
+        public TypeParser(String text) {
+            this.text = text;
+            this.context = em.getContext();
+        }
+
+        ReflectClass<?> parse() {
+            if (index >= text.length()) {
+                return null;
+            }
+            char c = text.charAt(index);
+            switch (c) {
+                case 'V':
+                    ++index;
+                    return context.findClass(void.class);
+                case 'Z':
+                    ++index;
+                    return context.findClass(boolean.class);
+                case 'B':
+                    ++index;
+                    return context.findClass(byte.class);
+                case 'S':
+                    ++index;
+                    return context.findClass(short.class);
+                case 'I':
+                    ++index;
+                    return context.findClass(int.class);
+                case 'J':
+                    ++index;
+                    return context.findClass(long.class);
+                case 'F':
+                    ++index;
+                    return context.findClass(float.class);
+                case 'D':
+                    ++index;
+                    return context.findClass(double.class);
+                case 'L': {
+                    int next = text.indexOf(';', ++index);
+                    if (next < 0) {
+                        return null;
+                    }
+                    ReflectClass<?> cls = context.findClass(text.substring(index, next).replace('/', '.'));
+                    index = next + 1;
+                    return cls;
+                }
+                case '[': {
+                    ++index;
+                    ReflectClass<?> component = parse();
+                    return component != null ? context.arrayClass(component) : null;
+                }
+                default:
+                    return null;
+            }
+        }
     }
 }
