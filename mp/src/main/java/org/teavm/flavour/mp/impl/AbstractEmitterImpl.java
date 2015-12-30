@@ -82,7 +82,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         Fragment fragment = (Fragment) computation;
         MethodReader method = classSource.resolve(fragment.method);
         generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
-        return new ValueImpl<>(generator.getResultVar(), varContext, templateMethod.getReturnType());
+        return new ValueImpl<>(generator.getResultVar(), varContext, fragment.method.getReturnType());
     }
 
     @Override
