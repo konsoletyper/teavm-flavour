@@ -96,6 +96,6 @@ public class EmitterContextImpl implements EmitterContext {
     public String createProxyName(String className) {
         int suffix = proxySuffixGenerators.getOrDefault(className, 0);
         proxySuffixGenerators.put(className, suffix + 1);
-        return className + "$proxy" + className;
+        return className + "$proxy" + suffix;
     }
 }

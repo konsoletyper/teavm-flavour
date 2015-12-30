@@ -148,7 +148,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private void emitFunction(DirectiveFunctionBinding function, Emitter<?> em, Value<? extends Object> component) {
-        ExprPlanEmitter exprEmitter = new ExprPlanEmitter(context);
+        ExprPlanEmitter exprEmitter = new ExprPlanEmitter(context, em);
         LambdaPlan plan = function.getPlan();
         ValueType[] signature = MethodDescriptor.parseSignature(function.getPlan().getMethodDesc());
         exprEmitter.emit(plan, signature[signature.length - 1] == ValueType.VOID);

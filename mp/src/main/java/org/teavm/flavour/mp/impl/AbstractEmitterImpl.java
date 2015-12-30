@@ -132,6 +132,19 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         } else if (computation instanceof ValueImpl) {
             ValueImpl<?> value = (ValueImpl<?>) computation;
             returnValue(unbox(varContext.emitVariable(value)));
+        } else if (computation instanceof LazyValueImpl) {
+            @SuppressWarnings("unchecked")
+            LazyValueImpl<Object> value = (LazyValueImpl<Object>) computation;
+            CompositeMethodGenerator nestedGenerator = new CompositeMethodGenerator(context, varContext,
+                    generator.program);
+            nestedGenerator.blockIndex = generator.blockIndex;
+            nestedGenerator.location = generator.location;
+            LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, nestedGenerator, templateMethod,
+                    value.type);
+            value.computation.compute(lazyEmitter);
+            generator.blockIndex = nestedGenerator.blockIndex;
+
+            returnValue(unbox(generator.getResultVar()));
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
@@ -170,6 +183,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
             handler.invoke(nestedEmitter, new ValueImpl<S>(thisVar, nestedVarContext, innerType),
                     methodImpl, arguments);
+            nestedEmitter.close();
 
             JumpInstruction jumpToStart = new JumpInstruction();
             jumpToStart.setTarget(program.basicBlockAt(startBlock.getIndex() + 1));

@@ -440,4 +440,8 @@ public class MetaprogrammingTest {
             return emitter.emit(() -> "{" + value + "}");
         }
     }
+
+    // TODO: test returnValue(lazyValue) and emit(lazyValue)
+
+    // TODO: test proxy method with no returnValue ever called
 }
