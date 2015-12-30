@@ -30,6 +30,7 @@ import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.flavour.mp.test.subpackage.MetaprogrammingGenerator;
 
 /**
  *
@@ -392,6 +393,51 @@ public class MetaprogrammingTest {
         @TestAnnotation(b = 42, c = { String.class, int.class })
         int foo() {
             return 0;
+        }
+    }
+
+    @Test
+    public void compileTimeAnnotationRespectsPackage() {
+        assertEquals("(foo)", compileTimePackage());
+    }
+
+    @Reflected
+    private static native String compileTimePackage();
+    private static void compileTimePackage(Emitter<String> em) {
+        em.returnValue(new MetaprogrammingGenerator(em).addParentheses("foo"));
+    }
+
+    @Test
+    public void compileTimeAnnotationRespectsClass() {
+        assertEquals("[foo]", compileTimeClass());
+    }
+
+    @Reflected
+    private static native String compileTimeClass();
+    private static void compileTimeClass(Emitter<String> em) {
+        em.returnValue(new MetaprogrammingGenerator2(em).addParentheses("foo"));
+    }
+
+    @Test
+    public void compileTimeAnnotationRespectsNestedClass() {
+        assertEquals("{foo}", compileTimeNestedClass());
+    }
+
+    @Reflected
+    private static native String compileTimeNestedClass();
+    private static void compileTimeNestedClass(Emitter<String> em) {
+        em.returnValue(new MetaprogrammingGenerator3(em).addParentheses("foo"));
+    }
+
+    static class MetaprogrammingGenerator3 {
+        private Emitter<?> emitter;
+
+        public MetaprogrammingGenerator3(Emitter<?> emitter) {
+            this.emitter = emitter;
+        }
+
+        public Value<String> addParentheses(String value) {
+            return emitter.emit(() -> "{" + value + "}");
         }
     }
 }
