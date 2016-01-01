@@ -80,7 +80,9 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
 
         for (AttributeDirectiveBinding binding : node.getAttributeDirectives()) {
-            emitAttributeDirective(binding);
+            Value<DomBuilder> tmpBuilder = builder;
+            Value<Modifier> modifier = emitAttributeDirective(binding);
+            builder = em.emit(() -> tmpBuilder.get().add(modifier.get()));
         }
 
         for (TemplateNode child : node.getChildNodes()) {
