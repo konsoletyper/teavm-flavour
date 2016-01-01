@@ -54,7 +54,7 @@ class FragmentEmitter {
             Map<String, Value<VariableImpl>> variables = new HashMap<>();
             if (directive != null) {
                 for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-                    Value<VariableImpl> variableImpl = em.emit(() -> new VariableImpl());
+                    Value<VariableImpl> variableImpl = fem.emit(() -> new VariableImpl());
                     variables.put(varBinding.getName(), variableImpl);
                     context.addVariable(varBinding.getName(), innerEm -> {
                         Value<VariableImpl> tmp = variableImpl;
@@ -63,7 +63,7 @@ class FragmentEmitter {
                 }
             }
 
-            Value<DomComponentHandler> handler = em.proxy(DomComponentHandler.class, (bodyEm, proxy, method, args) -> {
+            Value<DomComponentHandler> handler = fem.proxy(DomComponentHandler.class, (bodyEm, proxy, method, args) -> {
                 switch (method.getName()) {
                     case "update":
                         if (componentType != null) {
@@ -71,12 +71,12 @@ class FragmentEmitter {
                         }
                         break;
                     case "buildDom":
-                        emitBuildDomMethod(bodyEm, em.emit(() -> (DomBuilder) args[0]), fragment);
+                        emitBuildDomMethod(bodyEm, bodyEm.emit(() -> (DomBuilder) args[0]), fragment);
                         break;
                 }
             });
 
-            Value<Component> result = em.emit(() -> new DomComponentTemplate(handler.get()));
+            Value<Component> result = fem.emit(() -> new DomComponentTemplate(handler.get()));
             fem.returnValue(result);
             context.popBoundVars();
         });

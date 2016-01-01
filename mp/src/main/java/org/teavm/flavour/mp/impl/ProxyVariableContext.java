@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
+import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.FieldHolder;
 import org.teavm.model.MethodHolder;
@@ -58,15 +59,15 @@ public class ProxyVariableContext extends VariableContext {
     }
 
     @Override
-    public Variable emitVariable(ValueImpl<?> value) {
-        return cache.computeIfAbsent(value, this::createVariable);
+    public Variable emitVariable(ValueImpl<?> value, CallLocation location) {
+        return cache.computeIfAbsent(value, v -> createVariable(v, location));
     }
 
-    private Variable createVariable(ValueImpl<?> value) {
+    private Variable createVariable(ValueImpl<?> value, CallLocation location) {
         if (value.context == this) {
             return value.innerValue;
         }
-        Variable outerVar = getParent().emitVariable(value);
+        Variable outerVar = getParent().emitVariable(value, location);
 
         CapturedValue capturedValue = capturedValueMap.computeIfAbsent(outerVar, v -> {
             FieldHolder field = new FieldHolder("proxyCapture" + suffixGenerator++);

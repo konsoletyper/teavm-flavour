@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import org.teavm.model.CallLocation;
 import org.teavm.model.Variable;
 
 /**
@@ -32,5 +33,5 @@ public abstract class VariableContext {
         return parent;
     }
 
-    public abstract Variable emitVariable(ValueImpl<?> value);
+    public abstract Variable emitVariable(ValueImpl<?> value, CallLocation location);
 }

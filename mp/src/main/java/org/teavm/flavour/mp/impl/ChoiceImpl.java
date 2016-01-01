@@ -22,6 +22,7 @@ import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.Value;
 import org.teavm.model.BasicBlock;
+import org.teavm.model.CallLocation;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.Incoming;
 import org.teavm.model.MethodReader;
@@ -75,7 +76,8 @@ public class ChoiceImpl<T> implements Choice<T> {
         if (type != ValueType.VOID) {
             value = new ValueImpl<>(generator.program.createVariable(), generator.varContext, type);
             phi = new Phi();
-            phi.setReceiver(generator.varContext.emitVariable(value));
+            CallLocation location = new CallLocation(templateMethod, generator.location);
+            phi.setReceiver(generator.varContext.emitVariable(value, location));
             successor.getPhis().add(phi);
         }
 

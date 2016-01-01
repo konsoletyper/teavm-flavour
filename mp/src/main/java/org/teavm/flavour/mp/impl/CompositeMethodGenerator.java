@@ -260,7 +260,7 @@ public class CompositeMethodGenerator {
             add(insn);
             return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
-            return varContext.emitVariable((ValueImpl<?>) value);
+            return varContext.emitVariable((ValueImpl<?>) value, new CallLocation(templateMethod, location));
         } else if (value instanceof LazyValueImpl) {
             @SuppressWarnings("unchecked")
             LazyValueImpl<Object> lazyImpl = (LazyValueImpl<Object>) value;

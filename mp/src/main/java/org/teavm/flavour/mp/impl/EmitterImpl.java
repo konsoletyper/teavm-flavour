@@ -26,8 +26,8 @@ import org.teavm.model.instructions.ExitInstruction;
  */
 public class EmitterImpl<T> extends AbstractEmitterImpl<T> {
     public EmitterImpl(EmitterContextImpl context, MethodReference templateMethod, ValueType returnType) {
-        super(context, new CompositeMethodGenerator(context, new TopLevelVariableContext()), templateMethod,
-                returnType);
+        super(context, new CompositeMethodGenerator(context, new TopLevelVariableContext(context.getDiagnostics())),
+                templateMethod, returnType);
     }
 
     public EmitterImpl(EmitterContextImpl context, MethodReference templateMethod, ValueType returnType,

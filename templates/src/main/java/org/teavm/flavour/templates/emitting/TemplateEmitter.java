@@ -51,10 +51,10 @@ public class TemplateEmitter {
     private Value<Fragment> emitWorker(Value<Fragment> innerFragment) {
         return em.proxy(Fragment.class, (proxyEm, instance, method, args) -> {
             int argCount = args.length;
-            Value<Object[]> innerArgs = em.emit(() -> new Object[argCount]);
+            Value<Object[]> innerArgs = proxyEm.emit(() -> new Object[argCount]);
             for (int i = 0; i < argCount; ++i) {
                 int index = i;
-                em.emit(() -> innerArgs.get()[index] = args[index]);
+                proxyEm.emit(() -> innerArgs.get()[index] = args[index]);
             }
             Value<Object> result = proxyEm.emit(() -> method.invoke(innerFragment, innerArgs.get()));
             proxyEm.returnValue(result);

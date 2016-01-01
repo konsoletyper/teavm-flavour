@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import org.teavm.diagnostics.Diagnostics;
+import org.teavm.model.CallLocation;
 import org.teavm.model.Variable;
 
 /**
@@ -22,12 +24,18 @@ import org.teavm.model.Variable;
  * @author Alexey Andreev
  */
 public class TopLevelVariableContext extends VariableContext {
-    public TopLevelVariableContext() {
+    private Diagnostics diagnostics;
+
+    public TopLevelVariableContext(Diagnostics diagnostics) {
         super(null);
+        this.diagnostics = diagnostics;
     }
 
     @Override
-    public Variable emitVariable(ValueImpl<?> value) {
+    public Variable emitVariable(ValueImpl<?> value, CallLocation location) {
+        if (value.context != this) {
+            diagnostics.error(location, "Can't get variable from another context");
+        }
         return value.innerValue;
     }
 }

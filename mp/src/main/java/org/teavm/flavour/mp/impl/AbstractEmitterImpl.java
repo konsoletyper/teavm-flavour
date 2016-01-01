@@ -30,6 +30,7 @@ import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
+import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodHolder;
@@ -131,7 +132,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             returnValue(unbox(generator.getResultVar()));
         } else if (computation instanceof ValueImpl) {
             ValueImpl<?> value = (ValueImpl<?>) computation;
-            returnValue(unbox(varContext.emitVariable(value)));
+            returnValue(unbox(varContext.emitVariable(value, new CallLocation(templateMethod, generator.location))));
         } else if (computation instanceof LazyValueImpl) {
             @SuppressWarnings("unchecked")
             LazyValueImpl<Object> value = (LazyValueImpl<Object>) computation;
@@ -144,7 +145,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             value.computation.compute(lazyEmitter);
             generator.blockIndex = nestedGenerator.blockIndex;
 
-            returnValue(unbox(generator.getResultVar()));
+            returnValue(unbox(lazyEmitter.result));
         } else {
             throw new IllegalStateException("Unexpected computation type: " + computation.getClass().getName());
         }
