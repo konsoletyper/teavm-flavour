@@ -123,6 +123,10 @@ class RESTDependencyListener extends AbstractDependencyListener {
         MethodReference method = new MethodReference(RESTClient.class, "factoryImpl", String.class,
                 ResourceFactory.class);
 
+        if (agent.getMethod(method) == null) {
+            return;
+        }
+
         ProgramEmitter pe = ProgramEmitter.create(method.getDescriptor(), agent.getClassSource());
         ValueEmitter typeVar = pe.var(1, String.class);
 

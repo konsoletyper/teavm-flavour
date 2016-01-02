@@ -337,7 +337,8 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(CastPlan plan) {
         plan.getOperand().acceptVisitor(this);
         Value<Object> operand = var;
-        ReflectClass<Object> cls = em.getContext().findClass(plan.getTargetType()).asSubclass(Object.class);
+        TypeParser typeParser = new TypeParser(plan.getTargetType());
+        ReflectClass<Object> cls = typeParser.parse().asSubclass(Object.class);
         var = em.lazy(() -> cls.cast(operand.get()));
     }
 
@@ -485,44 +486,56 @@ class ExprPlanEmitter implements PlanVisitor {
     @Override
     public void visit(InvocationPlan plan) {
         var = em.lazyFragment(Object.class, lem -> {
-            Value<Object> instance;
-            if (plan.getInstance() != null) {
-                plan.getInstance().acceptVisitor(this);
-                instance = var;
-            } else {
-                instance = null;
-            }
+            Emitter<?> oldEm = em;
+            em = lem;
+            try {
+                Value<Object> instance;
+                if (plan.getInstance() != null) {
+                    plan.getInstance().acceptVisitor(this);
+                    instance = var;
+                } else {
+                    instance = null;
+                }
 
-            ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
-            ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
-            int argCount = method.getParameterCount();
-            Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
-            for (int i = 0; i < plan.getArguments().size(); ++i) {
-                int index = i;
-                plan.getArguments().get(i).acceptVisitor(this);
-                Value<Object> argValue = var;
-                lem.emit(() -> arguments.get()[index] = argValue.get());
-            }
+                ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
+                ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
+                int argCount = method.getParameterCount();
+                Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
+                for (int i = 0; i < plan.getArguments().size(); ++i) {
+                    int index = i;
+                    plan.getArguments().get(i).acceptVisitor(this);
+                    Value<Object> argValue = var;
+                    lem.emit(() -> arguments.get()[index] = argValue.get());
+                }
 
-            lem.returnValue(() -> method.invoke(instance, arguments));
+                lem.returnValue(() -> method.invoke(instance, arguments.get()));
+            } finally {
+                em = oldEm;
+            }
         });
     }
 
     @Override
     public void visit(ConstructionPlan plan) {
         var = em.lazyFragment(Object.class, lem -> {
-            ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
-            ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
-            int argCount = method.getParameterCount();
-            Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
-            for (int i = 0; i < plan.getArguments().size(); ++i) {
-                int index = i;
-                plan.getArguments().get(i).acceptVisitor(this);
-                Value<Object> argValue = var;
-                lem.emit(() -> arguments.get()[index] = argValue.get());
-            }
+            Emitter<?> oldEm = em;
+            em = lem;
+            try {
+                ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
+                ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
+                int argCount = method.getParameterCount();
+                Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
+                for (int i = 0; i < plan.getArguments().size(); ++i) {
+                    int index = i;
+                    plan.getArguments().get(i).acceptVisitor(this);
+                    Value<Object> argValue = var;
+                    lem.emit(() -> arguments.get()[index] = argValue.get());
+                }
 
-            lem.returnValue(() -> method.construct(arguments));
+                lem.returnValue(() -> method.construct(arguments.get()));
+            } finally {
+                em = oldEm;
+            }
         });
     }
 
@@ -569,9 +582,12 @@ class ExprPlanEmitter implements PlanVisitor {
             em = bodyEm;
             plan.getBody().acceptVisitor(this);
             Value<Object> result = var;
-            bodyEm.returnValue(result);
+            Value<Object> valueToReturn = em.emit(() -> result.get());
             if (updateTemplates) {
                 em.emit(() -> Templates.update());
+            }
+            if (method.getReturnType() != bodyEm.getContext().findClass(void.class)) {
+                bodyEm.returnValue(valueToReturn);
             }
             em = oldEm;
 

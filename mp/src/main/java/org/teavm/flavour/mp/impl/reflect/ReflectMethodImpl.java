@@ -64,7 +64,7 @@ public class ReflectMethodImpl implements ReflectMethod {
         if (returnType == null) {
             returnType = context.getClass(method.getResultType());
         }
-        return null;
+        return returnType;
     }
 
     @Override

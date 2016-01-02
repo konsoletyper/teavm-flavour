@@ -80,10 +80,16 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Value<S> emit(Computation<S> computation) {
-        Fragment fragment = (Fragment) computation;
-        MethodReader method = classSource.resolve(fragment.method);
-        generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
-        return new ValueImpl<>(generator.getResultVar(), varContext, fragment.method.getReturnType());
+        if (computation instanceof ValueImpl<?>) {
+            ValueImpl<S> valueImpl = (ValueImpl<S>) computation;
+            Variable var = varContext.emitVariable(valueImpl, new CallLocation(templateMethod, generator.location));
+            return new ValueImpl<>(var, varContext, valueImpl.type);
+        } else {
+            Fragment fragment = (Fragment) computation;
+            MethodReader method = classSource.resolve(fragment.method);
+            generator.addProgram(templateMethod, method.getProgram(), fragment.capturedValues);
+            return new ValueImpl<>(generator.getResultVar(), varContext, fragment.method.getReturnType());
+        }
     }
 
     @Override
@@ -162,6 +168,9 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         ProxyVariableContext nestedVarContext = new ProxyVariableContext(varContext, cls);
         for (ReflectMethod method : type.getMethods()) {
             ReflectMethodImpl methodImpl = (ReflectMethodImpl) method;
+            if (methodImpl.method.getProgram() != null && methodImpl.method.getProgram().basicBlockCount() > 0) {
+                continue;
+            }
             MethodHolder methodHolder = new MethodHolder(methodImpl.method.getDescriptor());
             methodHolder.setLevel(AccessLevel.PUBLIC);
 

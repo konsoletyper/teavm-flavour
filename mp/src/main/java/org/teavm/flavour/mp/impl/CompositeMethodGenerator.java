@@ -201,7 +201,7 @@ public class CompositeMethodGenerator {
         }
 
         phiBlockMap.clear();
-        blockIndex = program.basicBlockCount() - 1;
+        blockIndex = substitutor.blockOffset + template.basicBlockCount();
     }
 
     public Variable getResultVar() {
@@ -296,7 +296,8 @@ public class CompositeMethodGenerator {
             add(insn);
             return insn.getReceiver();
         } else {
-            throw new WrongCapturedValueException();
+            diagnostics.error(new CallLocation(templateMethod, location), "Wrong captured value");
+            return program.createVariable();
         }
     }
 
@@ -911,6 +912,14 @@ public class CompositeMethodGenerator {
                     insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
                     insn.setValue(var(arguments.get(0)));
                     insn.setType(reflectClass.type);
+                    add(insn);
+                    return true;
+                }
+                case "cast": {
+                    CastInstruction insn = new CastInstruction();
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    insn.setValue(var(arguments.get(0)));
+                    insn.setTargetType(reflectClass.type);
                     add(insn);
                     return true;
                 }
