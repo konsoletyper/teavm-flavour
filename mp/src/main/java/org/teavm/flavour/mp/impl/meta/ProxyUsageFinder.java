@@ -216,37 +216,43 @@ public class ProxyUsageFinder {
 
         @Override
         public void visit(ClassConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    false));
         }
 
         @Override
         public void visit(NullConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(null));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(null, false));
         }
 
         @Override
         public void visit(IntegerConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    true));
         }
 
         @Override
         public void visit(LongConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    true));
         }
 
         @Override
         public void visit(FloatConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    true));
         }
 
         @Override
         public void visit(DoubleConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    true));
         }
 
         @Override
         public void visit(StringConstantInstruction insn) {
-            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant()));
+            constants.put(variableSets.find(insn.getReceiver().getIndex()), new CapturedValue(insn.getConstant(),
+                    false));
         }
 
         @Override
@@ -265,7 +271,7 @@ public class ProxyUsageFinder {
             }
             int result = variableSets.union(insn.getAssignee().getIndex(), insn.getReceiver().getIndex());
             if (cst != null) {
-                constants.put(result, new CapturedValue(cst));
+                constants.put(result, new CapturedValue(cst, false));
             }
         }
 

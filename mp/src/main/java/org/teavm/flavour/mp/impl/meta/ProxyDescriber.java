@@ -161,7 +161,7 @@ public class ProxyDescriber {
                 parameters.add(parameter);
                 callParameters.add(parameter);
             } else {
-                Object value = null;
+                Object value;
                 boolean computed = false;
                 if (valueString.equals("null")) {
                     value = null;
@@ -198,6 +198,8 @@ public class ProxyDescriber {
                     } else if (paramType.isObject(ReflectClass.class)) {
                         value = ValueType.parse(valueString);
                         computed = true;
+                    } else {
+                        value = null;
                     }
                 }
 

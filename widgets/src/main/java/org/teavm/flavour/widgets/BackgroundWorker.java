@@ -33,7 +33,7 @@ public class BackgroundWorker {
                 --tasksRunning;
                 Templates.update();
             }
-        });
+        }).start();
     }
 
     public boolean isBusy() {

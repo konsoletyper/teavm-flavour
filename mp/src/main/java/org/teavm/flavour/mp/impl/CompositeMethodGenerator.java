@@ -217,7 +217,8 @@ public class CompositeMethodGenerator {
         program.basicBlockAt(blockIndex).getInstructions().add(insn);
     }
 
-    Variable captureValue(Object value) {
+    Variable captureValue(CapturedValue captured) {
+        Object value = captured.obj;
         if (value == null) {
             NullConstantInstruction insn = new NullConstantInstruction();
             insn.setReceiver(program.createVariable());
@@ -228,25 +229,41 @@ public class CompositeMethodGenerator {
             insn.setReceiver(program.createVariable());
             insn.setConstant((Integer) value);
             add(insn);
-            return insn.getReceiver();
+            Variable result = insn.getReceiver();
+            if (!captured.primitive) {
+                result = box(result, ValueType.INTEGER);
+            }
+            return result;
         } else if (value instanceof Long) {
             LongConstantInstruction insn = new LongConstantInstruction();
             insn.setReceiver(program.createVariable());
             insn.setConstant((Long) value);
             add(insn);
-            return insn.getReceiver();
+            Variable result = insn.getReceiver();
+            if (!captured.primitive) {
+                result = box(result, ValueType.LONG);
+            }
+            return result;
         } else if (value instanceof Float) {
             FloatConstantInstruction insn = new FloatConstantInstruction();
             insn.setReceiver(program.createVariable());
             insn.setConstant((Float) value);
             add(insn);
-            return insn.getReceiver();
+            Variable result = insn.getReceiver();
+            if (!captured.primitive) {
+                result = box(result, ValueType.FLOAT);
+            }
+            return result;
         } else if (value instanceof Double) {
             DoubleConstantInstruction insn = new DoubleConstantInstruction();
             insn.setReceiver(program.createVariable());
             insn.setConstant((Double) value);
             add(insn);
-            return insn.getReceiver();
+            Variable result = insn.getReceiver();
+            if (!captured.primitive) {
+                result = box(result, ValueType.DOUBLE);
+            }
+            return result;
         } else if (value instanceof String) {
             StringConstantInstruction insn = new StringConstantInstruction();
             insn.setReceiver(program.createVariable());
@@ -288,7 +305,7 @@ public class CompositeMethodGenerator {
             insn.setReceiver(program.createVariable());
             add(insn);
             return insn.getReceiver();
-        } else if (value != null && value.getClass().getComponentType() != null) {
+        } else if (value.getClass().getComponentType() != null) {
             diagnostics.error(new CallLocation(templateMethod, location), "Can't reference this array directly "
                     + "except for fetching by constant index");
             NullConstantInstruction insn = new NullConstantInstruction();
@@ -419,14 +436,15 @@ public class CompositeMethodGenerator {
             }
             int index = variableMapping[variable.getIndex()];
             if (capturedValues[index] != null) {
-                return captureValue(capturedValues[index].obj);
+                return captureValue(capturedValues[index]);
             }
             ArrayElement elem = arrayElements[index];
             if (elem != null) {
                 int arrayVar = variableMapping[elem.array];
                 if (capturedValues[arrayVar] != null) {
                     Object capturedArray = capturedValues[arrayVar].obj;
-                    return captureValue(Array.get(capturedArray, elem.index));
+                    boolean primitive = capturedArray.getClass().getComponentType().isPrimitive();
+                    return captureValue(new CapturedValue(Array.get(capturedArray, elem.index), primitive));
                 }
             }
             return program.variableAt(variableOffset + variable.getIndex());

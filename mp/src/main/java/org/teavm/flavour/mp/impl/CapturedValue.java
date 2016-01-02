@@ -21,9 +21,10 @@ package org.teavm.flavour.mp.impl;
  */
 public class CapturedValue {
     public Object obj;
+    public boolean primitive;
 
-    public CapturedValue(Object obj) {
-        super();
+    public CapturedValue(Object obj, boolean primitive) {
         this.obj = obj;
+        this.primitive = primitive;
     }
 }
