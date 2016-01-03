@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,22 +15,12 @@
  */
 package org.teavm.flavour.mp;
 
-import org.teavm.common.ServiceRepository;
-
 /**
  *
  * @author Alexey Andreev
  */
-public interface EmitterContext extends ServiceRepository {
-    EmitterDiagnostics getDiagnostics();
+public interface EmitterDiagnostics {
+    void error(SourceLocation location, String error, Object... params);
 
-    SourceLocation getLocation();
-
-    ClassLoader getClassLoader();
-
-    <T> ReflectClass<T> findClass(Class<T> cls);
-
-    ReflectClass<?> findClass(String name);
-
-    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
+    void warning(SourceLocation location, String error, Object... params);
 }

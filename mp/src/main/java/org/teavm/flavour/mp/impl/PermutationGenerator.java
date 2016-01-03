@@ -183,7 +183,7 @@ class PermutationGenerator {
 
         MethodReference implRef = buildMethodReference(masterParam, type);
         model.getUsages().put(key, implRef);
-        emitterContext.location = location;
+        emitterContext.location = emitterContext.convertLocation(location);
         emitter = new EmitterImpl<>(emitterContext, model.getProxyMethod(), model.getMethod().getReturnType());
 
         for (int i = 0; i <= model.getParameters().size(); ++i) {

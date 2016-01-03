@@ -20,21 +20,20 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
-import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterDiagnostics;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.SourceLocation;
 import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
-import org.teavm.model.CallLocation;
-import org.teavm.model.InstructionLocation;
 
 /**
  *
@@ -53,8 +52,8 @@ public class TemplatingProxyGenerator {
         }
     }
 
-    private TemplateInfo parseForModel(Emitter<Fragment> em, ReflectClass<Object> cls, CallLocation location) {
-        Diagnostics diagnostics = em.getContext().getDiagnostics();
+    private TemplateInfo parseForModel(Emitter<Fragment> em, ReflectClass<Object> cls, SourceLocation location) {
+        EmitterDiagnostics diagnostics = em.getContext().getDiagnostics();
         BindTemplate annot = cls.getAnnotation(BindTemplate.class);
         if (annot == null) {
             diagnostics.error(location, "Can't create template for {{c0}}: "
@@ -71,9 +70,11 @@ public class TemplatingProxyGenerator {
         List<TemplateNode> fragment;
         try (InputStream input = classLoader.getResourceAsStream(path)) {
             if (input == null) {
+                diagnostics.error(location, "Can't create template for {{c0}}: " + "template " + path
+                        + " was not found", cls.getName());
                 return null;
             }
-             fragment = parser.parse(new InputStreamReader(input, "UTF-8"), cls.getName());
+            fragment = parser.parse(new InputStreamReader(input, "UTF-8"), cls.getName());
         } catch (IOException e) {
             diagnostics.error(location, "Can't create template for {{c0}}: " + "template " + path
                     + " was not found", cls.getName());
@@ -90,9 +91,8 @@ public class TemplatingProxyGenerator {
                 return null;
             }
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
-                InstructionLocation textualLocation = new InstructionLocation(path,
+                SourceLocation diagnosticLocation = new SourceLocation(location.getMethod(), path,
                         mapper.getLine(diagnostic.getStart()) + 1);
-                CallLocation diagnosticLocation = new CallLocation(location.getMethod(), textualLocation);
                 diagnostics.error(diagnosticLocation, diagnostic.getMessage());
             }
         }

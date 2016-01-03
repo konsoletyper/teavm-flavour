@@ -124,7 +124,7 @@ public class CompositeMethodGenerator {
 
     CompositeMethodGenerator(EmitterContextImpl context, VariableContext varContext, Program program) {
         this.context = context;
-        this.diagnostics = context.getDiagnostics();
+        this.diagnostics = context.agent.getDiagnostics();
         this.program = program;
         this.varContext = varContext;
     }

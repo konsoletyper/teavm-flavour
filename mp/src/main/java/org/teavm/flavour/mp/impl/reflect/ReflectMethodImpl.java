@@ -17,6 +17,8 @@ package org.teavm.flavour.mp.impl.reflect;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.MethodReader;
@@ -109,5 +111,15 @@ public class ReflectMethodImpl implements ReflectMethod {
     @Override
     public Object construct(Object... args) {
         throw new IllegalStateException("Don't call this method from compile domain");
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getReturnType()).append(' ').append(getName()).append('(');
+        ReflectClass<?>[] parameterTypes = getParameterTypes();
+        sb.append(Arrays.stream(parameterTypes).map(Objects::toString).collect(Collectors.joining(", ")));
+        sb.append(')');
+        return sb.toString();
     }
 }

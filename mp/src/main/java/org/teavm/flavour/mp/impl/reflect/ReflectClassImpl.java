@@ -277,7 +277,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         });
     }
 
-    private ReflectMethodImpl getDeclaredMethod(MethodDescriptor method) {
+    public ReflectMethodImpl getDeclaredMethod(MethodDescriptor method) {
         resolve();
         return methods.computeIfAbsent(method, m -> {
             MethodReader methodReader = classReader.getMethod(m);
@@ -374,5 +374,14 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
 
         String className = ((ValueType.Object) type).getClassName();
         classReader = context.getClassSource().get(className);
+    }
+
+    @Override
+    public String toString() {
+        if (isArray()) {
+            return getComponentType().toString() + "[]";
+        } else {
+            return getName();
+        }
     }
 }
