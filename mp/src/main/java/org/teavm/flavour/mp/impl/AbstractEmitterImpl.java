@@ -25,6 +25,7 @@ import org.teavm.flavour.mp.InvocationHandler;
 import org.teavm.flavour.mp.LazyComputation;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.optimize.BoxingEliminator;
 import org.teavm.flavour.mp.impl.reflect.ReflectClassImpl;
 import org.teavm.flavour.mp.impl.reflect.ReflectMethodImpl;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
@@ -199,6 +200,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             jumpToStart.setTarget(program.basicBlockAt(startBlock.getIndex() + 1));
             startBlock.getInstructions().add(jumpToStart);
 
+            new BoxingEliminator().optimize(program);
             cls.addMethod(methodHolder);
         }
 

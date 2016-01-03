@@ -15,7 +15,9 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.teavm.dependency.AbstractDependencyListener;
@@ -43,6 +45,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private Set<ProxyModel> installedProxies = new HashSet<>();
     private ReflectContext reflectContext;
     private EmitterContextImpl emitterContext;
+    private Map<Object, MethodReference> usageMap = new HashMap<>();
 
     @Override
     public void started(DependencyAgent agent) {
@@ -56,14 +59,38 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     public void methodReached(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
         ProxyModel proxy = describer.getProxy(methodDep.getReference());
         if (proxy != null && installedProxies.add(proxy)) {
-            new PermutationGenerator(agent, proxy, methodDep, location, emitterContext).installProxyEmitter();
+            new PermutationGenerator(agent, proxy, methodDep, location, emitterContext, usageMap)
+                    .installProxyEmitter();
         }
     }
 
     @Override
     public void completing(DependencyAgent agent) {
         proxy: for (ProxyModel proxy : describer.getKnownProxies()) {
+            boolean variated = proxy.getCallParameters().stream()
+                    .anyMatch(param -> param.getKind() == ParameterKind.REFLECT_VALUE);
             ProgramEmitter pe = ProgramEmitter.create(proxy.getMethod().getDescriptor(), agent.getClassSource());
+
+            if (!variated) {
+                ValueEmitter[] paramVars = new ValueEmitter[proxy.getParameters().size()];
+                for (ProxyParameter param : proxy.getParameters()) {
+                    paramVars[param.getIndex()] = pe.var(param.getIndex() + 1, param.getType());
+                }
+                MethodReference implMethod = proxy.getUsages().values().iterator().next();
+                ValueEmitter[] castParamVars = new ValueEmitter[paramVars.length];
+                for (int i = 0; i < castParamVars.length; ++i) {
+                    castParamVars[i] = paramVars[i].cast(implMethod.parameterType(i));
+                }
+                ValueEmitter result = pe.invoke(implMethod, castParamVars);
+                if (implMethod.getReturnType() == ValueType.VOID) {
+                    pe.exit();
+                } else {
+                    result.returnValue();
+                }
+                agent.submitMethod(proxy.getMethod(), pe.getProgram());
+                continue;
+            }
+
             MethodDependencyInfo methodDep = agent.getMethod(proxy.getMethod());
 
             String[][] typeVariants = new String[proxy.getParameters().size()][];
@@ -85,8 +112,17 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             }
 
             StringChooseEmitter choice = pe.stringChoice(sb.invokeVirtual("toString", String.class));
-            for (Map.Entry<String, MethodReference> usageEntry : proxy.getUsages().entrySet()) {
-                choice.option(usageEntry.getKey(), () -> {
+            for (Map.Entry<Object, MethodReference> usageEntry : proxy.getUsages().entrySet()) {
+                @SuppressWarnings("unchecked")
+                List<Object> key = (List<Object>) usageEntry.getKey();
+                StringBuilder stringKey = new StringBuilder();
+                for (int i = 0; i < proxy.getCallParameters().size(); ++i) {
+                    if (proxy.getCallParameters().get(i).getKind() == ParameterKind.REFLECT_VALUE) {
+                        stringKey.append(key.get(i + 1).toString());
+                    }
+                }
+
+                choice.option(stringKey.toString(), () -> {
                     MethodReference implMethod = usageEntry.getValue();
                     ValueEmitter[] castParamVars = new ValueEmitter[paramVars.length];
                     for (int i = 0; i < castParamVars.length; ++i) {

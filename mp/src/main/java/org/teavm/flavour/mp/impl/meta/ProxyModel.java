@@ -31,7 +31,7 @@ public class ProxyModel {
     private MethodReference proxyMethod;
     private List<ProxyParameter> parameters;
     private List<ProxyParameter> callParameters;
-    private Map<String, MethodReference> usages = new HashMap<>();
+    private Map<Object, MethodReference> usages = new HashMap<>();
 
     ProxyModel(MethodReference method, MethodReference proxyMethod, List<ProxyParameter> parameters,
             List<ProxyParameter> callParameters) {
@@ -57,7 +57,7 @@ public class ProxyModel {
         return callParameters;
     }
 
-    public Map<String, MethodReference> getUsages() {
+    public Map<Object, MethodReference> getUsages() {
         return usages;
     }
 }

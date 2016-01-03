@@ -20,6 +20,9 @@ import java.io.StringWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
@@ -47,6 +50,7 @@ class PermutationGenerator {
     private int suffixGenerator;
     DependencyAgent agent;
     private EmitterContextImpl emitterContext;
+    private Map<Object, MethodReference> usageMap;
     ProxyModel model;
     MethodDependency methodDep;
     CallLocation location;
@@ -57,13 +61,14 @@ class PermutationGenerator {
     int[] indexes;
 
     public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
-            CallLocation location, EmitterContextImpl emitterContext) {
+            CallLocation location, EmitterContextImpl emitterContext, Map<Object, MethodReference> usageMap) {
         this.agent = agent;
         this.diagnostics = agent.getDiagnostics();
         this.model = model;
         this.methodDep = methodDep;
         this.location = location;
         this.emitterContext = emitterContext;
+        this.usageMap = usageMap;
     }
 
     public void installProxyEmitter() {
@@ -170,15 +175,20 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
-        emitterContext.location = location;
+        Object key = getProxyKey(masterParam, type);
+        if (usageMap.containsKey(key)) {
+            model.getUsages().put(key, usageMap.get(key));
+            return;
+        }
 
+        MethodReference implRef = buildMethodReference(masterParam, type);
+        model.getUsages().put(key, implRef);
+        emitterContext.location = location;
         emitter = new EmitterImpl<>(emitterContext, model.getProxyMethod(), model.getMethod().getReturnType());
 
         for (int i = 0; i <= model.getParameters().size(); ++i) {
             emitter.generator.getProgram().createVariable();
         }
-
-        MethodReference implRef = buildMethodReference(masterParam, type);
 
         Object[] proxyArgs = new Object[model.getCallParameters().size() + 1];
         proxyArgs[0] = getContextParameter(model.getProxyMethod().parameterType(0));
@@ -239,34 +249,51 @@ class PermutationGenerator {
         implMethod.use();
     }
 
+    private Object getProxyKey(ProxyParameter masterParam, DependencyType type) {
+        List<Object> key = new ArrayList<>();
+        key.add(model.getProxyMethod());
+
+        for (int i = 0; i < model.getCallParameters().size(); ++i) {
+            ProxyParameter param = model.getCallParameters().get(i);
+            int j = param.getIndex();
+            switch (param.getKind()) {
+                case CONSTANT:
+                    key.add(param.getValue());
+                    break;
+                case REFLECT_VALUE:
+                    key.add(param != masterParam ? variants[j][indexes[j]] : type.getName());
+                    break;
+                case VALUE:
+                    break;
+            }
+        }
+
+        return key;
+    }
+
     private MethodReference buildMethodReference(ProxyParameter param, DependencyType type) {
         if (variants == null) {
             MethodReference ref = new MethodReference(model.getMethod().getClassName(),
                     model.getMethod().getName() + "$defaultUsage", model.getMethod().getSignature());
-            model.getUsages().put("", ref);
             return ref;
         }
 
         int i = 0;
-        StringBuilder sb = new StringBuilder();
         ValueType[] signature = new ValueType[model.getParameters().size() + 1];
         for (i = 0; i < variants.length; ++i) {
             if (variants[i] != null) {
                 String variant = variants[i][indexes[i]];
-                sb.append(variant);
                 signature[i] = ValueType.object(variant);
             } else if (param != null && param.getIndex() == i) {
                 signature[param.getIndex()] = ValueType.object(type.getName());
-                sb.append(type.getName());
             } else {
                 signature[i] = model.getParameters().get(i).getType();
             }
         }
         signature[i] = model.getMethod().getReturnType();
 
-        MethodReference implRef = new MethodReference(model.getMethod().getClassName(),
+        MethodReference implRef = new MethodReference(model.getProxyMethod().getClassName(),
                 model.getMethod().getName() + "$proxy" + suffixGenerator++, signature);
-        model.getUsages().put(sb.toString(), implRef);
 
         return implRef;
     }
