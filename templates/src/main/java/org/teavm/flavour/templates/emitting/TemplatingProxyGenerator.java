@@ -40,11 +40,10 @@ import org.teavm.flavour.templates.tree.TemplateNode;
  * @author Alexey Andreev
  */
 public class TemplatingProxyGenerator {
-
     public void generate(Emitter<Fragment> em, ReflectValue<Object> model) {
-        TemplateEmitter emitter = new TemplateEmitter(em);
         TemplateInfo template = parseForModel(em, model.getReflectClass(), em.getContext().getLocation());
         if (template != null) {
+            TemplateEmitter emitter = new TemplateEmitter(em, template.locationMapper);
             Value<Fragment> fragment = emitter.emitTemplate(model, template.sourceFileName, template.body);
             em.returnValue(fragment);
         } else {
@@ -81,29 +80,33 @@ public class TemplatingProxyGenerator {
             return null;
         }
 
+        OffsetToLineMapper mapper = new OffsetToLineMapper();
+        try (Reader reader = new InputStreamReader(classLoader.getResourceAsStream(path), "UTF-8")) {
+            mapper.prepare(reader);
+        } catch (IOException e) {
+            diagnostics.error(location, "Can't create template for {{c0}}: template " + path
+                    + " was not found", cls.getName());
+            return null;
+        }
+
         if (!parser.getDiagnostics().isEmpty()) {
-            OffsetToLineMapper mapper = new OffsetToLineMapper();
-            try (Reader reader = new InputStreamReader(classLoader.getResourceAsStream(path), "UTF-8")) {
-                mapper.prepare(reader);
-            } catch (IOException e) {
-                diagnostics.error(location, "Can't create template for {{c0}}: template " + path
-                        + " was not found", cls.getName());
-                return null;
-            }
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
                 SourceLocation diagnosticLocation = new SourceLocation(location.getMethod(), path,
                         mapper.getLine(diagnostic.getStart()) + 1);
                 diagnostics.error(diagnosticLocation, diagnostic.getMessage());
             }
         }
+
         TemplateInfo info = new TemplateInfo();
         info.sourceFileName = path;
         info.body = fragment;
+        info.locationMapper = mapper;
         return info;
     }
 
     static class TemplateInfo {
         String sourceFileName;
+        OffsetToLineMapper locationMapper;
         List<TemplateNode> body;
     }
 }

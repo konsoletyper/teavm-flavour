@@ -17,6 +17,7 @@ package org.teavm.flavour.mp.impl;
 
 import org.teavm.flavour.mp.LazyComputation;
 import org.teavm.flavour.mp.Value;
+import org.teavm.model.InstructionLocation;
 import org.teavm.model.ValueType;
 
 /**
@@ -28,11 +29,14 @@ public class LazyValueImpl<T> implements Value<T> {
     VariableContext context;
     LazyComputation<T> computation;
     ValueType type;
+    InstructionLocation forcedLocation;
 
-    public LazyValueImpl(VariableContext context, LazyComputation<T> computation, ValueType type) {
+    public LazyValueImpl(VariableContext context, LazyComputation<T> computation, ValueType type,
+            InstructionLocation forcedLocation) {
         this.context = context;
         this.computation = computation;
         this.type = type;
+        this.forcedLocation = forcedLocation;
     }
 
     @Override

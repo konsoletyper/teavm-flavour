@@ -34,6 +34,7 @@ import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
 import org.teavm.flavour.expr.plan.NegatePlan;
 import org.teavm.flavour.expr.plan.NotPlan;
+import org.teavm.flavour.expr.plan.Plan;
 import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ThisPlan;
@@ -62,8 +63,13 @@ class ExprPlanEmitter implements PlanVisitor {
         this.em = em;
     }
 
+    private void location(Plan plan) {
+        context.location(em, plan.getLocation());
+    }
+
     @Override
     public void visit(ConstantPlan plan) {
+        location(plan);
         Object value = plan.getValue();
         if (value == null) {
             var = em.lazy(() -> null);
@@ -74,11 +80,13 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(VariablePlan plan) {
+        location(plan);
         emitVariable(plan.getName());
     }
 
     @Override
     public void visit(ThisPlan plan) {
+        location(plan);
         emitVariable("this");
     }
 
@@ -93,6 +101,7 @@ class ExprPlanEmitter implements PlanVisitor {
         plan.getSecondOperand().acceptVisitor(this);
         Value<Object> second = var;
 
+        location(plan);
         switch (plan.getType()) {
             case ADD:
                 switch (plan.getValueType()) {
@@ -276,6 +285,7 @@ class ExprPlanEmitter implements PlanVisitor {
     @Override
     public void visit(NegatePlan plan) {
         plan.getOperand().acceptVisitor(this);
+        location(plan);
         Value<Object> operand = var;
         switch (plan.getValueType()) {
             case INT:
@@ -300,6 +310,7 @@ class ExprPlanEmitter implements PlanVisitor {
         plan.getSecondOperand().acceptVisitor(this);
         Value<Object> second = var;
 
+        location(plan);
         switch (plan.getType()) {
             case EQUAL:
                 var = em.lazy(() -> first == second);
@@ -316,6 +327,8 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> first = var;
         plan.getSecondOperand().acceptVisitor(this);
         Value<Object> second = var;
+
+        location(plan);
         switch (plan.getType()) {
             case AND:
                 var = em.lazy(() -> (Boolean) first.get() && (Boolean) second.get());
@@ -330,6 +343,8 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(NotPlan plan) {
         plan.getOperand().acceptVisitor(this);
         Value<Object> operand = var;
+
+        location(plan);
         var = em.lazy(() -> !(Boolean) operand.get());
     }
 
@@ -339,6 +354,8 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> operand = var;
         TypeParser typeParser = new TypeParser(plan.getTargetType());
         ReflectClass<Object> cls = typeParser.parse().asSubclass(Object.class);
+
+        location(plan);
         var = em.lazy(() -> cls.cast(operand.get()));
     }
 
@@ -346,6 +363,8 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(ArithmeticCastPlan plan) {
         plan.getOperand().acceptVisitor(this);
         Value<Object> operand = var;
+
+        location(plan);
         switch (plan.getSourceType()) {
             case INT:
                 switch (plan.getTargetType()) {
@@ -414,6 +433,7 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(CastFromIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
+        location(plan);
         Value<Integer> intValue = em.lazy(() -> (Integer) value.get());
         switch (plan.getType()) {
             case BYTE:
@@ -432,6 +452,8 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(CastToIntegerPlan plan) {
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
+
+        location(plan);
         switch (plan.getType()) {
             case BYTE:
                 var = em.lazy(() -> (int) (Byte) value.get());
@@ -451,6 +473,8 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> array = var;
         plan.getIndex().acceptVisitor(this);
         Value<Object> index = var;
+
+        location(plan);
         var = em.lazy(() -> ((Object[]) array.get())[(Integer) index.get()]);
     }
 
@@ -458,6 +482,8 @@ class ExprPlanEmitter implements PlanVisitor {
     public void visit(ArrayLengthPlan plan) {
         plan.getArray().acceptVisitor(this);
         Value<Object> array = var;
+
+        location(plan);
         var = em.lazy(() -> ((Object[]) array.get()).length);
     }
 
@@ -469,8 +495,10 @@ class ExprPlanEmitter implements PlanVisitor {
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             Value<Object> instance = var;
+            location(plan);
             var = em.lazy(() -> field.get(instance.get()));
         } else {
+            location(plan);
             var = em.lazy(() -> field.get(null));
         }
     }
@@ -480,6 +508,8 @@ class ExprPlanEmitter implements PlanVisitor {
         ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
+
+        location(plan);
         var = em.lazy(() -> cls.isInstance(value.get()));
     }
 
@@ -497,6 +527,7 @@ class ExprPlanEmitter implements PlanVisitor {
                     instance = null;
                 }
 
+                location(plan);
                 ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
                 ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
                 int argCount = method.getParameterCount();
@@ -521,6 +552,7 @@ class ExprPlanEmitter implements PlanVisitor {
             Emitter<?> oldEm = em;
             em = lem;
             try {
+                location(plan);
                 ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
                 ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
                 int argCount = method.getParameterCount();
@@ -561,6 +593,8 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> consequent = var;
         plan.getAlternative().acceptVisitor(this);
         Value<Object> alternative = var;
+
+        location(plan);
         var = em.lazy(() -> (Boolean) condition.get() ? consequent.get() : alternative.get());
     }
 
@@ -570,6 +604,7 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     public void emit(LambdaPlan plan, boolean updateTemplates) {
+        location(plan);
         ReflectClass<Object> cls = em.getContext().findClass(plan.getClassName()).asSubclass(Object.class);
         var = em.proxy(cls, (bodyEm, instance, method, args) -> {
             context.pushBoundVars();
@@ -580,6 +615,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
             Emitter<?> oldEm = em;
             em = bodyEm;
+            location(plan);
             plan.getBody().acceptVisitor(this);
             Value<Object> result = var;
             Value<Object> valueToReturn = em.emit(() -> result.get());

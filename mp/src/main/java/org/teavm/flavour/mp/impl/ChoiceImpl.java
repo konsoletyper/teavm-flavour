@@ -148,6 +148,7 @@ public class ChoiceImpl<T> implements Choice<T> {
                 choice.generator.varContext, choice.generator.program);
         generator.location = choice.generator.location;
         generator.blockIndex = choice.generator.blockIndex;
+        generator.forcedLocation = choice.generator.forcedLocation;
         return generator;
     }
 

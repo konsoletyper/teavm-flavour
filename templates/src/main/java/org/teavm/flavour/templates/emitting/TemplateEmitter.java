@@ -28,9 +28,11 @@ import org.teavm.flavour.templates.tree.TemplateNode;
  */
 public class TemplateEmitter {
     private Emitter<Fragment> em;
+    private OffsetToLineMapper locationMapper;
 
-    public TemplateEmitter(Emitter<Fragment> em) {
+    public TemplateEmitter(Emitter<Fragment> em, OffsetToLineMapper locationMapper) {
         this.em = em;
+        this.locationMapper = locationMapper;
     }
 
     public Value<Fragment> emitTemplate(ReflectValue<Object> model, String sourceFileName,
@@ -41,7 +43,7 @@ public class TemplateEmitter {
 
     private Value<Fragment> emitInnerFragment(String sourceFileName, ReflectValue<Object> model,
             List<TemplateNode> fragment) {
-        EmitContext context = new EmitContext();
+        EmitContext context = new EmitContext(locationMapper);
         context.sourceFileName = sourceFileName;
         context.addVariable("this", lem -> lem.emit(() -> model));
         context.model = model;

@@ -44,6 +44,10 @@ class FragmentEmitter {
 
     public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<Component> component,
             List<TemplateNode> fragment) {
+        if (directive != null) {
+            context.location(em, directive.getLocation());
+        }
+
         @SuppressWarnings("unchecked")
         ReflectClass<Component> componentType = directive != null
                 ? (ReflectClass<Component>) em.getContext().findClass(directive.getClassName())
@@ -87,6 +91,7 @@ class FragmentEmitter {
     private void emitBuildDomMethod(Emitter<?> em, Value<DomBuilder> builder, List<TemplateNode> fragment) {
         TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, em, builder);
         for (TemplateNode node : fragment) {
+            context.location(em, node.getLocation());
             node.acceptVisitor(nodeEmitter);
         }
     }

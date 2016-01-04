@@ -29,9 +29,9 @@ class OffsetToLineMapper {
     int[] lines;
 
     public void prepare(Reader reader) throws IOException {
-        int offset = 0;
         List<Integer> lineList = new ArrayList<>();
         boolean cr = false;
+        int offset = 0;
         while (true) {
             int code = reader.read();
             if (code < 0) {

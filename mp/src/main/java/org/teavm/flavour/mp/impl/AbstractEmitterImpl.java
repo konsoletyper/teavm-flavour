@@ -34,6 +34,7 @@ import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
@@ -112,7 +113,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
     }
 
     private <S> Value<S> lazyFragment(ValueType type, LazyComputation<S> computation) {
-        return new LazyValueImpl<>(varContext, computation, type);
+        return new LazyValueImpl<>(varContext, computation, type, generator.forcedLocation);
     }
 
     @Override
@@ -147,6 +148,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
                     generator.program);
             nestedGenerator.blockIndex = generator.blockIndex;
             nestedGenerator.location = generator.location;
+            nestedGenerator.forcedLocation = value.forcedLocation;
             LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, nestedGenerator, templateMethod,
                     value.type);
             value.computation.compute(lazyEmitter);
@@ -311,5 +313,15 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         insn.setReceiver(var);
         generator.add(insn);
         return var;
+    }
+
+    @Override
+    public void location(String fileName, int lineNumber) {
+        generator.forcedLocation = new InstructionLocation(fileName, lineNumber);
+    }
+
+    @Override
+    public void defaultLocation() {
+        generator.forcedLocation = null;
     }
 }

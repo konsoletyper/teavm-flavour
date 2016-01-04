@@ -45,4 +45,8 @@ public interface Emitter<T> {
     }
 
     <S> Value<S> proxy(ReflectClass<S> type, InvocationHandler<S> handler);
+
+    void location(String fileName, int lineNumber);
+
+    void defaultLocation();
 }

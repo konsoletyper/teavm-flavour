@@ -55,13 +55,10 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
     @Override
     public void visit(DOMElement node) {
-        boolean hasInnerDirectives = false;
-        for (TemplateNode child : node.getChildNodes()) {
-            if (child instanceof DirectiveBinding) {
-                hasInnerDirectives = true;
-            }
-        }
+        context.location(em, node.getLocation());
 
+        boolean hasInnerDirectives = node.getChildNodes().stream()
+                .anyMatch(child -> child instanceof DirectiveBinding);
         String tagName = node.getName();
         {
             Value<DomBuilder> tmpBuilder = builder;
@@ -76,6 +73,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             String attrName = attr.getName();
             String attrValue = attr.getValue();
             Value<DomBuilder> tmpBuilder = builder;
+            context.location(em, attr.getLocation());
             builder = em.emit(() -> tmpBuilder.get().attribute(attrName, attrValue));
         }
 
@@ -91,12 +89,14 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
         {
             Value<DomBuilder> tmpBuilder = builder;
+            context.endLocation(em, node.getLocation());
             builder = em.emit(() -> tmpBuilder.get().close());
         }
     }
 
     @Override
     public void visit(DOMText node) {
+        context.location(em, node.getLocation());
         String value = node.getValue();
         Value<DomBuilder> tmpBuilder = builder;
         builder = em.emit(() -> tmpBuilder.get().text(value));
@@ -104,6 +104,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
 
     @Override
     public void visit(DirectiveBinding node) {
+        context.location(em, node.getLocation());
         ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
         ReflectMethod ctor = componentType.getJMethod("<init>", Slot.class);
         Value<Component> component = em.emit(() -> (Component) ctor.construct(Slot.create()));
@@ -113,6 +114,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
 
         if (node.getDirectiveNameMethodName() != null) {
+            context.location(em, node.getLocation());
             emitDirectiveName(node.getDirectiveNameMethodName(), node.getName(), em, component, componentType);
         }
 
@@ -120,14 +122,17 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             Value<Fragment> contentFragment = new FragmentEmitter(context)
                     .emitTemplate(em, node, component, node.getContentNodes());
             ReflectMethod setter = componentType.getJMethod(node.getContentMethodName(), Fragment.class);
+            context.location(em, node.getLocation());
             em.emit(() -> setter.invoke(component, contentFragment));
         }
 
         Value<DomBuilder> tmpBuilder = builder;
+        context.location(em, node.getLocation());
         builder = em.emit(() -> tmpBuilder.get().add(component.get()));
     }
 
     private Value<Modifier> emitAttributeDirective(AttributeDirectiveBinding binding) {
+        context.location(em, binding.getLocation());
         ReflectClass<Renderable> directiveClass = em.getContext()
                 .findClass(binding.getClassName())
                 .asSubclass(Renderable.class);
@@ -141,10 +146,12 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
                 emitFunction(function, proxyEm, result);
             }
             if (binding.getDirectiveNameMethodName() != null) {
+                context.location(em, binding.getLocation());
                 emitDirectiveName(binding.getDirectiveNameMethodName(), binding.getName(), proxyEm, result,
                         directiveClass);
             }
 
+            context.location(em, binding.getLocation());
             proxyEm.returnValue(result);
         });
     }

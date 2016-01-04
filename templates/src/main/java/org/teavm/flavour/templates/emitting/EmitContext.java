@@ -21,6 +21,8 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.teavm.flavour.expr.Location;
+import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectValue;
 
 /**
@@ -28,10 +30,15 @@ import org.teavm.flavour.mp.ReflectValue;
  * @author Alexey Andreev
  */
 class EmitContext {
+    OffsetToLineMapper locationMapper;
     String sourceFileName;
     ReflectValue<Object> model;
     List<Map<String, VariableEmitter>> boundVariableStack = new ArrayList<>();
     Map<String, Deque<VariableEmitter>> variables = new HashMap<>();
+
+    public EmitContext(OffsetToLineMapper locationMapper) {
+        this.locationMapper = locationMapper;
+    }
 
     public void pushBoundVars() {
         boundVariableStack.add(new HashMap<String, VariableEmitter>());
@@ -67,5 +74,21 @@ class EmitContext {
                 variables.remove(name);
             }
         }
+    }
+
+    public void location(Emitter<?> em, Location location) {
+        if (location == null) {
+            return;
+        }
+        int line = locationMapper.getLine(location.getStart());
+        em.location(sourceFileName, line);
+    }
+
+    public void endLocation(Emitter<?> em, Location location) {
+        if (location == null) {
+            return;
+        }
+        int line = locationMapper.getLine(location.getEnd() - 1) + 1;
+        em.location(sourceFileName, line);
     }
 }

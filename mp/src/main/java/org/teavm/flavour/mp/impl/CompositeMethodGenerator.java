@@ -109,6 +109,7 @@ public class CompositeMethodGenerator {
     private Diagnostics diagnostics;
     Program program;
     InstructionLocation location;
+    InstructionLocation forcedLocation;
     int blockIndex;
     int returnBlockIndex;
     private Variable resultVar;
@@ -213,7 +214,7 @@ public class CompositeMethodGenerator {
     }
 
     void add(Instruction insn) {
-        insn.setLocation(location);
+        insn.setLocation(forcedLocation != null ? forcedLocation : location);
         program.basicBlockAt(blockIndex).getInstructions().add(insn);
     }
 
@@ -284,6 +285,7 @@ public class CompositeMethodGenerator {
             CompositeMethodGenerator nestedGenerator = new CompositeMethodGenerator(context, varContext, program);
             nestedGenerator.blockIndex = blockIndex;
             nestedGenerator.location = location;
+            nestedGenerator.forcedLocation = lazyImpl.forcedLocation;
             LazyEmitterImpl<Object> lazyEmitter = new LazyEmitterImpl<>(context, nestedGenerator, templateMethod,
                     lazyImpl.type);
             lazyImpl.computation.compute(lazyEmitter);
