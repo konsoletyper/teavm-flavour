@@ -943,6 +943,36 @@ public class CompositeMethodGenerator {
                     add(insn);
                     return true;
                 }
+                case "asJavaClass": {
+                    ClassConstantInstruction insn = new ClassConstantInstruction();
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    insn.setConstant(reflectClass.type);
+                    add(insn);
+                    return true;
+                }
+                case "createArray": {
+                    ConstructArrayInstruction insn = new ConstructArrayInstruction();
+                    insn.setItemType(reflectClass.type);
+                    insn.setSize(var(arguments.get(0)));
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    add(insn);
+                    return true;
+                }
+                case "getArrayLength": {
+                    ArrayLengthInstruction insn = new ArrayLengthInstruction();
+                    insn.setArray(unwrapArray(reflectClass.type, var(arguments.get(0))));
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    add(insn);
+                    return true;
+                }
+                case "getArrayElement": {
+                    GetElementInstruction insn = new GetElementInstruction();
+                    insn.setArray(unwrapArray(reflectClass.type, var(arguments.get(0))));
+                    insn.setIndex(var(arguments.get(1)));
+                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    add(insn);
+                    return true;
+                }
                 default:
                     diagnostics.error(new CallLocation(templateMethod, location), "Can only call {{m0}} "
                             + "method from runtime domain", method);
@@ -973,6 +1003,44 @@ public class CompositeMethodGenerator {
                 arguments.add(unbox(extractArgInsn.getReceiver(),
                         reflectMethod.method.parameterType(i)));
             }
+        }
+
+        private Variable unwrapArray(ValueType type, Variable array) {
+            CastInstruction cast = new CastInstruction();
+            cast.setTargetType(ValueType.arrayOf(type));
+            cast.setValue(array);
+            cast.setReceiver(program.createVariable());
+            add(cast);
+
+            UnwrapArrayInstruction unwrap = new UnwrapArrayInstruction(asArrayType(type));
+            unwrap.setArray(cast.getReceiver());
+            unwrap.setReceiver(program.createVariable());
+            add(unwrap);
+
+            return unwrap.getReceiver();
+        }
+
+        private ArrayElementType asArrayType(ValueType type) {
+            if (type instanceof ValueType.Primitive) {
+                switch (((ValueType.Primitive) type).getKind()) {
+                    case BOOLEAN:
+                    case BYTE:
+                        return ArrayElementType.BYTE;
+                    case SHORT:
+                        return ArrayElementType.SHORT;
+                    case CHARACTER:
+                        return ArrayElementType.CHAR;
+                    case INTEGER:
+                        return ArrayElementType.INT;
+                    case LONG:
+                        return ArrayElementType.LONG;
+                    case FLOAT:
+                        return ArrayElementType.FLOAT;
+                    case DOUBLE:
+                        return ArrayElementType.DOUBLE;
+                }
+            }
+            return ArrayElementType.OBJECT;
         }
 
         @Override

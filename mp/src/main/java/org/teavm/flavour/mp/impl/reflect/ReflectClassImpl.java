@@ -384,4 +384,24 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
             return getName();
         }
     }
+
+    @Override
+    public T[] createArray(int size) {
+        throw new IllegalStateException("Don't call this method from compile domain");
+    }
+
+    @Override
+    public T getArrayElement(Object array, int index) {
+        throw new IllegalStateException("Don't call this method from compile domain");
+    }
+
+    @Override
+    public int getArrayLength(Object array) {
+        throw new IllegalStateException("Don't call this method from compile domain");
+    }
+
+    @Override
+    public Class<T> asJavaClass() {
+        throw new IllegalStateException("Don't call this method from compile domain");
+    }
 }

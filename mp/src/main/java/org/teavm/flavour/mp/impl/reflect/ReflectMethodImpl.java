@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.MethodReader;
 
@@ -34,6 +35,7 @@ public class ReflectMethodImpl implements ReflectMethod {
     private ReflectClassImpl<?> returnType;
     private ReflectClass<?>[] parameterTypes;
     private ReflectAnnotatedElementImpl annotations;
+    private ReflectAnnotatedElementImpl[] parameterAnnotations;
 
     public ReflectMethodImpl(ReflectClassImpl<?> declaringClass, MethodReader method) {
         this.declaringClass = declaringClass;
@@ -121,5 +123,15 @@ public class ReflectMethodImpl implements ReflectMethod {
         sb.append(Arrays.stream(parameterTypes).map(Objects::toString).collect(Collectors.joining(", ")));
         sb.append(')');
         return sb.toString();
+    }
+
+    @Override
+    public ReflectAnnotatedElement getParameterAnnotations(int index) {
+        if (parameterAnnotations == null) {
+            Arrays.stream(method.getParameterAnnotations())
+                    .map(annot -> new ReflectAnnotatedElementImpl(context, annot))
+                    .toArray(sz -> new ReflectAnnotatedElementImpl[sz]);
+        }
+        return parameterAnnotations[index];
     }
 }

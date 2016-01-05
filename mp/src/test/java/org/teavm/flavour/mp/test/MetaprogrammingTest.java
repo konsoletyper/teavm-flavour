@@ -441,6 +441,43 @@ public class MetaprogrammingTest {
         }
     }
 
+    @Test
+    public void emitsClassLiteralFromReflectClass() {
+        assertEquals(String[].class.getName(), emitClassLiteral(String.class));
+    }
+
+    @Reflected
+    private static native String emitClassLiteral(Class<?> cls);
+    private static void emitClassLiteral(Emitter<String> em, ReflectClass<?> cls) {
+        ReflectClass<?> arrayClass = em.getContext().arrayClass(cls);
+        em.returnValue(() -> arrayClass.asJavaClass().getName());
+    }
+
+    @Test
+    public void createsArrayViaReflection() {
+        Object array = createArrayOfType(String.class, 10);
+        assertEquals(String[].class, array.getClass());
+        assertEquals(10, ((String[]) array).length);
+    }
+
+    @Reflected
+    private static native Object createArrayOfType(Class<?> cls, int size);
+    private static void createArrayOfType(Emitter<Object> em, ReflectClass<?> cls, Value<Integer> size) {
+        em.returnValue(() -> cls.createArray(size.get()));
+    }
+
+    @Test
+    public void getsArrayElementViaReflection() {
+        assertEquals("foo", getArrayElement(String.class, new String[] { "foo" }, 0));
+    }
+
+    @Reflected
+    private static native Object getArrayElement(Class<?> type, Object array, int index);
+    private static void getArrayElement(Emitter<Object> em, ReflectClass<?> type, Value<Object> array,
+            Value<Integer> index) {
+        em.returnValue(() -> type.getArrayElement(array.get(), index.get()));
+    }
+
     // TODO: test returnValue(lazyValue) and emit(lazyValue)
 
     // TODO: test proxy method with no returnValue ever called
