@@ -15,35 +15,45 @@
  */
 package org.teavm.flavour.json.emit;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.AnnotationValue;
-import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.ElementModifier;
-import org.teavm.model.FieldReader;
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodReader;
-import org.teavm.model.MethodReference;
-import org.teavm.model.ValueType;
+import java.util.WeakHashMap;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
  * @author Alexey Andreev
  */
 class ClassInformationProvider {
-    private ClassReaderSource classSource;
+    private EmitterContext context;
     private Map<String, ClassInformation> cache = new HashMap<>();
-    private Diagnostics diagnostics;
+    private EmitterDiagnostics diagnostics;
+    private static Map<EmitterContext, ClassInformationProvider> instanceCache = new WeakHashMap<>();
 
-    public ClassInformationProvider(ClassReaderSource classSource, Diagnostics diagnostics) {
-        this.classSource = classSource;
-        this.diagnostics = diagnostics;
+    private ClassInformationProvider(EmitterContext context) {
+        this.context = context;
+        this.diagnostics = context.getDiagnostics();
+    }
+
+    public static ClassInformationProvider getInstance(EmitterContext context) {
+        return instanceCache.computeIfAbsent(context, ClassInformationProvider::new);
     }
 
     public ClassInformation get(String className) {
@@ -52,15 +62,13 @@ class ClassInformationProvider {
         }
         ClassInformation info = createClassInformation(className);
         cache.put(className, info);
-        ClassReader cls = classSource.get(className);
-        if (cls != null) {
-            getSubTypes(info, cls);
-        }
+        ReflectClass<?> cls = context.findClass(className);
+        getSubTypes(info, cls);
         return info;
     }
 
     private ClassInformation createClassInformation(String className) {
-        ClassReader cls = classSource.get(className);
+        ReflectClass<?> cls = context.findClass(className);
         if (cls == null) {
             return null;
         }
@@ -68,8 +76,8 @@ class ClassInformationProvider {
         ClassInformation information = new ClassInformation();
         information.className = className;
 
-        if (cls.getParent() != null && !cls.getParent().equals("java.lang.Object")) {
-            ClassInformation parent = get(cls.getParent());
+        if (cls.getSuperclass() != null) {
+            ClassInformation parent = get(cls.getSuperclass().getName());
             information.parent = parent;
             for (PropertyInformation property : parent.properties.values()) {
                 property = property.clone();
@@ -95,7 +103,7 @@ class ClassInformationProvider {
         return information;
     }
 
-    private void getAutoDetectModes(ClassInformation information, ClassReader cls) {
+    private void getAutoDetectModes(ClassInformation information, ReflectClass<?> cls) {
         ClassInformation parent = information.parent;
         if (parent != null) {
             information.getterVisibility = parent.getterVisibility;
@@ -105,77 +113,70 @@ class ClassInformationProvider {
             information.creatorVisibility = parent.creatorVisibility;
         }
 
-        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonAutoDetect");
+        JsonAutoDetect annot = cls.getAnnotation(JsonAutoDetect.class);
         if (annot != null) {
-            information.getterVisibility = getVisibility(annot, "getterVisibility", information.getterVisibility);
-            information.isGetterVisibility = getVisibility(annot, "isGetterVisibility",
-                    information.isGetterVisibility);
-            information.setterVisibility = getVisibility(annot, "setterVisibility", information.setterVisibility);
-            information.fieldVisibility = getVisibility(annot, "fieldVisibility", information.fieldVisibility);
-            information.creatorVisibility = getVisibility(annot, "creatorVisibility", information.creatorVisibility);
+            information.getterVisibility = getVisibility(annot.getterVisibility(), information.getterVisibility);
+            information.isGetterVisibility = getVisibility(annot.isGetterVisibility(), information.isGetterVisibility);
+            information.setterVisibility = getVisibility(annot.setterVisibility(), information.setterVisibility);
+            information.fieldVisibility = getVisibility(annot.fieldVisibility(), information.fieldVisibility);
+            information.creatorVisibility = getVisibility(annot.creatorVisibility(), information.creatorVisibility);
         }
     }
 
-    private void getInheritance(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonTypeName");
-        if (annot != null) {
-            AnnotationValue typeNameValue = annot.getValue("value");
-            if (typeNameValue != null) {
-                information.typeName = typeNameValue.getString();
-            } else {
+    private void getInheritance(ClassInformation information, ReflectClass<?> cls) {
+        JsonTypeName typeName = cls.getAnnotation(JsonTypeName.class);
+        if (typeName != null) {
+            information.typeName = typeName.value();
+            if (information.typeName.isEmpty()) {
                 information.typeName = getUnqualifiedName(cls.getName());
             }
         }
 
-        annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonTypeInfo");
-        if (annot != null) {
+        JsonTypeInfo typeInfo = cls.getAnnotation(JsonTypeInfo.class);
+        if (typeInfo != null) {
             String defaultProperty = "";
-            String use = annot.getValue("use").getEnumValue().getFieldName();
-            switch (use) {
-                case "CLASS":
+            switch (typeInfo.use()) {
+                case CLASS:
                     information.inheritance.value = InheritanceValue.CLASS;
                     defaultProperty = "@class";
                     break;
-                case "MINIMAL_CLASS":
+                case MINIMAL_CLASS:
                     information.inheritance.value = InheritanceValue.MINIMAL_CLASS;
                     defaultProperty = "@c";
                     break;
-                case "NAME":
+                case NAME:
                     information.inheritance.value = InheritanceValue.NAME;
                     defaultProperty = "@type";
                     break;
-                case "NONE":
+                case NONE:
                     information.inheritance.value = InheritanceValue.NONE;
                     break;
                 default:
-                    diagnostics.warning(null, "{{c0}}: unsupported value " + use + " in {{c1}}",
-                            cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$Id");
+                    diagnostics.warning(null, "{{t0}}: unsupported value " + typeInfo.use() + " in {{t1}}",
+                            cls, JsonTypeInfo.Id.class);
                     break;
             }
 
             if (information.inheritance.value != InheritanceValue.NONE) {
-                AnnotationValue includeValue = annot.getValue("include");
-                String include = includeValue != null ? includeValue.getEnumValue().getFieldName() : "PROPERTY";
-                switch (include) {
-                    case "PROPERTY":
+                switch (typeInfo.include()) {
+                    case PROPERTY:
                         information.inheritance.key = InheritanceKey.PROPERTY;
                         break;
-                    case "WRAPPER_ARRAY":
+                    case WRAPPER_ARRAY:
                         information.inheritance.key = InheritanceKey.WRAPPER_ARRAY;
                         break;
-                    case "WRAPPER_OBJECT":
+                    case WRAPPER_OBJECT:
                         information.inheritance.key = InheritanceKey.WRAPPER_OBJECT;
                         break;
                     default:
-                        diagnostics.warning(null, "{{c0}}: unsupported value " + includeValue.getString()
-                                + " in {{c1}}", cls.getName(), "com.fasterxml.jackson.annotation.JsonTypeInfo$As");
+                        diagnostics.warning(null, "{{t0}}: unsupported value " + typeInfo.include()
+                                + " in {{t1}}", cls, JsonTypeInfo.As.class);
                         break;
                 }
             }
 
             if (information.inheritance.key == InheritanceKey.PROPERTY) {
-                AnnotationValue propertyValue = annot.getValue("property");
-                String property = propertyValue != null ? propertyValue.getString() : "";
+                String property = typeInfo.property();
                 if (property.isEmpty()) {
                     property = defaultProperty;
                 }
@@ -184,29 +185,28 @@ class ClassInformationProvider {
         }
     }
 
-    private void getIdentityInfo(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonIdentityInfo");
-        if (annot == null) {
+    private void getIdentityInfo(ClassInformation information, ReflectClass<?> cls) {
+        JsonIdentityInfo identity = cls.getAnnotation(JsonIdentityInfo.class);
+        if (identity == null) {
             return;
         }
 
-        ValueType generator = annot.getValue("generator").getJavaClass();
-        if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$IntSequenceGenerator")) {
+        Class<?> generator = identity.generator();
+        if (generator.equals(ObjectIdGenerators.IntSequenceGenerator.class)) {
             information.idGenerator = IdGeneratorType.INTEGER;
-        } else if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$PropertyGenerator")) {
+        } else if (generator.equals(ObjectIdGenerators.PropertyGenerator.class)) {
             information.idGenerator = IdGeneratorType.PROPERTY;
-        } else if (generator.isObject("com.fasterxml.jackson.annotation.ObjectIdGenerators$None")) {
+        } else if (generator.equals(ObjectIdGenerators.None.class)) {
             information.idGenerator = IdGeneratorType.NONE;
         } else {
             information.idGenerator = IdGeneratorType.NONE;
-            diagnostics.warning(null, "{{c0}}: unsupported identity generator {{t1}}", cls.getName(), generator);
+            diagnostics.warning(null, "{{t0}}: unsupported identity generator {{t1}}", cls, generator);
         }
 
         if (information.idGenerator == IdGeneratorType.NONE) {
             information.idProperty = null;
         } else {
-            AnnotationValue propertyValue = annot.getValue("property");
-            information.idProperty = propertyValue != null ? propertyValue.getString() : "@id";
+            information.idProperty = identity.property();
         }
     }
 
@@ -214,19 +214,13 @@ class ClassInformationProvider {
         return className.substring(Math.max(0, className.lastIndexOf('.')));
     }
 
-    private void getIgnoredProperties(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonIgnoreProperties");
+    private void getIgnoredProperties(ClassInformation information, ReflectClass<?> cls) {
+        JsonIgnoreProperties annot = cls.getAnnotation(JsonIgnoreProperties.class);
         if (annot == null) {
             return;
         }
 
-        AnnotationValue value = annot.getValue("value");
-        if (value == null) {
-            return;
-        }
-
-        for (AnnotationValue nameAnnot : value.getList()) {
-            String name = nameAnnot.getString();
+        for (String name : annot.value()) {
             PropertyInformation property = information.properties.get(name);
             if (property == null) {
                 property = new PropertyInformation();
@@ -237,58 +231,58 @@ class ClassInformationProvider {
         }
     }
 
-    private Visibility getVisibility(AnnotationReader annot, String fieldName, Visibility defaultVisibility) {
-        AnnotationValue value = annot.getValue(fieldName);
-        if (value == null) {
-            return defaultVisibility;
+    private Visibility getVisibility(JsonAutoDetect.Visibility visibility, Visibility defaultVisibility) {
+        switch (visibility) {
+            case DEFAULT:
+                return defaultVisibility;
+            case ANY:
+                return Visibility.ANY;
+            case NON_PRIVATE:
+                return Visibility.NON_PRIVATE;
+            case NONE:
+                return Visibility.NONE;
+            case PROTECTED_AND_PUBLIC:
+                return Visibility.PROTECTED_AND_PUBLIC;
+            case PUBLIC_ONLY:
+                return Visibility.PUBLIC_ONLY;
         }
-        Visibility visibility = Visibility.valueOf(value.getEnumValue().getFieldName());
-        if (visibility == null || visibility == Visibility.DEFAULT) {
-            return defaultVisibility;
-        }
-        return visibility;
+        throw new AssertionError("Unsupported visibility:" + visibility);
     }
 
-    private void getSubTypes(ClassInformation information, ClassReader cls) {
-        AnnotationReader annot = cls.getAnnotations().get("com.fasterxml.jackson.annotation.JsonSubTypes");
+    private void getSubTypes(ClassInformation information, ReflectClass<?> cls) {
+        JsonSubTypes annot = cls.getAnnotation(JsonSubTypes.class);
         if (annot == null) {
             return;
         }
 
-        List<AnnotationValue> subTypes = annot.getValue("value").getList();
-        for (AnnotationValue subTypeItem : subTypes) {
-            AnnotationReader subTypeAnnot = subTypeItem.getAnnotation();
-            ValueType.Object subclass = (ValueType.Object) subTypeAnnot.getValue("value").getJavaClass();
-            // TODO check whether subclass is actually a subclass
-            ClassInformation subtypeInformation = get(subclass.getClassName());
+        for (JsonSubTypes.Type subtype : annot.value()) {
+            Class<?> subclass = subtype.value();
+            ClassInformation subtypeInformation = get(subclass.getName());
             if (subtypeInformation == null) {
                 continue;
             }
             information.inheritance.subTypes.add(subtypeInformation);
-            AnnotationValue nameVal = subTypeAnnot.getValue("name");
-            if (nameVal != null) {
-                // TODO check whether name conflicts with one got from JsonTypeName
-                subtypeInformation.typeName = nameVal.getString();
-            }
+            // TODO check whether name conflicts with one got from JsonTypeName
+            subtypeInformation.typeName = subtype.name();
         }
     }
 
-    private void scanGetters(ClassInformation information, ClassReader cls) {
-        for (MethodReader method : cls.getMethods()) {
-            if (method.hasModifier(ElementModifier.STATIC)) {
+    private void scanGetters(ClassInformation information, ReflectClass<?> cls) {
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
                 continue;
             }
-            if (isGetterName(method.getName()) && method.parameterCount() == 0
-                    && method.getResultType() != ValueType.VOID) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations())
-                        || information.getterVisibility.match(method.getLevel())) {
+            if (isGetterName(method.getName()) && method.getParameterCount() == 0
+                    && method.getReturnType() != context.findClass(void.class)) {
+                if (hasExplicitPropertyDeclaration(method)
+                        || information.getterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addGetter(information, propertyName, method);
                 }
-            } else if (isBooleanName(method.getName()) && method.parameterCount() == 0
-                    && method.getResultType() == ValueType.BOOLEAN) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations())
-                        || information.isGetterVisibility.match(method.getLevel())) {
+            } else if (isBooleanName(method.getName()) && method.getParameterCount() == 0
+                    && method.getReturnType() == context.findClass(boolean.class)) {
+                if (hasExplicitPropertyDeclaration(method)
+                        || information.isGetterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(2));
                     addGetter(information, propertyName, method);
                 }
@@ -296,15 +290,15 @@ class ClassInformationProvider {
         }
     }
 
-    private void scanSetters(ClassInformation information, ClassReader cls) {
-        for (MethodReader method : cls.getMethods()) {
-            if (method.hasModifier(ElementModifier.STATIC)) {
+    private void scanSetters(ClassInformation information, ReflectClass<?> cls) {
+        for (ReflectMethod method : cls.getMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
                 continue;
             }
-            if (isSetterName(method.getName()) && method.parameterCount() == 1
-                    && method.getResultType() == ValueType.VOID) {
-                if (hasExplicitPropertyDeclaration(method.getAnnotations())
-                        || information.setterVisibility.match(method.getLevel())) {
+            if (isSetterName(method.getName()) && method.getParameterCount() == 1
+                    && method.getReturnType() == context.findClass(void.class)) {
+                if (hasExplicitPropertyDeclaration(method)
+                        || information.setterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addSetter(information, propertyName, method);
                 }
@@ -312,7 +306,7 @@ class ClassInformationProvider {
         }
     }
 
-    private void addGetter(ClassInformation information, String propertyName, MethodReader method) {
+    private void addGetter(ClassInformation information, String propertyName, ReflectMethod method) {
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
             information.propertiesByOutputName.remove(property.outputName);
@@ -324,15 +318,15 @@ class ClassInformationProvider {
             information.properties.put(propertyName, property);
         }
 
-        if (property.ignored || isIgnored(method.getAnnotations())) {
+        if (property.ignored || isIgnored(method)) {
             property.ignored = true;
             return;
         }
 
-        property.outputName = getPropertyName(method.getAnnotations(), property.outputName);
+        property.outputName = getPropertyName(method, property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
-            CallLocation location = new CallLocation(method.getReference());
+            SourceLocation location = new SourceLocation(method);
             diagnostics.error(location, "Duplicate property declaration " + propertyName + ". "
                     + "Already declared in {{c0}}", property.className);
             return;
@@ -340,10 +334,10 @@ class ClassInformationProvider {
             information.propertiesByOutputName.put(property.outputName, property);
         }
 
-        property.getter = method.getDescriptor();
+        property.getter = method;
     }
 
-    private void addSetter(ClassInformation information, String propertyName, MethodReader method) {
+    private void addSetter(ClassInformation information, String propertyName, ReflectMethod method) {
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
             information.propertiesByOutputName.remove(property.outputName);
@@ -355,15 +349,15 @@ class ClassInformationProvider {
             information.properties.put(propertyName, property);
         }
 
-        if (property.ignored || isIgnored(method.getAnnotations())) {
+        if (property.ignored || isIgnored(method)) {
             property.ignored = true;
             return;
         }
 
-        property.outputName = getPropertyName(method.getAnnotations(), property.outputName);
+        property.outputName = getPropertyName(method, property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
-            CallLocation location = new CallLocation(method.getReference());
+            SourceLocation location = new SourceLocation(method);
             diagnostics.error(location, "Duplicate property declaration " + propertyName + ". "
                     + "Already declared in {{c0}}", property.className);
             return;
@@ -371,47 +365,47 @@ class ClassInformationProvider {
             information.propertiesByOutputName.put(property.outputName, property);
         }
 
-        property.setter = method.getDescriptor();
+        property.setter = method;
     }
 
-    private void scanCreators(ClassInformation information, ClassReader cls) {
-        MethodReference foundCreator = null;
-        for (MethodReader method : cls.getMethods()) {
-            if (method.getAnnotations().get("com.fasterxml.jackson.annotation.JsonCreator") != null) {
+    private void scanCreators(ClassInformation information, ReflectClass<?> cls) {
+        ReflectMethod foundCreator = null;
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
+            if (method.getAnnotation(JsonCreator.class) != null) {
                 if (foundCreator != null) {
-                    diagnostics.error(new CallLocation(foundCreator), "Duplicate creators declared: {{m0}} and {{m1}}",
-                            foundCreator, method.getReference());
+                    diagnostics.error(new SourceLocation(foundCreator), "Duplicate creators declared: "
+                            + "{{m0}} and {{m1}}", foundCreator, method);
                     break;
                 }
-                foundCreator = method.getReference();
-                if (!method.getName().equals("<init>") && method.hasModifier(ElementModifier.STATIC)) {
-                    diagnostics.error(new CallLocation(method.getReference()), "Creator should be either constructor "
-                            + " or static: {{m0}}", method.getReference());
+                foundCreator = method;
+                if (!method.getName().equals("<init>") && Modifier.isStatic(method.getModifiers())) {
+                    diagnostics.error(new SourceLocation(method), "Creator should be either constructor "
+                            + " or static: {{m0}}", method);
                     continue;
                 }
-                information.constructor = method.getDescriptor();
-                for (int i = 0; i < method.parameterCount(); ++i) {
-                    PropertyInformation property = addParameter(information, method.getReference(), i,
-                            method.parameterAnnotation(i), method.parameterType(i));
+                information.constructor = method;
+                for (int i = 0; i < method.getParameterCount(); ++i) {
+                    PropertyInformation property = addParameter(information, method, i,
+                            method.getParameterAnnotations(i), method.getParameterType(i));
                     information.constructorArgs.add(property);
                 }
             }
         }
         if (information.constructor == null) {
-            MethodReader defaultCtor = cls.getMethod(new MethodDescriptor("<init>", ValueType.VOID));
+            ReflectMethod defaultCtor = cls.getDeclaredMethod("<init>");
             if (defaultCtor != null) {
-                information.constructor = defaultCtor.getDescriptor();
+                information.constructor = defaultCtor;
             }
         }
     }
 
-    private PropertyInformation addParameter(ClassInformation information, MethodReference creator, int index,
-            AnnotationContainerReader annotations, ValueType type) {
+    private PropertyInformation addParameter(ClassInformation information, ReflectMethod creator, int index,
+            ReflectAnnotatedElement annotations, ReflectClass<?> type) {
         PropertyInformation property = new PropertyInformation();
         property.className = information.className;
         property.outputName = getPropertyName(annotations, null);
         if (property.outputName == null) {
-            diagnostics.error(new CallLocation(creator), "Parameter #" + index + " name was not specified");
+            diagnostics.error(new SourceLocation(creator), "Parameter #" + index + " name was not specified");
             return null;
         }
         property.name = property.outputName;
@@ -436,13 +430,12 @@ class ClassInformationProvider {
         return property;
     }
 
-    private void scanFields(ClassInformation information, ClassReader cls) {
-        for (FieldReader field : cls.getFields()) {
-            if (field.hasModifier(ElementModifier.STATIC)) {
+    private void scanFields(ClassInformation information, ReflectClass<?> cls) {
+        for (ReflectField field : cls.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
-            if (hasExplicitPropertyDeclaration(field.getAnnotations())
-                    || information.getterVisibility.match(field.getLevel())) {
+            if (hasExplicitPropertyDeclaration(field) || information.getterVisibility.match(field.getModifiers())) {
                 addField(information, field.getName(), field);
             }
         }
@@ -450,13 +443,13 @@ class ClassInformationProvider {
 
     private void scanPropertyFields(ClassInformation information) {
         for (PropertyInformation property : information.properties.values()) {
-            if (property.fieldName != null) {
+            if (property.field != null) {
                 continue;
             }
             ClassInformation ancestorInfo = information;
             while (ancestorInfo != null && ancestorInfo.properties.containsKey(property.name)) {
-                ClassReader ancestor = classSource.get(ancestorInfo.className);
-                FieldReader field = ancestor.getField(property.name);
+                ReflectClass<?> ancestor = context.findClass(ancestorInfo.className);
+                ReflectField field = ancestor.getDeclaredField(property.name);
                 if (field != null) {
                     addField(information, property.name, field);
                     break;
@@ -466,7 +459,7 @@ class ClassInformationProvider {
         }
     }
 
-    private void addField(ClassInformation information, String propertyName, FieldReader field) {
+    private void addField(ClassInformation information, String propertyName, ReflectField field) {
         PropertyInformation property = information.properties.get(propertyName);
         if (property != null) {
             information.propertiesByOutputName.remove(property.outputName);
@@ -478,12 +471,12 @@ class ClassInformationProvider {
             information.properties.put(propertyName, property);
         }
 
-        if (property.ignored || isIgnored(field.getAnnotations())) {
+        if (property.ignored || isIgnored(field)) {
             property.ignored = true;
             return;
         }
 
-        property.outputName = getPropertyName(field.getAnnotations(), property.outputName);
+        property.outputName = getPropertyName(field, property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
             diagnostics.error(null, "Duplicate property declaration " + propertyName + ". "
@@ -493,12 +486,12 @@ class ClassInformationProvider {
             information.propertiesByOutputName.put(property.outputName, property);
         }
 
-        property.fieldName = field.getName();
+        property.field = field;
         property.type = field.getType();
     }
 
-    private boolean isIgnored(AnnotationContainerReader annotations) {
-        return annotations.get("com.fasterxml.jackson.annotation.JsonIgnore") != null;
+    private boolean isIgnored(ReflectAnnotatedElement annotations) {
+        return annotations.getAnnotation(JsonIgnore.class) != null;
     }
 
     private boolean isGetterName(String name) {
@@ -520,19 +513,15 @@ class ClassInformationProvider {
         return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
-    private String getPropertyName(AnnotationContainerReader annotations, String fallbackName) {
-        AnnotationReader annot = annotations.get("com.fasterxml.jackson.annotation.JsonProperty");
+    private String getPropertyName(ReflectAnnotatedElement annotations, String fallbackName) {
+        JsonProperty annot = annotations.getAnnotation(JsonProperty.class);
         if (annot == null) {
             return fallbackName;
         }
-        AnnotationValue name = annot.getValue("value");
-        if (name == null) {
-            return fallbackName;
-        }
-        return name.getString();
+        return !annot.value().isEmpty() ? annot.value() : fallbackName;
     }
 
-    private boolean hasExplicitPropertyDeclaration(AnnotationContainerReader annotations) {
-        return annotations.get("com.fasterxml.jackson.annotation.JsonProperty") != null;
+    private boolean hasExplicitPropertyDeclaration(ReflectAnnotatedElement annotations) {
+        return annotations.getAnnotation(JsonProperty.class) != null;
     }
 }

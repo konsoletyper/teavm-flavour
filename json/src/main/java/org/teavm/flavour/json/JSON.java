@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.json;
 
-import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,14 +44,18 @@ import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.deserializer.ShortArrayDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
+import org.teavm.flavour.json.emit.JsonSerializerEmitter;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
-import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.StringNode;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.flavour.mp.Reflected;
 
 /**
  *
@@ -71,15 +74,8 @@ public final class JSON {
     public static Node serialize(JsonSerializerContext context, Object object) {
         if (object == null) {
             return NullNode.instance();
-        } else if (object.getClass().isArray()) {
-            ArrayNode result = ArrayNode.create();
-            int length = Array.getLength(object);
-            for (int i = 0; i < length; ++i) {
-                result.add(serialize(context, Array.get(object, i)));
-            }
-            return result;
         } else {
-            JsonSerializer serializer = getClassSerializer(object.getClass().getName());
+            JsonSerializer serializer = getObjectSerializer(object);
             if (serializer == null) {
                 throw new IllegalArgumentException("Can't serialize object of type " + object.getClass().getName());
             }
@@ -87,7 +83,18 @@ public final class JSON {
         }
     }
 
-    static native JsonSerializer getClassSerializer(String cls);
+    @Reflected
+    static native JsonSerializer getObjectSerializer(Object obj);
+    static void getObjectSerializer(Emitter<JsonSerializer> em, ReflectValue<Object> value) {
+        ReflectClass<?> cls = value.getReflectClass();
+        em.returnValue(() -> getClassSerializer(cls.asJavaClass()));
+    }
+
+    @Reflected
+    public static native JsonSerializer getClassSerializer(Class<?> cls);
+    public static void getClassSerializer(Emitter<JsonSerializer> em, ReflectClass<?> cls) {
+        new JsonSerializerEmitter(em).returnClassSerializer(cls);
+    }
 
     @SuppressWarnings("unchecked")
     public static <T> T deserialize(Node node, @JSONClassArgument Class<T> type) {

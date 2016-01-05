@@ -31,9 +31,7 @@ import org.teavm.vm.spi.TeaVMPlugin;
 public class JSONPlugin implements TeaVMPlugin {
     @Override
     public void install(TeaVMHost host) {
-        SerializerDependencyListener serializerDep = new SerializerDependencyListener();
         DeserializerDependencyListener deserializerDep = new DeserializerDependencyListener();
-        host.add(serializerDep);
         host.add(deserializerDep);
         host.add(new MethodReference(JSON.class, "findClassDeserializer", String.class, JsonDeserializer.class),
                 new DeserializerGenerator(deserializerDep));

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,28 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp.reflect;
+@CompileTime
+package org.teavm.flavour.json.emit;
 
-import org.teavm.flavour.mp.ReflectClass;
-
-/**
- *
- * @author Alexey Andreev
- */
-public interface ReflectMethod extends ReflectMember {
-    boolean isConstructor();
-
-    ReflectClass<?> getReturnType();
-
-    ReflectClass<?>[] getParameterTypes();
-
-    ReflectClass<?> getParameterType(int index);
-
-    ReflectAnnotatedElement getParameterAnnotations(int index);
-
-    int getParameterCount();
-
-    Object invoke(Object obj, Object... args);
-
-    Object construct(Object... args);
-}
+import org.teavm.flavour.mp.CompileTime;

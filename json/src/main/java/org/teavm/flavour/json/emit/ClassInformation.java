@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.model.MethodDescriptor;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
@@ -39,6 +39,6 @@ class ClassInformation {
     Visibility fieldVisibility = Visibility.NONE;
     IdGeneratorType idGenerator = IdGeneratorType.NONE;
     String idProperty;
-    MethodDescriptor constructor;
+    ReflectMethod constructor;
     List<PropertyInformation> constructorArgs = new ArrayList<>();
 }

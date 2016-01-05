@@ -86,4 +86,12 @@ public interface ReflectClass<T> extends ReflectAnnotatedElement {
     ReflectField getDeclaredField(String name);
 
     ReflectField getField(String name);
+
+    T[] createArray(int size);
+
+    T getArrayElement(Object array, int index);
+
+    int getArrayLength(Object array);
+
+    Class<T> asJavaClass();
 }

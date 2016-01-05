@@ -15,8 +15,9 @@
  */
 package org.teavm.flavour.json.emit;
 
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.ValueType;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
@@ -25,11 +26,11 @@ import org.teavm.model.ValueType;
 class PropertyInformation implements Cloneable {
     String name;
     String outputName;
-    MethodDescriptor getter;
-    MethodDescriptor setter;
-    String fieldName;
+    ReflectMethod getter;
+    ReflectMethod setter;
+    ReflectField field;
     String className;
-    ValueType type;
+    ReflectClass<?> type;
     boolean ignored;
     Integer creatorParameterIndex;
 
@@ -42,9 +43,9 @@ class PropertyInformation implements Cloneable {
         }
     }
 
-    public ValueType getType() {
+    public ReflectClass<?> getType() {
         if (getter != null) {
-            return getter.getResultType();
+            return getter.getReturnType();
         }
         return type;
     }

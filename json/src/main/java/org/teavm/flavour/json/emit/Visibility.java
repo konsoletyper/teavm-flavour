@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.json.emit;
 
-import org.teavm.model.AccessLevel;
+import java.lang.reflect.Modifier;
 
 /**
  *
@@ -29,18 +29,18 @@ enum Visibility {
     NONE,
     DEFAULT;
 
-    public boolean match(AccessLevel level) {
+    public boolean match(int modifiers) {
         switch (this) {
             case ANY:
                 return true;
             case NON_PRIVATE:
-                return level != AccessLevel.PRIVATE;
+                return !Modifier.isPrivate(modifiers);
             case NONE:
                 return false;
             case PUBLIC_ONLY:
-                return level == AccessLevel.PUBLIC;
+                return Modifier.isPublic(modifiers);
             case PROTECTED_AND_PUBLIC:
-                return level == AccessLevel.PUBLIC || level == AccessLevel.PROTECTED;
+                return Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers);
             default:
                 return false;
         }

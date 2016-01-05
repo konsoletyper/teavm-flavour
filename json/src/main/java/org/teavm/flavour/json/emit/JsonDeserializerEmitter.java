@@ -494,7 +494,7 @@ class JsonDeserializerEmitter {
             }
             if (property.setter != null) {
                 emitSetter(property);
-            } else if (property.fieldName != null) {
+            } else if (property.field != null) {
                 emitField(property);
             }
         }
@@ -511,7 +511,7 @@ class JsonDeserializerEmitter {
     }
 
     private void emitField(PropertyInformation property) {
-        FieldReference field = new FieldReference(property.className, property.fieldName);
+        FieldReference field = new FieldReference(property.className, property.field);
         Field javaField = findField(field);
         Type type = javaField.getGenericType();
         ValueType fieldType = agent.linkField(field, null).getField().getType();
@@ -529,8 +529,8 @@ class JsonDeserializerEmitter {
                 type = getter.getGenericReturnType();
             }
         }
-        if (type == null && property.fieldName != null) {
-            Field field = findField(new FieldReference(property.className, property.fieldName));
+        if (type == null && property.field != null) {
+            Field field = findField(new FieldReference(property.className, property.field));
             if (field != null) {
                 type = field.getGenericType();
             }

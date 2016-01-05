@@ -15,9 +15,8 @@
  */
 package org.teavm.flavour.json.emit;
 
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.AnnotationValue;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
 
 /**
  *
@@ -28,36 +27,26 @@ class DateFormatInformation {
     String pattern;
     String locale;
 
-    private void read(AnnotationContainerReader annotations) {
+    private void read(ReflectAnnotatedElement annotations) {
         if (annotations == null) {
             return;
         }
-        AnnotationReader formatAnnot = annotations.get("com.fasterxml.jackson.annotation.JsonFormat");
-        if (formatAnnot == null) {
+        JsonFormat format = annotations.getAnnotation(JsonFormat.class);
+
+        if (format.shape() == JsonFormat.Shape.STRING) {
+            asString = true;
+        } else {
             return;
         }
 
-        AnnotationValue shape = formatAnnot.getValue("shape");
-        if (shape != null) {
-            if (shape.getEnumValue().getFieldName().equals("STRING")) {
-                asString = true;
-            }
+        pattern = format.pattern();
+        if (pattern.isEmpty()) {
+            pattern = null;
         }
-
-        if (!asString) {
-            return;
-        }
-        AnnotationValue patternAnnot = formatAnnot.getValue("pattern");
-        if (patternAnnot != null) {
-            pattern = patternAnnot.getString();
-        }
-        AnnotationValue localeAnnot = formatAnnot.getValue("locale");
-        if (localeAnnot != null) {
-            locale = localeAnnot.getString();
-        }
+        locale = format.locale();
     }
 
-    public static DateFormatInformation get(AnnotationContainerReader annotations) {
+    public static DateFormatInformation get(ReflectAnnotatedElement annotations) {
         DateFormatInformation result = new DateFormatInformation();
         result.read(annotations);
         if (result.asString) {

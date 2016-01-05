@@ -146,6 +146,8 @@ public class EmitterContextImpl implements EmitterContext {
                     params[i] = ((ReflectClassImpl<?>) params[i]).type;
                 } else if (params[i] instanceof ReflectFieldImpl) {
                     params[i] = ((ReflectFieldImpl) params[i]).field.getReference();
+                } else if (params[i] instanceof Class<?>) {
+                    params[i] = ValueType.parse((Class<?>) params[i]);
                 }
             }
         }
