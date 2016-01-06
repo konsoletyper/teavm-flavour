@@ -30,8 +30,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.teavm.dependency.DependencyAgent;
-import org.teavm.dependency.DependencyNode;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanArrayDeserializer;
@@ -47,6 +45,7 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.LongDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.NullableDeserializer;
+import org.teavm.flavour.json.deserializer.ObjectDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
@@ -55,11 +54,18 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
+import org.teavm.flavour.mp.Choice;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.impl.reflect.ReflectContext;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
 import org.teavm.model.FieldReader;
 import org.teavm.model.FieldReference;
@@ -76,124 +82,73 @@ import org.teavm.model.emit.ValueEmitter;
  * @author Alexey Andreev
  */
 class JsonDeserializerEmitter {
-    private DependencyAgent agent;
-    private ClassReaderSource classSource;
-    private ClassReader deserializedClass;
+    private Emitter<JsonDeserializer> em;
     private ClassLoader classLoader;
-    private ValueEmitter contextVar;
-    private ValueEmitter nodeVar;
-    private ValueEmitter targetVar;
-    private ProgramEmitter pe;
     private ClassInformationProvider informationProvider;
-    private Set<String> deserializableClasses = new HashSet<>();
-    private DependencyNode deserializableClassesNode;
-    private static Map<String, String> predefinedDeserializers = new HashMap<>();
+    private static Map<String, Class<?>> predefinedDeserializers = new HashMap<>();
 
     static {
-        predefinedDeserializers.put(Object.class.getName(), BooleanDeserializer.class.getName());
-        predefinedDeserializers.put(Number.class.getName(), BooleanDeserializer.class.getName());
-        predefinedDeserializers.put(Boolean.class.getName(), BooleanDeserializer.class.getName());
-        predefinedDeserializers.put(Byte.class.getName(), ByteDeserializer.class.getName());
-        predefinedDeserializers.put(Short.class.getName(), ShortDeserializer.class.getName());
-        predefinedDeserializers.put(Character.class.getName(), CharacterDeserializer.class.getName());
-        predefinedDeserializers.put(Integer.class.getName(), IntegerDeserializer.class.getName());
-        predefinedDeserializers.put(Long.class.getName(), LongDeserializer.class.getName());
-        predefinedDeserializers.put(Float.class.getName(), FloatDeserializer.class.getName());
-        predefinedDeserializers.put(Double.class.getName(), DoubleDeserializer.class.getName());
-        predefinedDeserializers.put(String.class.getName(), StringDeserializer.class.getName());
+        predefinedDeserializers.put(Object.class.getName(), BooleanDeserializer.class);
+        predefinedDeserializers.put(Number.class.getName(), BooleanDeserializer.class);
+        predefinedDeserializers.put(Boolean.class.getName(), BooleanDeserializer.class);
+        predefinedDeserializers.put(Byte.class.getName(), ByteDeserializer.class);
+        predefinedDeserializers.put(Short.class.getName(), ShortDeserializer.class);
+        predefinedDeserializers.put(Character.class.getName(), CharacterDeserializer.class);
+        predefinedDeserializers.put(Integer.class.getName(), IntegerDeserializer.class);
+        predefinedDeserializers.put(Long.class.getName(), LongDeserializer.class);
+        predefinedDeserializers.put(Float.class.getName(), FloatDeserializer.class);
+        predefinedDeserializers.put(Double.class.getName(), DoubleDeserializer.class);
+        predefinedDeserializers.put(String.class.getName(), StringDeserializer.class);
     }
 
-    public JsonDeserializerEmitter(DependencyAgent agent, DependencyNode deserializableClassesNode) {
-        this.agent = agent;
-        this.classSource = agent.getClassSource();
-        this.classLoader = agent.getClassLoader();
-        informationProvider = new ClassInformationProvider(classSource, agent.getDiagnostics());
-        this.deserializableClassesNode = deserializableClassesNode;
+    public JsonDeserializerEmitter(Emitter<JsonDeserializer> em) {
+        this.em = em;
+        this.classLoader = em.getContext().getClassLoader();
+        informationProvider = ClassInformationProvider.getInstance(em.getContext());
     }
 
-    public String addClassDeserializer(String serializedClassName) {
-        ClassReader cls = classSource.get(serializedClassName);
-        if (cls == null) {
+    public Value<? extends JsonDeserializer> getClassDeserializer(ReflectClass<?> cls) {
+        Value<? extends JsonDeserializer> deserializer = tryGetPredefinedDeserializer(cls);
+        if (deserializer == null) {
+            deserializer = emitClassDeserializer(cls);
+        }
+        return deserializer;
+    }
+
+    private Value<JsonDeserializer> tryGetPredefinedDeserializer(ReflectClass<?> cls) {
+        if (cls.isArray() || cls.isPrimitive()) {
             return null;
         }
-        if (deserializableClasses.add(serializedClassName)) {
-            if (tryGetPredefinedDeserializer(serializedClassName) == null) {
-                emitClassDeserializer(serializedClassName);
+
+        Class<?> serializerClass = predefinedDeserializers.get(cls.getName());
+        if (serializerClass != null) {
+            ReflectMethod ctor = em.getContext().findClass(serializerClass).getMethod("<init>");
+            return em.emit(() -> (JsonDeserializer) ctor.construct());
+        }
+
+        if (em.getContext().findClass(Map.class).isAssignableFrom(cls)) {
+            return em.emit(() -> new MapDeserializer(new ObjectDeserializer(), new ObjectDeserializer()));
+        } else if (em.getContext().findClass(Collection.class).isAssignableFrom(cls)) {
+            return em.emit(() -> new ListDeserializer(new ObjectDeserializer()));
+        }
+
+        return null;
+    }
+
+    private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
+        return em.proxy(NullableDeserializer.class, (bodyEm, instance, method, args) -> {
+            ClassInformation information = null;
+            if (!cls.isEnum()) {
+                information = informationProvider.get(cls.getName());
+                if (information == null) {
+                    return;
+                }
             }
-        }
-        return getClassDeserializer(serializedClassName);
-    }
 
-    public String getClassDeserializer(String className) {
-        String serializer = tryGetPredefinedDeserializer(className);
-        if (serializer == null) {
-            serializer = deserializableClasses.contains(className) ? className + "$$__deserializer__$$" : null;
-        }
-        return serializer;
-    }
-
-    private String tryGetPredefinedDeserializer(String className) {
-        String serializer = predefinedDeserializers.get(className);
-        if (serializer == null) {
-            if (classSource.isSuperType(Map.class.getName(), className).orElse(false)) {
-                serializer = MapDeserializer.class.getName();
-            } else if (classSource.isSuperType(Collection.class.getName(), className).orElse(false)) {
-                serializer = ListDeserializer.class.getName();
-            }
-        }
-        return serializer;
-    }
-
-    private void emitClassDeserializer(String serializedClassName) {
-        ClassHolder cls = new ClassHolder(serializedClassName + "$$__deserializer__$$");
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(NullableDeserializer.class.getName());
-
-        emitDeserializationMethod(serializedClassName, cls);
-        emitConstructor(cls);
-        agent.submitClass(cls);
-    }
-
-    private void emitConstructor(ClassHolder cls) {
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-
-        ProgramEmitter.create(ctor, classSource)
-                .var(0, cls)
-                .invokeSpecial(JsonDeserializer.class, "<init>")
-                .exit();
-
-        cls.addMethod(ctor);
-    }
-
-    private void emitDeserializationMethod(String deserializedClassName, ClassHolder cls) {
-        deserializedClass = classSource.get(deserializedClassName);
-        if (deserializedClass == null) {
-            return;
-        }
-
-        boolean isEnum = deserializedClass.hasModifier(ElementModifier.ENUM);
-        ClassInformation information = null;
-        if (!isEnum) {
-            information = informationProvider.get(deserializedClassName);
-            if (information == null) {
-                return;
-            }
-        }
-
-        try {
-            MethodHolder method = new MethodHolder("deserializeNonNull",
-                    ValueType.parse(JsonDeserializerContext.class),
-                    ValueType.parse(Node.class), ValueType.parse(Object.class));
-            method.setLevel(AccessLevel.PUBLIC);
-
-            pe = ProgramEmitter.create(method, classSource);
-            contextVar = pe.var(1, JsonDeserializerContext.class);
-            nodeVar = pe.var(2, Node.class);
-            ValueEmitter nodeVarBackup = nodeVar;
-
-            if (isEnum) {
-                emitEnumDeserializer(deserializedClassName);
+            Value<JsonDeserializerContext> context = bodyEm.emit(() -> (JsonDeserializerContext) args[0]);
+            Value<Node> node = bodyEm.emit(() -> (Node) args[1]);
+            if (cls.isEnum()) {
+                emitEnumDeserializer(bodyEm, cls, node);
             } else {
                 BasicBlock nonObjectBlock = pe.prepareBlock();
                 BasicBlock mainBlock = pe.prepareBlock();
@@ -206,104 +161,109 @@ class JsonDeserializerEmitter {
                 targetVar.returnValue();
                 pe.enter(nonObjectBlock);
                 nodeVar = nodeVarBackup;
-                emitIdCheck(information);
+                emitIdCheck(bodyEm, information, node, context);
             }
-            cls.addMethod(method);
-        } finally {
-            pe = null;
-            nodeVar = null;
-            targetVar = null;
-            contextVar = null;
-            deserializedClass = null;
-        }
+        });
     }
 
-    private void emitEnumDeserializer(String deserializedClassName) {
-        ClassReader cls = classSource.get(deserializedClassName);
-        Set<String> valueSet = new HashSet<>();
-        for (FieldReader field : cls.getFields()) {
-            if (!field.hasModifier(ElementModifier.STATIC) || !field.getType().isObject(deserializedClassName)) {
-                continue;
+    private void emitEnumDeserializer(Emitter<Object> em, ReflectClass<?> cls, Value<Node> node) {
+        Choice<Object> choice = em.choose(Object.class);
+        String className = cls.getName();
+        choice.option(() -> !node.get().isString()).emit(() -> {
+            throw new IllegalArgumentException("Can't convert to " + className + ": "
+                    + node.get().stringify());
+        });
+        em.returnValue(choice.getValue());
+        em = choice.defaultOption();
+
+        Value<String> text = em.emit(() -> ((StringNode) node.get()).getValue());
+        choice = em.choose(Object.class);
+        for (ReflectField field : cls.getDeclaredFields()) {
+            if (field.isEnumConstant()) {
+                String fieldName = field.getName();
+                choice.option(() -> text.get().equals(fieldName)).returnValue(() -> field.get(null));
             }
-            valueSet.add(field.getName());
         }
 
-        BasicBlock invalidValueBlock = pe.prepareBlock();
-        pe.when(nodeVar.invokeVirtual("isString", boolean.class).isFalse())
-                .thenDo(() -> pe.jump(invalidValueBlock));
-
-        ValueEmitter textVar = nodeVar.cast(StringNode.class).invokeVirtual("getValue", String.class);
-        StringChooseEmitter choise = pe.stringChoice(textVar);
-        for (String enumValue : valueSet) {
-            choise.option(enumValue, () -> pe
-                    .initClass(deserializedClassName)
-                    .getField(deserializedClassName, enumValue, ValueType.object(deserializedClassName))
-                    .returnValue());
-        }
-        pe.jump(invalidValueBlock);
-
-        pe.enter(invalidValueBlock);
-        ValueEmitter error = pe.string()
-                .append("Can't convert to " + deserializedClassName + ": ")
-                .append(nodeVar.cast(Node.class).invokeSpecial("stringify", String.class))
-                .build();
-        pe.construct(IllegalArgumentException.class, error).raise();
+        choice.defaultOption().emit(() -> {
+            throw new IllegalArgumentException("Can't convert to " + className + ": "
+                    + node.get().stringify());
+        });
     }
 
-    private void emitIdCheck(ClassInformation information) {
+    private void emitIdCheck(Emitter<Object> em, ClassInformation information, Value<Node> node,
+            Value<JsonDeserializerContext> context) {
+        String className = information.className;
         switch (information.idGenerator) {
             case INTEGER:
-                emitIntegerIdCheck(information);
+                emitIntegerIdCheck(em, information, node, context);
                 break;
             case PROPERTY:
-                emitPropertyIdCheck(information);
+                emitPropertyIdCheck(em, information, node, context);
                 break;
             case NONE:
-                emitNoId(information);
+                em.emit(() -> {
+                    throw new IllegalArgumentException("Can't deserialize node " + node.get().stringify()
+                            + " to an instance of " + className);
+                });
                 break;
             default:
                 break;
         }
     }
 
-    private void emitIntegerIdCheck(ClassInformation information) {
-        pe.when(nodeVar.invokeVirtual("isNumber", boolean.class).isTrue())
-                .thenDo(() -> {
-                    ValueEmitter id = nodeVar.cast(NumberNode.class).invokeVirtual("getIntValue", int.class).box();
-                    contextVar.invokeVirtual("get", Object.class, id.cast(Object.class)).returnValue();
-                })
-                .elseDo(() -> emitNoId(information));
+    private void emitIntegerIdCheck(Emitter<Object> em, ClassInformation information, Value<Node> node,
+            Value<JsonDeserializerContext> context) {
+        String className = information.className;
+        em.returnValue(() -> {
+            if (node.get().isNumber()) {
+                NumberNode number = (NumberNode) node.get();
+                return context.get().get(number.getIntValue());
+            } else {
+                throw new IllegalArgumentException("Can't deserialize node " + node.get().stringify()
+                        + " to an instance of " + className);
+            }
+        });
     }
 
-    private void emitPropertyIdCheck(ClassInformation information) {
+    private void emitPropertyIdCheck(Emitter<Object> em, ClassInformation information, Value<Node> node,
+            Value<JsonDeserializerContext> context) {
         PropertyInformation property = information.properties.get(information.idProperty);
+        String className = information.className;
         if (property == null) {
-            emitNoId(information);
+            throw new IllegalArgumentException("Can't deserialize node " + node.get().stringify()
+                    + " to an instance of " + className);
             return;
         }
 
         Type type = getPropertyGenericType(property);
+
         if (type != null) {
-            ValueEmitter id = convert(nodeVar, type);
-            contextVar.invokeVirtual("get", Object.class, id.cast(Object.class)).returnValue();
+            Value<Object> converted = convert(em, node, type);
+            em.returnValue(() -> context.get().get(converted.get()));
         } else {
-            emitNoId(information);
+            em.emit(() -> {
+                throw new IllegalArgumentException("Can't deserialize node " + node.get().stringify()
+                        + " to an instance of " + className);
+            });
         }
     }
 
-    private void emitNoId(ClassInformation information) {
-        pe.construct(IllegalArgumentException.class, pe.constant(
-                "Can't deserialize node to an instance of " + information.className))
-                .raise();
-    }
+    private Value<Boolean> emitNodeTypeCheck(Emitter<Object> em, Value<Node> node,
+            Value<JsonDeserializerContext> context) {
+        Value<Object> byId = em.lazyFragment(Object.class, lem -> emitIdCheck(lem, information, node, context));
+        return em.emit(() -> {
+            if (node.get().isObject()) {
 
-    private void emitNodeTypeCheck(BasicBlock errorBlock) {
-        pe.when(nodeVar.invokeVirtual("isObject", boolean.class).isTrue()
-                .or(() -> nodeVar.invokeVirtual("isArray", boolean.class).isTrue()))
-                .thenDo(() -> {
-                    nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
-                })
-                .elseDo(() -> pe.jump(errorBlock));
+            }
+            pe.when(nodeVar.invokeVirtual("isObject", boolean.class).isTrue()
+                    .or(() -> nodeVar.invokeVirtual("isArray", boolean.class).isTrue()))
+                    .thenDo(() -> {
+                        nodeVar = nodeVar.cast(ValueType.object(ObjectNode.class.getName()));
+                    })
+                    .elseDo(() -> pe.jump(errorBlock));
+        });
+
     }
 
     private void emitSubTypes(ClassInformation information, BasicBlock mainBlock) {
