@@ -232,7 +232,7 @@ public class JsonSerializerEmitter {
                 typeName = ClassInformationProvider.getUnqualifiedName(information.className);
                 break;
             case NAME:
-                typeName = information.typeName != null
+                typeName = !information.typeName.isEmpty()
                         ? information.typeName
                         : ClassInformationProvider.getUnqualifiedName(information.className);
                 break;

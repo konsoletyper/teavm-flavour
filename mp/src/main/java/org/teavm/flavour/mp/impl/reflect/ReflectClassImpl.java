@@ -204,7 +204,7 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
     @Override
     public <U> ReflectClass<U> asSubclass(Class<U> cls) {
         ReflectClass<U> reflectClass = emitterContext.findClass(cls);
-        if (!isAssignableFrom(reflectClass)) {
+        if (!reflectClass.isAssignableFrom(this)) {
             throw new IllegalArgumentException(cls.getName() + " is not subclass of " + getName());
         }
         return (ReflectClass<U>) this;

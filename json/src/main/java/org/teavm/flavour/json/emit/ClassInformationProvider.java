@@ -130,11 +130,12 @@ class ClassInformationProvider {
 
     private void getInheritance(ClassInformation information, ReflectClass<?> cls) {
         JsonTypeName typeName = cls.getAnnotation(JsonTypeName.class);
+        information.typeName = "";
         if (typeName != null) {
             information.typeName = typeName.value();
-            if (information.typeName.isEmpty()) {
-                information.typeName = getUnqualifiedName(cls.getName());
-            }
+        }
+        if (information.typeName.isEmpty()) {
+            information.typeName = getUnqualifiedName(cls.getName());
         }
 
         JsonTypeInfo typeInfo = cls.getAnnotation(JsonTypeInfo.class);
@@ -268,7 +269,12 @@ class ClassInformationProvider {
             }
             information.inheritance.subTypes.add(subtypeInformation);
             // TODO check whether name conflicts with one got from JsonTypeName
-            subtypeInformation.typeName = subtype.name();
+            if (!subtype.name().isEmpty()) {
+                subtypeInformation.typeName = subtype.name();
+            }
+            if (subtypeInformation.typeName == null) {
+                subtypeInformation.typeName = "";
+            }
         }
     }
 

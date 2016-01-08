@@ -104,8 +104,15 @@ public class JsonDeserializerEmitter {
     public Value<? extends JsonDeserializer> getClassDeserializer(ReflectClass<?> cls) {
         Value<? extends JsonDeserializer> deserializer = tryGetPredefinedDeserializer(cls);
         if (deserializer == null) {
-            deserializer = emitClassDeserializer(cls);
+            if (cls.isArray()) {
+                deserializer = emitArrayDeserializer(cls);
+            } else if (cls.isEnum()) {
+                deserializer = emitEnumDeserializer(cls);
+            } else {
+                deserializer = emitClassDeserializer(cls);
+            }
         }
+
         return deserializer;
     }
 
@@ -129,30 +136,53 @@ public class JsonDeserializerEmitter {
         return null;
     }
 
+    private Value<? extends JsonDeserializer> emitArrayDeserializer(ReflectClass<?> cls) {
+        if (cls.getComponentType().isPrimitive()) {
+            String name = cls.getComponentType().getName();
+            switch (name) {
+                case "boolean":
+                    return em.emit(() -> new BooleanArrayDeserializer());
+                case "byte":
+                    return em.emit(() -> new ByteArrayDeserializer());
+                case "short":
+                    return em.emit(() -> new ShortArrayDeserializer());
+                case "char":
+                    return em.emit(() -> new CharArrayDeserializer());
+                case "int":
+                    return em.emit(() -> new IntArrayDeserializer());
+                case "long":
+                    return em.emit(() -> new LongArrayDeserializer());
+                case "float":
+                    return em.emit(() -> new FloatArrayDeserializer());
+                case "double":
+                    return em.emit(() -> new DoubleArrayDeserializer());
+            }
+        }
+        Value<? extends JsonDeserializer> itemDeserializer = getClassDeserializer(cls);
+        return em.emit(() -> new ArrayDeserializer(cls.asJavaClass(), itemDeserializer.get()));
+    }
+
+    private Value<? extends JsonDeserializer> emitEnumDeserializer(ReflectClass<?> cls) {
+        return em.proxy(NullableDeserializer.class, (bodyEm, instance, method, args) -> {
+            Value<Node> node = bodyEm.emit(() -> (Node) args[1]);
+            emitEnumDeserializer(bodyEm, cls, node);
+        });
+    }
+
     private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
         return em.proxy(NullableDeserializer.class, (bodyEm, instance, method, args) -> {
-            ClassInformation information = null;
-            if (!cls.isEnum()) {
-                information = informationProvider.get(cls.getName());
-                if (information == null) {
-                    return;
-                }
-            }
-
+            ClassInformation information = informationProvider.get(cls.getName());
             Value<JsonDeserializerContext> context = bodyEm.emit(() -> (JsonDeserializerContext) args[0]);
             Value<Node> node = bodyEm.emit(() -> (Node) args[1]);
-            if (cls.isEnum()) {
-                emitEnumDeserializer(bodyEm, cls, node);
-            } else {
-                bodyEm = emitNodeTypeCheck(bodyEm, information, node, context);
-                SubTypeResult subtype = emitSubTypes(bodyEm, information, node, context);
-                bodyEm = subtype.em;
-                Value<ObjectNode> contentNode = subtype.contentNode;
-                Value<Object> target = emitConstructor(bodyEm, information, contentNode, context);
-                emitIdRegistration(bodyEm, information, target, contentNode, context);
-                emitProperties(bodyEm, information, target, contentNode, context);
-                bodyEm.returnValue(target);
-            }
+
+            bodyEm = emitNodeTypeCheck(bodyEm, information, node, context);
+            SubTypeResult subtype = emitSubTypes(bodyEm, information, node, context);
+            bodyEm = subtype.em;
+            Value<ObjectNode> contentNode = subtype.contentNode;
+            Value<Object> target = emitConstructor(bodyEm, information, contentNode, context);
+            emitIdRegistration(bodyEm, information, target, contentNode, context);
+            emitProperties(bodyEm, information, target, contentNode, context);
+            bodyEm.returnValue(target);
         });
     }
 
@@ -168,6 +198,7 @@ public class JsonDeserializerEmitter {
 
         Value<String> text = em.emit(() -> ((StringNode) node.get()).getValue());
         choice = em.choose(Object.class);
+        em.returnValue(choice.getValue());
         for (ReflectField field : cls.getDeclaredFields()) {
             if (field.isEnumConstant()) {
                 String fieldName = field.getName();
@@ -338,7 +369,7 @@ public class JsonDeserializerEmitter {
             case MINIMAL_CLASS:
                 return ClassInformationProvider.getUnqualifiedName(type.className);
             case NAME:
-                return type.typeName != null ? type.typeName
+                return !type.typeName.isEmpty() ? type.typeName
                         : ClassInformationProvider.getUnqualifiedName(type.className);
             case NONE:
                 break;

@@ -193,70 +193,71 @@ class PermutationGenerator {
         }
 
         Object key = getProxyKey(masterParam, type);
-        if (usageMap.containsKey(key)) {
+        MethodReference implRef = usageMap.get(key);
+        if (implRef != null) {
             model.getUsages().put(key, usageMap.get(key));
-            return;
-        }
+        } else {
+            implRef = buildMethodReference(masterParam, type);
+            usageMap.put(key, implRef);
+            model.getUsages().put(key, implRef);
+            emitterContext.location = emitterContext.convertLocation(location);
+            emitter = new EmitterImpl<>(emitterContext, model.getProxyMethod(), model.getMethod().getReturnType());
 
-        MethodReference implRef = buildMethodReference(masterParam, type);
-        model.getUsages().put(key, implRef);
-        emitterContext.location = emitterContext.convertLocation(location);
-        emitter = new EmitterImpl<>(emitterContext, model.getProxyMethod(), model.getMethod().getReturnType());
+            for (int i = 0; i <= model.getParameters().size(); ++i) {
+                emitter.generator.getProgram().createVariable();
+            }
 
-        for (int i = 0; i <= model.getParameters().size(); ++i) {
-            emitter.generator.getProgram().createVariable();
-        }
+            Object[] proxyArgs = new Object[model.getCallParameters().size() + 1];
+            proxyArgs[0] = getContextParameter(model.getProxyMethod().parameterType(0));
 
-        Object[] proxyArgs = new Object[model.getCallParameters().size() + 1];
-        proxyArgs[0] = getContextParameter(model.getProxyMethod().parameterType(0));
-
-        for (int i = 0; i < model.getCallParameters().size(); ++i) {
-            ProxyParameter param = model.getCallParameters().get(i);
-            int j = param.getIndex();
-            switch (param.getKind()) {
-                case CONSTANT:
-                    Object value = param.getValue();
-                    if (value instanceof ValueType) {
-                        value = emitterContext.reflectContext.getClass((ValueType) value);
+            for (int i = 0; i < model.getCallParameters().size(); ++i) {
+                ProxyParameter param = model.getCallParameters().get(i);
+                int j = param.getIndex();
+                switch (param.getKind()) {
+                    case CONSTANT:
+                        Object value = param.getValue();
+                        if (value instanceof ValueType) {
+                            value = emitterContext.reflectContext.getClass((ValueType) value);
+                        }
+                        proxyArgs[i + 1] = value;
+                        break;
+                    case VALUE:
+                        proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param), emitter.generator.varContext,
+                                param.getType());
+                        break;
+                    case REFLECT_VALUE: {
+                        ReflectClass<?> cls = emitterContext.reflectContext.getClass(param != masterParam
+                                ? variants[j][indexes[j]] : type);
+                        proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls,
+                                emitter.generator.varContext);
+                        break;
                     }
-                    proxyArgs[i + 1] = value;
-                    break;
-                case VALUE:
-                    proxyArgs[i + 1] = new ValueImpl<>(getParameterVar(param), emitter.generator.varContext,
-                            param.getType());
-                    break;
-                case REFLECT_VALUE: {
-                    ReflectClass<?> cls = emitterContext.reflectContext.getClass(param != masterParam
-                            ? variants[j][indexes[j]] : type);
-                    proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls,
-                            emitter.generator.varContext);
-                    break;
                 }
             }
-        }
 
-        try {
-            proxyMethod.invoke(null, proxyArgs);
-            emitter.close();
-            Program program = emitter.generator.getProgram();
-            new BoxingEliminator().optimize(program);
+            try {
+                proxyMethod.invoke(null, proxyArgs);
+                emitter.close();
+                Program program = emitter.generator.getProgram();
+                new BoxingEliminator().optimize(program);
 
-            ClassHolder cls = new ClassHolder(implRef.getClassName());
-            cls.setLevel(AccessLevel.PUBLIC);
-            cls.setParent("java.lang.Object");
+                ClassHolder cls = new ClassHolder(implRef.getClassName());
+                cls.setLevel(AccessLevel.PUBLIC);
+                cls.setParent("java.lang.Object");
 
-            MethodHolder method = new MethodHolder(implRef.getDescriptor());
-            method.setLevel(AccessLevel.PUBLIC);
-            method.getModifiers().add(ElementModifier.STATIC);
-            method.setProgram(program);
-            cls.addMethod(method);
+                MethodHolder method = new MethodHolder(implRef.getDescriptor());
+                method.setLevel(AccessLevel.PUBLIC);
+                method.getModifiers().add(ElementModifier.STATIC);
+                method.setProgram(program);
+                cls.addMethod(method);
 
-            agent.submitClass(cls);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            StringWriter writer = new StringWriter();
-            e.printStackTrace(new PrintWriter(writer));
-            diagnostics.error(location, "Error calling proxy method {{m0}}: " + writer.toString(),
-                    model.getProxyMethod());
+                agent.submitClass(cls);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                StringWriter writer = new StringWriter();
+                e.printStackTrace(new PrintWriter(writer));
+                diagnostics.error(location, "Error calling proxy method {{m0}}: " + writer.toString(),
+                        model.getProxyMethod());
+            }
         }
 
         MethodDependency implMethod = agent.linkMethod(implRef, location);
