@@ -77,8 +77,11 @@ class ClassInformationProvider {
 
         ClassInformation information = new ClassInformation();
         information.className = className;
+        if (className.equals("java.lang.Object")) {
+            return information;
+        }
 
-        if (cls.getSuperclass() != null) {
+        if (cls.getSuperclass() != null && !cls.getSuperclass().equals("java.lang.Object")) {
             ClassInformation parent = get(cls.getSuperclass().getName());
             information.parent = parent;
             for (PropertyInformation property : parent.properties.values()) {

@@ -114,14 +114,14 @@ public class JsonSerializerEmitter {
                 Value<JsonSerializerContext> context = bodyEm.emit(() -> (JsonSerializerContext) args[0]);
                 Value<Object> value = args[1];
                 ReflectClass<?> componentType = cls.getComponentType();
-                if (componentType.isPrimitive() || componentType.getName().equals(String.class.getName())) {
+                Value<JsonSerializer> componentSerializer = getPrimitiveSerializer(bodyEm, componentType);
+                if (componentSerializer != null) {
                     bodyEm.returnValue(() -> {
                         ArrayNode target = ArrayNode.create();
-                        JsonSerializer componentSerializer = JSON.getClassSerializer(componentType.asJavaClass());
                         int sz = cls.getArrayLength(value.get());
                         for (int i = 0; i < sz; ++i) {
                             Object component = cls.getArrayElement(value.get(), i);
-                            target.add(componentSerializer.serialize(context.get(), component));
+                            target.add(componentSerializer.get().serialize(context.get(), component));
                         }
                         return target;
                     });
@@ -148,11 +148,33 @@ public class JsonSerializerEmitter {
                 Value<Object> value = args[1];
                 Value<ObjectNode> target = bodyEm.emit(() -> ObjectNode.create());
                 bodyEm = emitIdentity(bodyEm, information, value, context, target);
-                emitProperties(bodyEm, information, value, target);
+                emitProperties(bodyEm, information, value, context, target);
                 Value<? extends Node> result = emitInheritance(bodyEm, information, target);
                 bodyEm.returnValue(() -> result.get());
             });
         }
+    }
+
+    private Value<JsonSerializer> getPrimitiveSerializer(Emitter<?> em, ReflectClass<?> cls) {
+        if (cls.isPrimitive()) {
+            switch (cls.getName()) {
+                case "boolean":
+                    return em.emit(() -> new BooleanSerializer());
+                case "char":
+                    return em.emit(() -> new CharacterSerializer());
+                case "byte":
+                case "short":
+                case "int":
+                    return em.emit(() -> new IntegerSerializer());
+                case "long":
+                case "float":
+                case "double":
+                    return em.emit(() -> new DoubleSerializer());
+            }
+        } else if (cls.getName().equals(String.class.getName())) {
+            return em.emit(() -> new StringSerializer());
+        }
+        return null;
     }
 
     private Emitter<Object> emitIdentity(Emitter<Object> em, ClassInformation information, Value<Object> value,
@@ -181,15 +203,15 @@ public class JsonSerializerEmitter {
     }
 
     private void emitProperties(Emitter<?> em, ClassInformation information, Value<Object> value,
-            Value<ObjectNode> target) {
+            Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         for (PropertyInformation property : information.properties.values()) {
             if (property.ignored) {
                 continue;
             }
             if (property.getter != null) {
-                emitGetter(em, property, value, target);
+                emitGetter(em, property, value, context, target);
             } else if (property.field != null) {
-                emitField(em, property, value, target);
+                emitField(em, property, value, context, target);
             }
         }
     }
@@ -240,37 +262,38 @@ public class JsonSerializerEmitter {
     }
 
     private void emitGetter(Emitter<?> em, PropertyInformation property, Value<Object> value,
-            Value<ObjectNode> target) {
+            Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         ReflectMethod method = property.getter;
         String outputName = property.outputName;
-        Value<Node> propertyValue = convertValue(em, em.emit(() -> method.invoke(value.get())), method.getReturnType(),
-                method);
+        Value<Node> propertyValue = convertValue(em, em.emit(() -> method.invoke(value.get())), context,
+                method.getReturnType(), method);
         em.emit(() -> target.get().set(outputName, propertyValue.get()));
     }
 
     private void emitField(Emitter<?> em, PropertyInformation property, Value<Object> value,
-            Value<ObjectNode> target) {
+            Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         ReflectField field = property.field;
         String outputName = property.outputName;
 
-        Value<Node> propertyValue = convertValue(em, em.emit(() -> field.get(value.get())), field.getType(), field);
+        Value<Node> propertyValue = convertValue(em, em.emit(() -> field.get(value.get())), context,
+                field.getType(), field);
         em.emit(() -> target.get().set(outputName, propertyValue.get()));
     }
 
-    private Value<Node> convertValue(Emitter<?> em, Value<Object> value, ReflectClass<?> type,
-            ReflectAnnotatedElement annotations) {
+    private Value<Node> convertValue(Emitter<?> em, Value<Object> value, Value<JsonSerializerContext> context,
+            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
         if (type.isPrimitive()) {
             return convertPrimitive(em, value, type);
         } else {
-            return convertNullable(em, value, type, annotations);
+            return convertNullable(em, value, context, type, annotations);
         }
     }
 
-    private Value<Node> convertNullable(Emitter<?> em, Value<Object> value, ReflectClass<?> type,
-            ReflectAnnotatedElement annotations) {
+    private Value<Node> convertNullable(Emitter<?> em, Value<Object> value, Value<JsonSerializerContext> context,
+            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
         Choice<Node> choice = em.choose(Node.class);
         choice.option(() -> value.get() == null).returnValue(() -> NullNode.instance());
-        Value<Node> result = convertObject(choice.defaultOption(), value, type, annotations);
+        Value<Node> result = convertObject(choice.defaultOption(), value, context, type, annotations);
         choice.defaultOption().returnValue(() -> result.get());
         return choice.getValue();
     }
@@ -297,8 +320,8 @@ public class JsonSerializerEmitter {
         throw new AssertionError("Unknown primitive type: " + type);
     }
 
-    private Value<Node> convertObject(Emitter<?> em, Value<Object> value, ReflectClass<?> type,
-            ReflectAnnotatedElement annotations) {
+    private Value<Node> convertObject(Emitter<?> em, Value<Object> value, Value<JsonSerializerContext> context,
+            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
         if (!type.isArray()) {
             if (type.getName().equals(String.class.getName())) {
                 return em.emit(() -> StringNode.create((String) value.get()));
@@ -307,7 +330,7 @@ public class JsonSerializerEmitter {
             }
         }
 
-        return em.emit(() -> JSON.serialize(value.get()));
+        return em.emit(() -> JSON.serialize(context.get(), value.get()));
     }
 
     private Value<Node> convertDate(Emitter<?> em, Value<Object> value, ReflectAnnotatedElement annotations) {

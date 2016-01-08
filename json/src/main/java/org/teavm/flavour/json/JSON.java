@@ -83,7 +83,6 @@ public final class JSON {
         new JsonSerializerEmitter(em).returnClassSerializer(cls);
     }
 
-
     public static native <T> T deserialize(Node node, Class<T> type);
     @SuppressWarnings("unchecked")
     private static <T> void deserialize(Emitter<T> em, Value<Node> node, ReflectClass<T> type) {

@@ -969,8 +969,14 @@ public class CompositeMethodGenerator {
                     GetElementInstruction insn = new GetElementInstruction();
                     insn.setArray(unwrapArray(reflectClass.type, var(arguments.get(0))));
                     insn.setIndex(var(arguments.get(1)));
-                    insn.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    insn.setReceiver(program.createVariable());
                     add(insn);
+
+                    AssignInstruction assign = new AssignInstruction();
+                    assign.setAssignee(box(insn.getReceiver(), ((ValueType.Array) reflectClass.type).getItemType()));
+                    assign.setReceiver(receiver != null ? var(receiver) : program.createVariable());
+                    add(assign);
+
                     return true;
                 }
                 default:

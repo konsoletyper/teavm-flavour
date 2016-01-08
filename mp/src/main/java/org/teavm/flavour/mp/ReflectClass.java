@@ -56,8 +56,8 @@ public interface ReflectClass<T> extends ReflectAnnotatedElement {
     <U> ReflectClass<U> asSubclass(Class<U> cls);
 
     default boolean isAssignableFrom(ReflectClass<?> cls) {
-        return cls == this || getSuperclass() != null && getSuperclass().isAssignableFrom(cls)
-                || Arrays.stream(getInterfaces()).anyMatch(c -> c.isAssignableFrom(cls));
+        return cls == this || cls.getSuperclass() != null && this.isAssignableFrom(cls.getSuperclass())
+                || Arrays.stream(cls.getInterfaces()).anyMatch(c -> isAssignableFrom(c));
     }
 
     default boolean isAssignableFrom(Class<?> cls) {
