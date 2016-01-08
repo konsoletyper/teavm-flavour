@@ -29,6 +29,7 @@ import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
 import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.impl.meta.ParameterKind;
@@ -65,9 +66,12 @@ class PermutationGenerator {
     Method proxyMethod;
     ValueType[][] variants;
     int[] indexes;
+    private ProxyClassLoader classLoader;
+    private boolean annotationErrorReported;
 
     public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
-            CallLocation location, EmitterContextImpl emitterContext, Map<Object, MethodReference> usageMap) {
+            CallLocation location, EmitterContextImpl emitterContext, Map<Object, MethodReference> usageMap,
+            ProxyClassLoader classLoader) {
         this.agent = agent;
         this.diagnostics = agent.getDiagnostics();
         this.model = model;
@@ -75,6 +79,7 @@ class PermutationGenerator {
         this.location = location;
         this.emitterContext = emitterContext;
         this.usageMap = usageMap;
+        this.classLoader = classLoader;
     }
 
     public void installProxyEmitter() {
@@ -84,10 +89,8 @@ class PermutationGenerator {
                 location);
         getClassDep.getThrown().connect(methodDep.getThrown());
 
-        ProxyClassLoader proxyClassLoader = new ProxyClassLoader(agent.getClassLoader(),
-                model.getProxyMethod().getClassName());
         try {
-            proxyMethod = getJavaMethod(proxyClassLoader, model.getProxyMethod());
+            proxyMethod = getJavaMethod(classLoader, model.getProxyMethod());
             proxyMethod.setAccessible(true);
         } catch (ReflectiveOperationException e) {
             StringWriter stackTraceWriter = new StringWriter();
@@ -182,6 +185,13 @@ class PermutationGenerator {
     }
 
     private void emitPermutation(ProxyParameter masterParam, ValueType type, MethodDependency getClassDep) {
+        if (!classLoader.isCompileTimeClass(model.getProxyMethod().getClassName()) && !annotationErrorReported) {
+            annotationErrorReported = true;
+            diagnostics.error(location, "Metaprogramming method should be withing class marked with "
+                    + "{{c0}} annotation", CompileTime.class.getName());
+            return;
+        }
+
         Object key = getProxyKey(masterParam, type);
         if (usageMap.containsKey(key)) {
             model.getUsages().put(key, usageMap.get(key));

@@ -128,7 +128,7 @@ public class ReflectMethodImpl implements ReflectMethod {
     @Override
     public ReflectAnnotatedElement getParameterAnnotations(int index) {
         if (parameterAnnotations == null) {
-            Arrays.stream(method.getParameterAnnotations())
+            parameterAnnotations = Arrays.stream(method.getParameterAnnotations())
                     .map(annot -> new ReflectAnnotatedElementImpl(context, annot))
                     .toArray(sz -> new ReflectAnnotatedElementImpl[sz]);
         }

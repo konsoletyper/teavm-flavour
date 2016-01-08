@@ -24,6 +24,7 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
+import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Reflected;
@@ -33,6 +34,7 @@ import org.teavm.flavour.mp.Value;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public final class TeaVMJSONRunner {
     private TeaVMJSONRunner() {
     }

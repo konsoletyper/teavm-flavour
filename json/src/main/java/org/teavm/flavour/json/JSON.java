@@ -38,6 +38,7 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.StringNode;
+import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
@@ -48,6 +49,7 @@ import org.teavm.flavour.mp.Value;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public final class JSON {
     private static Map<Class<?>, JsonDeserializer> standardDeserializers;
 
@@ -83,6 +85,7 @@ public final class JSON {
         new JsonSerializerEmitter(em).returnClassSerializer(cls);
     }
 
+    @Reflected
     public static native <T> T deserialize(Node node, Class<T> type);
     @SuppressWarnings("unchecked")
     private static <T> void deserialize(Emitter<T> em, Value<Node> node, ReflectClass<T> type) {

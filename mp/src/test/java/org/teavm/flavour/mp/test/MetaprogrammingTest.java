@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.function.Consumer;
 import org.junit.Test;
 import org.teavm.flavour.mp.Choice;
+import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Computation;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
@@ -36,6 +37,7 @@ import org.teavm.flavour.mp.test.subpackage.MetaprogrammingGenerator;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public class MetaprogrammingTest {
     @Test
     public void works() {

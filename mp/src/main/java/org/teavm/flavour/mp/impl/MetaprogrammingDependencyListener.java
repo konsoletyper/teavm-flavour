@@ -48,6 +48,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private EmitterContextImpl emitterContext;
     private Map<Object, MethodReference> usageMap = new HashMap<>();
     private MetaprogrammingTransformer transformer;
+    private ProxyClassLoader proxyClassLoader;
 
     public MetaprogrammingDependencyListener(MetaprogrammingTransformer transformer) {
         this.transformer = transformer;
@@ -55,6 +56,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
     @Override
     public void started(DependencyAgent agent) {
+        proxyClassLoader = new ProxyClassLoader(agent.getClassLoader());
         describer = new ProxyDescriber(agent.getDiagnostics(), agent.getClassSource());
         reflectContext = new ReflectContext(agent.getClassSource(), agent.getClassLoader());
         emitterContext = new EmitterContextImpl(agent, reflectContext);
@@ -67,7 +69,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
         ProxyModel proxy = describer.getProxy(methodDep.getReference());
         if (proxy != null && installedProxies.add(proxy)) {
-            new PermutationGenerator(agent, proxy, methodDep, location, emitterContext, usageMap)
+            new PermutationGenerator(agent, proxy, methodDep, location, emitterContext, usageMap, proxyClassLoader)
                     .installProxyEmitter();
         }
     }

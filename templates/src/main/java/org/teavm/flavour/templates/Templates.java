@@ -17,6 +17,7 @@ package org.teavm.flavour.templates;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
@@ -28,6 +29,7 @@ import org.teavm.jso.dom.html.HTMLElement;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public final class Templates {
     private static boolean updating;
     private static List<RootComponent> rootComponents = new ArrayList<>();

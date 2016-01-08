@@ -32,14 +32,12 @@ import org.teavm.flavour.mp.CompileTime;
  * @author Alexey Andreev
  */
 public class ProxyClassLoader extends ClassLoader {
-    private String className;
     private ProxyMethodInstrumentation instrumentation = new ProxyMethodInstrumentation();
     private Map<String, Boolean> compileTimeClasses = new HashMap<>();
     private Map<String, Boolean> compileTimePackages = new HashMap<>();
 
-    public ProxyClassLoader(ClassLoader parent, String className) {
+    public ProxyClassLoader(ClassLoader parent) {
         super(parent);
-        this.className = className;
     }
 
     @Override
@@ -56,15 +54,11 @@ public class ProxyClassLoader extends ClassLoader {
         }
     }
 
-    private boolean isCompileTimeClass(String name) {
+    public boolean isCompileTimeClass(String name) {
         return compileTimeClasses.computeIfAbsent(name, n -> checkIfCompileTime(n));
     }
 
     private boolean checkIfCompileTime(String name) {
-        if (className.equals(name)) {
-            return true;
-        }
-
         String packageName = name;
         while (true) {
             int index = packageName.lastIndexOf('.');

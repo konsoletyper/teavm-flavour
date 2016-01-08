@@ -199,6 +199,7 @@ public class JsonSerializerEmitter {
         Choice<Object> choice = em.choose(Object.class);
         choice.option(() -> has.get()).returnValue(() -> id.get());
         choice.defaultOption().emit(() -> target.get().set(idProperty, id.get()));
+        em.returnValue(choice.getValue());
         return choice.defaultOption();
     }
 

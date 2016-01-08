@@ -277,6 +277,12 @@ public class CompositeMethodGenerator {
             insn.setConstant((ValueType) value);
             add(insn);
             return insn.getReceiver();
+        } else if (value instanceof Class<?>) {
+            ClassConstantInstruction insn = new ClassConstantInstruction();
+            insn.setReceiver(program.createVariable());
+            insn.setConstant(ValueType.parse((Class<?>) value));
+            add(insn);
+            return insn.getReceiver();
         } else if (value instanceof ValueImpl) {
             return varContext.emitVariable((ValueImpl<?>) value, new CallLocation(templateMethod, location));
         } else if (value instanceof LazyValueImpl) {
