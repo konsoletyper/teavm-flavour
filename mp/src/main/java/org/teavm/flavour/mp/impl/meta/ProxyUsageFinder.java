@@ -16,6 +16,7 @@
 package org.teavm.flavour.mp.impl.meta;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import org.teavm.model.ElementModifier;
 import org.teavm.model.InvokeDynamicInstruction;
 import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
 import org.teavm.model.ValueType;
 import org.teavm.model.Variable;
@@ -84,14 +86,18 @@ public class ProxyUsageFinder {
     private ProxyDescriber describer;
     private Diagnostics diagnostics;
     private int suffixGenerator;
+    Map<MethodReference, List<Runnable>> deferredErrors = new HashMap<>();
 
     public ProxyUsageFinder(ProxyDescriber describer, Diagnostics diagnostics) {
         this.describer = describer;
         this.diagnostics = diagnostics;
     }
 
-    public void findUsages(ClassHolder cls, MethodHolder method) {
-        Program program = method.getProgram();
+    public List<Runnable> getDeferredErrors(MethodReference method) {
+        return deferredErrors.getOrDefault(method, Collections.emptyList());
+    }
+
+    public void findUsages(ClassHolder cls, MethodReference method, Program program) {
         if (program == null) {
             return;
         }
@@ -114,21 +120,29 @@ public class ProxyUsageFinder {
         }
     }
 
-    private void processUsage(ClassHolder cls, MethodHolder method, ProgramAnalyzer analyzer, Invocation invocation) {
-        CallLocation location = new CallLocation(method.getReference(), invocation.insn.getLocation());
+    private void processUsage(ClassHolder cls, MethodReference method, ProgramAnalyzer analyzer,
+            Invocation invocation) {
+        CallLocation location = new CallLocation(method, invocation.insn.getLocation());
         List<ProxyParameter> parameters = invocation.proxy.getParameters();
         List<CapturedValue> constants = new ArrayList<>();
         List<ValueType> usageSignatureBuilder = new ArrayList<>();
+        boolean errors = false;
         for (int i = 0; i < parameters.size(); ++i) {
             ProxyParameter proxyParam = parameters.get(i);
             Variable arg = invocation.insn.getArguments().get(i);
             if (proxyParam.getKind() == ParameterKind.CONSTANT) {
                 CapturedValue cst = analyzer.constant(arg.getIndex());
                 if (cst == null) {
-                    diagnostics.error(location, "Parameter " + (i + 1) + " of proxy method has type {{c0}}, "
-                            + "this means that you can only pass constant literals to parameter " + i + " "
-                            + "of method {{m1}}", invocation.proxy.getProxyMethod().parameterType(i + 1),
-                            invocation.proxy.getMethod());
+                    errors = true;
+                    List<Runnable> deferredErrorList = deferredErrors.computeIfAbsent(method,
+                            m -> new ArrayList<>());
+                    int index = i;
+                    deferredErrorList.add(() -> {
+                        diagnostics.error(location, "Parameter " + (index + 1) + " of proxy method has type {{t0}}, "
+                                + "this means that you can only pass constant literals to parameter " + index + " "
+                                + "of method {{m1}}", invocation.proxy.getProxyMethod().parameterType(index + 1),
+                                invocation.proxy.getMethod());
+                    });
                 }
                 constants.add(cst);
             } else {
@@ -136,7 +150,7 @@ public class ProxyUsageFinder {
                 usageSignatureBuilder.add(parameters.get(i).getType());
             }
         }
-        if (usageSignatureBuilder.size() == invocation.insn.getMethod().parameterCount()) {
+        if (usageSignatureBuilder.size() == invocation.insn.getMethod().parameterCount() || errors) {
             return;
         }
 

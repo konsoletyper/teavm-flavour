@@ -16,34 +16,20 @@
 package org.teavm.flavour.json;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import org.teavm.flavour.json.deserializer.ArrayDeserializer;
-import org.teavm.flavour.json.deserializer.BooleanArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanDeserializer;
-import org.teavm.flavour.json.deserializer.ByteArrayDeserializer;
 import org.teavm.flavour.json.deserializer.ByteDeserializer;
-import org.teavm.flavour.json.deserializer.CharArrayDeserializer;
 import org.teavm.flavour.json.deserializer.CharacterDeserializer;
-import org.teavm.flavour.json.deserializer.DoubleArrayDeserializer;
 import org.teavm.flavour.json.deserializer.DoubleDeserializer;
-import org.teavm.flavour.json.deserializer.FloatArrayDeserializer;
 import org.teavm.flavour.json.deserializer.FloatDeserializer;
-import org.teavm.flavour.json.deserializer.IntArrayDeserializer;
 import org.teavm.flavour.json.deserializer.IntegerDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
-import org.teavm.flavour.json.deserializer.ListDeserializer;
-import org.teavm.flavour.json.deserializer.LongArrayDeserializer;
 import org.teavm.flavour.json.deserializer.LongDeserializer;
-import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.NumberDeserializer;
-import org.teavm.flavour.json.deserializer.ObjectDeserializer;
-import org.teavm.flavour.json.deserializer.SetDeserializer;
-import org.teavm.flavour.json.deserializer.ShortArrayDeserializer;
 import org.teavm.flavour.json.deserializer.ShortDeserializer;
 import org.teavm.flavour.json.deserializer.StringDeserializer;
+import org.teavm.flavour.json.emit.JsonDeserializerEmitter;
 import org.teavm.flavour.json.emit.JsonSerializerEmitter;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
@@ -56,6 +42,7 @@ import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.ReflectValue;
 import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.Value;
 
 /**
  *
@@ -96,13 +83,18 @@ public final class JSON {
         new JsonSerializerEmitter(em).returnClassSerializer(cls);
     }
 
+
+    public static native <T> T deserialize(Node node, Class<T> type);
     @SuppressWarnings("unchecked")
-    public static <T> T deserialize(Node node, @JSONClassArgument Class<T> type) {
-        JsonDeserializer deserializer = getClassDeserializer(type);
-        if (deserializer == null) {
-            throw new IllegalArgumentException("Don't know how to deserialize " + type.getName());
-        }
-        return (T) deserializer.deserialize(new JsonDeserializerContext(), node);
+    private static <T> void deserialize(Emitter<T> em, Value<Node> node, ReflectClass<T> type) {
+        String typeName = type.getName();
+        em.returnValue(() -> {
+            JsonDeserializer deserializer = getClassDeserializer(type.asJavaClass());
+            if (deserializer == null) {
+                throw new IllegalArgumentException("Don't know how to deserialize " + typeName);
+            }
+            return (T) deserializer.deserialize(new JsonDeserializerContext(), node.get());
+        });
     }
 
     private static void ensureStandardDeserializers() {
@@ -124,50 +116,11 @@ public final class JSON {
         standardDeserializers.put(String.class, new StringDeserializer());
     }
 
-    public static JsonDeserializer getClassDeserializer(@JSONClassArgument Class<?> cls) {
-        ensureStandardDeserializers();
-        JsonDeserializer deserializer = standardDeserializers.get(cls);
-        if (deserializer != null) {
-            return deserializer;
-        }
-
-        if (cls.isArray()) {
-            if (cls.getComponentType().isPrimitive()) {
-                switch (cls.getComponentType().getName()) {
-                    case "boolean":
-                        return new BooleanArrayDeserializer();
-                    case "byte":
-                        return new ByteArrayDeserializer();
-                    case "char":
-                        return new CharArrayDeserializer();
-                    case "short":
-                        return new ShortArrayDeserializer();
-                    case "int":
-                        return new IntArrayDeserializer();
-                    case "long":
-                        return new LongArrayDeserializer();
-                    case "float":
-                        return new FloatArrayDeserializer();
-                    case "double":
-                        return new DoubleArrayDeserializer();
-                }
-            }
-            return new ArrayDeserializer(cls.getComponentType(), getClassDeserializer(cls.getComponentType()));
-        }
-        if (List.class.isAssignableFrom(cls)) {
-            return new ListDeserializer(new ObjectDeserializer());
-        }
-        if (Set.class.isAssignableFrom(cls)) {
-            return new SetDeserializer(deserializer);
-        }
-        if (Map.class.isAssignableFrom(cls)) {
-            return new MapDeserializer(new StringDeserializer(), new ObjectDeserializer());
-        }
-
-        return findClassDeserializer(cls.getName());
+    @Reflected
+    public static native JsonDeserializer getClassDeserializer(Class<?> cls);
+    private static void getClassDeserializer(Emitter<JsonDeserializer> em, ReflectClass<?> cls) {
+        em.returnValue(new JsonDeserializerEmitter(em).getClassDeserializer(cls));
     }
-
-    static native JsonDeserializer findClassDeserializer(String cls);
 
     public static boolean deserializeBoolean(Node node) {
         if (!node.isBoolean()) {

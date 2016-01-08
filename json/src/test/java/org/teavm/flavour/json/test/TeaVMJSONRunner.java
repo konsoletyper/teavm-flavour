@@ -19,12 +19,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.teavm.flavour.json.JSON;
-import org.teavm.flavour.json.JSONClassArgument;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.Value;
 
 /**
  *
@@ -38,8 +41,10 @@ public final class TeaVMJSONRunner {
         return convert(new JsonNodeFactory(false), JSON.serialize(value));
     }
 
-    public static <T> T deserialize(String json, @JSONClassArgument Class<T> type) {
-        return JSON.deserialize(Node.parse(json), type);
+    @Reflected
+    public static native <T> T deserialize(String json, Class<T> type);
+    private static <T> void deserialize(Emitter<T> em, Value<String> json, ReflectClass<T> type) {
+        em.returnValue(() -> JSON.deserialize(Node.parse(json.get()), type.asJavaClass()));
     }
 
     public static final JsonNode convert(JsonNodeFactory nf, Node node) {

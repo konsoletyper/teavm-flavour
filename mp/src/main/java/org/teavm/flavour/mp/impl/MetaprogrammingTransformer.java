@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.mp.impl;
 
+import java.util.Collections;
+import java.util.List;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.flavour.mp.impl.meta.ProxyDescriber;
 import org.teavm.flavour.mp.impl.meta.ProxyUsageFinder;
@@ -22,6 +24,7 @@ import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassHolderTransformer;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.MethodHolder;
+import org.teavm.model.MethodReference;
 
 /**
  *
@@ -38,7 +41,11 @@ public class MetaprogrammingTransformer implements ClassHolderTransformer {
             usageFinder = new ProxyUsageFinder(describer, diagnostics);
         }
         for (MethodHolder method : cls.getMethods().toArray(new MethodHolder[0])) {
-            usageFinder.findUsages(cls, method);
+            usageFinder.findUsages(cls, method.getReference(), method.getProgram());
         }
+    }
+
+    public List<Runnable> getDeferredErrors(MethodReference method) {
+        return usageFinder != null ? usageFinder.getDeferredErrors(method) : Collections.emptyList();
     }
 }

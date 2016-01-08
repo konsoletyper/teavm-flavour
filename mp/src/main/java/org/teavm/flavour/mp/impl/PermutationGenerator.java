@@ -21,8 +21,10 @@ import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.DependencyType;
 import org.teavm.dependency.MethodDependency;
@@ -33,8 +35,12 @@ import org.teavm.flavour.mp.impl.meta.ParameterKind;
 import org.teavm.flavour.mp.impl.meta.ProxyModel;
 import org.teavm.flavour.mp.impl.meta.ProxyParameter;
 import org.teavm.flavour.mp.impl.optimize.BoxingEliminator;
+import org.teavm.model.AccessLevel;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.ElementModifier;
+import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
 import org.teavm.model.ValueType;
@@ -47,7 +53,7 @@ import org.teavm.model.instructions.InvokeInstruction;
  * @author Alexey Andreev
  */
 class PermutationGenerator {
-    private int suffixGenerator;
+    private static Map<DependencyAgent, Integer> suffixGenerator = new WeakHashMap<>();
     DependencyAgent agent;
     private EmitterContextImpl emitterContext;
     private Map<Object, MethodReference> usageMap;
@@ -57,7 +63,7 @@ class PermutationGenerator {
     Diagnostics diagnostics;
     EmitterImpl<Object> emitter;
     Method proxyMethod;
-    String[][] variants;
+    ValueType[][] variants;
     int[] indexes;
 
     public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
@@ -147,7 +153,7 @@ class PermutationGenerator {
     }
 
     private void consumeType(ProxyParameter param, DependencyType type, MethodDependency getClassDep) {
-        variants = new String[model.getParameters().size()][];
+        variants = new ValueType[model.getParameters().size()][];
         indexes = new int[variants.length];
         for (ProxyParameter otherParam : model.getParameters()) {
             if (otherParam == param || otherParam.getKind() != ParameterKind.REFLECT_VALUE) {
@@ -157,12 +163,13 @@ class PermutationGenerator {
             if (types.length == 0) {
                 return;
             }
-            variants[otherParam.getIndex()] = types;
+            variants[otherParam.getIndex()] = Arrays.stream(types).map(this::findClass)
+                    .toArray(sz -> new ValueType[sz]);
         }
 
         int i;
         do {
-            emitPermutation(param, type, getClassDep);
+            emitPermutation(param, findClass(type.getName()), getClassDep);
             for (i = 0; i < variants.length; ++i) {
                 if (variants[i] != null) {
                     if (++indexes[i] < variants[i].length) {
@@ -174,7 +181,7 @@ class PermutationGenerator {
         } while (i < variants.length);
     }
 
-    private void emitPermutation(ProxyParameter masterParam, DependencyType type, MethodDependency getClassDep) {
+    private void emitPermutation(ProxyParameter masterParam, ValueType type, MethodDependency getClassDep) {
         Object key = getProxyKey(masterParam, type);
         if (usageMap.containsKey(key)) {
             model.getUsages().put(key, usageMap.get(key));
@@ -209,8 +216,8 @@ class PermutationGenerator {
                             param.getType());
                     break;
                 case REFLECT_VALUE: {
-                    ReflectClass<?> cls = emitterContext.findClass(param != masterParam
-                            ? variants[j][indexes[j]] : type.getName());
+                    ReflectClass<?> cls = emitterContext.reflectContext.getClass(param != masterParam
+                            ? variants[j][indexes[j]] : type);
                     proxyArgs[i + 1] = new ReflectValueImpl<>(getParameterVar(param), cls,
                             emitter.generator.varContext);
                     break;
@@ -223,7 +230,18 @@ class PermutationGenerator {
             emitter.close();
             Program program = emitter.generator.getProgram();
             new BoxingEliminator().optimize(program);
-            agent.submitMethod(implRef, program);
+
+            ClassHolder cls = new ClassHolder(implRef.getClassName());
+            cls.setLevel(AccessLevel.PUBLIC);
+            cls.setParent("java.lang.Object");
+
+            MethodHolder method = new MethodHolder(implRef.getDescriptor());
+            method.setLevel(AccessLevel.PUBLIC);
+            method.getModifiers().add(ElementModifier.STATIC);
+            method.setProgram(program);
+            cls.addMethod(method);
+
+            agent.submitClass(cls);
         } catch (IllegalAccessException | InvocationTargetException e) {
             StringWriter writer = new StringWriter();
             e.printStackTrace(new PrintWriter(writer));
@@ -247,9 +265,34 @@ class PermutationGenerator {
         }
         implMethod.getThrown().connect(methodDep.getThrown());
         implMethod.use();
+
+        agent.linkClass(implRef.getClassName(), location);
     }
 
-    private Object getProxyKey(ProxyParameter masterParam, DependencyType type) {
+    private ValueType findClass(String name) {
+        // TODO: dirty hack due to bugs somewhere in TeaVM
+        if (name.startsWith("[")) {
+            ValueType type = ValueType.parseIfPossible(name);
+            if (type != null) {
+                return type;
+            }
+
+            int degree = 0;
+            while (name.charAt(degree) == '[') {
+                ++degree;
+            }
+            type = ValueType.object(name.substring(degree));
+
+            while (degree-- > 0) {
+                type = ValueType.arrayOf(type);
+            }
+            return type;
+        } else {
+            return ValueType.object(name);
+        }
+    }
+
+    private Object getProxyKey(ProxyParameter masterParam, ValueType type) {
         List<Object> key = new ArrayList<>();
         key.add(model.getProxyMethod());
 
@@ -261,7 +304,7 @@ class PermutationGenerator {
                     key.add(param.getValue());
                     break;
                 case REFLECT_VALUE:
-                    key.add(param != masterParam ? variants[j][indexes[j]] : type.getName());
+                    key.add(param != masterParam ? variants[j][indexes[j]] : type);
                     break;
                 case VALUE:
                     break;
@@ -271,10 +314,10 @@ class PermutationGenerator {
         return key;
     }
 
-    private MethodReference buildMethodReference(ProxyParameter param, DependencyType type) {
+    private MethodReference buildMethodReference(ProxyParameter param, ValueType type) {
         if (variants == null) {
-            MethodReference ref = new MethodReference(model.getMethod().getClassName(),
-                    model.getMethod().getName() + "$defaultUsage", model.getMethod().getSignature());
+            MethodReference ref = new MethodReference(model.getMethod().getClassName() + "$PROXY$" + getSuffix(),
+                    model.getMethod().getDescriptor());
             return ref;
         }
 
@@ -282,20 +325,26 @@ class PermutationGenerator {
         ValueType[] signature = new ValueType[model.getParameters().size() + 1];
         for (i = 0; i < variants.length; ++i) {
             if (variants[i] != null) {
-                String variant = variants[i][indexes[i]];
-                signature[i] = ValueType.object(variant);
+                ValueType variant = variants[i][indexes[i]];
+                signature[i] = variant;
             } else if (param != null && param.getIndex() == i) {
-                signature[param.getIndex()] = ValueType.object(type.getName());
+                signature[param.getIndex()] = type;
             } else {
                 signature[i] = model.getParameters().get(i).getType();
             }
         }
         signature[i] = model.getMethod().getReturnType();
 
-        MethodReference implRef = new MethodReference(model.getProxyMethod().getClassName(),
-                model.getMethod().getName() + "$proxy" + suffixGenerator++, signature);
+        MethodReference implRef = new MethodReference(model.getProxyMethod().getClassName() + "$PROXY$"
+                + getSuffix(), model.getMethod().getName(), signature);
 
         return implRef;
+    }
+
+    private int getSuffix() {
+        int suffix = suffixGenerator.getOrDefault(agent, 0);
+        suffixGenerator.put(agent, suffix + 1);
+        return suffix;
     }
 
     private Method getJavaMethod(ClassLoader classLoader, MethodReference ref) throws ReflectiveOperationException {

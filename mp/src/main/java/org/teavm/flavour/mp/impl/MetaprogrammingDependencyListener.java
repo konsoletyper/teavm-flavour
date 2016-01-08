@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.teavm.dependency.AbstractDependencyListener;
 import org.teavm.dependency.DependencyAgent;
 import org.teavm.dependency.MethodDependency;
@@ -46,6 +47,11 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private ReflectContext reflectContext;
     private EmitterContextImpl emitterContext;
     private Map<Object, MethodReference> usageMap = new HashMap<>();
+    private MetaprogrammingTransformer transformer;
+
+    public MetaprogrammingDependencyListener(MetaprogrammingTransformer transformer) {
+        this.transformer = transformer;
+    }
 
     @Override
     public void started(DependencyAgent agent) {
@@ -57,6 +63,8 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
     @Override
     public void methodReached(DependencyAgent agent, MethodDependency methodDep, CallLocation location) {
+        transformer.getDeferredErrors(methodDep.getReference()).forEach(err -> err.run());
+
         ProxyModel proxy = describer.getProxy(methodDep.getReference());
         if (proxy != null && installedProxies.add(proxy)) {
             new PermutationGenerator(agent, proxy, methodDep, location, emitterContext, usageMap)
@@ -94,11 +102,25 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
             MethodDependencyInfo methodDep = agent.getMethod(proxy.getMethod());
 
             String[][] typeVariants = new String[proxy.getParameters().size()][];
-            ValueEmitter sb = pe.construct(StringBuilder.class);
             ValueEmitter[] paramVars = new ValueEmitter[proxy.getParameters().size()];
+
+            List<ProxyParameter> reflectParameters = proxy.getParameters().stream()
+                    .filter(param -> param.getKind() == ParameterKind.REFLECT_VALUE)
+                    .collect(Collectors.toList());
+
             for (ProxyParameter param : proxy.getParameters()) {
                 paramVars[param.getIndex()] = pe.var(param.getIndex() + 1, param.getType());
-                if (param.getKind() == ParameterKind.REFLECT_VALUE) {
+            }
+
+            ValueEmitter tag;
+            if (reflectParameters.size() > 1) {
+                ValueEmitter sb = pe.construct(StringBuilder.class);
+                boolean first = true;
+                for (ProxyParameter param : reflectParameters) {
+                    if (!first) {
+                        sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant("|"));
+                    }
+                    first = false;
                     ValueEmitter paramVar = paramVars[param.getIndex()];
                     ValueEmitter typeNameVar = paramVar
                             .invokeVirtual("getClass", Class.class)
@@ -109,16 +131,26 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
                         continue proxy;
                     }
                 }
+                tag = sb.invokeVirtual("toString", String.class);
+            } else {
+                ProxyParameter param = reflectParameters.get(0);
+                ValueEmitter paramVar = paramVars[param.getIndex()];
+                tag = paramVar.invokeVirtual("getClass", Class.class).invokeVirtual("getName", String.class);
             }
 
-            StringChooseEmitter choice = pe.stringChoice(sb.invokeVirtual("toString", String.class));
+            StringChooseEmitter choice = pe.stringChoice(tag);
             for (Map.Entry<Object, MethodReference> usageEntry : proxy.getUsages().entrySet()) {
                 @SuppressWarnings("unchecked")
                 List<Object> key = (List<Object>) usageEntry.getKey();
                 StringBuilder stringKey = new StringBuilder();
+                boolean first = true;
                 for (int i = 0; i < proxy.getCallParameters().size(); ++i) {
                     if (proxy.getCallParameters().get(i).getKind() == ParameterKind.REFLECT_VALUE) {
-                        stringKey.append(key.get(i + 1).toString());
+                        if (!first) {
+                            stringKey.append("|");
+                        }
+                        first = false;
+                        stringKey.append(getTypeName((ValueType) key.get(i + 1)));
                     }
                 }
 
@@ -147,5 +179,35 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
 
             agent.submitMethod(proxy.getMethod(), pe.getProgram());
         }
+    }
+
+    private String getTypeName(ValueType type) {
+        if (type instanceof ValueType.Primitive) {
+            switch (((ValueType.Primitive) type).getKind()) {
+                case BOOLEAN:
+                    return "boolean";
+                case BYTE:
+                    return "byte";
+                case SHORT:
+                    return "short";
+                case CHARACTER:
+                    return "char";
+                case INTEGER:
+                    return "int";
+                case LONG:
+                    return "long";
+                case FLOAT:
+                    return "float";
+                case DOUBLE:
+                    return "double";
+            }
+        } else if (type instanceof ValueType.Object) {
+            return ((ValueType.Object) type).getClassName();
+        } else if (type instanceof ValueType.Array) {
+            return type.toString().replace('/', '.');
+        } else if (type == ValueType.VOID) {
+            return "void";
+        }
+        throw new AssertionError("Unsupported type: " + type);
     }
 }

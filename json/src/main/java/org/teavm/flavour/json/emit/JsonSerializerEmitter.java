@@ -80,7 +80,8 @@ public class JsonSerializerEmitter {
     }
 
     public void returnClassSerializer(ReflectClass<?> cls) {
-        em.returnValue(getClassSerializer(cls));
+        Value<JsonSerializer> serializer = getClassSerializer(cls);
+        em.returnValue(serializer != null ? serializer : () -> null);
     }
 
     public Value<JsonSerializer> getClassSerializer(ReflectClass<?> cls) {
@@ -147,7 +148,7 @@ public class JsonSerializerEmitter {
                 Value<Object> value = args[1];
                 Value<ObjectNode> target = bodyEm.emit(() -> ObjectNode.create());
                 bodyEm = emitIdentity(bodyEm, information, value, context, target);
-                emitProperties(em, information, value, target);
+                emitProperties(bodyEm, information, value, target);
                 Value<? extends Node> result = emitInheritance(bodyEm, information, target);
                 bodyEm.returnValue(() -> result.get());
             });

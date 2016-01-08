@@ -62,8 +62,10 @@ class ClassInformationProvider {
         }
         ClassInformation info = createClassInformation(className);
         cache.put(className, info);
-        ReflectClass<?> cls = context.findClass(className);
-        getSubTypes(info, cls);
+        if (info != null) {
+            ReflectClass<?> cls = context.findClass(className);
+            getSubTypes(info, cls);
+        }
         return info;
     }
 

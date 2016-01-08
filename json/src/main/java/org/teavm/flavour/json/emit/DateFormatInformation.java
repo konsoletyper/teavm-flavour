@@ -32,6 +32,9 @@ class DateFormatInformation {
             return;
         }
         JsonFormat format = annotations.getAnnotation(JsonFormat.class);
+        if (format == null) {
+            return;
+        }
 
         if (format.shape() == JsonFormat.Shape.STRING) {
             asString = true;
