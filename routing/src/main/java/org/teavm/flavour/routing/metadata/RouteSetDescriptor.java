@@ -18,22 +18,23 @@ package org.teavm.flavour.routing.metadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class RouteSetDescriptor {
-    String className;
+    ReflectClass<?> type;
     List<RouteDescriptor> routes = new ArrayList<>();
     private List<RouteDescriptor> readonlyRoutes;
 
-    public RouteSetDescriptor(String className) {
-        this.className = className;
+    public RouteSetDescriptor(ReflectClass<?> type) {
+        this.type = type;
     }
 
-    public String getClassName() {
-        return className;
+    public ReflectClass<?> getType() {
+        return type;
     }
 
     public List<RouteDescriptor> getRoutes() {

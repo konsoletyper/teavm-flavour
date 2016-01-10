@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,23 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing.emit;
+@CompileTime
+package org.teavm.flavour.routing.parsing;
 
-import org.teavm.jso.impl.JSOPlugin;
-import org.teavm.vm.spi.Before;
-import org.teavm.vm.spi.Requires;
-import org.teavm.vm.spi.TeaVMHost;
-import org.teavm.vm.spi.TeaVMPlugin;
-
-/**
- *
- * @author Alexey Andreev
- */
-@Before(JSOPlugin.class)
-@Requires(JSOPlugin.class)
-public class RoutingPlugin implements TeaVMPlugin {
-    @Override
-    public void install(TeaVMHost host) {
-        host.add(new RoutingDependencyListener());
-    }
-}
+import org.teavm.flavour.mp.CompileTime;

@@ -102,6 +102,11 @@ public class EmitterContextImpl implements EmitterContext {
         return (ReflectClassImpl<T[]>) reflectContext.getClass(ValueType.arrayOf(componentTypeImpl.type));
     }
 
+    @Override
+    public ReflectClass<?> createClass(byte[] bytecode) {
+        return findClass(agent.submitClassFile(bytecode).replace('/', '.'));
+    }
+
     public String createProxyName(String className) {
         int suffix = proxySuffixGenerators.getOrDefault(className, 0);
         proxySuffixGenerators.put(className, suffix + 1);

@@ -15,24 +15,24 @@
  */
 package org.teavm.flavour.routing.metadata;
 
-import org.teavm.model.MethodDescriptor;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class RouteDescriptor {
-    private MethodDescriptor method;
+    private ReflectMethod method;
     private String[] pathParts;
     private ParameterDescriptor[] parameters;
 
-    public RouteDescriptor(MethodDescriptor method, String[] pathParts, ParameterDescriptor[] parameters) {
+    public RouteDescriptor(ReflectMethod method, String[] pathParts, ParameterDescriptor[] parameters) {
         this.method = method;
         this.pathParts = pathParts;
         this.parameters = parameters;
     }
 
-    public MethodDescriptor getMethod() {
+    public ReflectMethod getMethod() {
         return method;
     }
 

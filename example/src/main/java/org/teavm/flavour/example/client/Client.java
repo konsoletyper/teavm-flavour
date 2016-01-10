@@ -34,10 +34,9 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
 
     public static void main(String[] args) {
         Client client = new Client();
-        new RouteBinder()
-                .add(client)
-                .withDefault(ApplicationRoute.class, route -> route.productList())
-                .update();
+        RouteBinder binder = new RouteBinder();
+        RouteBinder.withDefault(binder, ApplicationRoute.class, route -> route.productList());
+        binder.add(client).update();
         client.bind("application-content");
     }
 

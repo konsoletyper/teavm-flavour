@@ -77,6 +77,10 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     @Override
     public void completing(DependencyAgent agent) {
         proxy: for (ProxyModel proxy : describer.getKnownProxies()) {
+            if (proxy.getUsages().isEmpty()) {
+                continue;
+            }
+
             boolean variated = proxy.getCallParameters().stream()
                     .anyMatch(param -> param.getKind() == ParameterKind.REFLECT_VALUE);
             ProgramEmitter pe = ProgramEmitter.create(proxy.getMethod().getDescriptor(), agent.getClassSource());

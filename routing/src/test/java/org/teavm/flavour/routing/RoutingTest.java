@@ -30,8 +30,6 @@ import org.teavm.jso.core.JSDate;
 public class RoutingTest {
     @Test
     public void parses() {
-
-
         UsersApp app = new UsersApp();
         assertTrue(app.parse("users"));
         assertEquals(1, app.index);
@@ -52,7 +50,7 @@ public class RoutingTest {
         new UsersApp().parse("");
 
         SavingConsumer consumer = new SavingConsumer();
-        UsersRoute route = Route.build(UsersRoute.class, consumer);
+        UsersRoute route = Routing.build(UsersRoute.class, consumer);
 
         route.users();
         assertEquals("users", consumer.consumed);
@@ -96,7 +94,7 @@ public class RoutingTest {
         new DateRouteImpl().parse();
 
         SavingConsumer consumer = new SavingConsumer();
-        DateRoute route = Route.build(DateRoute.class, consumer);
+        DateRoute route = Routing.build(DateRoute.class, consumer);
 
         route.path(new Date(1445810760000L));
         assertEquals("date/2015-10-25T22:06:00", consumer.consumed);
@@ -111,8 +109,6 @@ public class RoutingTest {
 
     @Test
     public void parsesStringParam() {
-
-
         StringRouteImpl impl = new StringRouteImpl();
         assertTrue(impl.parse("foo/baz/bar"));
         assertEquals("baz", impl.string);
@@ -131,7 +127,7 @@ public class RoutingTest {
         new StringRouteImpl().parse();
 
         SavingConsumer consumer = new SavingConsumer();
-        StringRoute route = Route.build(StringRoute.class, consumer);
+        StringRoute route = Routing.build(StringRoute.class, consumer);
 
         route.path("baz");
         assertEquals("foo/baz/bar", consumer.consumed);

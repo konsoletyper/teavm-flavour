@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,26 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.mp;
+@CompileTime
+package org.teavm.flavour.routing.emit;
 
-import org.teavm.common.ServiceRepository;
-
-/**
- *
- * @author Alexey Andreev
- */
-public interface EmitterContext extends ServiceRepository {
-    EmitterDiagnostics getDiagnostics();
-
-    SourceLocation getLocation();
-
-    ClassLoader getClassLoader();
-
-    <T> ReflectClass<T> findClass(Class<T> cls);
-
-    ReflectClass<?> findClass(String name);
-
-    <S> ReflectClass<S[]> arrayClass(ReflectClass<S> componentType);
-
-    ReflectClass<?> createClass(byte[] bytecode);
-}
+import org.teavm.flavour.mp.CompileTime;

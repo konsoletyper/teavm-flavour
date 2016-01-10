@@ -1063,6 +1063,7 @@ public class CompositeMethodGenerator {
             insn.setBootstrapMethod(bootstrapMethod);
             insn.setInstance(var(instance));
             insn.setReceiver(var(receiver));
+            insn.setMethod(method);
             insn.getArguments().addAll(arguments.stream().map(this::var).collect(Collectors.toList()));
             insn.getBootstrapArguments().addAll(bootstrapArguments);
             add(insn);

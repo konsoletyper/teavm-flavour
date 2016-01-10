@@ -91,7 +91,7 @@ public class PathParser {
         }
         caseSelectorDfa = Dfa.fromNodes(caseNodes);
 
-        this.cases = cases.toArray(new PathParserCase[cases.size() - 1]);
+        this.cases = cases.toArray(new PathParserCase[cases.size()]);
     }
 
     public PathParser prepare() {

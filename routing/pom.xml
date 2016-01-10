@@ -35,8 +35,9 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.teavm</groupId>
-      <artifactId>teavm-core</artifactId>
+      <groupId>org.teavm.flavour</groupId>
+      <artifactId>teavm-flavour-mp</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>

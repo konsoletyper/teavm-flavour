@@ -15,44 +15,40 @@
  */
 package org.teavm.flavour.routing.metadata;
 
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.diagnostics.Diagnostics;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.parsing.RegexParseException;
 import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.Pattern;
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.ElementModifier;
-import org.teavm.model.MethodReader;
-import org.teavm.model.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class RouteDescriber {
-    private ClassReaderSource classSource;
-    private Diagnostics diagnostics;
+    private EmitterDiagnostics diagnostics;
 
-    public RouteDescriber(ClassReaderSource classSource, Diagnostics diagnostics) {
-        this.classSource = classSource;
-        this.diagnostics = diagnostics;
+    public RouteDescriber(EmitterContext context) {
+        this.diagnostics = context.getDiagnostics();
     }
 
-    public RouteSetDescriptor describeRouteSet(String className) {
-        ClassReader cls = classSource.get(className);
-        RouteSetDescriptor descriptor = new RouteSetDescriptor(className);
+    public RouteSetDescriptor describeRouteSet(ReflectClass<?> cls) {
+        RouteSetDescriptor descriptor = new RouteSetDescriptor(cls);
 
-        for (MethodReader method : cls.getMethods()) {
-            if (method.hasModifier(ElementModifier.STATIC) || !method.hasModifier(ElementModifier.ABSTRACT)) {
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || !Modifier.isAbstract(method.getModifiers())) {
                 continue;
             }
             descriptor.routes.add(describeRoute(method));
@@ -61,40 +57,39 @@ public class RouteDescriber {
         return descriptor;
     }
 
-    private RouteDescriptor describeRoute(MethodReader method) {
+    private RouteDescriptor describeRoute(ReflectMethod method) {
         List<String> pathParts = new ArrayList<>();
         List<ParameterDescriptor> parameters = new ArrayList<>();
         Map<String, Integer> parameterNames = parseParameterNames(method);
         if (parsePath(method, pathParts, parameters, parameterNames)) {
             parseAnnotationsAndTypes(method, parameters);
-            return new RouteDescriptor(method.getDescriptor(),
-                    pathParts.toArray(new String[0]), parameters.toArray(new ParameterDescriptor[0]));
+            return new RouteDescriptor(method, pathParts.toArray(new String[0]),
+                    parameters.toArray(new ParameterDescriptor[0]));
         } else {
             return null;
         }
     }
 
-    private Map<String, Integer> parseParameterNames(MethodReader method) {
-        CallLocation location = new CallLocation(method.getReference());
-        AnnotationContainerReader[] parameterAnnotations = method.getParameterAnnotations();
+    private Map<String, Integer> parseParameterNames(ReflectMethod method) {
+        SourceLocation location = new SourceLocation(method);
         Map<String, Integer> parameterNames = new HashMap<>();
-        for (int i = 0; i < method.parameterCount(); ++i) {
-            AnnotationReader parameterAnnot = parameterAnnotations[i].get(PathParameter.class.getName());
+        for (int i = 0; i < method.getParameterCount(); ++i) {
+            PathParameter parameterAnnot = method.getParameterAnnotations(i).getAnnotation(PathParameter.class);
             if (parameterAnnot == null) {
-                diagnostics.error(location, "Missing {{c0}} annotation on parameter " + (i + 1) + " of {{m1}}",
-                        PathParameter.class.getName(), method.getReference());
+                diagnostics.error(location, "Missing {{t0}} annotation on parameter " + (i + 1) + " of {{m1}}",
+                        PathParameter.class, method);
                 continue;
             }
 
-            String alias = parameterAnnot.getValue("value").getString();
+            String alias = parameterAnnot.value();
             if (!isProperAliasName(alias)) {
                 diagnostics.error(location, "Wrong name (" + alias + ") of parameter " + (i + 1) + " of {{m1}}",
-                        method.getReference());
+                        method);
             }
 
             if (parameterNames.containsKey(alias)) {
                 diagnostics.error(location, "Same parameter name (" + alias + ") used on both parameters " + (i + 1)
-                        + " and "  + (parameterNames.get(alias) + 1) + " of {{m0}}", method.getReference());
+                        + " and "  + (parameterNames.get(alias) + 1) + " of {{m0}}", method);
                 continue;
             }
 
@@ -104,17 +99,16 @@ public class RouteDescriber {
         return parameterNames;
     }
 
-    private boolean parsePath(MethodReader method, List<String> pathParts, List<ParameterDescriptor> parameters,
+    private boolean parsePath(ReflectMethod method, List<String> pathParts, List<ParameterDescriptor> parameters,
             Map<String, Integer> parameterNames) {
-        CallLocation location = new CallLocation(method.getReference());
-        AnnotationReader pathAnnot = method.getAnnotations().get(Path.class.getName());
+        SourceLocation location = new SourceLocation(method);
+        Path pathAnnot = method.getAnnotation(Path.class);
         if (pathAnnot == null) {
-            diagnostics.error(location, "Missing {{c0}} annotation on {{m1}}", Path.class.getName(),
-                    method.getReference());
+            diagnostics.error(location, "Missing {{t0}} annotation on {{m1}}", Path.class, method);
             return false;
         }
 
-        String path = pathAnnot.getValue("value").getString();
+        String path = pathAnnot.value();
         int index = 0;
         while (index < path.length()) {
             int next = path.indexOf('{', index);
@@ -124,15 +118,14 @@ public class RouteDescriber {
             pathParts.add(path.substring(index, next));
             int end = path.indexOf('}', next + 1);
             if (end < 0) {
-                diagnostics.error(location, "Missing closing parenthesis on path of {{m0}}", method.getReference());
+                diagnostics.error(location, "Missing closing parenthesis on path of {{m0}}", method);
                 return false;
             }
             String alias = path.substring(next + 1, end);
 
             Integer paramIndex = parameterNames.get(alias);
             if (paramIndex == null) {
-                diagnostics.error(location, "No parameter " + alias + ", referred by path, found in {{m0}}",
-                        method.getReference());
+                diagnostics.error(location, "No parameter " + alias + ", referred by path, found in {{m0}}", method);
                 parameters.add(null);
             } else {
                 ParameterDescriptor param = new ParameterDescriptor(paramIndex, alias);
@@ -146,35 +139,33 @@ public class RouteDescriber {
         return true;
     }
 
-    private void parseAnnotationsAndTypes(MethodReader method, List<ParameterDescriptor> parameters) {
-        AnnotationContainerReader[] annotations = method.getParameterAnnotations();
-        CallLocation location = new CallLocation(method.getReference());
+    private void parseAnnotationsAndTypes(ReflectMethod method, List<ParameterDescriptor> parameters) {
+        SourceLocation location = new SourceLocation(method);
         for (ParameterDescriptor param : parameters) {
             if (param == null) {
                 continue;
             }
-            ValueType paramType = method.parameterType(param.javaIndex);
+            ReflectClass<?> paramType = method.getParameterType(param.javaIndex);
             param.valueType = paramType;
-            AnnotationContainerReader paramAnnotations = annotations[param.javaIndex];
+            ReflectAnnotatedElement paramAnnotations = method.getParameterAnnotations(param.javaIndex);
             param.type = convertType(paramType);
             if (param.type == null) {
-                diagnostics.error(location, "Wrong parameter type {{t0}} on method {{m1}}", method.getReference());
+                diagnostics.error(location, "Wrong parameter type {{t0}} on method {{m1}}", paramType, method);
                 continue;
             }
 
-            AnnotationReader patternAnnot = paramAnnotations.get(Pattern.class.getName());
+            Pattern patternAnnot = paramAnnotations.getAnnotation(Pattern.class);
             if (patternAnnot != null) {
                 if (param.type != ParameterType.STRING) {
                     diagnostics.error(location, "Parameter " + (param.index + 1) + " of {{m0}} is marked with "
-                            + "{{c1}} annotation, and its type is not {{c2}", method.getReference(),
-                            patternAnnot.getType(), "java.lang.String");
+                            + "{{t1}} annotation, and its type is not {{t2}", method, patternAnnot, String.class);
                 } else {
                     try {
-                        param.pattern = Node.parse(patternAnnot.getValue("value").getString());
+                        param.pattern = Node.parse(patternAnnot.value());
                     } catch (RegexParseException e) {
                         diagnostics.error(location, "Parameter " + (param.index + 1) + " of {{m0}} is marked with "
-                                + "{{c1}} annotation with syntax error in regex at position " + e.getIndex(),
-                                method.getReference(), patternAnnot.getType());
+                                + "{{t1}} annotation with syntax error in regex at position " + e.getIndex(),
+                                method, Pattern.class);
                     }
                 }
             }
@@ -216,35 +207,33 @@ public class RouteDescriber {
     }
 
     private Node getDefaultPatternForEnum(ParameterDescriptor parameter) {
-        String className = ((ValueType.Object) parameter.valueType).getClassName();
-        ClassReader cls = classSource.get(className);
-        return Node.oneOf(cls.getFields().stream()
-                .filter(field -> field.hasModifier(ElementModifier.STATIC) && field.getType().isObject(className))
+        ReflectClass<?> cls = parameter.valueType;
+        return Node.oneOf(Arrays.stream(cls.getDeclaredFields())
+                .filter(field -> field.isEnumConstant())
                 .map(field -> Node.text(field.getName()))
                 .<Node>toArray(sz -> new Node[sz]));
     }
 
-    private ParameterType convertType(ValueType paramType) {
-        if (paramType instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive) paramType).getKind()) {
-                case BYTE:
+    private ParameterType convertType(ReflectClass<?> paramType) {
+        if (paramType.isPrimitive()) {
+            switch (paramType.getName()) {
+                case "byte":
                     return ParameterType.BYTE;
-                case SHORT:
+                case "short":
                     return ParameterType.SHORT;
-                case INTEGER:
+                case "int":
                     return ParameterType.INTEGER;
-                case LONG:
+                case "long":
                     return ParameterType.LONG;
-                case FLOAT:
+                case "float":
                     return ParameterType.FLOAT;
-                case DOUBLE:
+                case "double":
                     return ParameterType.DOUBLE;
                 default:
                     break;
             }
-        } else if (paramType instanceof ValueType.Object) {
-            String className = ((ValueType.Object) paramType).getClassName();
-            switch (className) {
+        } else if (!paramType.isArray()) {
+            switch (paramType.getName()) {
                 case "java.lang.String":
                     return ParameterType.STRING;
                 case "java.math.BigDecimal":
@@ -256,7 +245,7 @@ public class RouteDescriber {
                 default:
                     break;
             }
-            if (classSource.isSuperType("java.lang.Enum", className).isPresent()) {
+            if (paramType.isEnum()) {
                 return ParameterType.ENUM;
             }
         }

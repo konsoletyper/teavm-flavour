@@ -15,7 +15,8 @@
  */
 package org.teavm.flavour.routing;
 
-import java.util.function.Consumer;
+import org.teavm.flavour.routing.emit.PathImplementor;
+import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Location;
 import org.teavm.jso.browser.Window;
 
@@ -38,35 +39,10 @@ public interface Route {
     }
 
     default boolean parse(String path) {
-        PathImplementor reader = Routing.getImplementor(this);
+        PathImplementor reader = RoutingImpl.getImplementor(this);
         if (reader == null) {
             throw new IllegalArgumentException("Wrong route interface: " + getClass().getName());
         }
         return reader.read(path, this);
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T extends Route> T build(Class<T> routeType, Consumer<String> consumer) {
-        return (T) Routing.getImplementorByClass(routeType).write(consumer);
-    }
-
-    static <T extends Route> T open(Window window, Class<T> routeType) {
-        return build(routeType, hash -> {
-            window.getLocation().setHash(hash);
-        });
-    }
-
-    static <T extends Route> T open(Class<T> routeType) {
-        return open(Window.current(), routeType);
-    }
-
-    static <T extends Route> T replace(Window window, Class<T> routeType) {
-        return build(routeType, hash -> {
-            window.getHistory().replaceState(null, null, "#" + Window.encodeURI(hash));
-        });
-    }
-
-    static <T extends Route> T replace(Class<T> routeType) {
-        return replace(Window.current(), routeType);
     }
 }

@@ -18,7 +18,13 @@ package org.teavm.flavour.widgets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import org.teavm.flavour.mp.CompileTime;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.routing.Route;
+import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
@@ -28,6 +34,7 @@ import org.teavm.jso.dom.events.HashChangeEvent;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public class RouteBinder {
     Window window;
     private List<Route> routes = new ArrayList<>();
@@ -89,11 +96,17 @@ public class RouteBinder {
         }
     }
 
+    @Reflected
+    public static native <T extends Route> RouteBinder withDefault(RouteBinder binder, Class<T> routeType,
+            Consumer<T> action);
     @SuppressWarnings("unchecked")
-    public <T extends Route> RouteBinder withDefault(Class<T> routeType, Consumer<T> action) {
-        defaultRoute = Route.open(routeType);
-        defaultAction = (Consumer<Route>) action;
-        return this;
+    private static <T extends Route> void withDefault(Emitter<RouteBinder> em, Value<RouteBinder> binder,
+            ReflectClass<T> routeType, Value<Consumer<T>> action) {
+        em.returnValue(() -> {
+            binder.get().defaultRoute = Routing.open(routeType.asJavaClass());
+            binder.get().defaultAction = (Consumer<Route>) action;
+            return binder.get();
+        });
     }
 
     EventListener<HashChangeEvent> listener = evt -> update();

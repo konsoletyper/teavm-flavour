@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,63 +15,54 @@
  */
 package org.teavm.flavour.routing;
 
-import org.teavm.jso.JSBody;
-import org.teavm.jso.core.JSArray;
-import org.teavm.jso.core.JSDate;
-import org.teavm.jso.core.JSRegExp;
-import org.teavm.jso.core.JSString;
-
+import java.util.function.Consumer;
+import org.teavm.flavour.mp.CompileTime;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.routing.emit.RoutingImpl;
+import org.teavm.jso.browser.Window;
 
 /**
  *
  * @author Alexey Andreev
  */
-final class Routing {
+@CompileTime
+public final class Routing {
     private Routing() {
     }
 
-    static PathImplementor getImplementor(Route route) {
-        return getImplementorImpl(route.getClass().getName());
+    @Reflected
+    public static native <T extends Route> T build(Class<T> routeType, Consumer<String> consumer);
+    @SuppressWarnings("unchecked")
+    private static <T extends Route> void build(Emitter<T> em, ReflectClass<T> routeType,
+            Value<Consumer<String>> consumer) {
+        em.returnValue(() -> (T) RoutingImpl.getImplementorByClass(routeType.asJavaClass()).write(consumer.get()));
     }
 
-    static PathImplementor getImplementorByClass(Class<?> routeType) {
-        return getImplementorImpl(routeType.getName());
+    @Reflected
+    public static native <T extends Route> T open(Window window, Class<T> routeType);
+    private static <T extends Route> void open(Emitter<T> em, Value<Window> window, ReflectClass<T> routeType) {
+        em.returnValue(() -> {
+            Window w = window.get();
+            return build(routeType.asJavaClass(), hash -> w.getLocation().setHash(hash));
+        });
     }
 
-    private static native PathImplementor getImplementorImpl(String className);
-
-    static long parseDate(String text) {
-        JSRegExp regex = JSRegExp.create("(\\d{4})-(\\d{2})-(\\d{2})(T(\\d{2}):(\\d{2}):(\\d{2}))?");
-        JSArray<JSString> groups = regex.exec(JSString.valueOf(text));
-        JSDate date = JSDate.create(parseInt(groups.get(1)), parseInt(groups.get(2)) - 1, parseInt(groups.get(3)),
-                parseInt(groups.get(5)), parseInt(groups.get(6)), parseInt(groups.get(7)));
-        return (long) date.getTime();
+    @Reflected
+    public static native <T extends Route> T open(Class<T> routeType);
+    private static <T extends Route> void open(Emitter<T> em, ReflectClass<T> routeType) {
+        em.returnValue(() -> open(Window.current(), routeType.asJavaClass()));
     }
 
-    static String dateToString(long millis) {
-        JSDate date = JSDate.create(millis);
-        return padYear(date.getUTCFullYear())
-                .concat(JSString.valueOf("-")).concat(padDate(date.getUTCMonth() + 1))
-                .concat(JSString.valueOf("-")).concat(padDate(date.getUTCDate()))
-                .concat(JSString.valueOf("T")).concat(padDate(date.getUTCHours()))
-                .concat(JSString.valueOf(":")).concat(padDate(date.getUTCMinutes()))
-                .concat(JSString.valueOf(":")).concat(padDate(date.getUTCSeconds()))
-                .stringValue();
+    static <T extends Route> T replace(Window window, Class<T> routeType) {
+        return build(routeType, hash -> {
+            window.getHistory().replaceState(null, null, "#" + Window.encodeURI(hash));
+        });
     }
 
-    @JSBody(params = "string", script = "return typeof(string) != 'undefined' ? parseInt(string) : 0;")
-    static native int parseInt(JSString string);
-
-    static JSString padYear(int value) {
-        JSString str = intToString(value);
-        str = JSString.valueOf("0000").substring(str.getLength()).concat(str);
-        return str;
+    static <T extends Route> T replace(Class<T> routeType) {
+        return replace(Window.current(), routeType);
     }
-
-    static JSString padDate(int value) {
-        return value < 10 ? JSString.valueOf("0").concat(intToString(value)) : intToString(value);
-    }
-
-    @JSBody(params = "num", script = "return num.toString();")
-    static native JSString intToString(int num);
 }

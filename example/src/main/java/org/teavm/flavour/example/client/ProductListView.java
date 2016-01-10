@@ -17,7 +17,7 @@ package org.teavm.flavour.example.client;
 
 import java.util.function.Consumer;
 import org.teavm.flavour.example.api.ProductDTO;
-import org.teavm.flavour.routing.Route;
+import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.PagedCursor;
 
@@ -49,11 +49,11 @@ public class ProductListView {
     }
 
     public void edit(int id, Consumer<String> consumer) {
-        Route.build(ApplicationRoute.class, consumer).product(id);
+        Routing.build(ApplicationRoute.class, consumer).product(id);
     }
 
     public void add() {
-        Route.open(ApplicationRoute.class).newProduct();
+        Routing.open(ApplicationRoute.class).newProduct();
     }
 
     public void selectPage(int page) {
@@ -61,7 +61,7 @@ public class ProductListView {
     }
 
     public void pageLink(int page, Consumer<String> consumer) {
-        Route.build(ApplicationRoute.class, consumer).productPage(page);
+        Routing.build(ApplicationRoute.class, consumer).productPage(page);
     }
 
     public void setFilter(String filter) {

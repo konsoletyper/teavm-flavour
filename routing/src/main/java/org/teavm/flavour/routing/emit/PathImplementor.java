@@ -13,16 +13,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.routing;
+package org.teavm.flavour.routing.emit;
 
 import java.util.function.Consumer;
+import org.teavm.flavour.routing.Route;
 
 
 /**
  *
  * @author Alexey Andreev
  */
-interface PathImplementor {
+public interface PathImplementor {
     boolean read(String path, Route handler);
 
     Route write(Consumer<String> consumer);

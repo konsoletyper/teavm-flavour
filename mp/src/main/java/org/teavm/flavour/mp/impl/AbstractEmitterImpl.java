@@ -118,7 +118,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public <S> Choice<S> choose(ReflectClass<S> type) {
-        ChoiceImpl<S> choice = new ChoiceImpl<>(context, templateMethod, generator, returnType);
+        ChoiceImpl<S> choice = new ChoiceImpl<>(context, templateMethod, generator, ((ReflectClassImpl<?>) type).type);
         choices.add(choice);
         return choice;
     }
@@ -192,6 +192,11 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
             for (int i = 0; i < arguments.length; ++i) {
                 arguments[i] = new ValueImpl<>(program.createVariable(), nestedVarContext,
                         methodImpl.method.parameterType(i));
+            }
+            for (int i = 0; i < arguments.length; ++i) {
+                ValueType argType = methodImpl.method.parameterType(i);
+                Variable var = nestedGenerator.box(arguments[i].innerValue, argType);
+                arguments[i] = new ValueImpl<>(var, nestedVarContext, argType);
             }
 
             handler.invoke(nestedEmitter, new ValueImpl<S>(thisVar, nestedVarContext, innerType),
@@ -272,7 +277,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         returnValue(var);
     }
 
-    private Variable unbox(Variable var) {
+    Variable unbox(Variable var) {
         if (returnType instanceof ValueType.Primitive) {
             switch (((ValueType.Primitive) returnType).getKind()) {
                 case BOOLEAN:
@@ -304,7 +309,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         return var;
     }
 
-    private Variable unbox(Variable var, Class<?> boxed, Class<?> primitive) {
+    Variable unbox(Variable var, Class<?> boxed, Class<?> primitive) {
         InvokeInstruction insn = new InvokeInstruction();
         insn.setInstance(var);
         insn.setType(InvocationType.VIRTUAL);

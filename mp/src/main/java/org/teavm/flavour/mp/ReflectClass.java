@@ -70,6 +70,13 @@ public interface ReflectClass<T> extends ReflectAnnotatedElement {
 
     ReflectMethod getDeclaredMethod(String name, ReflectClass<?>... parameterTypes);
 
+    default ReflectMethod getDeclaredJMethod(String name, Class<?>... parameterTypes) {
+        ReflectClass<?>[] mappedParamTypes = Arrays.stream(parameterTypes)
+                .map(param -> getContext().findClass(param))
+                .toArray(sz -> new ReflectClass<?>[sz]);
+        return getDeclaredMethod(name, mappedParamTypes);
+    }
+
     ReflectMethod getMethod(String name, ReflectClass<?>... parameterTypes);
 
     default ReflectMethod getJMethod(String name, Class<?>... parameterTypes) {

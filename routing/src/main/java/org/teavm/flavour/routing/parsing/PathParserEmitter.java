@@ -15,91 +15,65 @@
  */
 package org.teavm.flavour.routing.parsing;
 
-import org.teavm.dependency.DependencyAgent;
-import org.teavm.flavour.regex.Matcher;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.regex.Pattern;
 import org.teavm.flavour.regex.automata.Dfa;
 import org.teavm.flavour.regex.bytecode.MatcherClassBuilder;
 import org.teavm.flavour.routing.parsing.PathParser.PathParserCase;
 import org.teavm.flavour.routing.parsing.PathParser.PathParserElement;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ProgramEmitter;
-import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class PathParserEmitter {
-    private DependencyAgent agent;
     private int dfaIndexGenerator;
 
-    public PathParserEmitter(DependencyAgent agent) {
-        this.agent = agent;
-    }
-
-    public ValueEmitter emitWorker(ProgramEmitter pe, PathParser pathParser) {
-        ValueEmitter cases = pe.constructArray(PathParserCase.class, pathParser.cases.length);
+    public Value<PathParser> emitWorker(Emitter<?> em, PathParser pathParser) {
+        int caseCount = pathParser.cases.length;
+        Value<PathParserCase[]> casesCopy = em.emit(() -> new PathParserCase[caseCount]);
         for (int i = 0; i < pathParser.cases.length; ++i) {
             PathParserCase parserCase = pathParser.cases[i];
-            ValueEmitter parserCaseVar = pe.construct(PathParserCase.class);
-            parserCaseVar.setField("prefixLength", pe.constant(parserCase.prefixLength));
 
-            ValueEmitter elementsVar = pe.constructArray(PathParserElement.class, parserCase.elements.length);
+            int elementCount = parserCase.elements.length;
+            Value<PathParserElement[]> elementsCopy = em.emit(() -> new PathParserElement[elementCount]);
             for (int j = 0; j < parserCase.elements.length; ++j) {
                 PathParserElement element = parserCase.elements[j];
-                ValueEmitter elementVar = pe.construct(PathParserElement.class);
-                elementVar.setField("pattern", createPattern(pe, element.patternDfa));
-                elementVar.setField("suffixLength", pe.constant(element.suffixLength));
-                elementsVar.setElement(pe.constant(j), elementVar);
+                int suffixLength = element.suffixLength;
+                Value<Pattern> pattern = createPattern(em, element.patternDfa);
+                int index = j;
+                em.emit(() -> {
+                    PathParserElement elementCopy = new PathParserElement();
+                    elementCopy.suffixLength = suffixLength;
+                    elementCopy.pattern = pattern.get();
+                    elementsCopy.get()[index] = elementCopy;
+                });
             }
-            parserCaseVar.setField("elements", elementsVar);
 
-            cases.setElement(pe.constant(i), parserCaseVar);
+            int prefixLength = parserCase.prefixLength;
+            int index = i;
+            em.emit(() -> {
+                PathParserCase caseCopy = new PathParserCase();
+                caseCopy.elements = elementsCopy.get();
+                caseCopy.prefixLength = prefixLength;
+                casesCopy.get()[index] = caseCopy;
+            });
         }
 
-        ValueEmitter caseSelector = createPattern(pe, pathParser.caseSelectorDfa);
-        return pe.construct(PathParser.class, cases, caseSelector.cast(Pattern.class));
+        Value<Pattern> caseSelector = createPattern(em, pathParser.caseSelectorDfa);
+        return em.emit(() -> new PathParser(casesCopy.get(), caseSelector.get()));
     }
 
-    public ValueEmitter createPattern(ProgramEmitter pe, Dfa dfa) {
-        return pe.construct(createPatternClass(dfa).getName());
-    }
-
-    public ClassHolder createPatternClass(Dfa dfa) {
-        int index = dfaIndexGenerator++;
-        byte[] matcherClass = createDfaClass(dfa, index);
-        String matcherClassName = agent.submitClassFile(matcherClass);
-        matcherClassName = matcherClassName.replace('/', '.');
-
-        ClassHolder patternClass = new ClassHolder("org.teavm.flavour.internal.Pattern" + index);
-        patternClass.setParent("java.lang.Object");
-        patternClass.getInterfaces().add(Pattern.class.getName());
-        patternClass.setLevel(AccessLevel.PUBLIC);
-
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-        ProgramEmitter pe = ProgramEmitter.create(ctor, agent.getClassSource());
-        pe.var(0, patternClass).invokeSpecial(Object.class, "<init>");
-        pe.exit();
-        patternClass.addMethod(ctor);
-
-        MethodHolder worker = new MethodHolder("matcher", ValueType.parse(Matcher.class));
-        worker.setLevel(AccessLevel.PUBLIC);
-        pe = ProgramEmitter.create(worker, agent.getClassSource());
-        pe.construct(matcherClassName).returnValue();
-        patternClass.addMethod(worker);
-
-        agent.submitClass(patternClass);
-        return patternClass;
-    }
-
-    private byte[] createDfaClass(Dfa dfa, int index) {
+    public Value<Pattern> createPattern(Emitter<?> em, Dfa dfa) {
         MatcherClassBuilder classBuilder = new MatcherClassBuilder();
-        return classBuilder.build("org.teavm.flavour.routing.internal.Matcher" + index, dfa);
+        byte[] bytecode = classBuilder.build("org.teavm.flavour.routing.internal.Matcher" + dfaIndexGenerator++, dfa);
+        ReflectClass<?> matcherClass = em.getContext().createClass(bytecode);
+        ReflectMethod constructor = matcherClass.getMethod("<init>");
+        return em.proxy(Pattern.class, (body, instance, method, args) -> {
+            body.returnValue(() -> constructor.construct());
+        });
     }
-
 }

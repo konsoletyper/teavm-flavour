@@ -18,14 +18,21 @@ package org.teavm.flavour.routing.emit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
-import org.teavm.dependency.DependencyAgent;
-import org.teavm.diagnostics.Diagnostics;
+import java.util.stream.Collectors;
+import org.teavm.flavour.mp.Choice;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.routing.PathSet;
 import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.routing.metadata.ParameterDescriptor;
@@ -38,21 +45,6 @@ import org.teavm.flavour.routing.parsing.PathParserBuilder;
 import org.teavm.flavour.routing.parsing.PathParserEmitter;
 import org.teavm.flavour.routing.parsing.PathParserResult;
 import org.teavm.jso.browser.Window;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.CallLocation;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.FieldHolder;
-import org.teavm.model.MethodDescriptor;
-import org.teavm.model.MethodHolder;
-import org.teavm.model.MethodReference;
-import org.teavm.model.Program;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ChooseEmitter;
-import org.teavm.model.emit.ProgramEmitter;
-import org.teavm.model.emit.StringChooseEmitter;
-import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
@@ -61,190 +53,201 @@ import org.teavm.model.emit.ValueEmitter;
 class RouteImplementorEmitter {
     public static final String PATH_IMPLEMENTOR_CLASS = Route.class.getPackage().getName() + ".PathImplementor";
     public static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
-    private DependencyAgent agent;
-    private ClassReaderSource classSource;
-    private Diagnostics diagnostics;
     private PathParserEmitter pathParserEmitter;
-    private RouteProxyEmitter proxyEmitter;
     private RouteDescriber describer;
-    private Map<String, String> routeImplementors = new HashMap<>();
-    private Map<String, String> routeIfaceImplementors = new HashMap<>();
+    private EmitterDiagnostics diagnostics;
     int suffixGenerator;
+    private static Map<EmitterContext, RouteImplementorEmitter> instances = new WeakHashMap<>();
 
-    public RouteImplementorEmitter(DependencyAgent agent) {
-        this.agent = agent;
-        classSource = agent.getClassSource();
-        diagnostics = agent.getDiagnostics();
-        pathParserEmitter = new PathParserEmitter(agent);
-        proxyEmitter = new RouteProxyEmitter(agent, classSource);
+    private RouteImplementorEmitter(EmitterContext context) {
+        describer = new RouteDescriber(context);
+        pathParserEmitter = new PathParserEmitter();
     }
 
-    public Program emitGetter(MethodReference method) {
-        ProgramEmitter pe = ProgramEmitter.create(method.getDescriptor(), classSource);
-        ValueEmitter typeVar = pe.var(1, String.class);
+    public static RouteImplementorEmitter getInstance(EmitterContext context) {
+        return instances.computeIfAbsent(context, ctx -> new RouteImplementorEmitter(ctx));
+    }
 
-        StringChooseEmitter choice = pe.stringChoice(typeVar);
-        for (String routeImpl : routeImplementors.keySet()) {
-            String implementorType = routeImplementors.get(routeImpl);
-            choice.option(routeImpl, () -> {
-                pe.construct(implementorType).returnValue();
-            });
+    public Value<PathImplementor> emitParser(Emitter<?> em, ReflectClass<?> routeType) {
+        this.diagnostics = em.getContext().getDiagnostics();
+        SourceLocation location = em.getContext().getLocation();
+        Set<ReflectClass<?>> pathSets = new HashSet<>();
+        getPathSets(routeType, pathSets, new HashSet<>());
+        if (pathSets.isEmpty()) {
+            diagnostics.error(location, "Given handler {{t0}} does not implement path set", routeType);
+            return em.emit(() -> null);
+        } else if (pathSets.size() > 1) {
+            Iterator<ReflectClass<?>> iter = pathSets.iterator();
+            ReflectClass<?> example1 = iter.next();
+            ReflectClass<?> example2 = iter.next();
+            diagnostics.error(location, "Given handler {{t0}} implements several path sets. Examples are {{t1}} "
+                    + "and {{t2}}", routeType, example1, example2);
+            return em.emit(() -> null);
         }
-        choice.otherwise(() -> pe.constantNull(ValueType.object(PATH_IMPLEMENTOR_CLASS)).returnValue());
-
-        return pe.getProgram();
+        ReflectClass<?> implType = pathSets.iterator().next();
+        return em.emit(() -> RoutingImpl.getImplementorByClassImpl(implType.asJavaClass()));
     }
 
-    public String emitParser(String className, CallLocation location) {
-        return routeImplementors.computeIfAbsent(className, implType -> {
-            Set<ClassReader> pathSets = new HashSet<>();
-            getPathSets(implType, pathSets, new HashSet<>());
-            if (pathSets.isEmpty()) {
-                diagnostics.error(location, "Given handler {{c0}} does not implement path set", implType);
-                return null;
-            } else if (pathSets.size() > 1) {
-                Iterator<ClassReader> iter = pathSets.iterator();
-                ClassReader example1 = iter.next();
-                ClassReader example2 = iter.next();
-                diagnostics.error(location, "Given handler {{c0}} implements several path sets. Examples are {{c1}} "
-                        + "and {{c2}}", implType, example1, example2);
-                return null;
-            }
-            ClassReader routeType = pathSets.iterator().next();
+    public Value<PathImplementor> emitInterfaceParser(Emitter<?> em, ReflectClass<?> routeType) {
+        RouteSetDescriptor descriptor = describer.describeRouteSet(routeType);
+        if (descriptor == null) {
+            return em.emit(() -> null);
+        }
 
-            return routeIfaceImplementors.computeIfAbsent(routeType.getName(), ifaceType -> {
-                return emitInterfaceParser(ifaceType);
-            });
+        Value<PathParser> pathParser = pathParserEmitter.emitWorker(em, createPathParser(descriptor));
+        return em.proxy(PathImplementor.class, (body, instance, method, args) -> {
+            switch (method.getName()) {
+                case "read": {
+                    Value<String> path = body.emit(() -> (String) args[0].get());
+                    Value<Route> handler = body.emit(() -> (Route) args[1].get());
+                    body.returnValue(emitReadMethod(body, pathParser, path, handler, descriptor));
+                    break;
+                }
+                case "write": {
+                    @SuppressWarnings("unchecked")
+                    Value<Consumer<String>> consumer = body.emit(() -> (Consumer<String>) args[0].get());
+                    body.returnValue(emitWriteMethod(body, consumer, descriptor));
+                    break;
+                }
+            }
         });
     }
 
-    private String emitInterfaceParser(String routeIface) {
-        describer = new RouteDescriber(classSource, diagnostics);
-        RouteSetDescriptor descriptor = describer.describeRouteSet(routeIface);
-        if (descriptor == null) {
-            return null;
-        }
+    private Value<Boolean> emitReadMethod(Emitter<?> em, Value<PathParser> pathParser, Value<String> path,
+            Value<Route> handler, RouteSetDescriptor descriptor) {
+        Value<PathParserResult> parseResult = em.emit(() -> pathParser.get().parse(path.get()));
+        Value<Integer> caseIndex = em.emit(() -> parseResult.get().getCaseIndex());
+        Choice<Boolean> choice = em.choose(Boolean.class);
 
-        ClassHolder implementorClass = new ClassHolder(PATH_IMPLEMENTOR_CLASS + suffixGenerator++);
-        implementorClass.setLevel(AccessLevel.PACKAGE_PRIVATE);
-        implementorClass.setParent("java.lang.Object");
-        implementorClass.getInterfaces().add(PATH_IMPLEMENTOR_CLASS);
-
-        FieldHolder parserField = new FieldHolder("pathParser");
-        parserField.setLevel(AccessLevel.PRIVATE);
-        parserField.setType(ValueType.parse(PathParser.class));
-        implementorClass.addField(parserField);
-
-        MethodHolder ctor = new MethodHolder("<init>", ValueType.VOID);
-        ctor.setLevel(AccessLevel.PUBLIC);
-        emitConstructor(ProgramEmitter.create(ctor, classSource), implementorClass.getName(), descriptor);
-        implementorClass.addMethod(ctor);
-
-        MethodHolder reader = new MethodHolder("read", ValueType.parse(String.class), ValueType.parse(Route.class),
-                ValueType.BOOLEAN);
-        reader.setLevel(AccessLevel.PUBLIC);
-        emitReadMethod(ProgramEmitter.create(reader, classSource), implementorClass.getName(), routeIface, descriptor);
-        implementorClass.addMethod(reader);
-
-        MethodHolder writer = new MethodHolder("write", ValueType.parse(Consumer.class),
-                ValueType.parse(Route.class));
-        writer.setLevel(AccessLevel.PUBLIC);
-        emitWriteMethod(ProgramEmitter.create(writer, classSource), descriptor);
-        implementorClass.addMethod(writer);
-
-        agent.submitClass(implementorClass);
-
-        return implementorClass.getName();
-    }
-
-    private void emitConstructor(ProgramEmitter pe, String className, RouteSetDescriptor descriptor) {
-        PathParser pathParser = createPathParser(descriptor);
-        ValueEmitter thisVar = pe.var(0, ValueType.object(className));
-        thisVar.invokeSpecial(Object.class, "<init>");
-        thisVar.setField("pathParser", pathParserEmitter.emitWorker(pe, pathParser));
-        pe.exit();
-    }
-
-    private void emitReadMethod(ProgramEmitter pe, String className, String routeType, RouteSetDescriptor descriptor) {
-        ValueEmitter thisVar = pe.var(0, ValueType.object(className));
-        ValueEmitter pathVar = pe.var(1, String.class);
-        ValueEmitter routeVar = pe.var(2, Route.class).cast(ValueType.object(routeType));
-        ValueEmitter parserVar = thisVar.getField("pathParser", PathParser.class);
-
-        ValueEmitter parseResultVar = parserVar.invokeVirtual("parse", PathParserResult.class, pathVar);
-        ValueEmitter caseVar = parseResultVar.invokeVirtual("getCaseIndex", int.class);
-        pe.when(caseVar.isLessThan(pe.constant(0)))
-                .thenDo(() -> pe.constant(0).returnValue());
-
-        ChooseEmitter choice = pe.choice(caseVar);
         for (int i = 0; i < descriptor.getRoutes().size(); ++i) {
+            int index = i;
             RouteDescriptor routeDescriptor = descriptor.getRoutes().get(i);
-            MethodDescriptor method = routeDescriptor.getMethod();
-            choice.option(i, () -> {
-                ValueEmitter[] values = new ValueEmitter[method.parameterCount()];
-                for (int j = 0; j < routeDescriptor.pathPartCount() - 1; ++j) {
-                    ParameterDescriptor param = routeDescriptor.parameter(j);
-                    if (param == null) {
-                        continue;
-                    }
-                    ValueEmitter startVar = parseResultVar.invokeVirtual("start", int.class, pe.constant(j));
-                    ValueEmitter endVar = parseResultVar.invokeVirtual("end", int.class, pe.constant(j));
-                    ValueEmitter rawParamVar = pathVar.invokeVirtual("substring", String.class, startVar, endVar);
-                    values[param.getJavaIndex()] = emitParam(rawParamVar, param);
+            ReflectMethod method = routeDescriptor.getMethod();
+            Emitter<Boolean> body = choice.option(() -> caseIndex.get().intValue() == index);
+
+            int parameterCount = method.getParameterCount();
+            Value<Object[]> values = body.emit(() -> new Object[parameterCount]);
+            boolean[] affectedParams = new boolean[parameterCount];
+
+            for (int j = 0; j < routeDescriptor.pathPartCount() - 1; ++j) {
+                int paramIndex = j;
+                ParameterDescriptor param = routeDescriptor.parameter(j);
+                if (param == null) {
+                    continue;
                 }
-                for (int j = 0; j < method.parameterCount(); ++j) {
-                    if (values[j] == null) {
-                        values[j] = pe.constantNull(method.parameterType(j));
-                    }
+                Value<? extends Object> paramValue = parseParam(body, param, body.emit(() -> {
+                    int start = parseResult.get().start(paramIndex);
+                    int end = parseResult.get().end(paramIndex);
+                    return path.get().substring(start, end);
+                }));
+
+                int javaIndex = param.getJavaIndex();
+                body.emit(() -> values.get()[javaIndex] = paramValue.get());
+                affectedParams[javaIndex] = true;
+            }
+            for (int j = 0; j < parameterCount; ++j) {
+                if (!affectedParams[j]) {
+                    int paramIndex = j;
+                    body.emit(() -> values.get()[paramIndex] = null);
                 }
-                routeVar.invokeVirtual(method.getName(), method.getResultType(), values);
-            });
+            }
+            body.emit(() -> method.invoke(handler, values.get()));
+            body.returnValue(() -> true);
         }
-        choice.otherwise(() -> pe.constant(0).returnValue());
 
-        pe.constant(1).returnValue();
+        choice.defaultOption().returnValue(() -> false);
+        return choice.getValue();
     }
 
-    private void emitWriteMethod(ProgramEmitter pe, RouteSetDescriptor descriptor) {
-        String proxyClassName = proxyEmitter.emitProxy(descriptor);
-        ValueEmitter consumer = pe.var(1, Consumer.class);
-        pe.construct(proxyClassName, consumer).returnValue();
+    private Value<Route> emitWriteMethod(Emitter<?> em, Value<Consumer<String>> consumer,
+            RouteSetDescriptor descriptor) {
+        Map<ReflectMethod, RouteDescriptor> methodMap = descriptor.getRoutes().stream()
+                .collect(Collectors.toMap(route -> route.getMethod(), route -> route));
+
+        ReflectClass<Route> routeType = descriptor.getType().asSubclass(Route.class);
+        return em.proxy(routeType, (body, instance, method, args) -> {
+            RouteDescriptor route = methodMap.get(method);
+            if (route == null) {
+                return;
+            }
+            String firstPart = route.pathPart(0);
+            Value<StringBuilder> sb = body.emit(() -> new StringBuilder(firstPart));
+            for (int i = 1; i < route.pathPartCount(); ++i) {
+                ParameterDescriptor param = route.parameter(i - 1);
+                if (param != null) {
+                    int paramIndex = param.getJavaIndex();
+                    Value<String> paramString = emitParam(body, param, args[paramIndex]);
+                    Value<StringBuilder> localSb = sb;
+                    sb = body.emit(() -> localSb.get().append(paramString.get()));
+                }
+
+                String part = route.pathPart(i);
+                Value<StringBuilder> localSb = sb;
+                sb = body.emit(() -> localSb.get().append(part));
+            }
+
+            Value<StringBuilder> localSb = sb;
+            body.emit(() -> consumer.get().accept(localSb.get().toString()));
+        });
     }
 
-    private ValueEmitter emitParam(ValueEmitter stringVar, ParameterDescriptor param) {
-        ProgramEmitter pe = stringVar.getProgramEmitter();
-        stringVar = pe.invoke(Window.class, "decodeURIComponent", String.class, stringVar);
+    private Value<? extends Object> parseParam(Emitter<?> em, ParameterDescriptor param, Value<String> string) {
+        Value<String> decodedString = em.emit(() -> Window.decodeURIComponent(string.get()));
         switch (param.getType()) {
             case STRING:
-                return stringVar;
+                return decodedString;
             case BYTE:
-                return pe.invoke(Byte.class, "parseByte", byte.class, stringVar);
+                return em.emit(() -> Byte.parseByte(decodedString.get()));
             case SHORT:
-                return pe.invoke(Short.class, "parseShort", short.class, stringVar);
+                return em.emit(() -> Short.parseShort(decodedString.get()));
             case INTEGER:
-                return pe.invoke(Integer.class, "parseInt", int.class, stringVar);
+                return em.emit(() -> Integer.parseInt(decodedString.get()));
             case LONG:
-                return pe.invoke(Long.class, "parseLong", long.class, stringVar);
+                return em.emit(() -> Long.parseLong(decodedString.get()));
             case FLOAT:
-                return pe.invoke(Float.class, "parseFloat", float.class, stringVar);
+                return em.emit(() -> Float.parseFloat(decodedString.get()));
             case DOUBLE:
-                return pe.invoke(Double.class, "parseDouble", double.class, stringVar);
-            case DATE: {
-                ValueEmitter millis = pe.invoke(ROUTING_CLASS, "parseDate", ValueType.LONG, stringVar);
-                return pe.construct(Date.class, millis);
-            }
+                return em.emit(() -> Double.parseDouble(decodedString.get()));
+            case DATE:
+                return em.emit(() -> new Date(RoutingImpl.parseDate(decodedString.get())));
             case ENUM: {
-                String className = ((ValueType.Object) param.getValueType()).getClassName();
-                return pe.invoke(className, "valueOf", param.getValueType(), stringVar);
+                ReflectMethod method = param.getValueType().getDeclaredJMethod("valueOf", String.class);
+                return em.emit(() -> method.invoke(null, decodedString.get()));
             }
             case BIG_DECIMAL:
-                return pe.construct(BigDecimal.class, stringVar);
+                return em.emit(() -> new BigDecimal(decodedString.get()));
             case BIG_INTEGER:
-                return pe.construct(BigInteger.class, stringVar);
+                return em.emit(() -> new BigInteger(decodedString.get()));
             default:
                 throw new AssertionError("Unknown type: " + param.getType());
         }
     }
+
+    private Value<String> emitParam(Emitter<?> em, ParameterDescriptor param, Value<Object> value) {
+        switch (param.getType()) {
+            case STRING:
+                return em.emit(() -> Window.encodeURIComponent((String) value.get()));
+            case BYTE:
+            case SHORT:
+            case INTEGER:
+            case LONG:
+            case FLOAT:
+            case DOUBLE:
+            case BIG_DECIMAL:
+            case BIG_INTEGER:
+                return em.emit(() -> value.get().toString());
+            case DATE:
+                return em.emit(() -> RoutingImpl.dateToString(((Date) value.get()).getTime()));
+            case ENUM:
+                return em.emit(() -> {
+                    Enum<?> e = (Enum<?>) value.get();
+                    return Window.encodeURIComponent(e.name());
+                });
+            default:
+                throw new AssertionError("Unknown type: " + param.getType());
+        }
+    }
+
 
     private PathParser createPathParser(RouteSetDescriptor descriptor) {
         PathParserBuilder pathParserBuilder = new PathParserBuilder();
@@ -253,7 +256,7 @@ class RouteImplementorEmitter {
             pathBuilder.text(routeDescriptor.pathPart(0));
             for (int i = 1; i < routeDescriptor.pathPartCount(); ++i) {
                 ParameterDescriptor param = routeDescriptor.parameter(i - 1);
-                if (param != null) {
+                if (param != null && param.getType() != null) {
                     pathBuilder.escapedRegex(param.getEffectivePattern());
                     pathBuilder.text(routeDescriptor.pathPart(i));
                 }
@@ -262,25 +265,16 @@ class RouteImplementorEmitter {
         return pathParserBuilder.buildUnprepared();
     }
 
-    private void getPathSets(String className, Set<ClassReader> pathSets, Set<String> visited) {
-        if (!visited.add(className)) {
-            return;
-        }
-
-        ClassReader cls = classSource.get(className);
-        if (cls == null) {
-            return;
-        }
-
-        if (cls.getAnnotations().get(PathSet.class.getName()) != null) {
+    private void getPathSets(ReflectClass<?> cls, Set<ReflectClass<?>> pathSets, Set<ReflectClass<?>> visited) {
+        if (cls.getAnnotation(PathSet.class) != null) {
             pathSets.add(cls);
             return;
         }
 
-        if (cls.getParent() != null && !cls.getParent().equals(cls.getName())) {
-            getPathSets(cls.getParent(), pathSets, visited);
+        if (cls.getSuperclass() != null) {
+            getPathSets(cls.getSuperclass(), pathSets, visited);
         }
-        for (String iface : cls.getInterfaces()) {
+        for (ReflectClass<?> iface : cls.getInterfaces()) {
             getPathSets(iface, pathSets, visited);
         }
     }
