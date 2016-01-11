@@ -25,16 +25,9 @@ import org.teavm.flavour.rest.processor.ResponseProcessor;
  *
  * @author Alexey Andreev
  */
-abstract class FactoryTemplate<T> implements ResourceFactory<T> {
+abstract class FactoryTemplate implements ResourceFactory<Object> {
     List<RequestProcessor> requestProcessors = new ArrayList<>();
     List<ResponseProcessor> responseProcessors = new ArrayList<>();
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public T createResource(String baseUrl) {
-        ProxyTemplate resource = createResourceImpl(baseUrl);
-        return (T) resource;
-    }
 
     @Override
     public void add(RequestProcessor processor) {
@@ -45,6 +38,4 @@ abstract class FactoryTemplate<T> implements ResourceFactory<T> {
     public void add(ResponseProcessor processor) {
         responseProcessors.add(processor);
     }
-
-    abstract ProxyTemplate createResourceImpl(String baseUrl);
 }

@@ -15,14 +15,19 @@
  */
 package org.teavm.flavour.rest;
 
+import org.teavm.flavour.mp.CompileTime;
+import org.teavm.flavour.mp.Reflected;
+
 /**
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public final class RESTClient {
     private RESTClient() {
     }
 
+    @Reflected
     public static <T> ResourceFactory<T> factory(Class<T> type) {
         return factoryImpl(type.getName());
     }

@@ -25,7 +25,6 @@ import java.lang.reflect.WildcardType;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.teavm.dependency.DependencyAgent;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
@@ -34,6 +33,15 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.mp.CompileTime;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.Value;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.flavour.rest.ResourceFactory;
 import org.teavm.flavour.rest.impl.model.MethodModel;
 import org.teavm.flavour.rest.impl.model.PropertyModel;
 import org.teavm.flavour.rest.impl.model.PropertyValuePath;
@@ -44,14 +52,9 @@ import org.teavm.flavour.rest.impl.model.ValuePath;
 import org.teavm.flavour.rest.impl.model.ValuePathVisitor;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.jso.browser.Window;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
-import org.teavm.model.emit.PhiEmitter;
 import org.teavm.model.emit.ProgramEmitter;
 import org.teavm.model.emit.ValueEmitter;
 
@@ -59,169 +62,95 @@ import org.teavm.model.emit.ValueEmitter;
  *
  * @author Alexey Andreev
  */
+@CompileTime
 public class FactoryEmitter {
+    private EmitterDiagnostics diagnostics;
     private ResourceModelRepository resourceRepository;
-    private DependencyAgent agent;
-    private CallLocation location;
+    private SourceLocation location;
 
-    public FactoryEmitter(ResourceModelRepository modelRepository, DependencyAgent agent) {
+    public FactoryEmitter(ResourceModelRepository modelRepository) {
         this.resourceRepository = modelRepository;
-        this.agent = agent;
     }
 
-    public String emitFactory(String className) {
-        ClassHolder cls = new ClassHolder(className + "$Flavour_RESTFactory");
-        cls.setParent(FactoryTemplate.class.getName());
-        cls.setLevel(AccessLevel.PUBLIC);
-
-        emitFactoryConstructor(cls);
-        emitFactoryWorker(cls, className);
-
-        agent.submitClass(cls);
-        return cls.getName();
+    public Value<? extends ResourceFactory<?>> emitFactory(Emitter<?> em, ReflectClass<?> cls) {
+        return em.proxy(FactoryTemplate.class, (body, instance, methods, args) -> {
+            Value<String> path = body.emit(() -> (String) args[0].get());
+            body.returnValue(emitFactoryWorker(body, instance, path, cls.asSubclass(Object.class)));
+        });
     }
 
-    private void emitFactoryConstructor(ClassHolder cls) {
-        MethodHolder method = new MethodHolder("<init>", ValueType.VOID);
-        method.setLevel(AccessLevel.PUBLIC);
+    private Value<Object> emitFactoryWorker(Emitter<?> em, Value<FactoryTemplate> factory, Value<String> path,
+            ReflectClass<Object> cls) {
+        ResourceModel resource = resourceRepository.getResource(cls);
+        Value<ProxyTemplate> template = em.emit(() -> new ProxyTemplate(factory.get(), path.get()));
+        return em.proxy(cls, (body, instance, method, args) -> {
+            MethodModel model = resource.getMethods().get(method);
+            location = new SourceLocation(method);
 
-        ProgramEmitter pe = ProgramEmitter.create(method, agent.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        thisVar.invokeSpecial(FactoryTemplate.class, "<init>");
-        pe.exit();
+            Value<HttpMethod> httpMethod = emitHttpMethod(body, model);
+            Value<String> url = emitRequestUrl(body, resource, model, args);
+            Value<RequestImpl> request = body.emit(() -> new RequestImpl(httpMethod.get(), url.get()));
+            request = emitHeaders(body, request, model, args);
+            request = emitContent(body, request, model, args);
 
-        cls.addMethod(method);
+            Value<ResponseImpl> response = body.emit(() -> template.get().send(request.get()));
+            body.emit(() -> response.get().defaultAction());
+
+            if (!method.getReturnType().isPrimitive() || !method.getReturnType().getName().equals("void")) {
+                ReflectClass<?> returnType = method.getReturnType();
+                Value<Node> responseContent = body.emit(() -> response.get().getContent());
+                body.returnValue(deserialize(resource, model, responseContent, returnType));
+            }
+        });
     }
 
-    private void emitFactoryWorker(ClassHolder cls, String className) {
-        MethodHolder method = new MethodHolder("createResourceImpl", ValueType.parse(String.class),
-                ValueType.parse(ProxyTemplate.class));
-        method.setLevel(AccessLevel.PUBLIC);
-
-        String proxyClass = emitProxy(className, cls.getName());
-        ProgramEmitter pe = ProgramEmitter.create(method, agent.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter path = pe.var(1, String.class);
-        pe.construct(proxyClass, thisVar, path).returnValue();
-
-        cls.addMethod(method);
+    private Value<HttpMethod> emitHttpMethod(Emitter<?> em, MethodModel model) {
+        ReflectClass<?> httpMethodClass = em.getContext().findClass(HttpMethod.class);
+        ReflectField field = httpMethodClass.getDeclaredField(HttpMethod.class.getName());
+        return em.emit(() -> (HttpMethod) field.get(null));
     }
 
-    private String emitProxy(String className, String factoryClassName) {
-        ResourceModel resource = resourceRepository.getResource(className);
-        ClassHolder cls = new ClassHolder(className + "$Flavour_RESTProxy");
-        cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent(ProxyTemplate.class.getName());
-        cls.getInterfaces().add(className);
-
-        emitProxyConstructor(cls, factoryClassName);
-        for (MethodModel methodModel : resource.getMethods().values()) {
-            location = new CallLocation(new MethodReference(className, methodModel.getMethod()));
-            emitProxyWorker(cls, resource, methodModel);
-        }
-
-        agent.submitClass(cls);
-        return cls.getName();
-    }
-
-    private void emitProxyConstructor(ClassHolder cls, String factoryClassName) {
-        MethodHolder method = new MethodHolder("<init>", ValueType.object(factoryClassName),
-                ValueType.parse(String.class), ValueType.VOID);
-        method.setLevel(AccessLevel.PUBLIC);
-
-        ProgramEmitter pe = ProgramEmitter.create(method, agent.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter param = pe.var(1, ValueType.object(factoryClassName));
-        ValueEmitter prefix = pe.var(2, String.class);
-        thisVar.invokeSpecial(ProxyTemplate.class, "<init>", param.cast(FactoryTemplate.class), prefix);
-        pe.exit();
-
-        cls.addMethod(method);
-    }
-
-    private void emitProxyWorker(ClassHolder cls, ResourceModel resource, MethodModel model) {
-        MethodHolder method = new MethodHolder(model.getMethod());
-        method.setLevel(AccessLevel.PUBLIC);
-
-        ProgramEmitter pe = ProgramEmitter.create(method, agent.getClassSource());
-        ValueEmitter thisVar = pe.var(0, cls);
-        ValueEmitter httpMethod = emitHttpMethod(model, pe);
-        ValueEmitter url = emitRequestUrl(resource, model, pe);
-        ValueEmitter request = pe.construct(RequestImpl.class, httpMethod, url);
-        request = emitHeaders(request, model, pe);
-        request = emitContent(request, model, pe);
-
-        ValueEmitter response = thisVar.invokeVirtual("send", ResponseImpl.class, request);
-        response.invokeVirtual("defaultAction");
-        if (method.getResultType() == ValueType.VOID) {
-            pe.exit();
-        } else {
-            ValueEmitter responseContent = response.invokeVirtual("getContent", Node.class);
-            deserialize(resource, model, responseContent, method.getResultType()).returnValue();
-        }
-
-        cls.addMethod(method);
-    }
-
-    private ValueEmitter emitHttpMethod(MethodModel model, ProgramEmitter pe) {
-        pe.initClass(HttpMethod.class.getName());
-        return pe.getField(HttpMethod.class, model.getHttpMethod().name(), HttpMethod.class);
-    }
-
-    private ValueEmitter emitRequestUrl(ResourceModel resource, MethodModel model, ProgramEmitter pe) {
-        ValueEmitter sb = pe.construct(StringBuilder.class);
+    private Value<String> emitRequestUrl(Emitter<?> em, ResourceModel resource, MethodModel model,
+            Value<Object>[] args) {
+        Value<StringBuilder> sb = em.emit(() -> new StringBuilder());
         if (!resource.getPath().isEmpty()) {
-            sb = appendUrlPattern(resource.getPath(), model, sb);
+            sb = appendUrlPattern(em, resource.getPath(), model, sb, args);
             if (!model.getPath().isEmpty()) {
-                sb = sb.invokeVirtual("append", StringBuilder.class, pe.constant("/"));
+                Value<StringBuilder> localSb = sb;
+                sb = em.emit(() -> localSb.get().append("/"));
             }
         }
-        sb = appendUrlPattern(model.getPath(), model, sb);
-        ValueEmitter sep = pe.constant("?");
+        sb = appendUrlPattern(em, model.getPath(), model, sb, args);
+        Value<String[]> sep = em.emit(() -> new String[] { "?" });
         for (ValuePath queryParam : model.getQueryParameters().values()) {
-            ValueEmitter value = getParameter(pe, queryParam);
-            if (value.getType() instanceof ValueType.Primitive) {
-                sb = sb.invokeVirtual("append", StringBuilder.class, sep)
-                        .invokeVirtual("append", StringBuilder.class, pe.constant(queryParam.getName() + "="));
-                sb = appendValue(sb, getParameter(pe, queryParam));
-                sep = pe.constant("&");
-            } else {
-                BasicBlock current = pe.getBlock();
-                BasicBlock joint = pe.prepareBlock();
-                pe.enter(joint);
-                PhiEmitter nextSep = pe.phi(String.class);
-                pe.enter(current);
-                ValueEmitter localSb = sb;
-                ValueEmitter localSep = sep;
-                pe.when(value.isNotNull()).thenDo(() -> {
-                    localSb.invokeVirtual("append", StringBuilder.class, localSep)
-                            .invokeVirtual("append", StringBuilder.class, pe.constant(queryParam.getName() + "="));
-                    appendValue(localSb, getParameter(pe, queryParam));
-                    pe.constant("&").propagateTo(nextSep);
-                    pe.jump(joint);
-                }).elseDo(() -> {
-                    localSep.propagateTo(nextSep);
-                    pe.jump(joint);
-                });
-                pe.enter(joint);
-                sep = nextSep.getValue();
-            }
-
+            Value<Object> value = getParameter(em, queryParam, args);
+            Value<StringBuilder> localSb = sb;
+            em.emit(() -> {
+                StringBuilder innerSb = localSb.get();
+                if (value.get() != null) {
+                    innerSb = innerSb.append(sep.get()[0]).append('=');
+                    innerSb = innerSb.append(Window.encodeURIComponent(String.valueOf(value.get())));
+                    sep.get()[0] = "&";
+                }
+                return innerSb;
+            });
         }
-        return sb.invokeVirtual("toString", String.class);
+        Value<StringBuilder> localSb = sb;
+        return em.emit(() -> localSb.get().toString());
     }
 
-    private ValueEmitter appendUrlPattern(String pattern, MethodModel model, ValueEmitter sb) {
+    private Value<StringBuilder> appendUrlPattern(Emitter<?> em, String pattern, MethodModel model,
+            Value<StringBuilder> sb, Value<Object>[] args) {
         int index = 0;
         while (index < pattern.length()) {
             int next = pattern.indexOf('{', index);
             if (next < 0) {
-                sb = appendConstant(sb, pattern.substring(index));
+                sb = appendConstant(em, sb, pattern.substring(index));
                 break;
             }
             int end = findClosingBracket(pattern, next + 1);
             if (end < 0) {
-                sb = appendConstant(sb, pattern.substring(index));
+                sb = appendConstant(em, sb, pattern.substring(index));
                 break;
             }
             int sep = pattern.indexOf(':', next);
@@ -232,9 +161,9 @@ public class FactoryEmitter {
 
             ValuePath value = model.getPathParameters().get(name);
             if (value == null) {
-                agent.getDiagnostics().error(location, "Unknown parameter referred by path: " + name);
+                diagnostics.error(location, "Unknown parameter referred by path: " + name);
             } else {
-                sb = appendValue(sb, getParameter(sb.getProgramEmitter(), value));
+                sb = appendValue(em, sb, getParameter(em, value, args));
             }
 
             index = end + 1;
@@ -260,38 +189,47 @@ public class FactoryEmitter {
         return -1;
     }
 
-    private ValueEmitter emitHeaders(ValueEmitter request, MethodModel model, ProgramEmitter pe) {
+    private Value<RequestImpl> emitHeaders(Emitter<?> em, Value<RequestImpl> request, MethodModel model,
+            Value<Object>[] args) {
         for (ValuePath header : model.getHeaderParameters().values()) {
-            request = request.invokeVirtual("setHeader", RequestImpl.class, pe.constant(header.getName()),
-                    valueToString(getParameter(pe, header)));
+            Value<RequestImpl> localRequest = request;
+            String name = header.getName();
+            Value<Object> value = getParameter(em, header, args);
+            request = em.emit(() -> localRequest.get().setHeader(name,
+                    Window.encodeURIComponent(value.get().toString())));
         }
         return request;
     }
 
-    private ValueEmitter emitContent(ValueEmitter request, MethodModel model, ProgramEmitter pe) {
+    private Value<RequestImpl> emitContent(Emitter<?> em, Value<RequestImpl> request, MethodModel model,
+            Value<Object>[] args) {
         if (model.getBody() != null) {
-            ValueEmitter content = serialize(getParameter(pe, model.getBody()));
-            request = request.invokeVirtual("setContent", RequestImpl.class, content);
+            Value<RequestImpl> localRequest = request;
+            Value<Object> content = getParameter(em, model.getBody(), args);
+            request = em.emit(() -> localRequest.get().setContent(JSON.serialize(content.get())));
         }
         return request;
     }
 
-    private ValueEmitter getParameter(ProgramEmitter pe, ValuePath value) {
+    private Value<Object> getParameter(Emitter<?> em, ValuePath value, Value<Object>[] args) {
         class EmittingVisitor implements ValuePathVisitor {
-            ValueEmitter current;
+            Value<Object> current;
             @Override
             public void visit(PropertyValuePath path) {
+                Value<Object> localCurrent = current;
                 path.getParent().acceptVisitor(this);
                 PropertyModel property = path.getProperty();
                 if (property.getGetter() != null) {
-                    current = current.invokeVirtual(property.getGetter().getName(), property.getType());
+                    ReflectMethod getter = property.getGetter();
+                    current = em.emit(() -> getter.invoke(localCurrent.get()));
                 } else {
-                    current = current.getField(property.getField().getName(), property.getType());
+                    ReflectField field = property.getField();
+                    current = em.emit(() -> field.get(localCurrent.get()));
                 }
             }
             @Override
             public void visit(RootValuePath path) {
-                current = pe.var(path.getParameter().getIndex() + 1, path.getType());
+                current = args[path.getParameter().getIndex()];
             }
         }
         EmittingVisitor visitor = new EmittingVisitor();
@@ -300,36 +238,16 @@ public class FactoryEmitter {
     }
 
 
-    private ValueEmitter appendConstant(ValueEmitter sb, String constant) {
+    private Value<StringBuilder> appendConstant(Emitter<?> em, Value<StringBuilder> sb, String constant) {
         if (!constant.isEmpty()) {
-            sb = sb.invokeVirtual("append", StringBuilder.class, sb.getProgramEmitter().constant(constant));
+            Value<StringBuilder> localSb = sb;
+            sb = em.emit(() -> sb.get().append(constant));
         }
         return sb;
     }
 
-    private ValueEmitter appendValue(ValueEmitter sb, ValueEmitter value) {
-        ProgramEmitter pe = value.getProgramEmitter();
-        value = valueToString(value);
-        value = pe.invoke(Window.class, "encodeURIComponent", String.class, value);
-        return sb.invokeVirtual("append", StringBuilder.class, value);
-    }
-
-    private ValueEmitter valueToString(ValueEmitter value) {
-        ProgramEmitter pe = value.getProgramEmitter();
-        if (!(value.getType() instanceof ValueType.Primitive)) {
-            value = value.cast(Object.class);
-        } else {
-            switch (((ValueType.Primitive) value.getType()).getKind()) {
-                case BYTE:
-                case SHORT:
-                    value = value.cast(int.class);
-                    break;
-                default:
-                    break;
-            }
-        }
-        value = pe.invoke(String.class, "valueOf", String.class, value);
-        return value;
+    private Value<StringBuilder> appendValue(Emitter<?> em, Value<StringBuilder> sb, Value<Object> value) {
+        return em.emit(() -> sb.get().append(Window.encodeURIComponent(String.valueOf(value.get()))));
     }
 
     private ValueEmitter deserialize(ResourceModel resource, MethodModel method, ValueEmitter value,
@@ -430,35 +348,6 @@ public class FactoryEmitter {
 
     private ValueEmitter createObjectDeserializer(Class<?> type, ProgramEmitter pe) {
         return pe.invoke(JSON.class, "getClassDeserializer", JsonDeserializer.class, pe.constant(type));
-    }
-
-    private ValueEmitter serialize(ValueEmitter value) {
-        return value.getProgramEmitter().invoke(JSON.class, "serialize", Node.class, box(value).cast(Object.class));
-    }
-
-    private ValueEmitter box(ValueEmitter value) {
-        ProgramEmitter pe = value.getProgramEmitter();
-        if (value.getType() instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive) value.getType()).getKind()) {
-                case BOOLEAN:
-                    return pe.invoke(Boolean.class, "valueOf", Boolean.class, value);
-                case BYTE:
-                    return pe.invoke(Byte.class, "valueOf", Byte.class, value);
-                case SHORT:
-                    return pe.invoke(Short.class, "valueOf", Short.class, value);
-                case CHARACTER:
-                    return pe.invoke(Character.class, "valueOf", Character.class, value);
-                case INTEGER:
-                    return pe.invoke(Integer.class, "valueOf", Integer.class, value);
-                case LONG:
-                    return pe.invoke(Long.class, "valueOf", Long.class, value);
-                case FLOAT:
-                    return pe.invoke(Float.class, "valueOf", Float.class, value);
-                case DOUBLE:
-                    return pe.invoke(Double.class, "valueOf", Double.class, value);
-            }
-        }
-        return value;
     }
 
     private Method findMethod(MethodReference reference) {

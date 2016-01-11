@@ -24,12 +24,12 @@ import org.teavm.flavour.rest.processor.ResponseProcessor;
  *
  * @author Alexey Andreev
  */
-abstract class ProxyTemplate {
+class ProxyTemplate {
     private List<RequestProcessor> requestProcessors;
     private List<ResponseProcessor> responseProcessors;
     private String prefix;
 
-    public ProxyTemplate(FactoryTemplate<?> factory, String prefix) {
+    public ProxyTemplate(FactoryTemplate factory, String prefix) {
         requestProcessors = new ArrayList<>(factory.requestProcessors);
         responseProcessors = new ArrayList<>(factory.responseProcessors);
         if (!prefix.endsWith("/")) {
