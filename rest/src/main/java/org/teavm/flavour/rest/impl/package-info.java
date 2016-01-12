@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,22 +13,5 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.rest.impl.model;
-
-import org.teavm.flavour.mp.ReflectClass;
-
-/**
- *
- * @author Alexey Andreev
- */
-public abstract class ValuePath {
-    public abstract Usage getUsage();
-
-    public abstract String getName();
-
-    public abstract ValuePath getParent();
-
-    public abstract ReflectClass<?> getType();
-
-    public abstract void acceptVisitor(ValuePathVisitor visitor);
-}
+@org.teavm.flavour.mp.CompileTime
+package org.teavm.flavour.rest.impl;

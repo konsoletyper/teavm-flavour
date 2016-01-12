@@ -16,7 +16,10 @@
 package org.teavm.flavour.rest;
 
 import org.teavm.flavour.mp.CompileTime;
+import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Reflected;
+import org.teavm.flavour.rest.impl.FactoryEmitter;
 
 /**
  *
@@ -28,9 +31,8 @@ public final class RESTClient {
     }
 
     @Reflected
-    public static <T> ResourceFactory<T> factory(Class<T> type) {
-        return factoryImpl(type.getName());
+    public static native <T> ResourceFactory<T> factory(Class<T> type);
+    private static void factory(Emitter<ResourceFactory<?>> em, ReflectClass<?> type) {
+        em.returnValue(FactoryEmitter.getInstance(em.getContext()).emitFactory(em, type));
     }
-
-    private static native <T> ResourceFactory<T> factoryImpl(String typeName);
 }

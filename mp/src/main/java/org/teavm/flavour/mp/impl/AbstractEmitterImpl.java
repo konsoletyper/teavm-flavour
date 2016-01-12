@@ -34,6 +34,7 @@ import org.teavm.model.BasicBlock;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
+import org.teavm.model.ElementModifier;
 import org.teavm.model.InstructionLocation;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReader;
@@ -165,13 +166,22 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
         ValueType innerType = ((ReflectClassImpl<?>) type).type;
         ClassHolder cls = new ClassHolder(context.createProxyName(type.getName()));
         cls.setLevel(AccessLevel.PUBLIC);
-        cls.setParent("java.lang.Object");
-        cls.getInterfaces().add(((ValueType.Object) innerType).getClassName());
+
+        String typeName = ((ValueType.Object) innerType).getClassName();
+        org.teavm.model.ClassReader typeReader = classSource.get(typeName);
+        if (typeReader.hasModifier(ElementModifier.INTERFACE)) {
+            cls.setParent("java.lang.Object");
+            cls.getInterfaces().add(typeName);
+        } else {
+            cls.setParent(typeName);
+        }
 
         ProxyVariableContext nestedVarContext = new ProxyVariableContext(varContext, cls);
         for (ReflectMethod method : type.getMethods()) {
             ReflectMethodImpl methodImpl = (ReflectMethodImpl) method;
-            if (methodImpl.method.getProgram() != null && methodImpl.method.getProgram().basicBlockCount() > 0) {
+            if (methodImpl.method.getProgram() != null && methodImpl.method.getProgram().basicBlockCount() > 0
+                    || methodImpl.method.hasModifier(ElementModifier.NATIVE)
+                    || !methodImpl.method.hasModifier(ElementModifier.ABSTRACT)) {
                 continue;
             }
             MethodHolder methodHolder = new MethodHolder(methodImpl.method.getDescriptor());

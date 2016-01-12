@@ -15,51 +15,57 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import org.teavm.diagnostics.Diagnostics;
+import javax.ws.rs.BeanParam;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.HEAD;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.OPTIONS;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.processor.HttpMethod;
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.ElementModifier;
-import org.teavm.model.MethodReader;
-import org.teavm.model.ValueType;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class ResourceModelRepository {
-    private Diagnostics diagnostics;
-    private ClassReaderSource classSource;
+    private EmitterContext context;
+    private EmitterDiagnostics diagnostics;
     private BeanRepository beanRepository;
-    private Map<String, ResourceModel> resources = new HashMap<>();
+    private Map<ReflectClass<?>, ResourceModel> resources = new HashMap<>();
 
-    public ResourceModelRepository(Diagnostics diagnostics, ClassReaderSource classSource,
-            BeanRepository beanRepository) {
-        this.diagnostics = diagnostics;
-        this.classSource = classSource;
+    public ResourceModelRepository(EmitterContext context, BeanRepository beanRepository) {
+        this.context = context;
+        this.diagnostics = context.getDiagnostics();
         this.beanRepository = beanRepository;
     }
 
-    public ResourceModel getResource(String className) {
-        return resources.computeIfAbsent(className, this::describeResource);
+    public ResourceModel getResource(ReflectClass<?> cls) {
+        return resources.computeIfAbsent(cls, this::describeResource);
     }
 
-    private ResourceModel describeResource(String className) {
-        ClassReader cls = classSource.get(className);
-        if (cls == null) {
-            return null;
-        }
-        if (!cls.hasModifier(ElementModifier.INTERFACE) || !cls.hasModifier(ElementModifier.ABSTRACT)) {
-            diagnostics.error(null, "Class {{c0}} is neither interface nor abstract class", className);
+    private ResourceModel describeResource(ReflectClass<?> cls) {
+        if (!cls.isInterface() || !Modifier.isAbstract(cls.getModifiers())) {
+            diagnostics.error(null, "Class {{c0}} is neither interface nor abstract class", cls);
         }
 
-        ResourceModel resource = new ResourceModel(className);
+        ResourceModel resource = new ResourceModel(cls);
         applyInheritance(resource, cls);
         readPath(resource, cls);
         readMethods(resource, cls);
@@ -67,8 +73,8 @@ public class ResourceModelRepository {
         return resource;
     }
 
-    private void applyInheritance(ResourceModel resource, ClassReader cls) {
-        for (String iface : cls.getInterfaces()) {
+    private void applyInheritance(ResourceModel resource, ReflectClass<?> cls) {
+        for (ReflectClass<?> iface : cls.getInterfaces()) {
             ResourceModel superResource = getResource(iface);
             if (superResource != null) {
                 resource.methods.putAll(superResource.methods);
@@ -80,10 +86,10 @@ public class ResourceModelRepository {
         }
     }
 
-    private void readPath(ResourceModel resource, ClassReader cls) {
-        AnnotationReader pathAnnot = cls.getAnnotations().get(JAXRSAnnotations.PATH);
+    private void readPath(ResourceModel resource, ReflectClass<?> cls) {
+        Path pathAnnot = cls.getAnnotation(Path.class);
         if (pathAnnot != null) {
-            resource.path = pathAnnot.getValue("value").getString();
+            resource.path = pathAnnot.value();
         } else if (resource.path == null) {
             diagnostics.error(null, "Class {{c0}} is not marked with {{c1}} annotation", cls.getName(),
                     JAXRSAnnotations.PATH);
@@ -91,17 +97,18 @@ public class ResourceModelRepository {
         }
     }
 
-    private void readMethods(ResourceModel resource, ClassReader cls) {
-        for (MethodReader method : cls.getMethods()) {
-            if (!method.hasModifier(ElementModifier.ABSTRACT)) {
+    private void readMethods(ResourceModel resource, ReflectClass<?> cls) {
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
+            if (!Modifier.isAbstract(method.getModifiers())) {
                 continue;
             }
-            MethodModel methodModel = resource.methods.computeIfAbsent(method.getDescriptor(), MethodModel::new);
+            MethodModel methodModel = resource.methods.computeIfAbsent(new MethodKey(method),
+                    k -> new MethodModel(method));
             readMethod(methodModel, method);
         }
     }
 
-    private void readMethod(MethodModel model, MethodReader method) {
+    private void readMethod(MethodModel model, ReflectMethod method) {
         readPath(model, method);
         readHttpMethod(model, method);
         readParameters(model, method);
@@ -110,43 +117,43 @@ public class ResourceModelRepository {
         validate(model, method);
     }
 
-    private void readPath(MethodModel model, MethodReader method) {
-        AnnotationReader pathAnnot = method.getAnnotations().get(JAXRSAnnotations.PATH);
+    private void readPath(MethodModel model, ReflectMethod method) {
+        Path pathAnnot = method.getAnnotation(Path.class);
         if (pathAnnot != null) {
             dropInheritance(model);
-            model.path = pathAnnot.getValue("value").getString();
+            model.path = pathAnnot.value();
         }
     }
 
-    private void readHttpMethod(MethodModel model, MethodReader method) {
-        if (method.getAnnotations().get(JAXRSAnnotations.GET) != null) {
+    private void readHttpMethod(MethodModel model, ReflectMethod method) {
+        if (method.getAnnotation(GET.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.GET;
-        } else if (method.getAnnotations().get(JAXRSAnnotations.PUT) != null) {
+        } else if (method.getAnnotation(PUT.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.PUT;
-        } else if (method.getAnnotations().get(JAXRSAnnotations.POST) != null) {
+        } else if (method.getAnnotation(POST.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.POST;
-        } else if (method.getAnnotations().get(JAXRSAnnotations.DELETE) != null) {
+        } else if (method.getAnnotation(DELETE.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.DELETE;
-        } else if (method.getAnnotations().get(JAXRSAnnotations.HEAD) != null) {
+        } else if (method.getAnnotation(HEAD.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.HEAD;
-        } else if (method.getAnnotations().get(JAXRSAnnotations.OPTIONS) != null) {
+        } else if (method.getAnnotation(OPTIONS.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.OPTIONS;
         }
     }
 
-    private void readParameters(MethodModel model, MethodReader method) {
-        AnnotationContainerReader[] annotations = method.getParameterAnnotations();
-        for (AnnotationContainerReader paramAnnotations : annotations) {
-            if (paramAnnotations.get(JAXRSAnnotations.PATH_PARAM) != null
-                    || paramAnnotations.get(JAXRSAnnotations.QUERY_PARAM) != null
-                    || paramAnnotations.get(JAXRSAnnotations.HEADER_PARAM) != null
-                    || paramAnnotations.get(JAXRSAnnotations.BEAN_PARAM) != null) {
+    private void readParameters(MethodModel model, ReflectMethod method) {
+        for (int i = 0; i < method.getParameterCount(); ++i) {
+            ReflectAnnotatedElement paramAnnotations = method.getParameterAnnotations(i);
+            if (paramAnnotations.getAnnotation(PathParam.class) != null
+                    || paramAnnotations.getAnnotation(QueryParam.class) != null
+                    || paramAnnotations.getAnnotation(HeaderParam.class) != null
+                    || paramAnnotations.getAnnotation(BeanParam.class) != null) {
                 dropInheritance(model);
                 break;
             }
@@ -155,21 +162,20 @@ public class ResourceModelRepository {
             return;
         }
 
-        for (int i = 0; i < method.parameterCount(); ++i) {
+        for (int i = 0; i < method.getParameterCount(); ++i) {
             ParameterModel param = new ParameterModel();
             param.index = i;
-            param.type = method.parameterType(i);
-            readParameter(param, method, annotations[i]);
+            param.type = method.getParameterType(i);
+            readParameter(param, method, method.getParameterAnnotations(i));
             model.parameters.add(param);
         }
     }
 
-    private void readParameter(ParameterModel param, MethodReader method,
-            AnnotationContainerReader annotations) {
-        AnnotationReader pathAnnot = annotations.get(JAXRSAnnotations.PATH_PARAM);
-        AnnotationReader queryAnnot = annotations.get(JAXRSAnnotations.QUERY_PARAM);
-        AnnotationReader headerAnnot = annotations.get(JAXRSAnnotations.HEADER_PARAM);
-        AnnotationReader beanAnnot = annotations.get(JAXRSAnnotations.BEAN_PARAM);
+    private void readParameter(ParameterModel param, ReflectMethod method, ReflectAnnotatedElement annotations) {
+        PathParam pathAnnot = annotations.getAnnotation(PathParam.class);
+        QueryParam queryAnnot = annotations.getAnnotation(QueryParam.class);
+        HeaderParam headerAnnot = annotations.getAnnotation(HeaderParam.class);
+        BeanParam beanAnnot = annotations.getAnnotation(BeanParam.class);
 
         int annotCount = 0;
         if (pathAnnot != null) {
@@ -186,75 +192,72 @@ public class ResourceModelRepository {
         }
 
         if (annotCount > 1) {
-            diagnostics.error(new CallLocation(method.getReference()), "Only one annotation of the following list "
-                    + "enabled: {{c0}}, {{c1}}, {{c2}}, {{c3}}", JAXRSAnnotations.BEAN_PARAM,
-                    JAXRSAnnotations.QUERY_PARAM, JAXRSAnnotations.HEADER_PARAM, JAXRSAnnotations.QUERY_PARAM);
+            diagnostics.error(new SourceLocation(method), "Only one annotation of the following list "
+                    + "enabled: {{t0}}, {{t1}}, {{t2}}, {{t3}}", BeanParam.class, QueryParam.class,
+                    HeaderParam.class, PathParam.class);
         }
 
         if (pathAnnot != null) {
             param.usage = Usage.PATH;
-            param.name = pathAnnot.getValue("value").getString();
+            param.name = pathAnnot.value();
             validateScalarParameter(param, method);
         } else if (queryAnnot != null) {
             param.usage = Usage.QUERY;
-            param.name = queryAnnot.getValue("value").getString();
+            param.name = queryAnnot.value();
             validateScalarParameter(param, method);
         } else if (headerAnnot != null) {
             param.usage = Usage.HEADER;
-            param.name = headerAnnot.getValue("value").getString();
+            param.name = headerAnnot.value();
             validateScalarParameter(param, method);
         } else if (beanAnnot != null) {
             param.usage = Usage.BEAN;
-            if (!(param.type instanceof ValueType.Object)) {
-                diagnostics.error(new CallLocation(method.getReference()), "Parameter #" + param.index
-                        + " marked by {{c0}} must be of object type, actual type is {{t1}}",
-                        JAXRSAnnotations.BEAN_PARAM, param.type);
+            if (param.type.isArray() || param.type.isPrimitive()) {
+                diagnostics.error(new SourceLocation(method), "Parameter #" + param.index
+                        + " marked by {{t0}} must be of object type, actual type is {{t1}}",
+                        BeanParam.class, param.type);
             }
         } else {
             param.usage = Usage.BODY;
         }
     }
 
-    private void validateScalarParameter(ParameterModel param, MethodReader method) {
+    private void validateScalarParameter(ParameterModel param, ReflectMethod method) {
         if (!isSupportedParameterType(param.type)) {
-            diagnostics.error(new CallLocation(method.getReference()), "Invalid parameter #" + param.getIndex()
+            diagnostics.error(new SourceLocation(method), "Invalid parameter #" + param.getIndex()
                     + " type {{t0}}", param.getType());
         }
     }
 
-    private boolean isSupportedParameterType(ValueType type) {
-        if (type instanceof ValueType.Primitive) {
+    private boolean isSupportedParameterType(ReflectClass<?> type) {
+        if (type.isPrimitive()) {
             return true;
-        } else if (type instanceof ValueType.Object) {
-            ValueType.Object obj = (ValueType.Object) type;
-            return classSource.isSuperType("java.lang.String", obj.getClassName()).orElse(false)
-                    || classSource.isSuperType("java.lang.Number", obj.getClassName()).orElse(false);
-        } else {
+        } else if (type.isArray()) {
             return false;
+        } else {
+            return context.findClass(String.class).isAssignableFrom(type)
+                    || context.findClass(Number.class).isAssignableFrom(type);
         }
     }
 
-    private void readMimeTypes(MethodModel model, MethodReader method) {
-        AnnotationReader produces = method.getAnnotations().get(JAXRSAnnotations.PRODUCES);
+    private void readMimeTypes(MethodModel model, ReflectMethod method) {
+        Produces produces = method.getAnnotation(Produces.class);
         if (produces != null) {
-            model.produces.addAll(produces.getValue("value").getList().stream()
-                    .map(annot -> annot.getString()).collect(Collectors.toList()));
+            model.produces.addAll(Arrays.asList(produces.value()));
         }
-        AnnotationReader consumes = method.getAnnotations().get(JAXRSAnnotations.PRODUCES);
+        Consumes consumes = method.getAnnotation(Consumes.class);
         if (consumes != null) {
-            model.consumes.addAll(consumes.getValue("value").getList().stream()
-                    .map(annot -> annot.getString()).collect(Collectors.toList()));
+            model.consumes.addAll(Arrays.asList(consumes.value()));
         }
     }
 
-    private void fillValues(MethodModel model, MethodReader method) {
+    private void fillValues(MethodModel model, ReflectMethod method) {
         for (ParameterModel param : model.parameters) {
             RootValuePath path = new RootValuePath(param);
             addValue(path, model, method);
         }
     }
 
-    private void addValue(ValuePath path, MethodModel model, MethodReader method) {
+    private void addValue(ValuePath path, MethodModel model, ReflectMethod method) {
         switch (path.getUsage()) {
             case PATH:
                 addScalar(path, method, model.pathParameters);
@@ -270,17 +273,18 @@ public class ResourceModelRepository {
                 break;
             case BODY:
                 if (model.body != null) {
-                    diagnostics.error(new CallLocation(method.getReference()), "Multiple candidates for "
+                    diagnostics.error(new SourceLocation(method), "Multiple candidates for "
                             + "message body: " + model.body + " and " + path);
                 } else {
                     model.body = path;
                 }
+                break;
         }
     }
 
-    private void addScalar(ValuePath path, MethodReader method, Map<String, ValuePath> map) {
+    private void addScalar(ValuePath path, ReflectMethod method, Map<String, ValuePath> map) {
         if (map.containsKey(path.getName())) {
-            diagnostics.error(new CallLocation(method.getReference()), "Multiple candidates for "
+            diagnostics.error(new SourceLocation(method), "Multiple candidates for "
                     + path.getUsage().name().toLowerCase() + " parameter '" + path.getName() + "': "
                     + map.get(path.getName()) + " and " + path);
             return;
@@ -288,12 +292,11 @@ public class ResourceModelRepository {
         map.put(path.getName(), path);
     }
 
-    private void fillBeanValues(ValuePath path, MethodModel model, MethodReader method) {
-        if (!(path.getType() instanceof ValueType.Object)) {
+    private void fillBeanValues(ValuePath path, MethodModel model, ReflectMethod method) {
+        if (path.getType().isArray() || path.getType().isPrimitive()) {
             return;
         }
-        String className = ((ValueType.Object) path.getType()).getClassName();
-        BeanModel bean = beanRepository.getBean(className);
+        BeanModel bean = beanRepository.getBean(path.getType());
         if (bean == null) {
             return;
         }
@@ -303,10 +306,10 @@ public class ResourceModelRepository {
         }
     }
 
-    private void validate(MethodModel model, MethodReader method) {
+    private void validate(MethodModel model, ReflectMethod method) {
         if (model.httpMethod == null) {
             model.httpMethod = HttpMethod.GET;
-            diagnostics.error(new CallLocation(method.getReference()), "HTTP method not specified");
+            diagnostics.error(new SourceLocation(method), "HTTP method not specified");
         }
     }
 

@@ -230,11 +230,12 @@ public class ReflectClassImpl<T> implements ReflectClass<T> {
         }
         if (methodsCache == null) {
             Set<String> visited = new HashSet<>();
-            methodsCache = context.getClassSource().getAncestorClasses(classReader.getName())
+            methodsCache = context.getClassSource().getAncestors(classReader.getName())
                     .flatMap(cls -> cls.getMethods().stream())
                     .filter(method -> !method.getName().equals("<clinit>"))
                     .filter(method -> visited.add(method.getDescriptor().toString()))
-                    .map(method -> getDeclaredMethod(method.getDescriptor()))
+                    .map(method -> context.getClass(ValueType.object(method.getOwnerName()))
+                            .getDeclaredMethod(method.getDescriptor()))
                     .filter(Objects::nonNull)
                     .toArray(sz -> new ReflectMethod[sz]);
         }

@@ -15,53 +15,53 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.teavm.diagnostics.Diagnostics;
-import org.teavm.model.AccessLevel;
-import org.teavm.model.AnnotationContainerReader;
-import org.teavm.model.AnnotationReader;
-import org.teavm.model.CallLocation;
-import org.teavm.model.ClassReader;
-import org.teavm.model.ClassReaderSource;
-import org.teavm.model.ElementModifier;
-import org.teavm.model.FieldReader;
-import org.teavm.model.MethodReader;
-import org.teavm.model.ValueType;
+import java.util.function.Function;
+import javax.ws.rs.BeanParam;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
+import org.teavm.flavour.mp.EmitterContext;
+import org.teavm.flavour.mp.EmitterDiagnostics;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.SourceLocation;
+import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class BeanRepository {
-    private static String[] meaningfulAnnotations = { JAXRSAnnotations.BEAN_PARAM,
-            JAXRSAnnotations.PATH_PARAM, JAXRSAnnotations.HEADER_PARAM, JAXRSAnnotations.QUERY_PARAM };
-    private ClassReaderSource classSource;
-    private Diagnostics diagnostics;
-    private Map<String, BeanModel> cache = new HashMap<>();
+    private static List<Class<? extends Annotation>> meaningfulAnnotations = Arrays.asList(BeanParam.class,
+            PathParam.class, HeaderParam.class, QueryParam.class);
+    private EmitterContext context;
+    private EmitterDiagnostics diagnostics;
+    private Map<ReflectClass<?>, BeanModel> cache = new HashMap<>();
 
-    public BeanRepository(ClassReaderSource classSource, Diagnostics diagnostics) {
-        this.classSource = classSource;
-        this.diagnostics = diagnostics;
+    public BeanRepository(EmitterContext context) {
+        this.context = context;
+        this.diagnostics = context.getDiagnostics();
     }
 
-    public BeanModel getBean(String className) {
-        return cache.computeIfAbsent(className, this::createBean);
+    public BeanModel getBean(ReflectClass<?> cls) {
+        return cache.computeIfAbsent(cls, this::createBean);
     }
 
-    private BeanModel createBean(String className) {
-        ClassReader cls = classSource.get(className);
-        if (cls == null) {
-            return null;
-        }
-
+    private BeanModel createBean(ReflectClass<?> cls) {
         BeanModel model = new BeanModel();
-        model.className = className;
-        if (cls.getParent() != null && !cls.getParent().equals("java.lang.Object")) {
-            BeanModel parentModel = getBean(cls.getParent());
+        model.type = cls;
+        if (cls.getSuperclass() != null && !cls.getSuperclass().getName().equals("java.lang.Object")) {
+            BeanModel parentModel = getBean(cls.getSuperclass());
             if (parentModel != null) {
                 model.properties.putAll(model.properties);
             }
@@ -72,19 +72,19 @@ public class BeanRepository {
         return model;
     }
 
-    private void detectProperties(BeanModel model, ClassReader cls) {
+    private void detectProperties(BeanModel model, ReflectClass<?> cls) {
         Set<String> inheritedProperties = new HashSet<>(model.properties.keySet());
         detectFields(cls, model, inheritedProperties);
         detectAccessors(cls, model, inheritedProperties);
         detectUsage(model);
     }
 
-    private void detectFields(ClassReader cls, BeanModel model, Set<String> inheritedProperties) {
-        for (FieldReader field : cls.getFields()) {
-            if (field.hasModifier(ElementModifier.STATIC)) {
+    private void detectFields(ReflectClass<?> cls, BeanModel model, Set<String> inheritedProperties) {
+        for (ReflectField field : cls.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
-            if (field.getLevel() != AccessLevel.PUBLIC && hasMeaningfulAnnotation(field.getAnnotations())) {
+            if (!Modifier.isPublic(field.getModifiers()) && hasMeaningfulAnnotation(field)) {
                 continue;
             }
             PropertyModel property = new PropertyModel();
@@ -96,23 +96,23 @@ public class BeanRepository {
         }
     }
 
-    private void detectAccessors(ClassReader cls, BeanModel model, Set<String> inheritedProperties) {
-        for (MethodReader method : cls.getMethods()) {
-            if (method.hasModifier(ElementModifier.STATIC)) {
+    private void detectAccessors(ReflectClass<?> cls, BeanModel model, Set<String> inheritedProperties) {
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
                 continue;
             }
-            if (method.getLevel() != AccessLevel.PUBLIC && hasMeaningfulAnnotation(method.getAnnotations())) {
+            if (!Modifier.isPublic(method.getModifiers()) && hasMeaningfulAnnotation(method)) {
                 continue;
             }
 
-            ValueType type;
+            ReflectClass<?> type;
             String propertyName = tryGetter(method);
             if (propertyName != null) {
-                type = method.getResultType();
+                type = method.getReturnType();
             } else {
                 propertyName = trySetter(method);
                 if (propertyName != null) {
-                    type = method.parameterType(0);
+                    type = method.getParameterType(0);
                 } else {
                     continue;
                 }
@@ -130,15 +130,15 @@ public class BeanRepository {
                 inheritedProperties.remove(propertyName);
             } else {
                 if (!type.equals(property.type)) {
-                    if (hasMeaningfulAnnotation(method.getAnnotations())) {
-                        diagnostics.error(new CallLocation(method.getReference()), "Inconsistent types for "
+                    if (hasMeaningfulAnnotation(method)) {
+                        diagnostics.error(new SourceLocation(method), "Inconsistent types for "
                                 + "property " + propertyName + ": {{t0}} vs. {{t1}}", type, property.type);
                     }
                     continue;
                 }
             }
 
-            if (method.parameterCount() == 1) {
+            if (method.getParameterCount() == 1) {
                 property.setter = method;
             } else {
                 property.getter = method;
@@ -149,84 +149,85 @@ public class BeanRepository {
     private void detectUsage(BeanModel bean) {
         for (PropertyModel property : bean.properties.values()) {
             if (property.field != null) {
-                detectUsage(bean, property, property.field.getAnnotations());
+                detectUsage(bean, property, property.field);
             }
             if (property.getter != null) {
-                detectUsage(bean, property, property.getter.getAnnotations());
+                detectUsage(bean, property, property.getter);
             }
             if (property.setter != null) {
-                detectUsage(bean, property, property.setter.getAnnotations());
+                detectUsage(bean, property, property.setter);
             }
         }
     }
 
-    private void detectUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations) {
+    private void detectUsage(BeanModel bean, PropertyModel property, ReflectAnnotatedElement annotations) {
         if (!hasMeaningfulAnnotation(annotations)) {
             return;
         }
         int count = 0;
-        for (String annot : meaningfulAnnotations) {
-            if (annotations.get(annot) != null) {
+        for (Class<? extends Annotation> annot : meaningfulAnnotations) {
+            if (annotations.getAnnotation(annot) != null) {
                 ++count;
                 if (count > 1) {
-                    diagnostics.error(null, "Property {{c0}}." + property.getName() + " should have only one "
-                            + "of the following annotations: {{c0}}, {{c1}}, {{c2}}, {{c3}}",
-                            bean.className, meaningfulAnnotations[0], meaningfulAnnotations[1],
-                            meaningfulAnnotations[2], meaningfulAnnotations[3]);
+                    diagnostics.error(null, "Property {{t0}}." + property.getName() + " should have only one "
+                            + "of the following annotations: {{t1}}, {{t2}}, {{t3}}, {{t4}}",
+                            bean.type, meaningfulAnnotations.get(0), meaningfulAnnotations.get(1),
+                            meaningfulAnnotations.get(2), meaningfulAnnotations.get(3));
                     return;
                 }
             }
         }
 
-        testScalarUsage(bean, property, annotations, JAXRSAnnotations.PATH_PARAM, Usage.PATH);
-        testScalarUsage(bean, property, annotations, JAXRSAnnotations.QUERY_PARAM, Usage.QUERY);
-        testScalarUsage(bean, property, annotations, JAXRSAnnotations.HEADER_PARAM, Usage.HEADER);
-        testUsage(bean, property, annotations, JAXRSAnnotations.BEAN_PARAM, Usage.BEAN);
+        testScalarUsage(bean, property, annotations, PathParam.class, Usage.PATH, PathParam::value);
+        testScalarUsage(bean, property, annotations, QueryParam.class, Usage.QUERY, QueryParam::value);
+        testScalarUsage(bean, property, annotations, HeaderParam.class, Usage.HEADER, HeaderParam::value);
+        testUsage(bean, property, annotations, BeanParam.class, Usage.BEAN);
     }
 
-    private void testScalarUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations,
-            String annotationName, Usage desiredUsage) {
-        testUsage(bean, property, annotations, annotationName, desiredUsage);
-        AnnotationReader annot = annotations.get(annotationName);
+    private <T extends Annotation> void testScalarUsage(BeanModel bean, PropertyModel property,
+            ReflectAnnotatedElement annotations, Class<T> annotationType, Usage desiredUsage,
+            Function<T, String> valueFunction) {
+        testUsage(bean, property, annotations, annotationType, desiredUsage);
+        T annot = annotations.getAnnotation(annotationType);
         if (annot != null) {
-            String newName = annot.getValue("value").getString();
+            String newName = valueFunction.apply(annot);
             if (property.targetName != null && !newName.equals(property.targetName)) {
-                diagnostics.error(null, "Property {{c0}}." + property.getName() + " has inconsistent JAX-RS "
-                        + "annotations", bean.className);
+                diagnostics.error(null, "Property {{t0}}." + property.getName() + " has inconsistent JAX-RS "
+                        + "annotations", bean.type);
             } else {
                 property.targetName = newName;
             }
         }
     }
 
-    private void testUsage(BeanModel bean, PropertyModel property, AnnotationContainerReader annotations,
-            String annotationName, Usage desiredUsage) {
-        AnnotationReader annot = annotations.get(annotationName);
+    private void testUsage(BeanModel bean, PropertyModel property, ReflectAnnotatedElement annotations,
+            Class<? extends Annotation> annotationType, Usage desiredUsage) {
+        Annotation annot = annotations.getAnnotation(annotationType);
         if (annot == null) {
             return;
         }
         if (property.usage != null) {
             if (property.usage != desiredUsage) {
-                diagnostics.error(null, "Property {{c0}}." + property.getName() + " has inconsistent JAX-RS "
-                        + "annotations", bean.className);
+                diagnostics.error(null, "Property {{t0}}." + property.getName() + " has inconsistent JAX-RS "
+                        + "annotations", bean.type);
             }
         } else {
             property.usage = desiredUsage;
         }
     }
 
-    private String tryGetter(MethodReader method) {
-        if (method.getResultType() == ValueType.VOID || method.parameterCount() > 0) {
+    private String tryGetter(ReflectMethod method) {
+        if (method.getReturnType() == context.findClass(void.class) || method.getParameterCount() > 0) {
             return null;
         }
         return tryRemovePrefix("get", method.getName())
-                .orElseGet(() -> method.getResultType() == ValueType.BOOLEAN
+                .orElseGet(() -> method.getReturnType() == context.findClass(boolean.class)
                         ? tryRemovePrefix("is", method.getName()).orElse(null)
                         : null);
     }
 
-    private String trySetter(MethodReader method) {
-        if (method.getResultType() != ValueType.VOID || method.parameterCount() != 1) {
+    private String trySetter(ReflectMethod method) {
+        if (method.getReturnType() != context.findClass(void.class) || method.getParameterCount() != 1) {
             return null;
         }
         return tryRemovePrefix("set", method.getName()).orElse(null);
@@ -253,9 +254,9 @@ public class BeanRepository {
         }
     }
 
-    private boolean hasMeaningfulAnnotation(AnnotationContainerReader annotations) {
-        for (String annot : meaningfulAnnotations) {
-            if (annotations.get(annot) != null) {
+    private boolean hasMeaningfulAnnotation(ReflectAnnotatedElement annotations) {
+        for (Class<? extends Annotation> annot : meaningfulAnnotations) {
+            if (annotations.getAnnotation(annot) != null) {
                 return true;
             }
         }

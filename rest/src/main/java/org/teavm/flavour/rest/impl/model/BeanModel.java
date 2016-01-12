@@ -18,18 +18,19 @@ package org.teavm.flavour.rest.impl.model;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class BeanModel {
-    String className;
+    ReflectClass<?> type;
     Map<String, PropertyModel> properties = new HashMap<>();
     private Map<String, PropertyModel> readonlyProperties = Collections.unmodifiableMap(properties);
 
-    public String getClassName() {
-        return className;
+    public ReflectClass<?> getClassName() {
+        return type;
     }
 
     public Map<String, PropertyModel> getProperties() {

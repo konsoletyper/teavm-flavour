@@ -18,27 +18,27 @@ package org.teavm.flavour.rest.impl.model;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.teavm.model.MethodDescriptor;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class ResourceModel {
-    private String className;
-    Map<MethodDescriptor, MethodModel> methods = new HashMap<>();
-    private Map<MethodDescriptor, MethodModel> readonlyMethods = Collections.unmodifiableMap(methods);
+    private ReflectClass<?> type;
+    Map<MethodKey, MethodModel> methods = new HashMap<>();
+    private Map<MethodKey, MethodModel> readonlyMethods = Collections.unmodifiableMap(methods);
     String path;
 
-    ResourceModel(String className) {
-        this.className = className;
+    ResourceModel(ReflectClass<?> type) {
+        this.type = type;
     }
 
-    public String getClassName() {
-        return className;
+    public ReflectClass<?> getType() {
+        return type;
     }
 
-    public Map<MethodDescriptor, MethodModel> getMethods() {
+    public Map<MethodKey, MethodModel> getMethods() {
         return readonlyMethods;
     }
 

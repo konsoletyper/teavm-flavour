@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-import org.teavm.model.ValueType;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
@@ -48,7 +48,7 @@ public class RootValuePath extends ValuePath {
     }
 
     @Override
-    public ValueType getType() {
+    public ReflectClass<?> getType() {
         return parameter.type;
     }
 

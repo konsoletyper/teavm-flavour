@@ -21,15 +21,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.processor.HttpMethod;
-import org.teavm.model.MethodDescriptor;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class MethodModel implements Cloneable {
-    MethodDescriptor method;
+    ReflectMethod method;
     boolean inherited;
     HttpMethod httpMethod;
     String path = "";
@@ -47,7 +47,7 @@ public class MethodModel implements Cloneable {
     private List<String> readonlyConsumes = Collections.unmodifiableList(consumes);
     ValuePath body;
 
-    MethodModel(MethodDescriptor method) {
+    MethodModel(ReflectMethod method) {
         this.method = method;
     }
 
@@ -55,7 +55,7 @@ public class MethodModel implements Cloneable {
         return httpMethod;
     }
 
-    public MethodDescriptor getMethod() {
+    public ReflectMethod getMethod() {
         return method;
     }
 

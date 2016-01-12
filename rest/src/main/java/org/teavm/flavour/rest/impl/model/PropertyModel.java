@@ -15,9 +15,9 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-import org.teavm.model.FieldReader;
-import org.teavm.model.MethodReader;
-import org.teavm.model.ValueType;
+import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.flavour.mp.reflect.ReflectField;
+import org.teavm.flavour.mp.reflect.ReflectMethod;
 
 /**
  *
@@ -26,10 +26,10 @@ import org.teavm.model.ValueType;
 public class PropertyModel implements Cloneable {
     BeanModel bean;
     String name;
-    ValueType type;
-    FieldReader field;
-    MethodReader getter;
-    MethodReader setter;
+    ReflectClass<?> type;
+    ReflectField field;
+    ReflectMethod getter;
+    ReflectMethod setter;
     String targetName;
     Usage usage;
 
@@ -41,15 +41,15 @@ public class PropertyModel implements Cloneable {
         return name;
     }
 
-    public ValueType getType() {
+    public ReflectClass<?> getType() {
         return type;
     }
 
-    public FieldReader getField() {
+    public ReflectField getField() {
         return field;
     }
 
-    public MethodReader getGetter() {
+    public ReflectMethod getGetter() {
         return getter;
     }
 

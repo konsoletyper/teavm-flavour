@@ -18,7 +18,7 @@ package org.teavm.flavour.rest.impl.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.teavm.model.ValueType;
+import org.teavm.flavour.mp.ReflectClass;
 
 /**
  *
@@ -27,7 +27,7 @@ import org.teavm.model.ValueType;
 public class ParameterModel implements Cloneable {
     String name;
     int index;
-    ValueType type;
+    ReflectClass<?> type;
     List<PropertyModel> pathToValue = new ArrayList<>();
     Usage usage;
     private List<PropertyModel> readonlyPathToValue = Collections.unmodifiableList(pathToValue);
@@ -43,7 +43,7 @@ public class ParameterModel implements Cloneable {
         return index;
     }
 
-    public ValueType getType() {
+    public ReflectClass<?> getType() {
         return type;
     }
 

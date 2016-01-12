@@ -25,6 +25,7 @@ import java.lang.reflect.WildcardType;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
@@ -33,8 +34,8 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.mp.CompileTime;
 import org.teavm.flavour.mp.Emitter;
+import org.teavm.flavour.mp.EmitterContext;
 import org.teavm.flavour.mp.EmitterDiagnostics;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.SourceLocation;
@@ -42,6 +43,8 @@ import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.mp.reflect.ReflectField;
 import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.ResourceFactory;
+import org.teavm.flavour.rest.impl.model.BeanRepository;
+import org.teavm.flavour.rest.impl.model.MethodKey;
 import org.teavm.flavour.rest.impl.model.MethodModel;
 import org.teavm.flavour.rest.impl.model.PropertyModel;
 import org.teavm.flavour.rest.impl.model.PropertyValuePath;
@@ -52,24 +55,30 @@ import org.teavm.flavour.rest.impl.model.ValuePath;
 import org.teavm.flavour.rest.impl.model.ValuePathVisitor;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.jso.browser.Window;
-import org.teavm.model.CallLocation;
-import org.teavm.model.MethodReference;
-import org.teavm.model.ValueType;
-import org.teavm.model.emit.ProgramEmitter;
-import org.teavm.model.emit.ValueEmitter;
 
 /**
  *
  * @author Alexey Andreev
  */
-@CompileTime
 public class FactoryEmitter {
     private EmitterDiagnostics diagnostics;
+    private ClassLoader classLoader;
     private ResourceModelRepository resourceRepository;
     private SourceLocation location;
+    private static Map<EmitterContext, FactoryEmitter> instances = new WeakHashMap<>();
 
-    public FactoryEmitter(ResourceModelRepository modelRepository) {
+    private FactoryEmitter(EmitterContext context, ResourceModelRepository modelRepository) {
+        this.diagnostics = context.getDiagnostics();
+        this.classLoader = context.getClassLoader();
         this.resourceRepository = modelRepository;
+    }
+
+    public static FactoryEmitter getInstance(EmitterContext context) {
+        return instances.computeIfAbsent(context, ctx -> {
+            BeanRepository beanRepository = new BeanRepository(context);
+            ResourceModelRepository modelRepository = new ResourceModelRepository(context, beanRepository);
+            return new FactoryEmitter(context, modelRepository);
+        });
     }
 
     public Value<? extends ResourceFactory<?>> emitFactory(Emitter<?> em, ReflectClass<?> cls) {
@@ -84,7 +93,7 @@ public class FactoryEmitter {
         ResourceModel resource = resourceRepository.getResource(cls);
         Value<ProxyTemplate> template = em.emit(() -> new ProxyTemplate(factory.get(), path.get()));
         return em.proxy(cls, (body, instance, method, args) -> {
-            MethodModel model = resource.getMethods().get(method);
+            MethodModel model = resource.getMethods().get(new MethodKey(method));
             location = new SourceLocation(method);
 
             Value<HttpMethod> httpMethod = emitHttpMethod(body, model);
@@ -93,20 +102,21 @@ public class FactoryEmitter {
             request = emitHeaders(body, request, model, args);
             request = emitContent(body, request, model, args);
 
-            Value<ResponseImpl> response = body.emit(() -> template.get().send(request.get()));
+            Value<RequestImpl> localRequest = request;
+            Value<ResponseImpl> response = body.emit(() -> template.get().send(localRequest.get()));
             body.emit(() -> response.get().defaultAction());
 
-            if (!method.getReturnType().isPrimitive() || !method.getReturnType().getName().equals("void")) {
+            if (method.getReturnType() != em.getContext().findClass(void.class)) {
                 ReflectClass<?> returnType = method.getReturnType();
                 Value<Node> responseContent = body.emit(() -> response.get().getContent());
-                body.returnValue(deserialize(resource, model, responseContent, returnType));
+                body.returnValue(deserialize(body, model, responseContent, returnType));
             }
         });
     }
 
     private Value<HttpMethod> emitHttpMethod(Emitter<?> em, MethodModel model) {
         ReflectClass<?> httpMethodClass = em.getContext().findClass(HttpMethod.class);
-        ReflectField field = httpMethodClass.getDeclaredField(HttpMethod.class.getName());
+        ReflectField field = httpMethodClass.getDeclaredField(model.getHttpMethod().name());
         return em.emit(() -> (HttpMethod) field.get(null));
     }
 
@@ -241,7 +251,7 @@ public class FactoryEmitter {
     private Value<StringBuilder> appendConstant(Emitter<?> em, Value<StringBuilder> sb, String constant) {
         if (!constant.isEmpty()) {
             Value<StringBuilder> localSb = sb;
-            sb = em.emit(() -> sb.get().append(constant));
+            sb = em.emit(() -> localSb.get().append(constant));
         }
         return sb;
     }
@@ -250,55 +260,52 @@ public class FactoryEmitter {
         return em.emit(() -> sb.get().append(Window.encodeURIComponent(String.valueOf(value.get()))));
     }
 
-    private ValueEmitter deserialize(ResourceModel resource, MethodModel method, ValueEmitter value,
-            ValueType target) {
-        ProgramEmitter pe = value.getProgramEmitter();
-        if (target instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive) target).getKind()) {
-                case BOOLEAN:
-                    return pe.invoke(JSON.class, "deserializeBoolean", boolean.class, value);
-                case BYTE:
-                    return pe.invoke(JSON.class, "deserializeByte", byte.class, value);
-                case SHORT:
-                    return pe.invoke(JSON.class, "deserializeShort", short.class, value);
-                case CHARACTER:
-                    return pe.invoke(JSON.class, "deserializeChar", char.class, value);
-                case INTEGER:
-                    return pe.invoke(JSON.class, "deserializeInt", int.class, value);
-                case LONG:
-                    return pe.invoke(JSON.class, "deserializeLong", long.class, value);
-                case FLOAT:
-                    return pe.invoke(JSON.class, "deserializeFloat", float.class, value);
-                case DOUBLE:
-                    return pe.invoke(JSON.class, "deserializeDouble", double.class, value);
+    private Value<Object> deserialize(Emitter<?> em, MethodModel method, Value<Node> value,
+            ReflectClass<?> target) {
+        if (target.isPrimitive()) {
+            switch (target.getName()) {
+                case "boolean":
+                    return em.emit(() -> JSON.deserializeBoolean(value.get()));
+                case "byte":
+                    return em.emit(() -> JSON.deserializeByte(value.get()));
+                case "short":
+                    return em.emit(() -> JSON.deserializeShort(value.get()));
+                case "char":
+                    return em.emit(() -> JSON.deserializeChar(value.get()));
+                case "int":
+                    return em.emit(() -> JSON.deserializeInt(value.get()));
+                case "long":
+                    return em.emit(() -> JSON.deserializeLong(value.get()));
+                case "float":
+                    return em.emit(() -> JSON.deserializeFloat(value.get()));
+                case "double":
+                    return em.emit(() -> JSON.deserializeDouble(value.get()));
             }
             throw new AssertionError();
         } else {
-            Method javaMethod = findMethod(new MethodReference(resource.getClassName(), method.getMethod()));
+            Method javaMethod = findMethod(method.getMethod());
             if (javaMethod == null) {
-                return pe.constantNull(target);
+                return em.emit(() -> null);
             }
-            ValueEmitter deserializer = createDeserializer(javaMethod.getGenericReturnType(), pe);
-            value = deserializer.invokeVirtual("deserialize", Object.class,
-                    pe.construct(JsonDeserializerContext.class), value);
-            return value.cast(target);
+            Value<JsonDeserializer> deserializer = createDeserializer(em, javaMethod.getGenericReturnType());
+            return em.emit(() -> deserializer.get().deserialize(new JsonDeserializerContext(), value.get()));
         }
     }
 
-    private ValueEmitter createDeserializer(Type type, ProgramEmitter pe) {
+    private Value<JsonDeserializer> createDeserializer(Emitter<?> em, Type type) {
         if (type instanceof Class<?>) {
-            return createObjectDeserializer((Class<?>) type, pe);
+            return createObjectDeserializer(em, (Class<?>) type);
         } else if (type instanceof ParameterizedType) {
             ParameterizedType paramType = (ParameterizedType) type;
             Type[] typeArgs = paramType.getActualTypeArguments();
             if (paramType.getRawType().equals(Map.class)) {
-                return createMapDeserializer(typeArgs[0], typeArgs[1], pe);
+                return createMapDeserializer(em, typeArgs[0], typeArgs[1]);
             } else if (paramType.getRawType().equals(List.class)) {
-                return createListDeserializer(typeArgs[0], pe);
+                return createListDeserializer(em, typeArgs[0]);
             } else if (paramType.getRawType().equals(Set.class)) {
-                return createSetDeserializer(typeArgs[0], pe);
+                return createSetDeserializer(em, typeArgs[0]);
             } else {
-                return createDeserializer(paramType.getRawType(), pe);
+                return createDeserializer(em, paramType.getRawType());
             }
         } else if (type instanceof WildcardType) {
             WildcardType wildcard = (WildcardType) type;
@@ -307,7 +314,7 @@ public class FactoryEmitter {
             if (upperBound instanceof Class<?>) {
                 upperCls = (Class<?>) upperBound;
             }
-            return createObjectDeserializer(upperCls, pe);
+            return createObjectDeserializer(em, upperCls);
         } else if (type instanceof TypeVariable<?>) {
             TypeVariable<?> tyvar = (TypeVariable<?>) type;
             Type upperBound = tyvar.getBounds()[0];
@@ -315,93 +322,91 @@ public class FactoryEmitter {
             if (upperBound instanceof Class<?>) {
                 upperCls = (Class<?>) upperBound;
             }
-            return createObjectDeserializer(upperCls, pe);
+            return createObjectDeserializer(em, upperCls);
         } else if (type instanceof GenericArrayType) {
             GenericArrayType array = (GenericArrayType) type;
-            return createArrayDeserializer(array, pe);
+            return createArrayDeserializer(em, array);
         } else {
-            return createObjectDeserializer(Object.class, pe);
+            return createObjectDeserializer(em, Object.class);
         }
     }
 
-    private ValueEmitter createMapDeserializer(Type keyType, Type valueType, ProgramEmitter pe) {
-        ValueEmitter keyDeserializer = createDeserializer(keyType, pe).cast(JsonDeserializer.class);
-        ValueEmitter valueDeserializer = createDeserializer(valueType, pe).cast(JsonDeserializer.class);
-        return pe.construct(MapDeserializer.class, keyDeserializer, valueDeserializer);
+    private Value<JsonDeserializer> createMapDeserializer(Emitter<?> em,  Type keyType, Type valueType) {
+        Value<JsonDeserializer> keyDeserializer = createDeserializer(em, keyType);
+        Value<JsonDeserializer> valueDeserializer = createDeserializer(em, valueType);
+        return em.emit(() -> new MapDeserializer(keyDeserializer.get(), valueDeserializer.get()));
     }
 
-    private ValueEmitter createListDeserializer(Type itemType, ProgramEmitter pe) {
-        ValueEmitter itemDeserializer = createDeserializer(itemType, pe).cast(JsonDeserializer.class);
-        return pe.construct(ListDeserializer.class, itemDeserializer);
+    private Value<JsonDeserializer> createListDeserializer(Emitter<?> em, Type itemType) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, itemType);
+        return em.emit(() -> new ListDeserializer(itemDeserializer.get()));
     }
 
-    private ValueEmitter createSetDeserializer(Type itemType, ProgramEmitter pe) {
-        ValueEmitter itemDeserializer = createDeserializer(itemType, pe).cast(JsonDeserializer.class);
-        return pe.construct(SetDeserializer.class, itemDeserializer);
+    private Value<JsonDeserializer> createSetDeserializer(Emitter<?> em, Type itemType) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, itemType);
+        return em.emit(() -> new SetDeserializer(itemDeserializer.get()));
     }
 
-    private ValueEmitter createArrayDeserializer(GenericArrayType type, ProgramEmitter pe) {
-        ValueEmitter itemDeserializer = createDeserializer(type.getGenericComponentType(), pe)
-                .cast(JsonDeserializer.class);
-        return pe.construct(ArrayDeserializer.class, pe.constant(Object.class), itemDeserializer);
+    private Value<JsonDeserializer> createArrayDeserializer(Emitter<?> em, GenericArrayType type) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, type.getGenericComponentType());
+        return em.emit(() -> new ArrayDeserializer(Object.class, itemDeserializer.get()));
     }
 
-    private ValueEmitter createObjectDeserializer(Class<?> type, ProgramEmitter pe) {
-        return pe.invoke(JSON.class, "getClassDeserializer", JsonDeserializer.class, pe.constant(type));
+    private Value<JsonDeserializer> createObjectDeserializer(Emitter<?> em, Class<?> type) {
+        return em.emit(() -> JSON.getClassDeserializer(type));
     }
 
-    private Method findMethod(MethodReference reference) {
-        Class<?> owner = findClass(reference.getClassName());
-        Class<?>[] params = new Class<?>[reference.parameterCount()];
+    private Method findMethod(ReflectMethod method) {
+        Class<?> owner = findClass(method.getDeclaringClass().getName());
+        Class<?>[] params = new Class<?>[method.getParameterCount()];
         for (int i = 0; i < params.length; ++i) {
-            params[i] = convertType(reference.parameterType(i));
+            params[i] = convertType(method.getParameterType(i));
         }
         while (owner != null) {
             try {
-                return owner.getDeclaredMethod(reference.getName(), params);
+                return owner.getDeclaredMethod(method.getName(), params);
             } catch (NoSuchMethodException e) {
                 owner = owner.getSuperclass();
             }
         }
-        agent.getDiagnostics().error(new CallLocation(reference), "Corresponding Java method not found");
+        diagnostics.error(new SourceLocation(method), "Corresponding Java method not found");
         return null;
     }
 
-    private Class<?> convertType(ValueType type) {
-        if (type instanceof ValueType.Primitive) {
-            switch (((ValueType.Primitive) type).getKind()) {
-                case BOOLEAN:
+    private Class<?> convertType(ReflectClass<?> type) {
+        if (type.isPrimitive()) {
+            switch (type.getName()) {
+                case "boolean":
                     return boolean.class;
-                case BYTE:
+                case "byte":
                     return byte.class;
-                case SHORT:
+                case "short":
                     return short.class;
-                case CHARACTER:
+                case "char":
                     return char.class;
-                case INTEGER:
+                case "int":
                     return int.class;
-                case LONG:
+                case "long":
                     return long.class;
-                case FLOAT:
+                case "float":
                     return float.class;
-                case DOUBLE:
+                case "double":
                     return double.class;
+                case "void":
+                    return void.class;
             }
-        } else if (type instanceof ValueType.Array) {
-            Class<?> itemCls = convertType(((ValueType.Array) type).getItemType());
+        } else if (type.isArray()) {
+            Class<?> itemCls = convertType(type.getComponentType());
             return Array.newInstance(itemCls, 0).getClass();
-        } else if (type instanceof ValueType.Void) {
-            return void.class;
-        } else if (type instanceof ValueType.Object) {
-            String className = ((ValueType.Object) type).getClassName();
-            return findClass(className);
+        } else {
+            return findClass(type.getName());
         }
         throw new AssertionError("Can't convert type: " + type);
     }
 
     private Class<?> findClass(String name) {
         try {
-            return Class.forName(name, false, agent.getClassLoader());
+            return Class.forName(name, false, classLoader);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Can't find class " + name, e);
         }

@@ -107,7 +107,7 @@ public class ProxyVariableContext extends VariableContext {
 
         InvokeInstruction invokeSuper = new InvokeInstruction();
         invokeSuper.setInstance(ctorProgram.createVariable());
-        invokeSuper.setMethod(new MethodReference(Object.class, "<init>", void.class));
+        invokeSuper.setMethod(new MethodReference(proxyClass.getParent(), "<init>", ValueType.VOID));
         invokeSuper.setType(InvocationType.SPECIAL);
         ctorBlock.getInstructions().add(invokeSuper);
 

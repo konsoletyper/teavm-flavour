@@ -322,7 +322,10 @@ public class CompositeMethodGenerator {
             return insn.getReceiver();
         } else {
             diagnostics.error(new CallLocation(templateMethod, location), "Wrong captured value");
-            return program.createVariable();
+            NullConstantInstruction insn = new NullConstantInstruction();
+            insn.setReceiver(program.createVariable());
+            add(insn);
+            return insn.getReceiver();
         }
     }
 
