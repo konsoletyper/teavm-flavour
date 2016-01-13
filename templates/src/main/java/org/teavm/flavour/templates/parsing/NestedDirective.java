@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,20 +15,11 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
-
 /**
  *
  * @author Alexey Andreev
  */
-class DirectiveMetadata extends BaseDirectiveMetadata {
-    MethodDescriber constructor;
-    MethodDescriber contentSetter;
-    boolean ignoreContent;
-    final Map<String, DirectiveAttributeMetadata> attributes = new HashMap<>();
-    final List<NestedDirective> nestedDirectives = new ArrayList<>();
+class NestedDirective {
+    boolean multiple;
+    DirectiveMetadata metadata;
 }

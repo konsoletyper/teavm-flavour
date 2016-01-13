@@ -22,12 +22,14 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import net.htmlparser.jericho.Attribute;
 import net.htmlparser.jericho.CharacterReference;
 import net.htmlparser.jericho.Element;
@@ -103,13 +105,13 @@ public class Parser {
         pushVar("this", new GenericClass(className));
         position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();
-        parseSegment(source.getEnd(), nodes);
+        parseSegment(source.getEnd(), nodes, elem -> true);
         popVar("this");
         source = null;
         return nodes;
     }
 
-    private void parseSegment(int limit, List<TemplateNode> result) {
+    private void parseSegment(int limit, List<TemplateNode> result, Predicate<Element> filter) {
         while (position < limit) {
             Tag tag = source.getNextTag(position);
             if (tag == null || tag.getBegin() > limit) {
@@ -128,7 +130,7 @@ public class Parser {
                 result.add(text);
             }
             position = tag.getEnd();
-            parseTag(tag, result);
+            parseTag(tag, result, filter);
         }
     }
 
@@ -147,15 +149,17 @@ public class Parser {
         return sb.toString();
     }
 
-    private void parseTag(Tag tag, List<TemplateNode> result) {
+    private void parseTag(Tag tag, List<TemplateNode> result, Predicate<Element> filter) {
         if (tag instanceof StartTag) {
             StartTag startTag = (StartTag) tag;
             if (startTag.getStartTagType() == StartTagType.XML_PROCESSING_INSTRUCTION) {
                 parseProcessingInstruction(startTag);
             } else if (startTag.getStartTagType() == StartTagType.NORMAL) {
-                TemplateNode node = parseElement(tag.getElement());
-                if (node != null) {
-                    result.add(node);
+                if (filter.test(tag.getElement())) {
+                    TemplateNode node = parseElement(tag.getElement());
+                    if (node != null) {
+                        result.add(node);
+                    }
                 }
             }
         }
@@ -193,7 +197,7 @@ public class Parser {
             }
         }
 
-        parseSegment(elem.getEnd(), templateElem.getChildNodes());
+        parseSegment(elem.getEnd(), templateElem.getChildNodes(), child -> true);
 
         for (String var : vars) {
             popVar(var);
@@ -213,6 +217,10 @@ public class Parser {
             return null;
         }
 
+        return parseDirective(directiveMeta, prefix, name, elem);
+    }
+
+    private TemplateNode parseDirective(DirectiveMetadata directiveMeta, String prefix, String name, Element elem) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
@@ -270,16 +278,30 @@ public class Parser {
 
         for (Attribute attr : elem.getAttributes()) {
             if (!directiveMeta.attributes.containsKey(attr.getName())) {
-                error(attr, "Unknown attribute " + attr.getName() + " for directive " + fullName);
+                error(attr, "Unknown attribute " + attr.getName() + " for directive " + prefix + ":" + name);
             }
         }
 
-        Segment content = elem.getContent();
+        parseSegment(elem.getEnd(), directive.getContentNodes(), child -> {
+            if (elem.getName().indexOf(':') > 0) {
+                int nestedPrefixLength = child.getName().indexOf(':');
+                String nestedPrefix = child.getName().substring(0, nestedPrefixLength);
+                String nestedName = child.getName().substring(nestedPrefixLength + 1);
+                if (nestedPrefix.equals(prefix)) {
+                    NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
+                    if (nested != null) {
+                        parseDirective(nested.metadata, prefix, nestedName, child);
+                        // TODO: assign to outer directive
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
         if (directiveMeta.contentSetter != null) {
-            parseSegment(elem.getEnd(), directive.getContentNodes());
             directive.setContentMethodName(directiveMeta.contentSetter.getName());
         } else if (!directiveMeta.ignoreContent) {
-            if (content.getNodeIterator().hasNext()) {
+            if (!directive.getContentNodes().isEmpty()) {
                 error(elem, "Directive " + directiveMeta.cls.getName() + " should not have any content");
             }
         }
@@ -407,6 +429,15 @@ public class Parser {
             directives.put(fullName, directive);
         }
         return directive;
+    }
+
+    private NestedDirective resolveNestedDirective(DirectiveMetadata outer, String name) {
+        for (NestedDirective nested : outer.nestedDirectives) {
+            if (Arrays.stream(nested.metadata.nameRules).anyMatch(rule -> matchRule(rule, name))) {
+                return nested;
+            }
+        }
+        return null;
     }
 
     private AttributeDirectiveMetadata resolveAttrDirective(String prefix, String name) {

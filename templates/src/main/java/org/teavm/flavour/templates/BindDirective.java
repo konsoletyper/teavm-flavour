@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  * @author Alexey Andreev
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
+@Target({ ElementType.TYPE, ElementType.METHOD })
 @Documented
 public @interface BindDirective {
     String[] name();

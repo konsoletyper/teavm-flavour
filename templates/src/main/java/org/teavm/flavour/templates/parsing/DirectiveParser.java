@@ -26,8 +26,10 @@ import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
@@ -200,6 +202,7 @@ class DirectiveParser {
         Set<AnnotationDescriber> bindings = new HashSet<>();
         parseBindContent(metadata, method, bindings);
         parseBindAttribute(metadata, method, bindings);
+        parseBindDirective(metadata, method, bindings);
         parseBindName(metadata, method);
     }
 
@@ -315,6 +318,49 @@ class DirectiveParser {
             error("Method " + methodToString(method.getDescriber()) + " should either take lambda or return value, "
                     + "since it is mapped to an attribute: " + arguments[0]);
         }
+    }
+
+    private void parseBindDirective(DirectiveMetadata metadata, GenericMethod method,
+            Set<AnnotationDescriber> bindings) {
+        AnnotationDescriber binding = method.getDescriber().getAnnotation(BindDirective.class.getName());
+        if (binding == null) {
+            return;
+        }
+
+        bindings.add(binding);
+
+        ValueType[] arguments = method.getActualArgumentTypes();
+        if (method.getActualReturnType() != null || arguments.length != 1) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindDirective.class.getName()
+                    + " and therefore must take exactly one parameter and return void");
+            return;
+        }
+        if (!(arguments[0] instanceof GenericType)) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindDirective.class.getName()
+                    + " and therefore must not take primitive value");
+            return;
+        }
+
+        boolean multiple = false;
+        GenericType type = (GenericType) arguments[0];
+        TypeUnifier unifier = new TypeUnifier(classRepository);
+        TypeVar var = new TypeVar();
+        if (unifier.unify(new GenericClass("java.util.List", new GenericReference(var)), type, true)) {
+             type = unifier.getSubstitutions().get(var);
+             multiple = true;
+        }
+
+        if (!(type instanceof GenericClass)) {
+            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindDirective.class.getName()
+                    + " and therefore must take class, not array");
+            return;
+        }
+
+        ClassDescriber cls = typeNavigator.getClassRepository().describe(((GenericClass) type).getName());
+        NestedDirective nestedDirective = new NestedDirective();
+        nestedDirective.multiple = multiple;
+        nestedDirective.metadata = parseElement(cls, binding);
+        metadata.nestedDirectives.add(nestedDirective);
     }
 
     private boolean parseAttributeType(DirectiveAttributeMetadata attrMetadata, ValueType valueType,
