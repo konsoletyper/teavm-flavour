@@ -133,12 +133,13 @@ public class FactoryEmitter {
         sb = appendUrlPattern(em, model.getPath(), model, sb, args);
         Value<String[]> sep = em.emit(() -> new String[] { "?" });
         for (ValuePath queryParam : model.getQueryParameters().values()) {
+            String paramName = queryParam.getName();
             Value<Object> value = getParameter(em, queryParam, args);
             Value<StringBuilder> localSb = sb;
             em.emit(() -> {
                 StringBuilder innerSb = localSb.get();
                 if (value.get() != null) {
-                    innerSb = innerSb.append(sep.get()[0]).append('=');
+                    innerSb = innerSb.append(sep.get()[0]).append(paramName).append("=");
                     innerSb = innerSb.append(Window.encodeURIComponent(String.valueOf(value.get())));
                     sep.get()[0] = "&";
                 }
@@ -226,8 +227,8 @@ public class FactoryEmitter {
             Value<Object> current;
             @Override
             public void visit(PropertyValuePath path) {
-                Value<Object> localCurrent = current;
                 path.getParent().acceptVisitor(this);
+                Value<Object> localCurrent = current;
                 PropertyModel property = path.getProperty();
                 if (property.getGetter() != null) {
                     ReflectMethod getter = property.getGetter();
