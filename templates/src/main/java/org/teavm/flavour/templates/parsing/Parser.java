@@ -162,6 +162,8 @@ public class Parser {
                     if (node != null) {
                         result.add(node);
                     }
+                } else {
+                    position = tag.getElement().getEnd();
                 }
             }
         }
@@ -219,10 +221,15 @@ public class Parser {
             return null;
         }
 
-        return parseDirective(directiveMeta, prefix, name, elem);
+        Map<String, ValueType> declaredVars = new HashMap<>();
+        List<PostponedDirectiveParse> postponedList = new ArrayList<>();
+        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList, declaredVars);
+        completeDirectiveParsing(postponedList, declaredVars);
+        return node;
     }
 
-    private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name, Element elem) {
+    private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name,
+            Element elem, List<PostponedDirectiveParse> postponed, Map<String, ValueType> declaredVars) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
@@ -230,7 +237,7 @@ public class Parser {
         }
 
         TypeUnifier unifier = new TypeUnifier(classRepository);
-        Map<String, ValueType> declaredVars = new HashMap<>();
+
         for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
             Attribute attr = elem.getAttributes().get(attrMeta.name);
             if (attr == null) {
@@ -284,7 +291,8 @@ public class Parser {
             }
         }
 
-        parseSegment(elem.getEnd(), directive.getContentNodes(), child -> {
+        int start = position;
+        parseSegment(elem.getEnd(), new ArrayList<>(), child -> {
             int nestedPrefixLength = child.getName().indexOf(':');
             if (nestedPrefixLength > 0) {
                 String nestedPrefix = child.getName().substring(0, nestedPrefixLength);
@@ -292,30 +300,58 @@ public class Parser {
                 if (nestedPrefix.equals(prefix)) {
                     NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
                     if (nested != null) {
-                        DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child);
+                        DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child,
+                                postponed, declaredVars);
                         NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
                         binding.getDirectives().add(nestedNode);
-                        return false;
                     }
                 }
             }
-            return true;
+            return false;
         });
-        if (directiveMeta.contentSetter != null) {
-            directive.setContentMethodName(directiveMeta.contentSetter.getName());
-        } else {
-            if (!directiveMeta.ignoreContent && !isEmptyContent(directive.getContentNodes())) {
-                error(elem, "Directive " + directiveMeta.cls.getName() + " should not have any content");
-            }
-            directive.getContentNodes().clear();
-        }
         validateNestedDirectives(directive, directiveMeta, elem, prefix);
+
+        postponed.add(new PostponedDirectiveParse(start, directiveMeta, directive, elem));
+        return directive;
+    }
+
+    private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed,
+            Map<String, ValueType> declaredVars) {
+        Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
+
+        for (PostponedDirectiveParse parse : postponed) {
+            position = parse.position;
+            parseSegment(parse.elem.getEnd(), parse.directive.getContentNodes(),
+                    child -> !elementsToSkip.contains(child));
+
+            if (parse.metadata.contentSetter != null) {
+                parse.directive.setContentMethodName(parse.metadata.contentSetter.getName());
+            } else {
+                if (!parse.metadata.ignoreContent && !isEmptyContent(parse.directive.getContentNodes())) {
+                    error(parse.elem, "Directive " + parse.metadata.cls.getName() + " should not have any content");
+                }
+                parse.directive.getContentNodes().clear();
+            }
+        }
 
         for (String varName : declaredVars.keySet()) {
             popVar(varName);
         }
+    }
 
-        return directive;
+    static class PostponedDirectiveParse {
+        int position;
+        DirectiveMetadata metadata;
+        DirectiveBinding directive;
+        Element elem;
+
+        public PostponedDirectiveParse(int position, DirectiveMetadata metadata, DirectiveBinding directive,
+                Element elem) {
+            this.position = position;
+            this.metadata = metadata;
+            this.directive = directive;
+            this.elem = elem;
+        }
     }
 
     private void validateNestedDirectives(DirectiveBinding directive, DirectiveMetadata metadata,

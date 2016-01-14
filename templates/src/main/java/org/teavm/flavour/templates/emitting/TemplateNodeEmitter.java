@@ -16,9 +16,9 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
@@ -117,11 +117,14 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         List<NestedComponentInstance> nestedInstances = emitDirective(node, component, component);
 
         context.pushBoundVars();
-        Map<String, Value<VariableImpl>> variables = new HashMap<>();
-        emitVariables(node, em, variables);
-        emitDirectiveContent(node, node, component, component, variables);
+        List<TemplateVariable> variables = new ArrayList<>();
+        Map<DirectiveBinding, Value<? extends Object>> instances = nestedInstances.stream()
+                .collect(Collectors.toMap(nested -> nested.node, nested -> nested.instance));
+        instances.put(node, component);
+        emitVariables(node, em, variables, instances);
+        emitDirectiveContent(node, node, component, variables);
         for (NestedComponentInstance nestedInstance : nestedInstances) {
-            emitDirectiveContent(node, nestedInstance.node, component, nestedInstance.instance, variables);
+            emitDirectiveContent(node, nestedInstance.node, nestedInstance.instance, variables);
         }
         context.popBoundVars();
 
@@ -150,23 +153,27 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     private void emitDirectiveContent(DirectiveBinding rootNode, DirectiveBinding node,
-            Value<? extends Object> component, Value<? extends Object> root, Map<String,
-            Value<VariableImpl>> variables) {
+            Value<? extends Object> component, List<TemplateVariable> variables) {
         context.location(em, node.getLocation());
         if (node.getContentMethodName() != null) {
             ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
             Value<Fragment> contentFragment = new FragmentEmitter(context)
-                    .emitTemplate(em, rootNode, root, node.getContentNodes(), variables);
+                    .emitTemplate(em, rootNode, node.getContentNodes(), variables);
             ReflectMethod setter = componentType.getJMethod(node.getContentMethodName(), Fragment.class);
             context.location(em, node.getLocation());
             em.emit(() -> setter.invoke(component, contentFragment));
         }
     }
 
-    private void emitVariables(DirectiveBinding directive, Emitter<?> em, Map<String, Value<VariableImpl>> variables) {
+    private void emitVariables(DirectiveBinding directive, Emitter<?> em, List<TemplateVariable> variables,
+            Map<DirectiveBinding, Value<? extends Object>> instances) {
+        Value<? extends Object> instance = instances.get(directive);
+        ReflectClass<?> componentType = em.getContext().findClass(directive.getClassName());
         for (DirectiveVariableBinding varBinding : directive.getVariables()) {
             Value<VariableImpl> variableImpl = em.emit(() -> new VariableImpl());
-            variables.put(varBinding.getName(), variableImpl);
+            ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());
+            Value<Object> source = em.lazy(() -> getter.invoke(instance.get()));
+            variables.add(new TemplateVariable(variableImpl, source));
             context.addVariable(varBinding.getName(), innerEm -> {
                 Value<VariableImpl> tmp = variableImpl;
                 return innerEm.emit(() -> tmp.get().value);
@@ -174,7 +181,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
         for (NestedDirectiveBinding nestedBinding : directive.getNestedDirectives()) {
             for (DirectiveBinding nestedDirective : nestedBinding.getDirectives()) {
-                emitVariables(nestedDirective, em, variables);
+                emitVariables(nestedDirective, em, variables, instances);
             }
         }
     }

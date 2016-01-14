@@ -16,18 +16,15 @@
 package org.teavm.flavour.templates.emitting;
 
 import java.util.List;
-import java.util.Map;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.mp.Value;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.DomComponentHandler;
 import org.teavm.flavour.templates.DomComponentTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.DirectiveBinding;
-import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
 /**
@@ -41,15 +38,14 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<? extends Object> component,
-            List<TemplateNode> fragment, Map<String, Value<VariableImpl>> variables) {
+    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive,
+            List<TemplateNode> fragment, List<TemplateVariable> variables) {
         if (directive != null) {
             context.location(em, directive.getLocation());
         }
 
-        @SuppressWarnings("unchecked")
         ReflectClass<Component> componentType = directive != null
-                ? (ReflectClass<Component>) em.getContext().findClass(directive.getClassName())
+                ? em.getContext().findClass(directive.getClassName()).asSubclass(Component.class)
                 : null;
 
         Value<Fragment> fragmentResult = em.proxy(Fragment.class, (fem, fProxy, fMethod, fArgs) -> {
@@ -59,7 +55,7 @@ class FragmentEmitter {
                 switch (method.getName()) {
                     case "update":
                         if (componentType != null) {
-                            emitUpdateMethod(body, directive, componentType, component, variables);
+                            emitUpdateMethod(body, variables);
                         }
                         break;
                     case "buildDom":
@@ -83,12 +79,11 @@ class FragmentEmitter {
         }
     }
 
-    private void emitUpdateMethod(Emitter<?> em, DirectiveBinding directive, ReflectClass<?> componentType,
-            Value<? extends Object> component, Map<String, Value<VariableImpl>> variables) {
-        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-            Value<VariableImpl> var = variables.get(varBinding.getName());
-            ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());
-            em.emit(() -> var.get().value = getter.invoke(component));
+    private void emitUpdateMethod(Emitter<?> em, List<TemplateVariable> variables) {
+        for (TemplateVariable var : variables) {
+            Value<Object> source = var.source;
+            Value<VariableImpl> dest = var.destination;
+            em.emit(() -> dest.get().value = source.get());
         }
     }
 }

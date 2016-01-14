@@ -107,6 +107,8 @@ public class StandardDirectivesTest {
         LetWorksModel model = new LetWorksModel();
         Component component = Templates.bind(model, root);
 
+        model.a = 23;
+        model.b = "foo";
         component.render();
         assertEquals("24:foo2", document.getElementById("value").getAttribute("class"));
     }
