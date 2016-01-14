@@ -25,6 +25,7 @@ import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.flavour.templates.ValueChangeListener;
@@ -64,7 +65,8 @@ public class DateField extends AbstractWidget {
         return result != null ? result : 20;
     }
 
-    @BindAttribute(name = "size", optional = true)
+    @BindAttribute(name = "size")
+    @OptionalBinding
     public void setSize(Supplier<Integer> size) {
         this.size = size;
     }
@@ -83,17 +85,20 @@ public class DateField extends AbstractWidget {
         this.value = value;
     }
 
-    @BindAttribute(name = "locale", optional = true)
+    @BindAttribute(name = "locale")
+    @OptionalBinding
     public void setLocale(Supplier<String> locale) {
         this.locale = locale;
     }
 
-    @BindAttribute(name = "format", optional = true)
+    @BindAttribute(name = "format")
+    @OptionalBinding
     public void setFormat(Supplier<String> format) {
         this.format = format;
     }
 
-    @BindAttribute(name = "onchange", optional = true)
+    @BindAttribute(name = "onchange")
+    @OptionalBinding
     public void setChangeListener(ValueChangeListener<Date> changeListener) {
         this.changeListener = changeListener;
     }

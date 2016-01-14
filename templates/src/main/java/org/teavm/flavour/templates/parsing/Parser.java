@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import net.htmlparser.jericho.Attribute;
 import net.htmlparser.jericho.CharacterReference;
 import net.htmlparser.jericho.Element;
@@ -292,7 +293,7 @@ public class Parser {
                     NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
                     if (nested != null) {
                         DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child);
-                        NestedDirectiveBinding binding = findNestedDirectiveBinding(directive, nested);
+                        NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
                         binding.getDirectives().add(nestedNode);
                         return false;
                     }
@@ -308,12 +309,45 @@ public class Parser {
             }
             directive.getContentNodes().clear();
         }
+        validateNestedDirectives(directive, directiveMeta, elem, prefix);
 
         for (String varName : declaredVars.keySet()) {
             popVar(varName);
         }
 
         return directive;
+    }
+
+    private void validateNestedDirectives(DirectiveBinding directive, DirectiveMetadata metadata,
+            Element elem, String prefix) {
+        for (NestedDirective nestedMetadata : metadata.nestedDirectives) {
+            NestedDirectiveBinding nestedDirective = findNestedDirectiveBinding(directive, nestedMetadata);
+
+            String[] nameRules = nestedMetadata.metadata.nameRules;
+            String name = nameRules.length == 1
+                    ? nameRules[0]
+                    : "{" + Arrays.stream(nameRules).collect(Collectors.joining("|")) + "}";
+
+            if (nestedMetadata.required) {
+                if (nestedDirective == null) {
+                    error(elem, "Nested directive " + prefix + ":" + name + " required but none encountered");
+                }
+            } else if (!nestedMetadata.multiple) {
+                if (nestedDirective.getDirectives().size() > 1) {
+                    error(elem, "Nested directive " + prefix + ":" + name + " should encounter only once");
+                }
+            }
+        }
+    }
+
+    private NestedDirectiveBinding getNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
+        NestedDirectiveBinding binding = findNestedDirectiveBinding(directive, metadata);
+        if (binding == null) {
+            binding = new NestedDirectiveBinding(metadata.setter.getOwner().getName(), metadata.setter.getName(),
+                    metadata.metadata.cls.getName(), metadata.multiple);
+            directive.getNestedDirectives().add(binding);
+        }
+        return binding;
     }
 
     private NestedDirectiveBinding findNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
@@ -323,10 +357,7 @@ public class Parser {
                 return binding;
             }
         }
-        NestedDirectiveBinding binding = new NestedDirectiveBinding(metadata.setter.getOwner().getName(),
-                metadata.setter.getName(), metadata.metadata.cls.getName(), metadata.multiple);
-        directive.getNestedDirectives().add(binding);
-        return binding;
+        return null;
     }
 
     private boolean isEmptyContent(List<TemplateNode> nodes) {

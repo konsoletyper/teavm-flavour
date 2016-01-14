@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.MouseEvent;
@@ -52,12 +53,14 @@ public class Paginator extends AbstractWidget {
         this.data = data;
     }
 
-    @BindAttribute(name = "max-pages", optional = true)
+    @BindAttribute(name = "max-pages")
+    @OptionalBinding
     public void setMaxPages(Supplier<Integer> maxPages) {
         this.maxPages = maxPages;
     }
 
-    @BindAttribute(name = "page-link", optional = true)
+    @BindAttribute(name = "page-link")
+    @OptionalBinding
     public void setLinkGenerator(BiConsumer<Integer, Consumer<String>> linkGenerator) {
         this.linkGenerator = linkGenerator;
     }

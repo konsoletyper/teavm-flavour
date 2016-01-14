@@ -28,7 +28,7 @@ public class ChooseClause {
     BooleanSupplier predicate;
     Fragment content;
 
-    @BindAttribute(name = "when", optional = false)
+    @BindAttribute(name = "when")
     public void setPredicate(BooleanSupplier predicate) {
         this.predicate = predicate;
     }

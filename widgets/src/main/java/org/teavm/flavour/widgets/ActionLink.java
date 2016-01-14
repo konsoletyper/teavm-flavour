@@ -21,6 +21,7 @@ import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Fragment;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.MouseEvent;
@@ -45,7 +46,8 @@ public class ActionLink extends AbstractWidget {
         return enabled == null || enabled.get();
     }
 
-    @BindAttribute(name = "enabled", optional = true)
+    @BindAttribute(name = "enabled")
+    @OptionalBinding
     public void setEnabled(Supplier<Boolean> enabled) {
         this.enabled = enabled;
     }
@@ -54,7 +56,8 @@ public class ActionLink extends AbstractWidget {
         return visible == null || visible.get();
     }
 
-    @BindAttribute(name = "visible", optional = true)
+    @BindAttribute(name = "visible")
+    @OptionalBinding
     public void setVisible(Supplier<Boolean> visible) {
         this.visible = visible;
     }
@@ -63,7 +66,8 @@ public class ActionLink extends AbstractWidget {
         return clickListener;
     }
 
-    @BindAttribute(name = "onclick", optional = true)
+    @BindAttribute(name = "onclick")
+    @OptionalBinding
     public void setClickListener(EventListener<MouseEvent> clickListener) {
         this.clickListener = clickListener;
     }

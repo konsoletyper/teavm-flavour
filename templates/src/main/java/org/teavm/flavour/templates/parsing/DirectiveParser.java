@@ -33,7 +33,6 @@ import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
-import org.teavm.flavour.expr.type.meta.AnnotationBoolean;
 import org.teavm.flavour.expr.type.meta.AnnotationDescriber;
 import org.teavm.flavour.expr.type.meta.AnnotationList;
 import org.teavm.flavour.expr.type.meta.AnnotationString;
@@ -48,6 +47,7 @@ import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.html.HTMLElement;
 
@@ -306,9 +306,7 @@ class DirectiveParser {
         DirectiveAttributeMetadata attrMetadata = new DirectiveAttributeMetadata();
         attrMetadata.name = name;
         metadata.attributes.put(name, attrMetadata);
-
-        AnnotationBoolean optionalValue = (AnnotationBoolean) binding.getValue("optional");
-        attrMetadata.required = optionalValue == null || !optionalValue.value;
+        attrMetadata.required = method.getDescriber().getAnnotation(OptionalBinding.class.getName()) == null;
 
         ValueType[] arguments = method.getActualArgumentTypes();
         if (method.getActualReturnType() == null) {
@@ -376,6 +374,7 @@ class DirectiveParser {
         nestedDirective.multiple = multiple;
         nestedDirective.metadata = parseElement((GenericClass) type, binding, false);
         nestedDirective.setter = method.getDescriber();
+        nestedDirective.required = method.getDescriber().getAnnotation(OptionalBinding.class.getName()) == null;
         metadata.nestedDirectives.add(nestedDirective);
     }
 

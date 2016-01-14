@@ -25,6 +25,7 @@ import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
 /**
@@ -54,7 +55,8 @@ public class ForEachComponent<T> extends AbstractComponent {
         return elementVariable;
     }
 
-    @BindAttribute(name = "index", optional = true)
+    @BindAttribute(name = "index")
+    @OptionalBinding
     public int getIndexVariable() {
         return indexVariable;
     }

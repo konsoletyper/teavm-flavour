@@ -19,6 +19,7 @@ import java.util.List;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
 /**
@@ -43,6 +44,7 @@ public class ChooseComponent extends AbstractComponent {
     }
 
     @BindDirective(name = "otherwise")
+    @OptionalBinding
     public void setOtherwiseClause(OtherwiseClause otherwiseClause) {
         this.otherwiseClause = otherwiseClause;
     }

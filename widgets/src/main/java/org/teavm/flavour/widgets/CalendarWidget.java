@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.ValueChangeListener;
 
@@ -86,7 +87,8 @@ public class CalendarWidget extends AbstractWidget {
         return selectedDay;
     }
 
-    @BindAttribute(name = "locale", optional = true)
+    @BindAttribute(name = "locale")
+    @OptionalBinding
     public void setCurrentLocale(Supplier<String> currentLocale) {
         this.currentLocale = currentLocale;
     }
@@ -96,7 +98,8 @@ public class CalendarWidget extends AbstractWidget {
         this.currentDate = currentDate;
     }
 
-    @BindAttribute(name = "onchange", optional = true)
+    @BindAttribute(name = "onchange")
+    @OptionalBinding
     public void setChangeListener(ValueChangeListener<Date> changeListener) {
         this.changeListener = changeListener;
     }
