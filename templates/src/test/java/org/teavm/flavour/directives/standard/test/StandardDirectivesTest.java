@@ -102,6 +102,21 @@ public class StandardDirectivesTest {
         public int index = 1;
     }
 
+    @Test
+    public void letWorks() {
+        LetWorksModel model = new LetWorksModel();
+        Component component = Templates.bind(model, root);
+
+        component.render();
+        assertEquals("24:foo2", document.getElementById("value").getAttribute("class"));
+    }
+
+    @BindTemplate("templates/let-works.html")
+    static class LetWorksModel {
+        public int a;
+        public String b;
+    }
+
     private static List<HTMLElement> toList(NodeList<? extends HTMLElement> nodeList) {
         List<HTMLElement> list = new ArrayList<>();
         for (int i = 0; i < nodeList.getLength(); ++i) {

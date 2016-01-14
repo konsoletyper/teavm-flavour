@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.HashMap;
 import java.util.List;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectValue;
@@ -47,7 +48,7 @@ public class TemplateEmitter {
         context.sourceFileName = sourceFileName;
         context.addVariable("this", lem -> lem.emit(() -> model));
         context.model = model;
-        return new FragmentEmitter(context).emitTemplate(em, null, null, fragment);
+        return new FragmentEmitter(context).emitTemplate(em, null, null, fragment, new HashMap<>());
     }
 
     private Value<Fragment> emitWorker(Value<Fragment> innerFragment) {

@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.mp.Emitter;
@@ -43,7 +42,7 @@ class FragmentEmitter {
     }
 
     public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<? extends Object> component,
-            List<TemplateNode> fragment) {
+            List<TemplateNode> fragment, Map<String, Value<VariableImpl>> variables) {
         if (directive != null) {
             context.location(em, directive.getLocation());
         }
@@ -55,34 +54,22 @@ class FragmentEmitter {
 
         Value<Fragment> fragmentResult = em.proxy(Fragment.class, (fem, fProxy, fMethod, fArgs) -> {
             context.pushBoundVars();
-            Map<String, Value<VariableImpl>> variables = new HashMap<>();
-            if (directive != null) {
-                for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-                    Value<VariableImpl> variableImpl = fem.emit(() -> new VariableImpl());
-                    variables.put(varBinding.getName(), variableImpl);
-                    context.addVariable(varBinding.getName(), innerEm -> {
-                        Value<VariableImpl> tmp = variableImpl;
-                        return innerEm.emit(() -> tmp.get().value);
-                    });
-                }
-            }
 
-            Value<DomComponentHandler> handler = fem.proxy(DomComponentHandler.class, (bodyEm, proxy, method, args) -> {
+            Value<DomComponentHandler> handler = fem.proxy(DomComponentHandler.class, (body, proxy, method, args) -> {
                 switch (method.getName()) {
                     case "update":
                         if (componentType != null) {
-                            emitUpdateMethod(bodyEm, directive, componentType, component, variables);
+                            emitUpdateMethod(body, directive, componentType, component, variables);
                         }
                         break;
                     case "buildDom":
-                        emitBuildDomMethod(bodyEm, bodyEm.emit(() -> (DomBuilder) args[0]), fragment);
+                        emitBuildDomMethod(body, body.emit(() -> (DomBuilder) args[0]), fragment);
                         break;
                 }
             });
 
             Value<Component> result = fem.emit(() -> new DomComponentTemplate(handler.get()));
             fem.returnValue(result);
-            context.popBoundVars();
         });
 
         return fragmentResult;
