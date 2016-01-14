@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.mp.Emitter;
 import org.teavm.flavour.mp.ReflectClass;
@@ -32,6 +34,7 @@ import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.DOMText;
 import org.teavm.flavour.templates.tree.DirectiveBinding;
 import org.teavm.flavour.templates.tree.DirectiveFunctionBinding;
+import org.teavm.flavour.templates.tree.NestedDirectiveBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.flavour.templates.tree.TemplateNodeVisitor;
 import org.teavm.jso.dom.html.HTMLElement;
@@ -108,9 +111,22 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
         ReflectMethod ctor = componentType.getJMethod("<init>", Slot.class);
         Value<Component> component = em.emit(() -> (Component) ctor.construct(Slot.create()));
+        emitDirective(node, component);
+
+        Value<DomBuilder> tmpBuilder = builder;
+        context.location(em, node.getLocation());
+        builder = em.emit(() -> tmpBuilder.get().add(component.get()));
+    }
+
+    private void emitDirective(DirectiveBinding node, Value<? extends Object> component) {
+        ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
 
         for (DirectiveFunctionBinding computation : node.getComputations()) {
             emitFunction(computation, em, component);
+        }
+
+        for (NestedDirectiveBinding nestedDirective : node.getNestedDirectives()) {
+            emitNestedDirective(nestedDirective, em, component);
         }
 
         if (node.getDirectiveNameMethodName() != null) {
@@ -125,10 +141,6 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             context.location(em, node.getLocation());
             em.emit(() -> setter.invoke(component, contentFragment));
         }
-
-        Value<DomBuilder> tmpBuilder = builder;
-        context.location(em, node.getLocation());
-        builder = em.emit(() -> tmpBuilder.get().add(component.get()));
     }
 
     private Value<Modifier> emitAttributeDirective(AttributeDirectiveBinding binding) {
@@ -167,6 +179,35 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         ReflectClass<?> lambdaCls = em.getContext().findClass(function.getLambdaType());
         ReflectMethod setter = cls.getMethod(function.getMethodName(), lambdaCls);
         em.emit(() -> setter.invoke(component, functionInstance));
+    }
+
+    private void emitNestedDirective(NestedDirectiveBinding nested, Emitter<?> em,
+            Value<? extends Object> component) {
+        ReflectClass<?> cls = em.getContext().findClass(nested.getMethodOwner());
+        if (nested.isMultiple()) {
+            ReflectMethod setter = cls.getJMethod(nested.getMethodName(), List.class);
+            int capacity = nested.getDirectives().size();
+            Value<List<Object>> list = em.emit(() -> new ArrayList<>(capacity));
+            for (DirectiveBinding nestedDirective : nested.getDirectives()) {
+                Value<Object> nestedComponent = emitNestedComponent(nestedDirective, em);
+                em.emit(() -> list.get().add(nestedComponent));
+            }
+            em.emit(() -> setter.invoke(component, list));
+        } else {
+            ReflectClass<?> directiveType = em.getContext().findClass(nested.getDirectiveType());
+            ReflectMethod setter = cls.getMethod(nested.getMethodName(), directiveType);
+            Value<Object> nestedComponent = emitNestedComponent(nested.getDirectives().get(0), em);
+            em.emit(() -> setter.invoke(component, nestedComponent));
+        }
+    }
+
+    private Value<Object> emitNestedComponent(DirectiveBinding node, Emitter<?> em) {
+        context.location(em, node.getLocation());
+        ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
+        ReflectMethod ctor = componentType.getMethod("<init>");
+        Value<Object> component = em.emit(() -> ctor.construct());
+        emitDirective(node, component);
+        return component;
     }
 
     private void emitDirectiveName(String methodName, String directiveName, Emitter<?> em,

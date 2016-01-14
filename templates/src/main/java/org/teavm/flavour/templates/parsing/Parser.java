@@ -61,6 +61,7 @@ import org.teavm.flavour.templates.tree.DOMText;
 import org.teavm.flavour.templates.tree.DirectiveBinding;
 import org.teavm.flavour.templates.tree.DirectiveFunctionBinding;
 import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
+import org.teavm.flavour.templates.tree.NestedDirectiveBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
 /**
@@ -220,7 +221,7 @@ public class Parser {
         return parseDirective(directiveMeta, prefix, name, elem);
     }
 
-    private TemplateNode parseDirective(DirectiveMetadata directiveMeta, String prefix, String name, Element elem) {
+    private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name, Element elem) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
@@ -283,27 +284,29 @@ public class Parser {
         }
 
         parseSegment(elem.getEnd(), directive.getContentNodes(), child -> {
-            if (elem.getName().indexOf(':') > 0) {
-                int nestedPrefixLength = child.getName().indexOf(':');
+            int nestedPrefixLength = child.getName().indexOf(':');
+            if (nestedPrefixLength > 0) {
                 String nestedPrefix = child.getName().substring(0, nestedPrefixLength);
                 String nestedName = child.getName().substring(nestedPrefixLength + 1);
                 if (nestedPrefix.equals(prefix)) {
                     NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
                     if (nested != null) {
-                        parseDirective(nested.metadata, prefix, nestedName, child);
-                        // TODO: assign to outer directive
-                        return true;
+                        DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child);
+                        NestedDirectiveBinding binding = findNestedDirectiveBinding(directive, nested);
+                        binding.getDirectives().add(nestedNode);
+                        return false;
                     }
                 }
             }
-            return false;
+            return true;
         });
         if (directiveMeta.contentSetter != null) {
             directive.setContentMethodName(directiveMeta.contentSetter.getName());
-        } else if (!directiveMeta.ignoreContent) {
-            if (!directive.getContentNodes().isEmpty()) {
+        } else {
+            if (!directiveMeta.ignoreContent && !isEmptyContent(directive.getContentNodes())) {
                 error(elem, "Directive " + directiveMeta.cls.getName() + " should not have any content");
             }
+            directive.getContentNodes().clear();
         }
 
         for (String varName : declaredVars.keySet()) {
@@ -311,6 +314,43 @@ public class Parser {
         }
 
         return directive;
+    }
+
+    private NestedDirectiveBinding findNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
+        for (NestedDirectiveBinding binding : directive.getNestedDirectives()) {
+            if (binding.getMethodName().equals(metadata.setter.getName())
+                    && binding.getMethodOwner().equals(metadata.setter.getOwner().getName())) {
+                return binding;
+            }
+        }
+        NestedDirectiveBinding binding = new NestedDirectiveBinding(metadata.setter.getOwner().getName(),
+                metadata.setter.getName(), metadata.metadata.cls.getName(), metadata.multiple);
+        directive.getNestedDirectives().add(binding);
+        return binding;
+    }
+
+    private boolean isEmptyContent(List<TemplateNode> nodes) {
+        for (TemplateNode node : nodes) {
+            if (node instanceof DOMText) {
+                DOMText text = (DOMText) node;
+                if (!isEmptyText(text.getValue())) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isEmptyText(String text) {
+        for (int i = 0; i < text.length(); ++i) {
+            char c = text.charAt(i);
+            if (!Character.isWhitespace(c) && c != '\r' && c != '\n' && c != '\t') {
+                return false;
+            }
+        }
+        return true;
     }
 
     private AttributeDirectiveBinding parseAttributeDirective(Attribute attr) {

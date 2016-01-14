@@ -30,6 +30,7 @@ public class DirectiveBinding extends TemplateNode {
     private String directiveNameMethodName;
     private List<DirectiveVariableBinding> variables = new ArrayList<>();
     private List<DirectiveFunctionBinding> computations = new ArrayList<>();
+    private List<NestedDirectiveBinding> nestedDirectives = new ArrayList<>();
 
     public DirectiveBinding(String className, String name) {
         this.className = className;
@@ -78,6 +79,10 @@ public class DirectiveBinding extends TemplateNode {
 
     public void setDirectiveNameMethodName(String directiveNameMethodName) {
         this.directiveNameMethodName = directiveNameMethodName;
+    }
+
+    public List<NestedDirectiveBinding> getNestedDirectives() {
+        return nestedDirectives;
     }
 
     @Override

@@ -83,13 +83,20 @@ class DirectiveParser {
     }
 
     private DirectiveMetadata parseElement(ClassDescriber cls, AnnotationDescriber annot) {
+        return parseElement(typeNavigator.getGenericClass(cls.getName()), annot, true);
+    }
+
+    private DirectiveMetadata parseElement(GenericClass genericCls, AnnotationDescriber annot, boolean top) {
         DirectiveMetadata metadata = new DirectiveMetadata();
         metadata.nameRules = parseNames(annot);
-        metadata.cls = cls;
+        metadata.cls = typeNavigator.getClassRepository().describe(genericCls.getName());
 
-        parseConstructor(metadata);
+        if (top) {
+            parseConstructor(metadata);
+        } else {
+            parseNestedConstructor(metadata);
+        }
         parseIgnoreContent(metadata);
-        GenericClass genericCls = typeNavigator.getGenericClass(cls.getName());
         for (GenericMethod method : collectMethods(genericCls)) {
             parseMethod(metadata, method);
         }
@@ -129,6 +136,15 @@ class DirectiveParser {
         if (metadata.constructor == null) {
             error("Class " + cls.getName() + " declared by directive package does not have constructor "
                     + "that takes " + Slot.class.getName());
+        }
+    }
+
+    private void parseNestedConstructor(DirectiveMetadata metadata) {
+        ClassDescriber cls = metadata.cls;
+        metadata.constructor = cls.getMethod("<init>");
+        if (metadata.constructor == null) {
+            error("Class " + cls.getName() + " declared by directive package does not have constructor "
+                    + "that takes zero arguments");
         }
     }
 
@@ -356,10 +372,10 @@ class DirectiveParser {
             return;
         }
 
-        ClassDescriber cls = typeNavigator.getClassRepository().describe(((GenericClass) type).getName());
         NestedDirective nestedDirective = new NestedDirective();
         nestedDirective.multiple = multiple;
-        nestedDirective.metadata = parseElement(cls, binding);
+        nestedDirective.metadata = parseElement((GenericClass) type, binding, false);
+        nestedDirective.setter = method.getDescriber();
         metadata.nestedDirectives.add(nestedDirective);
     }
 

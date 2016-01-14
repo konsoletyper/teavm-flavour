@@ -42,7 +42,7 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<Component> component,
+    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive, Value<? extends Object> component,
             List<TemplateNode> fragment) {
         if (directive != null) {
             context.location(em, directive.getLocation());
@@ -97,7 +97,7 @@ class FragmentEmitter {
     }
 
     private void emitUpdateMethod(Emitter<?> em, DirectiveBinding directive, ReflectClass<?> componentType,
-            Value<Component> component, Map<String, Value<VariableImpl>> variables) {
+            Value<? extends Object> component, Map<String, Value<VariableImpl>> variables) {
         for (DirectiveVariableBinding varBinding : directive.getVariables()) {
             Value<VariableImpl> var = variables.get(varBinding.getName());
             ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());

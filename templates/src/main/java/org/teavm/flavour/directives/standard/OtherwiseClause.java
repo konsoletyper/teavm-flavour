@@ -13,17 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.parsing;
+package org.teavm.flavour.directives.standard;
 
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.Fragment;
 
 /**
  *
  * @author Alexey Andreev
  */
-class NestedDirective {
-    boolean multiple;
-    MethodDescriber setter;
-    boolean required;
-    DirectiveMetadata metadata;
+public class OtherwiseClause {
+    Fragment content;
+
+    @BindContent
+    public void setContent(Fragment content) {
+        this.content = content;
+    }
 }

@@ -80,6 +80,28 @@ public class StandardDirectivesTest {
         public List<String> collection = new ArrayList<>();
     }
 
+    @Test
+    public void chooseWorks() {
+        ChooseWorksModel model = new ChooseWorksModel();
+        Component component = Templates.bind(model, root);
+
+        component.render();
+        assertEquals("one", document.getElementById("value").getAttribute("class"));
+
+        model.index = 2;
+        component.render();
+        assertEquals("two", document.getElementById("value").getAttribute("class"));
+
+        model.index = 3;
+        component.render();
+        assertEquals("many", document.getElementById("value").getAttribute("class"));
+    }
+
+    @BindTemplate("templates/choose-works.html")
+    static class ChooseWorksModel {
+        public int index = 1;
+    }
+
     private static List<HTMLElement> toList(NodeList<? extends HTMLElement> nodeList) {
         List<HTMLElement> list = new ArrayList<>();
         for (int i = 0; i < nodeList.getLength(); ++i) {
