@@ -53,7 +53,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     Emitter<?> em;
     private Value<DomBuilder> builder;
 
-    public TemplateNodeEmitter(EmitContext context, Emitter<?> em, Value<DomBuilder> builder) {
+    TemplateNodeEmitter(EmitContext context, Emitter<?> em, Value<DomBuilder> builder) {
         this.context = context;
         this.em = em;
         this.builder = builder;
@@ -268,7 +268,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         Value<? extends Object> instance;
         Value<? extends Object> root;
 
-        public NestedComponentInstance(DirectiveBinding node, Value<? extends Object> instance,
+        NestedComponentInstance(DirectiveBinding node, Value<? extends Object> instance,
                 Value<? extends Object> root) {
             this.node = node;
             this.instance = instance;

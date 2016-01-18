@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.widgets;
+package org.teavm.flavour.validation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +33,7 @@ import org.teavm.flavour.templates.Slot;
 @BindDirective(name = "validator")
 public class Validator extends AbstractComponent {
     private boolean valid;
-    private List<ValidationEntry> entries = new ArrayList<>();
+    private List<ValidationEntry<?>> entries = new ArrayList<>();
     private Fragment content;
     private Component component;
 
@@ -47,8 +47,8 @@ public class Validator extends AbstractComponent {
         return valid;
     }
 
-    @BindAttribute(name = "validation")
-    public void setEntries(List<ValidationEntry> entries) {
+    @BindDirective(name = "validation")
+    public void setEntries(List<ValidationEntry<?>> entries) {
         this.entries = entries;
     }
 
@@ -62,7 +62,7 @@ public class Validator extends AbstractComponent {
         if (component == null) {
             component = content.create();
             getSlot().append(component.getSlot());
-            for (ValidationEntry entry : entries) {
+            for (ValidationEntry<?> entry : entries) {
                 entry.validation.validator = this;
             }
         }

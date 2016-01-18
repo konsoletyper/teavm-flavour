@@ -70,7 +70,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         wrappersToPrimitives.put(wrapper, primitive);
     }
 
-    public CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
+    CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
         this.navigator = navigator;
         this.classResolver = classes;
         this.scope = scope;
@@ -527,10 +527,16 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private String getGetterName(String propertyName) {
+        if (propertyName.isEmpty()) {
+            return "get";
+        }
         return "get" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
     }
 
     private String getBooleanGetterName(String propertyName) {
+        if (propertyName.isEmpty()) {
+            return "is";
+        }
         return "is" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
     }
 

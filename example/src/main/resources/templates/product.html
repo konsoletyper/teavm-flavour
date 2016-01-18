@@ -1,27 +1,46 @@
-<form>
-  <div class="form-group" attr:class="skuEmpty ? 'form-group has-error' : 'form-group'">
-    <label>SKU</label>
-    <input type="text" class="form-control" html:value="product.sku" html:change="value -> setSku(value)"/>
-    <std:if condition="skuEmpty">
-      <span class="help-block">SKU is required</span>
-    </std:if>
-  </div>
-  <div class="form-group" attr:class="nameEmpty ? 'form-group has-error' : 'form-group'">
-    <label>Name</label>
-    <input type="text" class="form-control" html:value="product.name" html:change="value -> setName(value)"/>
-    <std:if condition="nameEmpty">
-      <span class="help-block">Name is required</span>
-    </std:if>
-  </div>
-  <div attr:class="priceInvalid or priceNegative ? 'form-group has-error' : 'form-group'">
-    <label>Price</label>
-    <input type="text" class="form-control" html:value="product.unitPrice" html:change="value -> setUnitPrice(value)"/>
-    <std:if condition="priceInvalid">
-      <span class="help-block">Unexpected characters.</span>
-    </std:if>
-    <std:if condition="priceNegative">
-      <span class="help-block">Price must be positive.</span>
-    </std:if>
-  </div>
-  <button type="button" class="btn btn-default" event:click="save()">Save</button>
-</form>
+<?use v:org.teavm.flavour.validation?>
+<?import org.teavm.flavour.validation.Converter?>
+<v:validator result="valid">
+  <v:validation as="skuField" convert="Converter.stringFormat()" show="product.sku" onchange="v -> product.setSku(v)">
+    <v:check rule="v -> not v.empty" as="skuNotEmpty">
+  </v:validation>
+  <v:validation as="nameField" convert="Converter.stringFormat()" show="product.name"
+      onchange="v -> product.setName(v)">
+    <v:check rule="v -> not v.empty" as="nameNotEmpty">
+  </v:validation>
+  <v:validation as="priceField" convert="Converter.doubleFormat('#,##0.00')" show="product.price"
+      onchange="v -> product.setPrice(v)">
+    <v:check rule="v -> v != null" as="priceNotEmpty">
+    <v:check rule="v -> v > 0" as="pricePositive">
+  </v:validation>
+  <form>
+    <div class="form-group" attr:class="skuField.valid ? 'form-group' : 'form-group has-error'">
+      <label>SKU</label>
+      <input type="text" class="form-control" v:bind="skuField"/>
+      <std:if condition="not skuNotEmpty">
+        <span class="help-block">SKU is required</span>
+      </std:if>
+    </div>
+    <div class="form-group" attr:class="nameField.valid ? 'form-group' : 'form-group has-error'">
+      <label>Name</label>
+      <input type="text" class="form-control" v:bind="nameField"/>
+      <std:if condition="not nameNotEmpty">
+        <span class="help-block">Name is required</span>
+      </std:if>
+    </div>
+    <div attr:class="priceField.valid ? 'form-group' : 'form-group has-error'">
+      <label>Price</label>
+      <input type="text" class="form-control" v:bind="priceField"/>
+      <std:if condition="not priceEmpty">
+        <span class="help-block">Price is required.</span>
+      </std:if>
+      <std:if condition="not priceField.validFormat">
+        <span class="help-block">Unexpected characters.</span>
+      </std:if>
+      <std:if condition="not pricePositive">
+        <span class="help-block">Price must be positive.</span>
+      </std:if>
+    </div>
+    <button type="button" class="btn btn-default" event:click="save()" html:enabled="valid">Save</button>
+  </form>
+</v:validator>

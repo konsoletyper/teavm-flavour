@@ -24,4 +24,16 @@ public class ProductDTO {
     public String sku;
     public String name;
     public double unitPrice;
+
+    public void setSku(String sku) {
+        this.sku = sku;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setUnitPrice(double unitPrice) {
+        this.unitPrice = unitPrice;
+    }
 }

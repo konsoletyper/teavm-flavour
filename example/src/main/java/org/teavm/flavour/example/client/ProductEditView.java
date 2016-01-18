@@ -29,11 +29,7 @@ import org.teavm.jso.browser.Window;
 public class ProductEditView {
     private Integer id;
     private ProductDTO product;
-    private boolean nameEmpty;
-    private boolean skuEmpty;
     private ProductFacade facade;
-    private boolean priceInvalid;
-    private boolean priceNegative;
     private BackgroundWorker background = new BackgroundWorker();
 
     public ProductEditView(ProductFacade facade) {
@@ -60,9 +56,6 @@ public class ProductEditView {
     }
 
     public void save() {
-        if (!validate()) {
-            return;
-        }
         background.run(() -> {
             if (id == null) {
                 facade.create(product);
@@ -73,51 +66,11 @@ public class ProductEditView {
         });
     }
 
-    private boolean validate() {
-        nameEmpty = product.name.isEmpty();
-        skuEmpty = product.sku.isEmpty();
-        priceNegative = product.unitPrice <= 0;
-        return !nameEmpty && !skuEmpty && !priceNegative;
-    }
-
-    public void setSku(String sku) {
-        product.sku = sku;
-    }
-
-    public void setName(String name) {
-        product.name = name;
-    }
-
-    public void setUnitPrice(String price) {
-        priceInvalid = false;
-        try {
-            product.unitPrice = Double.parseDouble(price.trim().replace(',', '.'));
-        } catch (NumberFormatException e) {
-            priceInvalid = true;
-        }
-    }
-
     public ProductDTO getProduct() {
         return product;
     }
 
     public boolean isLoading() {
         return background.isBusy();
-    }
-
-    public boolean isNameEmpty() {
-        return nameEmpty;
-    }
-
-    public boolean isSkuEmpty() {
-        return skuEmpty;
-    }
-
-    public boolean isPriceInvalid() {
-        return priceInvalid;
-    }
-
-    public boolean isPriceNegative() {
-        return priceNegative;
     }
 }

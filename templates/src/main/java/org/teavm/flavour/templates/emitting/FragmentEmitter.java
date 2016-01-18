@@ -34,7 +34,7 @@ import org.teavm.flavour.templates.tree.TemplateNode;
 class FragmentEmitter {
     EmitContext context;
 
-    public FragmentEmitter(EmitContext context) {
+    FragmentEmitter(EmitContext context) {
         this.context = context;
     }
 

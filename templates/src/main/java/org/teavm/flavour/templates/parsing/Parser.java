@@ -246,6 +246,9 @@ public class Parser {
                 }
                 continue;
             }
+            if (attrMeta.type == null || attrMeta.valueType == null) {
+                continue;
+            }
             MethodDescriber getter = attrMeta.getter;
             MethodDescriber setter = attrMeta.setter;
             switch (attrMeta.type) {
@@ -345,8 +348,7 @@ public class Parser {
         DirectiveBinding directive;
         Element elem;
 
-        public PostponedDirectiveParse(int position, DirectiveMetadata metadata, DirectiveBinding directive,
-                Element elem) {
+        PostponedDirectiveParse(int position, DirectiveMetadata metadata, DirectiveBinding directive, Element elem) {
             this.position = position;
             this.metadata = metadata;
             this.directive = directive;

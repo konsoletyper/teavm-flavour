@@ -13,12 +13,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.widgets;
+package org.teavm.flavour.validation;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class ValidationRule {
-    public abstract boolean apply();
+public class Validation<T> {
+    Validator validator;
+    boolean valid = true;
+    boolean validFormat = true;
+    Supplier<Converter<T>> converter;
+    Supplier<T> supplier;
+    Consumer<T> consumer;
+    List<ValidationRule<T>> rules = new ArrayList<>();
+
+    public boolean isValidFormat() {
+        return validFormat;
+    }
+
+    public boolean isValid() {
+        return valid && rules.stream().allMatch(rule -> rule.predicate.test(null));
+    }
 }

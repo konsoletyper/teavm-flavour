@@ -13,17 +13,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.widgets;
+package org.teavm.flavour.validation;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class Validation {
-    Validator validator;
-    boolean valid = true;
+public class ConversionException extends RuntimeException {
+    private static final long serialVersionUID = 7215627908340330048L;
 
-    public boolean isValid() {
-        return valid;
+    public ConversionException() {
     }
 }

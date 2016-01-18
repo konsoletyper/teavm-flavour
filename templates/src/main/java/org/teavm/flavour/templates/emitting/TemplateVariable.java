@@ -25,7 +25,7 @@ class TemplateVariable {
     Value<VariableImpl> destination;
     Value<Object> source;
 
-    public TemplateVariable(Value<VariableImpl> destination, Value<Object> source) {
+    TemplateVariable(Value<VariableImpl> destination, Value<Object> source) {
         this.destination = destination;
         this.source = source;
     }

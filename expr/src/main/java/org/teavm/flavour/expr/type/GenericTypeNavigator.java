@@ -400,6 +400,10 @@ public class GenericTypeNavigator {
             if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getArgumentTypes()) != null) {
                 continue;
             }
+            if (!methodDesc.isAbstract() || methodDesc.isStatic()) {
+                continue;
+            }
+
             ValueType[] paramTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < paramTypes.length; ++i) {
                 if (paramTypes[i] instanceof GenericType) {
@@ -441,7 +445,7 @@ public class GenericTypeNavigator {
     static class MethodSignature {
         ValueType[] paramTypes;
 
-        public MethodSignature(ValueType[] paramTypes) {
+        MethodSignature(ValueType[] paramTypes) {
             this.paramTypes = paramTypes;
         }
 

@@ -13,19 +13,28 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.widgets;
+package org.teavm.flavour.validation;
 
+import java.util.function.Predicate;
 import org.teavm.flavour.templates.BindAttribute;
+import org.teavm.flavour.templates.OptionalBinding;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class ValidationEntry {
-    Validation validation = new Validation();
+public class ValidationRule<T> {
+    Predicate<T> predicate;
+    boolean valid;
 
-    @BindAttribute(name = "name")
-    public Validation getValidation() {
-        return validation;
+    @BindAttribute(name = "as")
+    @OptionalBinding
+    public boolean isValid() {
+        return valid;
+    }
+
+    @BindAttribute(name = "rule")
+    public void setPredicate(Predicate<T> predicate) {
+        this.predicate = predicate;
     }
 }
