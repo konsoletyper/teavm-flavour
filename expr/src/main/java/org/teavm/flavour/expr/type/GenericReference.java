@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -35,7 +34,7 @@ public final class GenericReference extends GenericType {
     }
 
     @Override
-    public GenericType substitute(Map<TypeVar, GenericType> substitutions) {
+    public GenericType substitute(Substitutions substitutions) {
         GenericType substitution = substitutions.get(var);
         if (substitution == null) {
             return this;
@@ -67,5 +66,10 @@ public final class GenericReference extends GenericType {
         } else {
             return var.getUpperBound().erasure();
         }
+    }
+
+    @Override
+    public boolean isProper() {
+        return var.getName() != null;
     }
 }

@@ -19,6 +19,6 @@ package org.teavm.flavour.expr.type;
  *
  * @author Alexey Andreev
  */
-public class TypeIntersection {
-    private GenericType[] types;
+public interface Substitutions {
+    GenericType get(TypeVar var);
 }

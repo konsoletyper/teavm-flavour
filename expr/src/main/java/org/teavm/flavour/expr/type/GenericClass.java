@@ -15,7 +15,10 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  *
@@ -52,7 +55,7 @@ public final class GenericClass extends GenericType {
     }
 
     @Override
-    public GenericClass substitute(Map<TypeVar, GenericType> substitutions) {
+    public GenericClass substitute(Substitutions substitutions) {
         List<GenericType> argumentSubstitutions = new ArrayList<>();
         boolean changed = false;
         for (GenericType arg : arguments) {
@@ -98,5 +101,10 @@ public final class GenericClass extends GenericType {
     @Override
     public GenericType erasure() {
         return new GenericClass(name);
+    }
+
+    @Override
+    public boolean isProper() {
+        return arguments.stream().allMatch(GenericType::isProper);
     }
 }

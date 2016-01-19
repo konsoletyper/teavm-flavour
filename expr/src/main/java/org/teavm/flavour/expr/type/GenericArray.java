@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -35,7 +34,7 @@ public final class GenericArray extends GenericType {
     }
 
     @Override
-    public GenericArray substitute(Map<TypeVar, GenericType> substitutions) {
+    public GenericArray substitute(Substitutions substitutions) {
         if (elementType instanceof GenericType) {
             GenericType genericElem = (GenericType) elementType;
             GenericType substElement = genericElem.substitute(substitutions);
@@ -65,5 +64,10 @@ public final class GenericArray extends GenericType {
     @Override
     public GenericType erasure() {
         return elementType instanceof GenericType ? new GenericArray(((GenericType) elementType).erasure()) : this;
+    }
+
+    @Override
+    public boolean isProper() {
+        return !(elementType instanceof GenericType) || ((GenericType) elementType).isProper();
     }
 }

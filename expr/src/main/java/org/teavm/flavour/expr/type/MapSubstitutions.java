@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,17 +15,21 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.Map;
+
 /**
  *
  * @author Alexey Andreev
  */
-public abstract class GenericType extends ValueType {
-    GenericType() {
+public class MapSubstitutions implements Substitutions {
+    private Map<TypeVar, GenericType> map;
+
+    public MapSubstitutions(Map<TypeVar, GenericType> map) {
+        this.map = map;
     }
 
-    public abstract GenericType substitute(Substitutions substitutions);
-
-    public abstract GenericType erasure();
-
-    public abstract boolean isProper();
+    @Override
+    public GenericType get(TypeVar var) {
+        return map.get(var);
+    }
 }
