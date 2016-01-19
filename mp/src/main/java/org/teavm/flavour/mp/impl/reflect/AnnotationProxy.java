@@ -51,7 +51,7 @@ class AnnotationProxy implements InvocationHandler {
         this.annotationType = annotationType;
     }
 
-    public AnnotationProxy(AnnotationReader reader) {
+    AnnotationProxy(AnnotationReader reader) {
         this.reader = reader;
     }
 

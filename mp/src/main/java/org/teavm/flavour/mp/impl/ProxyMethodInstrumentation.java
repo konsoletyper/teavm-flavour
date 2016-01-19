@@ -49,7 +49,7 @@ public class ProxyMethodInstrumentation {
     }
 
     class ClassTransformer extends ClassVisitor {
-        public ClassTransformer(ClassVisitor cv) {
+        ClassTransformer(ClassVisitor cv) {
             super(Opcodes.ASM5, cv);
         }
 
@@ -63,7 +63,7 @@ public class ProxyMethodInstrumentation {
     class MethodTransformer extends MethodVisitor {
         private boolean instrumented;
 
-        public MethodTransformer(MethodVisitor mv) {
+        MethodTransformer(MethodVisitor mv) {
             super(Opcodes.ASM5, mv);
         }
 

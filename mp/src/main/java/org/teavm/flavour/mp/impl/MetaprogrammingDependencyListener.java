@@ -50,7 +50,7 @@ class MetaprogrammingDependencyListener extends AbstractDependencyListener {
     private MetaprogrammingTransformer transformer;
     private ProxyClassLoader proxyClassLoader;
 
-    public MetaprogrammingDependencyListener(MetaprogrammingTransformer transformer) {
+    MetaprogrammingDependencyListener(MetaprogrammingTransformer transformer) {
         this.transformer = transformer;
     }
 

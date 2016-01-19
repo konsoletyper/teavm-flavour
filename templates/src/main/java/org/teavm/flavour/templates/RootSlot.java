@@ -24,7 +24,7 @@ import org.teavm.jso.dom.xml.Node;
 class RootSlot extends Slot {
     Node domNode;
 
-    public RootSlot(Node domNode) {
+    RootSlot(Node domNode) {
         this.domNode = domNode;
     }
 }

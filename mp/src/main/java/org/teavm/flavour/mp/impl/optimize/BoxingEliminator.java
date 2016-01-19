@@ -276,7 +276,7 @@ public class BoxingEliminator {
         WrapperState state = WrapperState.UNKNOWN;
     }
 
-    static enum WrapperState {
+    enum WrapperState {
         PROVEN,
         REFUTED,
         UNKNOWN

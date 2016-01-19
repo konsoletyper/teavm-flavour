@@ -78,7 +78,7 @@ public final class Templates {
     private static class RootComponent extends AbstractComponent {
         private Component inner;
 
-        public RootComponent(Slot slot, Component inner) {
+        RootComponent(Slot slot, Component inner) {
             super(slot);
             this.inner = inner;
             slot.append(inner.getSlot());

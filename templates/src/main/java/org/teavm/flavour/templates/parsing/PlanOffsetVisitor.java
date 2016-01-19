@@ -25,7 +25,7 @@ import org.teavm.flavour.expr.plan.*;
 class PlanOffsetVisitor implements PlanVisitor {
     private int offset;
 
-    public PlanOffsetVisitor(int offset) {
+    PlanOffsetVisitor(int offset) {
         this.offset = offset;
     }
 

@@ -50,7 +50,7 @@ public final class AmbiguityFinder {
             DfaState state;
             int index;
             int code;
-            public Step(DfaState state, int index, int code) {
+            Step(DfaState state, int index, int code) {
                 this.state = state;
                 this.index = index;
                 this.code = code;

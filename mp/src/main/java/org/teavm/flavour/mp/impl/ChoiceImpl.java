@@ -153,7 +153,7 @@ public class ChoiceImpl<T> implements Choice<T> {
     }
 
     class ChoiceEmitterImpl extends AbstractEmitterImpl<T> {
-        public ChoiceEmitterImpl(EmitterContextImpl context, MethodReference templateMethod) {
+        ChoiceEmitterImpl(EmitterContextImpl context, MethodReference templateMethod) {
             super(context, createGenerator(ChoiceImpl.this), templateMethod, type);
         }
 

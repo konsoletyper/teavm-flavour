@@ -319,7 +319,7 @@ public class JsonDeserializerEmitter {
     static class SubTypeResult {
         Emitter<Object> em;
         Value<ObjectNode> contentNode;
-        public SubTypeResult(Emitter<Object> em, Value<ObjectNode> contentNode) {
+        SubTypeResult(Emitter<Object> em, Value<ObjectNode> contentNode) {
             this.em = em;
             this.contentNode = contentNode;
         }
@@ -731,7 +731,7 @@ public class JsonDeserializerEmitter {
     static class ObjectWithTag {
         Value<String> tag;
         Value<ObjectNode> object;
-        public ObjectWithTag(Value<String> tag, Value<ObjectNode> object) {
+        ObjectWithTag(Value<String> tag, Value<ObjectNode> object) {
             this.tag = tag;
             this.object = object;
         }

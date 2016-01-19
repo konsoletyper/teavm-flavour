@@ -126,7 +126,7 @@ public class ProxyClassLoader extends ClassLoader {
         String parent;
         boolean compileTime;
 
-        public CompileTimeClassVisitor() {
+        CompileTimeClassVisitor() {
             super(Opcodes.ASM5, null);
         }
 

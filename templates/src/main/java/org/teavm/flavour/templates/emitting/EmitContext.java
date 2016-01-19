@@ -36,7 +36,7 @@ class EmitContext {
     List<Map<String, VariableEmitter>> boundVariableStack = new ArrayList<>();
     Map<String, Deque<VariableEmitter>> variables = new HashMap<>();
 
-    public EmitContext(OffsetToLineMapper locationMapper) {
+    EmitContext(OffsetToLineMapper locationMapper) {
         this.locationMapper = locationMapper;
     }
 

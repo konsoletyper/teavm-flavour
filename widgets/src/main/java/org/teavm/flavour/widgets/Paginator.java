@@ -233,7 +233,7 @@ public class Paginator extends AbstractWidget {
         }
     }
 
-    public static enum ItemType {
+    public enum ItemType {
         PREVIOUS,
         NEXT,
         PAGE,

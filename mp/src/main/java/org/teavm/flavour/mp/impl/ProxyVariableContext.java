@@ -142,11 +142,11 @@ public class ProxyVariableContext extends VariableContext {
         return constructInsn.getReceiver();
     }
 
-    private class CapturedValue {
+    class CapturedValue {
         FieldHolder field;
         Variable value;
 
-        public CapturedValue(FieldHolder field, Variable value) {
+        CapturedValue(FieldHolder field, Variable value) {
             this.field = field;
             this.value = value;
         }

@@ -31,7 +31,7 @@ abstract class ClassPathAbstractMethodDescriber extends ClassPathAnnotationsDesc
     private ValueType returnType;
     private ValueType rawReturnType;
 
-    public ClassPathAbstractMethodDescriber(ClassPathClassDescriber classDescriber) {
+    ClassPathAbstractMethodDescriber(ClassPathClassDescriber classDescriber) {
         this.owner = classDescriber;
     }
 

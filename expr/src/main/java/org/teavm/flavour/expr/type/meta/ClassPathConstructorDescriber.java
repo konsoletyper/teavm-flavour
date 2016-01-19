@@ -24,7 +24,7 @@ import java.lang.reflect.*;
 class ClassPathConstructorDescriber extends ClassPathAbstractMethodDescriber {
     private Constructor<?> javaConstructor;
 
-    public ClassPathConstructorDescriber(ClassPathClassDescriber classDescriber, Constructor<?> javaConstructor) {
+    ClassPathConstructorDescriber(ClassPathClassDescriber classDescriber, Constructor<?> javaConstructor) {
         super(classDescriber);
         this.javaConstructor = javaConstructor;
     }

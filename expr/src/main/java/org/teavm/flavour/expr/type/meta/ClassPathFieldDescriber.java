@@ -30,7 +30,7 @@ class ClassPathFieldDescriber extends ClassPathAnnotationsDescriber implements F
     private ValueType type;
     private ValueType rawType;
 
-    public ClassPathFieldDescriber(ClassPathClassDescriber owner, Field javaField) {
+    ClassPathFieldDescriber(ClassPathClassDescriber owner, Field javaField) {
         this.owner = owner;
         this.javaField = javaField;
     }

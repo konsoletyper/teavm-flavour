@@ -34,7 +34,7 @@ class InterpreterVisitor implements PlanVisitor {
     private Map<String, Method> methodCache = new HashMap<>();
     private Map<String, Constructor<?>> constructorCache = new HashMap<>();
 
-    public InterpreterVisitor(Map<String, Object> variables) {
+    InterpreterVisitor(Map<String, Object> variables) {
         this.variables = variables;
     }
 
@@ -634,7 +634,7 @@ class InterpreterVisitor implements PlanVisitor {
         int position;
         final String text;
 
-        public TypeDecoder(String text) {
+        TypeDecoder(String text) {
             this.text = text;
         }
 

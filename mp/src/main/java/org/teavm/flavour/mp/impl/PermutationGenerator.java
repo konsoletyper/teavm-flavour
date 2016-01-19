@@ -69,7 +69,7 @@ class PermutationGenerator {
     private ProxyClassLoader classLoader;
     private boolean annotationErrorReported;
 
-    public PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
+    PermutationGenerator(DependencyAgent agent, ProxyModel model, MethodDependency methodDep,
             CallLocation location, EmitterContextImpl emitterContext, Map<Object, MethodReference> usageMap,
             ProxyClassLoader classLoader) {
         this.agent = agent;

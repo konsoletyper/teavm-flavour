@@ -45,7 +45,7 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     private ClassPathFieldDescriber[] fields;
     private Map<Field, ClassPathFieldDescriber> fieldMap = new HashMap<>();
 
-    public ClassPathClassDescriber(ClassPathClassDescriberRepository repository, Class<?> cls) {
+    ClassPathClassDescriber(ClassPathClassDescriberRepository repository, Class<?> cls) {
         this.repository = repository;
         this.cls = cls;
     }

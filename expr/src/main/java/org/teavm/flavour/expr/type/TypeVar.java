@@ -22,6 +22,19 @@ package org.teavm.flavour.expr.type;
 public class TypeVar {
     private GenericType lowerBound;
     private GenericType upperBound;
+    private String name;
+
+    public TypeVar() {
+        this(null);
+    }
+
+    public TypeVar(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
 
     public GenericType getLowerBound() {
         return lowerBound;

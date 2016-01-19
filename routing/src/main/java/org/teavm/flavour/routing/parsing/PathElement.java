@@ -25,11 +25,11 @@ class PathElement {
     Node regex;
     String text;
 
-    public PathElement(Node regex) {
+    PathElement(Node regex) {
         this.regex = regex;
     }
 
-    public PathElement(String text) {
+    PathElement(String text) {
         this.text = text;
     }
 }

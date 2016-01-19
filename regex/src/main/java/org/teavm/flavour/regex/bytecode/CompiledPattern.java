@@ -27,7 +27,7 @@ import org.teavm.flavour.regex.Pattern;
 class CompiledPattern implements Pattern {
     private Constructor<? extends Matcher> constructor;
 
-    public CompiledPattern(Constructor<? extends Matcher> constructor) {
+    CompiledPattern(Constructor<? extends Matcher> constructor) {
         this.constructor = constructor;
     }
 

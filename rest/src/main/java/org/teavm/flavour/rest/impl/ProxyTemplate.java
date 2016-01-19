@@ -29,7 +29,7 @@ class ProxyTemplate {
     private List<ResponseProcessor> responseProcessors;
     private String prefix;
 
-    public ProxyTemplate(FactoryTemplate factory, String prefix) {
+    ProxyTemplate(FactoryTemplate factory, String prefix) {
         requestProcessors = new ArrayList<>(factory.requestProcessors);
         responseProcessors = new ArrayList<>(factory.responseProcessors);
         if (!prefix.endsWith("/")) {

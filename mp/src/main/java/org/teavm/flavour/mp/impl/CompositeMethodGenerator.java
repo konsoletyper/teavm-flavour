@@ -423,7 +423,7 @@ public class CompositeMethodGenerator {
         CapturedValue[] capturedValues;
         ArrayElement[] arrayElements;
 
-        public TemplateSubstitutor(CapturedValue[] capturedValues, int[] variableMapping, ArrayElement[] arrayElements,
+        TemplateSubstitutor(CapturedValue[] capturedValues, int[] variableMapping, ArrayElement[] arrayElements,
                 int blockOffset, int variableOffset) {
             this.capturedValues = capturedValues;
             this.variableMapping = variableMapping;

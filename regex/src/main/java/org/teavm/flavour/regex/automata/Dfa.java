@@ -281,7 +281,7 @@ public class Dfa {
         int index;
         int[] toggleIndexes;
 
-        public TransitionDescriptor(NfaTransition transition) {
+        TransitionDescriptor(NfaTransition transition) {
             this(transition, transition.getCharSet().getToggleIndexes(), 0);
         }
 
@@ -315,7 +315,7 @@ public class Dfa {
         public final int[] indexes;
         private int hash;
 
-        public NfaStateSet(NfaState... states) {
+        NfaStateSet(NfaState... states) {
             this(mapStates(states));
         }
 
@@ -327,7 +327,7 @@ public class Dfa {
             return indexes;
         }
 
-        public NfaStateSet(int... indexes) {
+        NfaStateSet(int... indexes) {
             Arrays.sort(indexes);
             int j = 1;
             for (int i = 1; i < indexes.length; ++i) {

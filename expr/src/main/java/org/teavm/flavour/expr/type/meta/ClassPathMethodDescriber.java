@@ -28,7 +28,7 @@ import java.lang.reflect.TypeVariable;
 class ClassPathMethodDescriber extends ClassPathAbstractMethodDescriber {
     private Method javaMethod;
 
-    public ClassPathMethodDescriber(ClassPathClassDescriber classDescriber, Method javaMethod) {
+    ClassPathMethodDescriber(ClassPathClassDescriber classDescriber, Method javaMethod) {
         super(classDescriber);
         this.javaMethod = javaMethod;
     }

@@ -80,7 +80,7 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
     TypeVar getTypeVariable(TypeVariable<?> javaVar) {
         TypeVar var = typeVarCache.get(javaVar);
         if (var == null) {
-            var = new TypeVar();
+            var = new TypeVar(javaVar.getName());
             typeVarCache.put(javaVar, var);
             Type[] javaBounds = javaVar.getBounds();
             if (javaBounds.length > 0) {

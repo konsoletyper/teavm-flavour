@@ -87,6 +87,9 @@ public class ValueTypeFormatter {
     }
 
     private String getNameOfTypeVar(TypeVar var) {
+        if (var.getName() != null) {
+            return var.getName();
+        }
         String name = typeVarNames.get(var);
         if (name == null) {
             name = generateName(typeVarNames.size());
@@ -98,8 +101,8 @@ public class ValueTypeFormatter {
     private String generateName(int index) {
         int letterIndex = index % 26;
         int suffix = index / 26;
-        StringBuilder sb = new StringBuilder();
-        sb.append((char) ('A' + letterIndex));
+        StringBuilder sb = new StringBuilder("'");
+        sb.append((char) ('a' + letterIndex));
         if (suffix > 0) {
             sb.append(suffix);
         }

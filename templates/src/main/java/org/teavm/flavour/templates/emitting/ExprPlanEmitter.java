@@ -58,7 +58,7 @@ class ExprPlanEmitter implements PlanVisitor {
     Value<Object> var;
     ValueEmitter thisVar;
 
-    public ExprPlanEmitter(EmitContext context, Emitter<?> em) {
+    ExprPlanEmitter(EmitContext context, Emitter<?> em) {
         this.context = context;
         this.em = em;
     }
@@ -636,7 +636,7 @@ class ExprPlanEmitter implements PlanVisitor {
         String text;
         EmitterContext context;
 
-        public TypeParser(String text) {
+        TypeParser(String text) {
             this.text = text;
             this.context = em.getContext();
         }

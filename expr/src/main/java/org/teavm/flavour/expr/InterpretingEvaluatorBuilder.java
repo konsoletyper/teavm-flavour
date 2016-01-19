@@ -104,7 +104,7 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
         private ClassPathClassDescriberRepository classes;
         private Map<String, Type> variables;
 
-        public ScopeImpl(ClassPathClassDescriberRepository classes, Map<String, Type> variables) {
+        ScopeImpl(ClassPathClassDescriberRepository classes, Map<String, Type> variables) {
             this.classes = classes;
             this.variables = variables;
         }
@@ -119,7 +119,7 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
     class FunctionProxy implements InvocationHandler {
         private Interpreter interpreter;
 
-        public FunctionProxy(Interpreter interpreter) {
+        FunctionProxy(Interpreter interpreter) {
             this.interpreter = interpreter;
         }
 
@@ -133,7 +133,7 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
         private Interpreter interpreter;
         private Map<Method, String> variables;
 
-        public VariablesProxy(Interpreter interpreter, Map<Method, String> variables) {
+        VariablesProxy(Interpreter interpreter, Map<Method, String> variables) {
             this.interpreter = interpreter;
             this.variables = variables;
         }

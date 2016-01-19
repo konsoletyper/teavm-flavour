@@ -124,7 +124,7 @@ public class AliasFinder {
         Object[] constants;
         ArrayElement[] arrayElements;
 
-        public AliasReader(DisjointSet disjointSet, int variableCount) {
+        AliasReader(DisjointSet disjointSet, int variableCount) {
             this.disjointSet = disjointSet;
             this.constants = new Object[variableCount];
             this.arrayElements = new ArrayElement[variableCount];

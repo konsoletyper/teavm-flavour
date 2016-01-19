@@ -43,11 +43,11 @@ class RequestImpl implements Request {
     Map<String, String> headers = new HashMap<>();
     XMLHttpRequest xhr;
 
-    public RequestImpl(HttpMethod method, String url) {
+    RequestImpl(HttpMethod method, String url) {
         this(method, url, NullNode.instance());
     }
 
-    public RequestImpl(HttpMethod method, String url, Node content) {
+    RequestImpl(HttpMethod method, String url, Node content) {
         this.method = method;
         this.url = url;
         this.content = content;

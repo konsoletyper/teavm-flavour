@@ -28,7 +28,7 @@ import java.util.Arrays;
 class ClassPathAnnotationDescriber implements AnnotationDescriber {
     private Annotation javaAnnotation;
 
-    public ClassPathAnnotationDescriber(Annotation javaAnnotation) {
+    ClassPathAnnotationDescriber(Annotation javaAnnotation) {
         this.javaAnnotation = javaAnnotation;
     }
 

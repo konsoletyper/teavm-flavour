@@ -61,7 +61,7 @@ class DirectiveParser {
     private Segment segment;
     private GenericTypeNavigator typeNavigator;
 
-    public DirectiveParser(ClassDescriberRepository classRepository, List<Diagnostic> diagnostics, Segment segment) {
+    DirectiveParser(ClassDescriberRepository classRepository, List<Diagnostic> diagnostics, Segment segment) {
         this.classRepository = classRepository;
         this.diagnostics = diagnostics;
         this.segment = segment;
@@ -447,7 +447,7 @@ class DirectiveParser {
         final String name;
         final ValueType[] params;
 
-        public MethodWithParams(String name, ValueType[] params) {
+        MethodWithParams(String name, ValueType[] params) {
             this.name = name;
             this.params = params.clone();
         }
