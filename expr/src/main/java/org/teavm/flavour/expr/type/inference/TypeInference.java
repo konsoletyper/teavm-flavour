@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type;
+package org.teavm.flavour.expr.type.inference;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.teavm.flavour.expr.type.GenericArray;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericReference;
+import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.Substitutions;
+import org.teavm.flavour.expr.type.TypeVar;
 
 /**
  *
