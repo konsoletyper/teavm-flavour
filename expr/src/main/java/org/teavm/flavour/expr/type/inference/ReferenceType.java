@@ -20,5 +20,4 @@ package org.teavm.flavour.expr.type.inference;
  * @author Alexey Andreev
  */
 public abstract class ReferenceType extends Type {
-
 }

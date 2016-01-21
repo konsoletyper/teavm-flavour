@@ -16,26 +16,29 @@
 package org.teavm.flavour.expr.type.inference;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.teavm.flavour.expr.type.TypeVar;
 
 /**
  *
  * @author Alexey Andreev
  */
 public class Variable {
-    private TypeConstraints consumer;
+    private TypeConstraints constraints;
     private List<Variable> upperDependencies = new ArrayList<>();
-    private List<Variable> lowerDependencies = new ArrayList<>();
-    private List<ReferenceType> upperBounds = new ArrayList<>();
-    private List<ReferenceType> lowerBounds = new ArrayList<>();
-    private ReferenceType implementation;
+    private List<ClassType> upperBounds = new ArrayList<>();
+    private List<ClassType> lowerBounds = new ArrayList<>();
+    private ReferenceType instance;
     int rank;
     private Variable parent;
+    TypeVar impl;
 
-    Variable(TypeConstraints consumer) {
-        this.consumer = consumer;
+    Variable(TypeConstraints constraints, TypeVar impl) {
+        this.constraints = constraints;
+        this.impl = impl;
     }
 
     private Variable union(Variable other) {
@@ -70,53 +73,209 @@ public class Variable {
         return var;
     }
 
-    public boolean equalTo(Variable other, TypeConstraints constraints) {
-        return equalToImpl(other, other, constraints);
+    public boolean isSameWith(Variable other) {
+        return find() == other.find();
     }
 
-    private static boolean equalToImpl(Variable s, Variable t, TypeConstraints constraints) {
+    public boolean isSubtypeOf(Variable supertype) {
+        Variable s = supertype.find();
+        if (this == s) {
+            return true;
+        }
+        return find().upperDependencies.stream().anyMatch(v -> v.find() == s);
+    }
+
+    public boolean assertEqualTo(Variable other) {
+        Variable first = this.find();
+        Variable second = other.find();
+        if (first == second) {
+            return true;
+        }
+        Variable joined = first.union(second);
+        other = joined == first ? second : first;
+        return assertEqualToImpl(joined, other);
+    }
+
+    private static boolean assertEqualToImpl(Variable s, Variable t) {
         if (s == t) {
             return true;
         }
         boolean ok = true;
 
-        if (s != null && t != null) {
-            ok &= constraints.equal(s.implementation, t.implementation);
-            ok &= adoptImplementation(s, t, constraints);
-        } else if (s.implementation != null) {
-            ok &= adoptImplementation(t, s, constraints);
-        } else if (t.implementation != null) {
-            ok &= adoptImplementation(s, t, constraints);
+        if (s.instance != null && t.instance != null) {
+            ok &= adoptInstance(s, t);
+            ok &= s.constraints.assertEqual(s.instance, t.instance);
+        } else if (s.instance != null) {
+            ok &= adoptInstance(t, s);
+        } else if (t.instance != null) {
+            ok &= adoptInstance(s, t);
         }
 
         return ok;
     }
 
-    private static boolean adoptImplementation(Variable s, Variable t, TypeConstraints constraints) {
+    private static boolean adoptInstance(Variable s, Variable t) {
         boolean ok = true;
-        s.implementation = t.implementation;
+        s.instance = t.instance;
 
-        Set<Variable> newDependencies = t.upperDependencies.stream().map(Variable::find).collect(Collectors.toSet());
-        newDependencies.removeAll(s.upperDependencies.stream().map(Variable::find).collect(Collectors.toSet()));
+        Set<Variable> newUpperDependencies = findMany(t.upperDependencies);
+        newUpperDependencies.removeAll(findMany(s.upperDependencies));
+        List<ClassType> newUpperBounds = new ArrayList<>(t.upperBounds);
+        List<ClassType> newLowerBounds = new ArrayList<>(t.lowerBounds);
 
         // When T <: S1 <: S2 <: ... <: Sn <: T then T = S1 = S2 = ... = Sn
-        if (newDependencies.contains(s)) {
-            for (Variable u : newDependencies) {
-                ok &= s.equalTo(u, constraints);
-            }
-            t = t.find();
-        } else {
-            s.upperDependencies.addAll(newDependencies);
+        Set<Variable> circularDependencies = newUpperDependencies.stream().filter(u -> u.isSubtypeOf(s))
+                .collect(Collectors.toSet());
+        newUpperDependencies.removeAll(circularDependencies);
+        for (Variable u : circularDependencies) {
+            ok &= s.assertEqualTo(u);
+        }
+
+        for (Variable u : newUpperDependencies) {
+            ok &= s.assertSubtypeOf(u);
+        }
+        for (ClassType upperBound : newUpperBounds) {
+            s.assertSubtypeOf(upperBound);
+            s.constraints.assertSubtype(s.instance, upperBound);
+        }
+        for (ClassType lowerBound : newLowerBounds) {
+            s.assertSupertypeOf(lowerBound);
+            s.constraints.assertSubtype(lowerBound, s.instance);
         }
 
         return ok;
+    }
+
+    public boolean assertEqualTo(ClassType cls) {
+        return assertEqualToImpl(find(), cls);
+    }
+
+    public static boolean assertEqualToImpl(Variable s, ClassType t) {
+        boolean ok = true;
+        if (s.instance == null) {
+            s.instance = t;
+            for (ClassType upperBound : s.upperBounds) {
+                s.constraints.assertSubtype(t, upperBound);
+            }
+            for (ClassType lowerBound : s.lowerBounds) {
+                s.constraints.assertSubtype(lowerBound, t);
+            }
+            for (Variable dep : s.upperDependencies) {
+                dep.assertSupertypeOf(t);
+            }
+        } else {
+            ok &= s.constraints.assertEqual(s.instance, t);
+        }
+        return ok;
+    }
+
+    public boolean assertSubtypeOf(Variable other) {
+        if (isSubtypeOf(other)) {
+            return true;
+        }
+
+        if (other.isSubtypeOf(this)) {
+            return assertEqualTo(other);
+        }
+
+        boolean ok = true;
+        Set<Variable> newUpperDependencies = findMany(other.upperDependencies);
+        List<ClassType> newUpperBounds = new ArrayList<>(other.upperBounds);
+        List<ClassType> newLowerBounds = new ArrayList<>(lowerBounds);
+        newUpperDependencies.removeAll(findMany(upperDependencies));
+
+        Set<Variable> circularDependencies = newUpperDependencies.stream().filter(u -> u.isSubtypeOf(this))
+                .collect(Collectors.toSet());
+        newUpperDependencies.removeAll(circularDependencies);
+        for (Variable u : circularDependencies) {
+            ok &= assertEqualTo(u);
+        }
+
+        if (!isSameWith(other)) {
+            for (ClassType upperBound : newUpperBounds) {
+                assertSubtypeOf(upperBound);
+            }
+            for (ClassType lowerBound : newLowerBounds) {
+                other.assertSupertypeOf(lowerBound);
+            }
+        }
+
+        return ok;
+    }
+
+    public boolean assertSubtypeOf(ClassType supertype) {
+        return assertSubtypeOfImpl(this.find(), supertype);
+    }
+
+    private static boolean assertSubtypeOfImpl(Variable s, ClassType t) {
+        if (s.upperBounds.contains(t)) {
+            return true;
+        }
+
+        TypeConstraints constraints = s.constraints;
+        List<ClassType> typesToEliminate = s.upperBounds.stream()
+                .filter(u -> constraints.isSubclass(t.getName(), u.getName()))
+                .collect(Collectors.toList());
+        s.upperBounds.add(t);
+        boolean ok = true;
+        if (!typesToEliminate.isEmpty()) {
+            s.upperBounds.removeAll(typesToEliminate);
+            for (ClassType eliminatedType : typesToEliminate) {
+                ok &= constraints.assertSubtype(t, eliminatedType);
+            }
+        }
+
+        if (s.instance != null) {
+            ok &= constraints.assertSubtype(s.instance, t);
+        }
+        for (ClassType lowerBound : s.lowerBounds) {
+            ok &= constraints.assertSubtype(lowerBound, t);
+        }
+
+        return ok;
+    }
+
+    public boolean assertSupertypeOf(ClassType supertype) {
+        return assertSupertypeOfImpl(this.find(), supertype);
+    }
+
+    private static boolean assertSupertypeOfImpl(Variable s, ClassType t) {
+        if (s.lowerBounds.contains(t)) {
+            return true;
+        }
+
+        TypeConstraints constraints = s.constraints;
+        List<ClassType> typesToEliminate = s.lowerBounds.stream()
+                .filter(u -> constraints.isSubclass(u.getName(), t.getName()))
+                .collect(Collectors.toList());
+        s.lowerBounds.add(t);
+        boolean ok = true;
+        if (!typesToEliminate.isEmpty()) {
+            s.lowerBounds.removeAll(typesToEliminate);
+            for (ClassType eliminatedType : typesToEliminate) {
+                ok &= constraints.assertSubtype(eliminatedType, t);
+            }
+        }
+
+        if (s.instance != null) {
+            ok &= constraints.assertSubtype(t, s.instance);
+        }
+        for (ClassType lowerBound : s.lowerBounds) {
+            ok &= constraints.assertSubtype(t, lowerBound);
+        }
+
+        return ok;
+    }
+
+    static Set<Variable> findMany(Collection<Variable> vars) {
+        return vars.stream().map(Variable::find).collect(Collectors.toSet());
     }
 
     public Reference createReference() {
         return new Reference(this);
     }
 
-    public static class Reference {
+    public static class Reference extends ReferenceType {
         private Variable variable;
 
         Reference(Variable variable) {

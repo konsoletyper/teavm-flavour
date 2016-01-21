@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +27,7 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 public class TypeUnifier {
     private ClassDescriberRepository classRepository;
     private Map<TypeVar, GenericType> substitutions = new HashMap<>();
-    private Map<TypeVar, GenericType> safeSubstitutions = Collections.unmodifiableMap(substitutions);
+    private MapSubstitutions safeSubstitutions = new MapSubstitutions(substitutions);
     private GenericTypeNavigator typeNavigator;
 
     public TypeUnifier(ClassDescriberRepository classRepository) {
@@ -40,7 +39,7 @@ public class TypeUnifier {
         return classRepository;
     }
 
-    public Map<TypeVar, GenericType> getSubstitutions() {
+    public Substitutions getSubstitutions() {
         return safeSubstitutions;
     }
 
@@ -57,10 +56,10 @@ public class TypeUnifier {
             return special;
         }
         if (pattern instanceof GenericReference) {
-            pattern = pattern.substitute(substitutions);
+            pattern = pattern.substitute(safeSubstitutions);
         }
         if (special instanceof GenericReference) {
-            special = special.substitute(substitutions);
+            special = special.substitute(safeSubstitutions);
         }
         if (pattern instanceof GenericReference) {
             return substituteVariable((GenericReference) pattern, special);
