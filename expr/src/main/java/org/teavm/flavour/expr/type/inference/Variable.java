@@ -16,6 +16,7 @@
 package org.teavm.flavour.expr.type.inference;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -27,11 +28,13 @@ import org.teavm.flavour.expr.type.TypeVar;
  * @author Alexey Andreev
  */
 public class Variable {
+    private static int idGenerator;
+    int id = idGenerator++;
     private TypeConstraints constraints;
     private List<Variable> upperDependencies = new ArrayList<>();
     private List<ClassType> upperBounds = new ArrayList<>();
     private List<ClassType> lowerBounds = new ArrayList<>();
-    private ReferenceType instance;
+    private Type instance;
     int rank;
     private Variable parent;
     TypeVar impl;
@@ -55,6 +58,10 @@ public class Variable {
         }
     }
 
+    /**
+     * Returns main representative of set equivalent types T1 = T2 = ... = Tn. Which representative is returned
+     * is undefined, but it is guaranteed that it will be always the same representative for the given set.
+     */
     public Variable find() {
         Variable var = this;
         if (var.parent != null) {
@@ -73,18 +80,28 @@ public class Variable {
         return var;
     }
 
+    /**
+     * Checks whether this = other has been proven
+     */
     public boolean isSameWith(Variable other) {
         return find() == other.find();
     }
 
-    public boolean isSubtypeOf(Variable supertype) {
-        Variable s = supertype.find();
+    /**
+     * Checks whether this <: other has been proven
+     */
+    public boolean isSubtypeOf(Variable other) {
+        Variable s = other.find();
         if (this == s) {
             return true;
         }
         return find().upperDependencies.stream().anyMatch(v -> v.find() == s);
     }
 
+    /**
+     * Introduces this <: other constraint if possible. Returns true if success or false if contradictory
+     * constraint has been found.
+     */
     public boolean assertEqualTo(Variable other) {
         Variable first = this.find();
         Variable second = other.find();
@@ -134,34 +151,28 @@ public class Variable {
         for (Variable u : newUpperDependencies) {
             ok &= s.assertSubtypeOf(u);
         }
-        for (ClassType upperBound : newUpperBounds) {
-            s.assertSubtypeOf(upperBound);
-            s.constraints.assertSubtype(s.instance, upperBound);
-        }
-        for (ClassType lowerBound : newLowerBounds) {
-            s.assertSupertypeOf(lowerBound);
-            s.constraints.assertSubtype(lowerBound, s.instance);
-        }
+        s.assertSubtypeOf(newUpperBounds);
+        s.assertSupertypeOf(newLowerBounds);
 
         return ok;
     }
 
+    /**
+     * Introduces this = cls constraint if possible. Returns true if success or false if contradictory
+     * constraint has been found.
+     */
     public boolean assertEqualTo(ClassType cls) {
         return assertEqualToImpl(find(), cls);
     }
 
-    public static boolean assertEqualToImpl(Variable s, ClassType t) {
+    private static boolean assertEqualToImpl(Variable s, ClassType t) {
         boolean ok = true;
         if (s.instance == null) {
             s.instance = t;
-            for (ClassType upperBound : s.upperBounds) {
-                s.constraints.assertSubtype(t, upperBound);
-            }
-            for (ClassType lowerBound : s.lowerBounds) {
-                s.constraints.assertSubtype(lowerBound, t);
-            }
-            for (Variable dep : s.upperDependencies) {
-                dep.assertSupertypeOf(t);
+            s.constraints.assertSubtype(t, s.upperBounds);
+            s.constraints.assertSubtype(s.lowerBounds, t);
+            for (Variable dep : s.upperDependencies.toArray(new Variable[0])) {
+                dep.assertSupertypeOf(Arrays.asList(t));
             }
         } else {
             ok &= s.constraints.assertEqual(s.instance, t);
@@ -169,6 +180,10 @@ public class Variable {
         return ok;
     }
 
+    /**
+     * Introduces this <: other constraint if possible. Returns true if success or false if contradictory
+     * constraint has been found.
+     */
     public boolean assertSubtypeOf(Variable other) {
         if (isSubtypeOf(other)) {
             return true;
@@ -192,31 +207,27 @@ public class Variable {
         }
 
         if (!isSameWith(other)) {
-            for (ClassType upperBound : newUpperBounds) {
-                assertSubtypeOf(upperBound);
-            }
-            for (ClassType lowerBound : newLowerBounds) {
-                other.assertSupertypeOf(lowerBound);
-            }
+            assertSubtypeOf(newUpperBounds);
+            assertSupertypeOf(newLowerBounds);
         }
 
         return ok;
     }
 
-    public boolean assertSubtypeOf(ClassType supertype) {
+    public boolean assertSubtypeOf(List<ClassType> supertype) {
         return assertSubtypeOfImpl(this.find(), supertype);
     }
 
-    private static boolean assertSubtypeOfImpl(Variable s, ClassType t) {
+    private static boolean assertSubtypeOfImpl(Variable s, List<ClassType> t) {
         if (s.upperBounds.contains(t)) {
             return true;
         }
 
         TypeConstraints constraints = s.constraints;
         List<ClassType> typesToEliminate = s.upperBounds.stream()
-                .filter(u -> constraints.isSubclass(t.getName(), u.getName()))
+                .filter(u -> t.stream().anyMatch(v -> constraints.isSubclass(v.getName(), u.getName())))
                 .collect(Collectors.toList());
-        s.upperBounds.add(t);
+        s.upperBounds.addAll(t);
         boolean ok = true;
         if (!typesToEliminate.isEmpty()) {
             s.upperBounds.removeAll(typesToEliminate);
@@ -235,25 +246,36 @@ public class Variable {
         return ok;
     }
 
-    public boolean assertSupertypeOf(ClassType supertype) {
+    public boolean assertSupertypeOf(List<ClassType> supertype) {
         return assertSupertypeOfImpl(this.find(), supertype);
     }
 
-    private static boolean assertSupertypeOfImpl(Variable s, ClassType t) {
+    private static boolean assertSupertypeOfImpl(Variable s, List<ClassType> t) {
         if (s.lowerBounds.contains(t)) {
             return true;
         }
 
         TypeConstraints constraints = s.constraints;
-        List<ClassType> typesToEliminate = s.lowerBounds.stream()
-                .filter(u -> constraints.isSubclass(u.getName(), t.getName()))
-                .collect(Collectors.toList());
-        s.lowerBounds.add(t);
+        Set<String> lowerBoundsErasure = s.lowerBounds.stream().map(ClassType::getName).collect(Collectors.toSet());
+        Set<String> newErasure = t.stream().map(ClassType::getName).collect(Collectors.toSet());
+        Set<String> commonSupertypes = constraints.commonSupertypes(lowerBoundsErasure, newErasure);
+
+        List<ClassType> oldTypes = new ArrayList<>(s.lowerBounds);
+        oldTypes.addAll(t);
+
         boolean ok = true;
-        if (!typesToEliminate.isEmpty()) {
-            s.lowerBounds.removeAll(typesToEliminate);
-            for (ClassType eliminatedType : typesToEliminate) {
-                ok &= constraints.assertSubtype(eliminatedType, t);
+        s.lowerBounds.clear();
+        s.lowerBounds.addAll(commonSupertypes.stream()
+                .map(constraints::genericClass)
+                .collect(Collectors.toList()));
+        List<ClassType> lowerBounds = new ArrayList<>(s.lowerBounds);
+        for (ClassType oldType : oldTypes) {
+            for (ClassType newType : lowerBounds.toArray(new ClassType[0])) {
+                List<ClassType> path = constraints.sublassPath(oldType, newType);
+                if (path != null) {
+                    ClassType last = path.get(path.size() - 1);
+                    ok &= constraints.assertEqual(newType, last);
+                }
             }
         }
 
@@ -275,11 +297,10 @@ public class Variable {
         return new Reference(this);
     }
 
-    public static class Reference extends ReferenceType {
+    public static class Reference extends Type {
         private Variable variable;
 
         Reference(Variable variable) {
-            super();
             this.variable = variable;
         }
 
@@ -287,5 +308,15 @@ public class Variable {
             variable = variable.find();
             return variable;
         }
+
+        @Override
+        public String toString() {
+            return String.valueOf(variable.id);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return super.toString();
     }
 }

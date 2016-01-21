@@ -29,6 +29,7 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.MapSubstitutions;
 import org.teavm.flavour.expr.type.TypeUnifier;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -190,22 +191,23 @@ class DirectiveParser {
         if (clsDesc == null) {
             return;
         }
-        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        Map<TypeVar, GenericType> vars = new HashMap<>();
         TypeVar[] typeVars = clsDesc.getTypeVariables();
         for (int i = 0; i < typeVars.length; ++i) {
-            substitutions.put(typeVars[i], genericCls.getArguments().get(i));
+            vars.put(typeVars[i], genericCls.getArguments().get(i));
         }
 
+        MapSubstitutions subst = new MapSubstitutions(vars);
         for (MethodDescriber methodDesc : clsDesc.getMethods()) {
             ValueType[] argumentTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < argumentTypes.length; ++i) {
                 if (argumentTypes[i] instanceof GenericType) {
-                    argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(substitutions);
+                    argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(subst);
                 }
             }
             ValueType returnType = methodDesc.getReturnType();
             if (returnType instanceof GenericType) {
-                returnType = ((GenericType) returnType).substitute(substitutions);
+                returnType = ((GenericType) returnType).substitute(subst);
             }
             GenericMethod method = new GenericMethod(methodDesc, genericCls, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {

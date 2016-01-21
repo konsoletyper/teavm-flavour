@@ -24,16 +24,16 @@ import java.util.List;
  *
  * @author Alexey Andreev
  */
-public class ClassType extends ReferenceType {
+public class ClassType extends Type {
     private String name;
-    private List<ReferenceType> arguments;
+    private List<Type> arguments;
 
-    public ClassType(String name, List<ReferenceType> arguments) {
+    public ClassType(String name, List<Type> arguments) {
         this.name = name;
         this.arguments = Collections.unmodifiableList(new ArrayList<>(arguments));
     }
 
-    public ClassType(String name, ReferenceType... arguments) {
+    public ClassType(String name, Type... arguments) {
         this.name = name;
         this.arguments = Collections.unmodifiableList(Arrays.asList(arguments));
     }
@@ -42,7 +42,20 @@ public class ClassType extends ReferenceType {
         return name;
     }
 
-    public List<ReferenceType> getArguments() {
+    public List<Type> getArguments() {
         return arguments;
+    }
+
+    @Override
+    public String toString() {
+        if (arguments.isEmpty()) {
+            return name;
+        }
+        StringBuilder sb = new StringBuilder(name).append('<');
+        sb.append(arguments.get(0));
+        for (int i = 1; i < arguments.size(); ++i) {
+            sb.append(", ").append(arguments.get(i));
+        }
+        return sb.append('>').toString();
     }
 }

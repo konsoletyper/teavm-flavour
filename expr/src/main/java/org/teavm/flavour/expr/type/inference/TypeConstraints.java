@@ -15,9 +15,13 @@
  */
 package org.teavm.flavour.expr.type.inference;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import org.teavm.flavour.expr.type.GenericArray;
@@ -43,7 +47,7 @@ public class TypeConstraints {
         this.navigator = navigator;
     }
 
-    public boolean assertEqual(ReferenceType s, ReferenceType t) {
+    public boolean assertEqual(Type s, Type t) {
         if (s == t) {
             return true;
         }
@@ -55,7 +59,7 @@ public class TypeConstraints {
             Variable.Reference x = (Variable.Reference) s;
             ClassType y = (ClassType) t;
             return x.getVariable().assertEqualTo(y);
-        } else if (s instanceof Variable.Reference && t instanceof ClassType) {
+        } else if (s instanceof ClassType && t instanceof Variable.Reference) {
             Variable.Reference x = (Variable.Reference) t;
             ClassType y = (ClassType) s;
             return x.getVariable().assertEqualTo(y);
@@ -74,7 +78,7 @@ public class TypeConstraints {
         return false;
     }
 
-    public boolean assertSubtype(ReferenceType s, ReferenceType t) {
+    public boolean assertSubtype(Type s, Type t) {
         if (s == t) {
             return true;
         }
@@ -85,11 +89,11 @@ public class TypeConstraints {
         } else if (s instanceof Variable.Reference && t instanceof ClassType) {
             Variable.Reference x = (Variable.Reference) s;
             ClassType y = (ClassType) t;
-            return x.getVariable().assertSubtypeOf(y);
-        } else if (s instanceof Variable.Reference && t instanceof ClassType) {
+            return x.getVariable().assertSubtypeOf(Arrays.asList(y));
+        } else if (s instanceof ClassType && t instanceof Variable.Reference) {
             Variable.Reference x = (Variable.Reference) t;
             ClassType y = (ClassType) s;
-            return x.getVariable().assertSupertypeOf(y);
+            return x.getVariable().assertSupertypeOf(Arrays.asList(y));
         } else if (s instanceof ClassType && t instanceof ClassType) {
             ClassType x = (ClassType) s;
             ClassType y = (ClassType) t;
@@ -105,6 +109,127 @@ public class TypeConstraints {
             return ok;
         }
         return false;
+    }
+
+    public boolean assertSubtype(Type s, List<ClassType> t) {
+        if (t.isEmpty()) {
+            return true;
+        }
+        if (t.size() == 1 && t.iterator().next() == s) {
+            return true;
+        }
+        if (s instanceof Variable.Reference) {
+            Variable.Reference v = (Variable.Reference) s;
+            return v.getVariable().assertSubtypeOf(t);
+        } else {
+            ClassType cls = (ClassType) s;
+            boolean ok = true;
+            for (ClassType other : t) {
+                List<ClassType> path = sublassPath(cls, other);
+                if (path == null) {
+                    ok = false;
+                    continue;
+                }
+                other = path.get(path.size() - 1);
+                for (int i = 0; i < other.getArguments().size(); ++i) {
+                    ok &= assertEqual(other.getArguments().get(i), cls.getArguments().get(i));
+                }
+            }
+            return ok;
+        }
+    }
+
+    public boolean assertSubtype(List<ClassType> s, Type t) {
+        if (s.isEmpty()) {
+            return false;
+        }
+        if (s.size() == 1 && s.iterator().next() == t) {
+            return true;
+        }
+        if (t instanceof Variable.Reference) {
+            Variable.Reference v = (Variable.Reference) t;
+            return v.getVariable().assertSubtypeOf(s);
+        } else {
+            ClassType cls = (ClassType) t;
+            boolean ok = true;
+            for (ClassType other : s) {
+                List<ClassType> path = sublassPath(other, cls);
+                if (path == null) {
+                    ok = false;
+                    continue;
+                }
+                other = path.get(path.size() - 1);
+                for (int i = 0; i < other.getArguments().size(); ++i) {
+                    ok &= assertEqual(other.getArguments().get(i), cls.getArguments().get(i));
+                }
+            }
+            return ok;
+        }
+    }
+
+    public Set<String> commonSupertypes(Set<String> first, Set<String> second) {
+        if (first.isEmpty()) {
+            return second;
+        } else if (second.isEmpty()) {
+            return first;
+        } else if (first.size() == 1 && second.size() == 1) {
+            String s = first.iterator().next();
+            String t = second.iterator().next();
+            if (s.equals(t)) {
+                return Collections.singleton(s);
+            } else if (isSubclass(t, s)) {
+                return Collections.singleton(s);
+            } else if (isSubclass(s, t)) {
+                return Collections.singleton(t);
+            }
+        }
+        Set<String> a = new HashSet<>();
+        Set<String> b = new HashSet<>();
+        for (String s : first) {
+            frontier(s, new HashSet<>(), a, new HashSet<>());
+        }
+        for (String t : second) {
+            frontier(t, a, new HashSet<String>(), b);
+        }
+        return b;
+    }
+
+    private void frontier(String s, Set<String> ancestors, Set<String> visited, Set<String> result) {
+        if (!visited.add(s)) {
+            return;
+        }
+        if (ancestors.contains(s)) {
+            result.add(s);
+            return;
+        }
+
+        ClassDescriberRepository repository = navigator.getClassRepository();
+        ClassDescriber cls = repository.describe(s);
+        if (cls.getSupertype() != null) {
+            frontier(cls.getSupertype().getName(), ancestors, visited, result);
+        }
+        for (GenericClass iface : cls.getInterfaces()) {
+            frontier(iface.getName(), ancestors, visited, result);
+        }
+    }
+
+    public ClassType genericClass(String className) {
+        if (className.startsWith("[")) {
+            if (!className.endsWith("[")) {
+                return new ClassType(className);
+            } else {
+                return new ClassType(className, createVariable().createReference());
+            }
+        } else {
+            ClassDescriberRepository repository = navigator.getClassRepository();
+            ClassDescriber cls = repository.describe(className);
+            int argCount = cls.getTypeVariables().length;
+            List<Type> args = new ArrayList<>();
+            for (int i = 0; i < argCount; ++i) {
+                args.add(createVariable().createReference());
+            }
+            return new ClassType(className, args);
+        }
     }
 
     public boolean isSubclass(String subclass, String superclass) {
@@ -143,7 +268,7 @@ public class TypeConstraints {
         return path.stream().map(this::convert).map(t -> (ClassType) t).collect(Collectors.toList());
     }
 
-    public ReferenceType convert(GenericType t) {
+    public Type convert(GenericType t) {
         if (t instanceof GenericClass) {
             GenericClass cls = (GenericClass) t;
             return new ClassType(cls.getName(), cls.getArguments().stream().map(this::convert)
@@ -168,7 +293,7 @@ public class TypeConstraints {
         throw new AssertionError();
     }
 
-    public GenericType convert(ReferenceType t) {
+    public GenericType convert(Type t) {
         if (t instanceof ClassType) {
             ClassType cls = (ClassType) t;
             if (cls.getName().startsWith("[")) {
@@ -233,6 +358,9 @@ public class TypeConstraints {
     }
 
     public Variable createVariable() {
-        return new Variable(this, new TypeVar());
+        TypeVar var = new TypeVar();
+        Variable result = new Variable(this, var);
+        varCache.put(var, result);
+        return result;
     }
 }
