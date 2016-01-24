@@ -154,7 +154,7 @@ public class GenericTypeNavigator {
     public GenericClass[] getInterfaces(GenericClass cls) {
         ClassDescriber describer = classRepository.describe(cls.getName());
         if (describer == null) {
-            return null;
+            return new GenericClass[0];
         }
 
         TypeVar[] typeVars = describer.getTypeVariables();

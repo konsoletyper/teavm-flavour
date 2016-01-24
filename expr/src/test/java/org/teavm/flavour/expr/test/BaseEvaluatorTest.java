@@ -45,6 +45,8 @@ public abstract class BaseEvaluatorTest {
 
         void integerList(List<Integer> list);
 
+        void longList(List<Long> list);
+
         void stringList(List<String> list);
 
         void stringIntMap(Map<String, Integer> map);

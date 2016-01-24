@@ -15,9 +15,15 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
 /**
@@ -26,8 +32,7 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
  */
 public class TypeUnifier {
     private ClassDescriberRepository classRepository;
-    private Map<TypeVar, GenericType> substitutions = new HashMap<>();
-    private MapSubstitutions safeSubstitutions = new MapSubstitutions(substitutions);
+    private Map<TypeVar, SubstitutionInfo> substitutions = new HashMap<>();
     private GenericTypeNavigator typeNavigator;
 
     public TypeUnifier(ClassDescriberRepository classRepository) {
@@ -56,15 +61,11 @@ public class TypeUnifier {
             return special;
         }
         if (pattern instanceof GenericReference) {
-            pattern = pattern.substitute(safeSubstitutions);
-        }
-        if (special instanceof GenericReference) {
-            special = special.substitute(safeSubstitutions);
-        }
-        if (pattern instanceof GenericReference) {
             return substituteVariable((GenericReference) pattern, special);
         } else if (special instanceof GenericReference) {
             return substituteVariable((GenericReference) special, pattern);
+        } else if (pattern instanceof GenericReference && special instanceof GenericReference) {
+            return joinVariables(((GenericReference) pattern).getVar(), ((GenericReference) special).getVar());
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
             return unifyArrays((GenericArray) pattern, (GenericArray) special);
         } else if (pattern instanceof GenericClass) {
@@ -73,7 +74,9 @@ public class TypeUnifier {
                 return special;
             } else if (special instanceof GenericClass) {
                 GenericClass specialClass = (GenericClass) special;
-                return unifyClasses(patternClass, specialClass, covariant);
+                return covariant
+                        ? unifyClassArgs(patternClass, specialClass)
+                        : unifyClasses(patternClass, specialClass);
             } else {
                 return null;
             }
@@ -92,45 +95,175 @@ public class TypeUnifier {
         }
     }
 
-    private GenericType unifyClasses(GenericClass pattern, GenericClass special, boolean covariant) {
-        GenericClass matchType;
-        if (!covariant) {
-            if (!pattern.getName().equals(special.getName())) {
-                return null;
-            }
-            matchType = special;
-        } else {
-            List<GenericClass> path = typeNavigator.sublassPath(special, pattern.getName());
-            if (path == null) {
-                return null;
-            }
-            matchType = path.get(path.size() - 1);
-        }
-        if (pattern.getArguments().size() != matchType.getArguments().size()) {
+    private GenericType unifyClasses(GenericClass pattern, GenericClass special) {
+        if (!pattern.getName().equals(special.getName())) {
             return null;
         }
+
+        if (pattern.getArguments().size() != special.getArguments().size()) {
+            return null;
+        }
+
+        GenericType[] args = new GenericType[pattern.getArguments().size()];
         for (int i = 0; i < pattern.getArguments().size(); ++i) {
-            if (unifyImpl(pattern.getArguments().get(i), matchType.getArguments().get(i), false) == null) {
+            args[i] = unifyImpl(pattern.getArguments().get(i), special.getArguments().get(i), false);
+            if (args[i] == null) {
                 return null;
             }
         }
-        return matchType;
+
+        return new GenericClass(pattern.getName(), args);
     }
 
     private GenericType substituteVariable(GenericReference ref, GenericType special) {
-        GenericType knownSubstitution = substitutions.get(ref.getVar());
-        if (knownSubstitution == null) {
-            substitutions.put(ref.getVar(), special);
-            if (ref.getVar().getUpperBound() != null) {
-                if (unifyImpl(ref.getVar().getUpperBound(), special, true) == null) {
+        SubstitutionInfo substitution = substitution(ref.getVar());
+        if (substitution.value == null) {
+            substitution.value = special;
+            return substitution.value;
+        } else {
+            if (substitution.value.equals(special)) {
+                return substitution.value;
+            } else {
+                GenericType common = unifyImpl(substitution.value, special, !substitution.named);
+                if (common == null) {
                     return null;
                 }
+                substitution.value = common;
+                substitution.strict = false;
+                return common;
             }
-        } else {
-            if (!knownSubstitution.equals(special)) {
+        }
+    }
+
+    private GenericType joinVariables(TypeVar s, TypeVar t) {
+        SubstitutionInfo u = substitution(s);
+        SubstitutionInfo v = substitution(t);
+        if (u == v) {
+            return u.value != null ? u.value : new GenericReference(s);
+        }
+        SubstitutionInfo common = u.union(v);
+        SubstitutionInfo other = u == common ? v : u;
+        GenericType result = unifyImpl(common.value, other.value, !common.named);
+        if (result != null) {
+            common.value = result;
+        }
+        return common.value;
+    }
+
+    private GenericType unifyClassArgs(GenericClass s, GenericClass t) {
+        String common = commonSuperclass(s, t);
+        if (common == null) {
+            return null;
+        }
+
+        List<GenericClass> path = typeNavigator.sublassPath(t, common);
+        if (path == null) {
+            return null;
+        }
+        t = path.get(path.size() - 1);
+        path = typeNavigator.sublassPath(s, common);
+        if (path == null) {
+            return null;
+        }
+        s = path.get(path.size() - 1);
+
+        if (t.getArguments().size() != s.getArguments().size()) {
+            return null;
+        }
+
+        GenericType[] args = new GenericType[t.getArguments().size()];
+        for (int i = 0; i < s.getArguments().size(); ++i) {
+            args[i] = unifyImpl(s.getArguments().get(i), t.getArguments().get(i), true);
+            if (args[i] == null) {
                 return null;
             }
         }
-        return special;
+        return new GenericClass(common, args);
+    }
+
+    private String commonSuperclass(GenericClass s, GenericClass t) {
+        if (s.getName().equals(t.getName())) {
+            return s.getName();
+        }
+        Set<GenericClass> superclasses = typeNavigator.commonSupertypes(Collections.singleton(s),
+                Collections.singleton(t));
+        if (superclasses.isEmpty()) {
+            return "java.lang.Object";
+        }
+        Optional<GenericClass> concreteSuperclass = superclasses.stream().filter(cls -> {
+            ClassDescriber desc = typeNavigator.getClassRepository().describe(cls.getName());
+            return !desc.isInterface();
+        }).findAny();
+        if (!concreteSuperclass.isPresent()) {
+            return "java.lang.Object";
+        }
+        return concreteSuperclass.get().getName();
+    }
+
+    private SubstitutionInfo substitution(TypeVar var) {
+        return substitutions.computeIfAbsent(var, SubstitutionInfo::new).find();
+    }
+
+    private Substitutions safeSubstitutions = new Substitutions() {
+        @Override public GenericType get(TypeVar var) {
+            SubstitutionInfo info = substitutions.get(var);
+            return info != null ? info.find().value : null;
+        }
+    };
+
+    static class SubstitutionInfo {
+        SubstitutionInfo parent;
+        int rank;
+        GenericType value;
+        boolean strict = true;
+        Set<TypeVar> variables = new HashSet<>();
+        boolean named;
+
+        SubstitutionInfo(TypeVar var) {
+            variables.add(var);
+            named = var.getName() != null;
+        }
+
+        public SubstitutionInfo find() {
+            if (parent == null) {
+                return this;
+            }
+            if (parent.parent == null) {
+                return parent;
+            }
+            List<SubstitutionInfo> path = new ArrayList<>();
+            SubstitutionInfo result = this;
+            while (result.parent != null) {
+                path.add(result);
+                result = result.parent;
+            }
+            for (SubstitutionInfo elem : path) {
+                elem.parent = result;
+            }
+            return result;
+        }
+
+        public SubstitutionInfo union(SubstitutionInfo other) {
+            SubstitutionInfo a = find();
+            SubstitutionInfo b = other.find();
+
+            if (a.rank > b.rank) {
+                b.parent = a;
+                a.variables.addAll(b.variables);
+                a.named |= b.named;
+                return a;
+            } else if (a.rank < b.rank) {
+                a.parent = b;
+                b.variables.addAll(a.variables);
+                b.named |= a.named;
+                return b;
+            } else {
+                b.parent = a;
+                a.rank++;
+                a.variables.addAll(b.variables);
+                a.named |= b.named;
+                return a;
+            }
+        }
     }
 }

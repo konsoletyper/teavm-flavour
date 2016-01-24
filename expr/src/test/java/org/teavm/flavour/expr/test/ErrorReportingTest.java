@@ -15,7 +15,8 @@
  */
 package org.teavm.flavour.expr.test;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import java.util.List;
@@ -136,7 +137,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsAmbigousMethod() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.bar(null)").get(0);
-        assertThat(d.getMessage(), startsWith("Call to method bar(A) is ambigous."));
+        assertThat(d.getMessage(), startsWith("Call to method bar('a) is ambigous."));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(13));
     }
