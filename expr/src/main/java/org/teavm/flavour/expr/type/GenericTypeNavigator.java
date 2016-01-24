@@ -15,7 +15,14 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.FieldDescriber;
@@ -64,21 +71,18 @@ public class GenericTypeNavigator {
         return false;
     }
 
-    public Set<GenericClass> commonSupertypes(Set<GenericClass> firstSet, Set<GenericClass> secondSet) {
-        Set<GenericClass> firstAncestors = allAncestors(firstSet);
-        Set<String> rawFirstAncestors = new HashSet<>();
-        for (GenericClass cls : firstAncestors) {
-            rawFirstAncestors.add(cls.getName());
-        }
-        Set<GenericClass> commonSupertypes = new HashSet<>();
-        for (GenericClass cls : secondSet) {
-            commonSupertypesImpl(cls, firstAncestors, rawFirstAncestors, new HashSet<GenericClass>(), commonSupertypes);
+    public Set<String> commonSupertypes(Set<String> firstSet, Set<String> secondSet) {
+        Set<String> firstAncestors = allAncestors(firstSet);
+        Set<String> commonSupertypes = new HashSet<>();
+        Set<String> visited = new HashSet<>();
+        for (String cls : secondSet) {
+            commonSupertypesImpl(cls, firstAncestors, visited, commonSupertypes);
         }
         return commonSupertypes;
     }
 
-    private void commonSupertypesImpl(GenericClass cls, Set<GenericClass> ancestors, Set<String> rawAncestors,
-            Set<GenericClass> visited, Set<GenericClass> commonSupertypes) {
+    private void commonSupertypesImpl(String cls, Set<String> ancestors, Set<String> visited,
+            Set<String> commonSupertypes) {
         if (!visited.add(cls)) {
             return;
         }
@@ -86,33 +90,39 @@ public class GenericTypeNavigator {
             commonSupertypes.add(cls);
             return;
         }
-        GenericClass parent = getParent(cls);
-        if (parent != null) {
-            commonSupertypesImpl(parent, ancestors, rawAncestors, visited, commonSupertypes);
+        ClassDescriber desc = classRepository.describe(cls);
+        if (desc == null) {
+            return;
         }
-        for (GenericClass iface : getInterfaces(cls)) {
-            commonSupertypesImpl(iface, ancestors, rawAncestors, visited, commonSupertypes);
+        if (desc.getSupertype() != null) {
+            commonSupertypesImpl(desc.getSupertype().getName(), ancestors, visited, commonSupertypes);
+        }
+        for (GenericClass iface : desc.getInterfaces()) {
+            commonSupertypesImpl(iface.getName(), ancestors, visited, commonSupertypes);
         }
     }
 
-    public Set<GenericClass> allAncestors(Collection<GenericClass> classes) {
-        Set<GenericClass> ancestors = new HashSet<>();
-        for (GenericClass cls : classes) {
+    public Set<String> allAncestors(Collection<String> classes) {
+        Set<String> ancestors = new HashSet<>();
+        for (String cls : classes) {
             allAncestorsImpl(cls, ancestors);
         }
         return ancestors;
     }
 
-    private void allAncestorsImpl(GenericClass cls, Set<GenericClass> ancestors) {
+    private void allAncestorsImpl(String cls, Set<String> ancestors) {
         if (!ancestors.add(cls)) {
             return;
         }
-        GenericClass parent = getParent(cls);
-        if (parent != null) {
-            allAncestorsImpl(parent, ancestors);
+        ClassDescriber desc = classRepository.describe(cls);
+        if (desc == null) {
+            return;
         }
-        for (GenericClass iface : getInterfaces(cls)) {
-            allAncestorsImpl(iface, ancestors);
+        if (desc.getSupertype() != null) {
+            allAncestorsImpl(desc.getSupertype().getName(), ancestors);
+        }
+        for (GenericClass iface : desc.getInterfaces()) {
+            allAncestorsImpl(iface.getName(), ancestors);
         }
     }
 

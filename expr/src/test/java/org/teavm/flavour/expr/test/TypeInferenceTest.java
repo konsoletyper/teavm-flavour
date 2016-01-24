@@ -61,7 +61,7 @@ public class TypeInferenceTest {
     @Test
     public void exactVariableInferenceFailsOnContradiction() {
         Map<String, ValueType> vars = new HashMap<>();
-        vars.put("a", new GenericClass("java.util.Map",
+        vars.put("a", new GenericClass("java.util.HashMap",
                 new GenericClass("java.lang.Long"),
                 new GenericClass("java.lang.String")));
         assertNull(inferType("TypeInferenceTest.extract(a, Integer.valueOf(23))", vars));

@@ -67,9 +67,4 @@ public final class GenericReference extends GenericType {
             return var.getUpperBound().erasure();
         }
     }
-
-    @Override
-    public boolean isProper() {
-        return var.getName() != null;
-    }
 }

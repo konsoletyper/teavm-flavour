@@ -81,6 +81,10 @@ public class ValueTypeFormatter {
         } else if (type instanceof GenericReference) {
             GenericReference ref = (GenericReference) type;
             sb.append(getNameOfTypeVar(ref.getVar()));
+            if (ref.getVar() == null && ref.getVar().getLowerBound() != null) {
+                sb.append(" extends ");
+                format(ref.getVar().getLowerBound(), sb);
+            }
         } else {
             throw new AssertionError("Unexpected type: " + type.getClass().getName());
         }

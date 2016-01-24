@@ -46,25 +46,6 @@ public class TypeNavigatorTest {
     }
 
     @Test
-    public void getsAncestors() {
-        GenericClass cls = cls(A.class, cls(String.class));
-        Set<GenericClass> ancestors = navigator.allAncestors(Collections.singleton(cls));
-        assertThat(ancestors.size(), is(11));
-        assertThat(ancestors, hasItems(
-                cls,
-                cls(ArrayList.class, cls(Set.class, cls(String.class))),
-                cls(AbstractList.class, cls(Set.class, cls(String.class))),
-                cls(AbstractCollection.class, cls(Set.class, cls(String.class))),
-                cls(Object.class),
-                cls(List.class, cls(Set.class, cls(String.class))),
-                cls(Collection.class, cls(Set.class, cls(String.class))),
-                cls(Iterable.class, cls(Set.class, cls(String.class))),
-                cls(Serializable.class),
-                cls(Cloneable.class),
-                cls(RandomAccess.class)));
-    }
-
-    @Test
     public void getsSubclassPath() {
         GenericClass cls = cls(A.class, cls(String.class));
         List<GenericClass> path = navigator.sublassPath(cls, Iterable.class.getName());
@@ -82,20 +63,9 @@ public class TypeNavigatorTest {
 
     @Test
     public void findsTrivialCommonSuperTypes() {
-        GenericClass cls = cls(A.class, cls(String.class));
-        Set<GenericClass> commonSupertypes = navigator.commonSupertypes(Collections.singleton(cls),
-                Collections.singleton(cls(String.class)));
-        assertThat(commonSupertypes, hasItems(cls(Object.class), cls(Serializable.class)));
-    }
-
-    @Test
-    public void findsCommonSuperTypes() {
-        GenericClass a = cls(A.class, cls(String.class));
-        GenericClass b = cls(A.class, cls(Integer.class));
-        Set<GenericClass> commonSupertypes = navigator.commonSupertypes(Collections.singleton(a),
-                Collections.singleton(b));
-        assertThat(commonSupertypes, hasItems(cls(Object.class), cls(Serializable.class), cls(RandomAccess.class),
-                cls(Cloneable.class)));
+        Set<String> commonSupertypes = navigator.commonSupertypes(Collections.singleton(A.class.getName()),
+                Collections.singleton(String.class.getName()));
+        assertThat(commonSupertypes, hasItems(Object.class.getName(), Serializable.class.getName()));
     }
 
     private GenericClass cls(Class<?> javaClass, GenericType... args) {

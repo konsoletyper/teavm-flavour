@@ -26,6 +26,4 @@ public abstract class GenericType extends ValueType {
     public abstract GenericType substitute(Substitutions substitutions);
 
     public abstract GenericType erasure();
-
-    public abstract boolean isProper();
 }

@@ -102,9 +102,4 @@ public final class GenericClass extends GenericType {
     public GenericType erasure() {
         return new GenericClass(name);
     }
-
-    @Override
-    public boolean isProper() {
-        return arguments.stream().allMatch(GenericType::isProper);
-    }
 }

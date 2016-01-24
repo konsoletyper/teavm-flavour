@@ -52,20 +52,17 @@ public class TypeUnifier {
         return unifyImpl(pattern, special, covariant) != null;
     }
 
-    public GenericType unifyAndGet(GenericType pattern, GenericType special, boolean covariant) {
-        return unifyImpl(pattern, special, covariant);
-    }
-
     private GenericType unifyImpl(GenericType pattern, GenericType special, boolean covariant) {
         if (pattern.equals(special)) {
             return special;
         }
         if (pattern instanceof GenericReference) {
-            return substituteVariable((GenericReference) pattern, special);
+            return substituteVariable((GenericReference) pattern, special, covariant);
         } else if (special instanceof GenericReference) {
-            return substituteVariable((GenericReference) special, pattern);
+            return substituteVariable((GenericReference) special, pattern, covariant);
         } else if (pattern instanceof GenericReference && special instanceof GenericReference) {
-            return joinVariables(((GenericReference) pattern).getVar(), ((GenericReference) special).getVar());
+            return joinVariables(((GenericReference) pattern).getVar(), ((GenericReference) special).getVar(),
+                    covariant);
         } else if (pattern instanceof GenericArray && special instanceof GenericArray) {
             return unifyArrays((GenericArray) pattern, (GenericArray) special);
         } else if (pattern instanceof GenericClass) {
@@ -115,39 +112,124 @@ public class TypeUnifier {
         return new GenericClass(pattern.getName(), args);
     }
 
-    private GenericType substituteVariable(GenericReference ref, GenericType special) {
+    private GenericType substituteVariable(GenericReference ref, GenericType special, boolean covariant) {
         SubstitutionInfo substitution = substitution(ref.getVar());
-        if (substitution.value == null) {
-            substitution.value = special;
-            return substitution.value;
-        } else {
-            if (substitution.value.equals(special)) {
+        if (!covariant) {
+            if (substitution.value == null) {
+                substitution.value = special;
                 return substitution.value;
             } else {
-                GenericType common = unifyImpl(substitution.value, special, !substitution.named);
+                if (substitution.value.equals(special)) {
+                    return substitution.value;
+                } else {
+                    GenericType common = unifyImpl(substitution.value, special, false);
+                    if (common == null) {
+                        return null;
+                    }
+                    substitution.value = common;
+                    if (!recheckSubstitution(substitution)) {
+                        return null;
+                    }
+                    return common;
+                }
+            }
+        } else {
+            if (substitution.upperBound == null) {
+                substitution.upperBound = special;
+            } else {
+                GenericType common = unifyImpl(substitution.upperBound, special, true);
                 if (common == null) {
                     return null;
                 }
-                substitution.value = common;
+                substitution.upperBound = common;
                 substitution.strict = false;
-                return common;
             }
+            if (!recheckSubstitution(substitution)) {
+                return null;
+            }
+            return substitution.value != null ? substitution.value : ref;
         }
     }
 
-    private GenericType joinVariables(TypeVar s, TypeVar t) {
-        SubstitutionInfo u = substitution(s);
-        SubstitutionInfo v = substitution(t);
-        if (u == v) {
-            return u.value != null ? u.value : new GenericReference(s);
+    private boolean recheckSubstitution(SubstitutionInfo info) {
+        if (info.upperBound != null && info.value != null) {
+            return checkSubtype(info.upperBound, info.value);
         }
-        SubstitutionInfo common = u.union(v);
-        SubstitutionInfo other = u == common ? v : u;
-        GenericType result = unifyImpl(common.value, other.value, !common.named);
-        if (result != null) {
-            common.value = result;
+        return true;
+    }
+
+    private boolean checkSubtype(GenericType subtype, GenericType supertype) {
+        subtype = subtype.substitute(safeSubstitutions);
+        supertype = supertype.substitute(safeSubstitutions);
+        if (subtype instanceof GenericReference || supertype instanceof GenericReference) {
+            return true;
         }
-        return common.value;
+
+        if (subtype instanceof GenericClass && supertype instanceof GenericClass) {
+            GenericClass subclass = (GenericClass) subtype;
+            GenericClass superclass = (GenericClass) supertype;
+            return isSuperclass(superclass.getName(), subclass.getName());
+        } else {
+            return false;
+        }
+    }
+
+    private boolean isSuperclass(String superclassName, String subclassName) {
+        if (subclassName.equals(superclassName)) {
+            return true;
+        }
+        ClassDescriber subclass = classRepository.describe(subclassName);
+        if (subclass == null || subclass == null) {
+            return false;
+        }
+
+        if (subclass.getSupertype() != null && isSuperclass(superclassName, subclass.getSupertype().getName())) {
+            return true;
+        }
+        for (GenericClass iface : subclass.getInterfaces()) {
+            if (isSuperclass(superclassName, iface.getName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private GenericType joinVariables(TypeVar s, TypeVar t, boolean covariant) {
+        SubstitutionInfo common;
+        if (!covariant) {
+            SubstitutionInfo u = substitution(s);
+            SubstitutionInfo v = substitution(t);
+            if (u == v) {
+                return u.value != null ? u.value : new GenericReference(s);
+            }
+            common = u.union(v);
+            SubstitutionInfo other = u == common ? v : u;
+            GenericType result;
+            if (common.value == null) {
+                result = other.value;
+            } else if (other.value == null) {
+                result = common.value;
+            } else {
+                result = unifyImpl(common.value, other.value, false);
+            }
+            if (result != null) {
+                common.value = result;
+            }
+        } else {
+            SubstitutionInfo u = substitution(s);
+            SubstitutionInfo v = substitution(t);
+            if (u != v) {
+                common = u.union(v);
+                SubstitutionInfo other = u == common ? v : u;
+                GenericType result = unifyImpl(common.upperBound, other.upperBound, true);
+                if (result != null) {
+                    common.value = result;
+                }
+            } else {
+                common = u;
+            }
+        }
+        return common.value != null ? common.value : new GenericReference(s);
     }
 
     private GenericType unifyClassArgs(GenericClass s, GenericClass t) {
@@ -173,7 +255,14 @@ public class TypeUnifier {
 
         GenericType[] args = new GenericType[t.getArguments().size()];
         for (int i = 0; i < s.getArguments().size(); ++i) {
-            args[i] = unifyImpl(s.getArguments().get(i), t.getArguments().get(i), true);
+            GenericType u = s.getArguments().get(i);
+            GenericType v = t.getArguments().get(i);
+            if (u instanceof GenericReference && ((GenericReference) u).getVar().getName() != null
+                    || v instanceof GenericReference && ((GenericReference) v).getVar().getName() != null) {
+                args[i] = unifyImpl(u, v, false);
+            } else {
+                args[i] = unifyImpl(u, v, true);
+            }
             if (args[i] == null) {
                 return null;
             }
@@ -185,19 +274,21 @@ public class TypeUnifier {
         if (s.getName().equals(t.getName())) {
             return s.getName();
         }
-        Set<GenericClass> superclasses = typeNavigator.commonSupertypes(Collections.singleton(s),
-                Collections.singleton(t));
+        Set<String> superclasses = typeNavigator.commonSupertypes(Collections.singleton(s.getName()),
+                Collections.singleton(t.getName()));
         if (superclasses.isEmpty()) {
             return "java.lang.Object";
         }
-        Optional<GenericClass> concreteSuperclass = superclasses.stream().filter(cls -> {
-            ClassDescriber desc = typeNavigator.getClassRepository().describe(cls.getName());
+        Optional<String> common = superclasses.stream().filter(cls -> {
+            ClassDescriber desc = typeNavigator.getClassRepository().describe(cls);
             return !desc.isInterface();
         }).findAny();
-        if (!concreteSuperclass.isPresent()) {
-            return "java.lang.Object";
+        if (!common.isPresent()) {
+            common = superclasses.stream()
+                    .filter(cls -> cls.equals(s.getName()) || cls.equals(t.getName()))
+                    .findFirst();
         }
-        return concreteSuperclass.get().getName();
+        return common.orElse(null);
     }
 
     private SubstitutionInfo substitution(TypeVar var) {
@@ -207,7 +298,18 @@ public class TypeUnifier {
     private Substitutions safeSubstitutions = new Substitutions() {
         @Override public GenericType get(TypeVar var) {
             SubstitutionInfo info = substitutions.get(var);
-            return info != null ? info.find().value : null;
+            if (info == null) {
+                return null;
+            }
+            info = info.find();
+            if (info.value != null) {
+                return info.value.substitute(this);
+            }
+            if (info.upperBound != null) {
+                return info.upperBound.substitute(this);
+            }
+            TypeVar wildcardVar = new TypeVar();
+            return new GenericReference(wildcardVar);
         }
     };
 
@@ -215,13 +317,12 @@ public class TypeUnifier {
         SubstitutionInfo parent;
         int rank;
         GenericType value;
+        GenericType upperBound;
         boolean strict = true;
         Set<TypeVar> variables = new HashSet<>();
-        boolean named;
 
         SubstitutionInfo(TypeVar var) {
             variables.add(var);
-            named = var.getName() != null;
         }
 
         public SubstitutionInfo find() {
@@ -250,20 +351,21 @@ public class TypeUnifier {
             if (a.rank > b.rank) {
                 b.parent = a;
                 a.variables.addAll(b.variables);
-                a.named |= b.named;
                 return a;
             } else if (a.rank < b.rank) {
                 a.parent = b;
                 b.variables.addAll(a.variables);
-                b.named |= a.named;
                 return b;
             } else {
                 b.parent = a;
                 a.rank++;
                 a.variables.addAll(b.variables);
-                a.named |= b.named;
                 return a;
             }
+        }
+
+        public boolean isNamed() {
+            return variables.stream().allMatch(var -> var.getName() != null);
         }
     }
 }

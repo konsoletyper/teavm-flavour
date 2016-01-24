@@ -65,9 +65,4 @@ public final class GenericArray extends GenericType {
     public GenericType erasure() {
         return elementType instanceof GenericType ? new GenericArray(((GenericType) elementType).erasure()) : this;
     }
-
-    @Override
-    public boolean isProper() {
-        return !(elementType instanceof GenericType) || ((GenericType) elementType).isProper();
-    }
 }
