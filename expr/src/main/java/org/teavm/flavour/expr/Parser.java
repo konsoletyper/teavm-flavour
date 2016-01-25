@@ -24,6 +24,7 @@ import org.parboiled.support.ParsingResult;
 import org.teavm.flavour.expr.ExprParser.Holder;
 import org.teavm.flavour.expr.ast.ConstantExpr;
 import org.teavm.flavour.expr.ast.Expr;
+import org.teavm.flavour.expr.type.ValueType;
 
 /**
  *
@@ -51,6 +52,15 @@ public class Parser {
             return new ConstantExpr<>(null);
         }
         return result.resultValue.expr;
+    }
+
+    public ValueType parseType(String text) {
+        diagnostics.clear();
+        ExprParser parser = Parboiled.createParser(ExprParser.class);
+        parser.classResolver = classes;
+        RecoveringParseRunner<Holder> runner = new RecoveringParseRunner<>(parser.GenericType());
+        ParsingResult<Holder> result = runner.run(text);
+        return result.resultValue.type;
     }
 
     public List<Diagnostic> getDiagnostics() {

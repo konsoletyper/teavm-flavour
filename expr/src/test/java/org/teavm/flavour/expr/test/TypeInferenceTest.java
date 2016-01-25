@@ -16,20 +16,18 @@
 package org.teavm.flavour.expr.test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
-import org.teavm.flavour.expr.ClassPathClassResolver;
-import org.teavm.flavour.expr.ClassResolver;
-import org.teavm.flavour.expr.Compiler;
-import org.teavm.flavour.expr.ImportingClassResolver;
-import org.teavm.flavour.expr.Parser;
-import org.teavm.flavour.expr.Scope;
-import org.teavm.flavour.expr.TypedPlan;
-import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.GenericClass;
-import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.GenericReference;
+import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
 /**
@@ -37,73 +35,79 @@ import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
  * @author Alexey Andreev
  */
 public class TypeInferenceTest {
-    private ClassResolver classResolver = new ClassPathClassResolver();
+    private TypeInference inf;
+
+    public TypeInferenceTest() {
+        inf = new TypeInference(new GenericTypeNavigator(new ClassPathClassDescriberRepository()));
+    }
 
     @Test
     public void infersCommonSupertype() {
-        Map<String, ValueType> vars = new HashMap<>();
-        vars.put("a", new GenericClass("java.lang.Class", new GenericClass("java.lang.Integer")));
-        vars.put("b", new GenericClass("java.lang.Class", new GenericClass("java.lang.Long")));
-        ValueType type = inferType("TypeInferenceTest.pair(a, b)", vars);
-        assertEquals("java.lang.Class<java.lang.Number>", type.toString());
+        TypeVar t = new TypeVar("T");
+        GenericType pattern = ref(t);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(cls(Class.class, cls(Integer.class)), pattern);
+        ok &= inf.subtypeConstraint(cls(Class.class, cls(Long.class)), pattern);
+
+        assertTrue(ok);
+        assertEquals("Class<? extends Comparable<T> & Number>", string(pattern));
     }
 
     @Test
     public void infersExaсtVariable() {
-        Map<String, ValueType> vars = new HashMap<>();
-        vars.put("a", new GenericClass("java.util.Map",
-                new GenericClass("java.lang.Number"),
-                new GenericClass("java.lang.String")));
-        ValueType type = inferType("TypeInferenceTest.extract(a, 23)", vars);
-        assertEquals("java.lang.String", type.toString());
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        GenericType first = cls(Map.class, ref(k), ref(v));
+        GenericType second = ref(k);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Number.class), cls(String.class)), first);
+        ok &= inf.subtypeConstraint(cls(Integer.class), second);
+
+        assertTrue(ok);
+        assertEquals("String", string(ref(v)));
+        assertEquals("Number", string(ref(k)));
     }
 
     @Test
     public void exactVariableInferenceFailsOnContradiction() {
-        Map<String, ValueType> vars = new HashMap<>();
-        vars.put("a", new GenericClass("java.util.HashMap",
-                new GenericClass("java.lang.Long"),
-                new GenericClass("java.lang.String")));
-        assertNull(inferType("TypeInferenceTest.extract(a, Integer.valueOf(23))", vars));
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        GenericType first = cls(Map.class, ref(k), ref(v));
+        GenericType second = ref(k);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Long.class), cls(String.class)), first);
+        ok &= inf.subtypeConstraint(cls(Integer.class), second);
+
+        assertFalse(ok);
     }
 
-    public static native <T> T pair(T a, T b);
-
-    public static native <K, V> V extract(Map<K, V> map, K key);
-
-    private ValueType inferType(String exprString, Map<String, ValueType> vars) {
-        ImportingClassResolver imports = new ImportingClassResolver(classResolver);
-        imports.importClass(TypeInferenceTest.class.getName());
-        imports.importPackage("java.lang");
-        imports.importPackage("java.util");
-
-        Parser parser = new Parser(imports);
-        Expr<Void> expr = parser.parse(exprString);
-        if (!parser.getDiagnostics().isEmpty()) {
-            throw new RuntimeException();
-        }
-
-        ClassPathClassDescriberRepository classes = new ClassPathClassDescriberRepository();
-        Compiler compiler = new Compiler(classes, imports, new MapScope(vars));
-        TypedPlan plan = compiler.compile(expr);
-
-        if (!compiler.getDiagnostics().isEmpty()) {
-            return null;
-        }
-
-        return plan.getType();
+    static GenericType cls(Class<?> cls, GenericType... args) {
+        return new GenericClass(cls.getName(), args);
     }
 
-    static class MapScope implements Scope {
-        private Map<String, ValueType> map;
+    static GenericType in(GenericClass cls) {
+        TypeVar var = new TypeVar();
+        var.withLowerBound(cls);
+        return new GenericReference(var);
+    }
 
-        public MapScope(Map<String, ValueType> map) {
-            this.map = map;
-        }
+    static GenericType out(GenericClass cls) {
+        TypeVar var = new TypeVar();
+        var.withLowerBound(cls);
+        return new GenericReference(var);
+    }
 
-        @Override
-        public ValueType variableType(String variableName) {
-            return map.get(variableName);
-        }
+    static GenericType ref(TypeVar var) {
+        return new GenericReference(var);
+    }
+
+    private String string(GenericType type) {
+        ValueTypeFormatter formatter = new ValueTypeFormatter();
+        formatter.setUsingShortClassNames(true);
+        formatter.setUsingWildcardChars(true);
+        return formatter.format(type.substitute(inf.getSubstitutions()));
     }
 }

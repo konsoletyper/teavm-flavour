@@ -15,13 +15,17 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 /**
  *
  * @author Alexey Andreev
  */
 public class TypeVar {
-    private GenericType lowerBound;
-    private GenericType upperBound;
+    private List<GenericType> lowerBound = Collections.emptyList();
+    private List<GenericType> upperBound = Collections.emptyList();
     private String name;
 
     public TypeVar() {
@@ -36,21 +40,21 @@ public class TypeVar {
         return name;
     }
 
-    public GenericType getLowerBound() {
+    public List<GenericType> getLowerBound() {
         return lowerBound;
     }
 
-    public GenericType getUpperBound() {
+    public List<GenericType> getUpperBound() {
         return upperBound;
     }
 
-    public void withLowerBound(GenericType lowerBound) {
-        this.lowerBound = lowerBound;
-        this.upperBound = null;
+    public void withLowerBound(GenericType... lowerBound) {
+        this.lowerBound = Collections.unmodifiableList(Arrays.asList(lowerBound));
+        this.upperBound = Collections.emptyList();
     }
 
-    public void withUpperBound(GenericType upperBound) {
-        this.upperBound = upperBound;
-        this.lowerBound = null;
+    public void withUpperBound(GenericType... upperBound) {
+        this.upperBound = Collections.unmodifiableList(Arrays.asList(upperBound));
+        this.lowerBound = Collections.emptyList();
     }
 }

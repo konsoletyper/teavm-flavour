@@ -16,6 +16,7 @@
 package org.teavm.flavour.expr.type;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  *
@@ -34,12 +35,19 @@ public final class GenericReference extends GenericType {
     }
 
     @Override
-    public GenericType substitute(Substitutions substitutions) {
-        GenericType substitution = substitutions.get(var);
-        if (substitution == null) {
-            return this;
+    GenericType substitute(Substitutions substitutions, Set<TypeVar> visited) {
+        try {
+            if (!visited.add(var)) {
+                return this;
+            }
+            GenericType substitution = substitutions.get(var);
+            if (substitution == null) {
+                return this;
+            }
+            return substitution != this ? substitution.substitute(substitutions, visited) : substitution;
+        } finally {
+            visited.remove(var);
         }
-        return substitution != this ? substitution.substitute(substitutions) : substitution;
     }
 
     @Override
@@ -61,10 +69,10 @@ public final class GenericReference extends GenericType {
 
     @Override
     public GenericType erasure() {
-        if (var.getUpperBound() == null) {
+        if (var.getUpperBound().size() != 1) {
             return new GenericClass("java.lang.Object");
         } else {
-            return var.getUpperBound().erasure();
+            return var.getUpperBound().get(0);
         }
     }
 }

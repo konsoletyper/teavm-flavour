@@ -15,7 +15,10 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +27,24 @@ import java.util.Map;
  */
 public class ValueTypeFormatter {
     private Map<TypeVar, String> typeVarNames = new HashMap<>();
+    private boolean usingShortClassNames;
+    private boolean usingWildcardChars;
+
+    public boolean isUsingShortClassNames() {
+        return usingShortClassNames;
+    }
+
+    public void setUsingShortClassNames(boolean usingShortClassNames) {
+        this.usingShortClassNames = usingShortClassNames;
+    }
+
+    public boolean isUsingWildcardChars() {
+        return usingWildcardChars;
+    }
+
+    public void setUsingWildcardChars(boolean usingWildcardChars) {
+        this.usingWildcardChars = usingWildcardChars;
+    }
 
     public String format(ValueType type) {
         StringBuilder sb = new StringBuilder();
@@ -63,7 +84,12 @@ public class ValueTypeFormatter {
             }
         } else if (type instanceof GenericClass) {
             GenericClass cls = (GenericClass) type;
-            sb.append(cls.getName());
+            if (!usingShortClassNames) {
+                sb.append(cls.getName());
+            } else {
+                int index = cls.getName().lastIndexOf('.');
+                sb.append(cls.getName().substring(index + 1));
+            }
             if (!cls.getArguments().isEmpty()) {
                 sb.append('<');
                 for (int i = 0; i < cls.getArguments().size(); ++i) {
@@ -81,9 +107,22 @@ public class ValueTypeFormatter {
         } else if (type instanceof GenericReference) {
             GenericReference ref = (GenericReference) type;
             sb.append(getNameOfTypeVar(ref.getVar()));
-            if (ref.getVar() == null && ref.getVar().getLowerBound() != null) {
+            if (ref.getVar().getName() == null && !ref.getVar().getLowerBound().isEmpty()) {
                 sb.append(" extends ");
-                format(ref.getVar().getLowerBound(), sb);
+                StringBuilder inner = new StringBuilder();
+                List<String> parts = new ArrayList<>();
+                for (GenericType bound : ref.getVar().getLowerBound()) {
+                    format(bound, inner);
+                    parts.add(inner.toString());
+                    inner.setLength(0);
+                }
+                Collections.sort(parts);
+
+                sb.append(parts.get(0));
+                for (int i = 1; i < parts.size(); ++i) {
+                    sb.append(" & ");
+                    sb.append(parts.get(i));
+                }
             }
         } else {
             throw new AssertionError("Unexpected type: " + type.getClass().getName());
@@ -93,6 +132,9 @@ public class ValueTypeFormatter {
     private String getNameOfTypeVar(TypeVar var) {
         if (var.getName() != null) {
             return var.getName();
+        }
+        if (usingWildcardChars) {
+            return "?";
         }
         String name = typeVarNames.get(var);
         if (name == null) {

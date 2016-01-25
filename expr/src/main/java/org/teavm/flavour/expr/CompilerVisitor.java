@@ -663,10 +663,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     ValueType boundVarType = actualArgTypes[i];
                     if (boundVarType instanceof GenericReference) {
                         TypeVar typeVar = ((GenericReference) boundVarType).getVar();
-                        if (typeVar.getUpperBound() != null) {
-                            boundVarType = typeVar.getUpperBound().substitute(unifier.getSubstitutions());
+                        if (typeVar.getUpperBound().size() == 1) {
+                            boundVarType = typeVar.getUpperBound().get(0).substitute(unifier.getSubstitutions());
                         } else if (typeVar.getLowerBound() != null) {
-                            boundVarType = typeVar.getLowerBound().substitute(unifier.getSubstitutions());
+                            boundVarType = typeVar.getLowerBound().get(0).substitute(unifier.getSubstitutions());
                         } else {
                             boundVarType = new GenericClass("java.lang.Object");
                         }

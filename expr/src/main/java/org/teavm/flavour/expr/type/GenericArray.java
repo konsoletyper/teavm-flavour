@@ -15,7 +15,9 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  *
@@ -35,9 +37,14 @@ public final class GenericArray extends GenericType {
 
     @Override
     public GenericArray substitute(Substitutions substitutions) {
+        return substitute(substitutions, new HashSet<>());
+    }
+
+    @Override
+    GenericArray substitute(Substitutions substitutions, Set<TypeVar> visited) {
         if (elementType instanceof GenericType) {
             GenericType genericElem = (GenericType) elementType;
-            GenericType substElement = genericElem.substitute(substitutions);
+            GenericType substElement = genericElem.substitute(substitutions, visited);
             return substElement != elementType ? new GenericArray(substElement) : this;
         } else {
             return this;

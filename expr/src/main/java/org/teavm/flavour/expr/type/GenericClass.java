@@ -18,7 +18,9 @@ package org.teavm.flavour.expr.type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -56,10 +58,15 @@ public final class GenericClass extends GenericType {
 
     @Override
     public GenericClass substitute(Substitutions substitutions) {
+        return substitute(substitutions, new HashSet<>());
+    }
+
+    @Override
+    GenericClass substitute(Substitutions substitutions, Set<TypeVar> visited) {
         List<GenericType> argumentSubstitutions = new ArrayList<>();
         boolean changed = false;
         for (GenericType arg : arguments) {
-            GenericType argSubst = arg.substitute(substitutions);
+            GenericType argSubst = arg.substitute(substitutions, visited);
             changed |= arg != argSubst;
             argumentSubstitutions.add(argSubst);
         }
