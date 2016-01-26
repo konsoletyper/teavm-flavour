@@ -93,8 +93,19 @@ public class TypeInference {
             x.boundType = BoundType.EXACT;
             x.bounds.add(t);
             return true;
-        } else {
+        } else if (x.boundType == BoundType.EXACT) {
             return equalConstraint(x.bounds.iterator().next(), t);
+        } else if (x.boundType == BoundType.LOWER) {
+            if (x.complexBound) {
+                return false;
+            }
+            x.boundType = BoundType.EXACT;
+            GenericType oldBound = x.bounds.iterator().next();
+            x.bounds.clear();
+            x.bounds.add(t);
+            return subtypeConstraint(oldBound, t);
+        } else {
+            return false;
         }
     }
 
@@ -169,81 +180,87 @@ public class TypeInference {
                 }
                 return true;
             } else if (x.boundType == BoundType.LOWER) {
-                if (!(t instanceof GenericClass)) {
-                    x.bounds.add(t);
-                    return true;
-                }
-                GenericClass cls = (GenericClass) t;
-                List<GenericType> newLowerBounds = new ArrayList<>();
-                List<GenericClass> newClasses = new ArrayList<>();
-                Set<String> newErasure = new HashSet<>();
-                Map<String, GenericClass> erasureMap = new HashMap<>();
-                for (GenericType lowerBound : x.bounds) {
-                    if (lowerBound instanceof GenericReference) {
-                        newLowerBounds.add(lowerBound);
-                    } else if (lowerBound instanceof GenericClass) {
-                        GenericClass lowerBoundCls = (GenericClass) lowerBound;
-                        newErasure.addAll(typeNavigator.commonSupertypes(Collections.singleton(cls.getName()),
-                                Collections.singleton(lowerBoundCls.getName())));
-                        erasureMap.put(lowerBoundCls.getName(), lowerBoundCls);
-                    }
-                }
-                if (newErasure.size() > 1) {
-                    newErasure.remove("java.lang.Object");
-                }
-                if (newErasure.size() != 1 || erasureMap.size() != 1
-                        || !erasureMap.keySet().containsAll(newErasure)) {
-                    x.complexBound = true;
-                }
-
-                for (String erasure : newErasure) {
-                    GenericClass existing = erasureMap.get(erasure);
-                    if (existing == null) {
-                        existing = typeNavigator.getGenericClass(erasure);
-                        newClasses.add(existing);
-                        erasureMap.put(erasure, existing);
-                    }
-                    newLowerBounds.add(existing);
-                }
-
-                x.bounds.clear();
-                x.bounds.addAll(newLowerBounds);
-
-                for (String erasure : newErasure) {
-                    GenericClass existing = erasureMap.get(erasure);
-                    List<GenericClass> path = typeNavigator.sublassPath(cls, erasure);
-                    GenericClass newType = path.get(path.size() - 1);
-                    for (int i = 0; i < existing.getArguments().size(); ++i) {
-                        if (!subtypeConstraint(newType.getArguments().get(i), existing.getArguments().get(i))) {
-                            return false;
-                        }
-                    }
-                }
-
-                for (GenericClass existing : erasureMap.values()) {
-                    if (newErasure.contains(existing)) {
-                        continue;
-                    }
-                    for (GenericClass newClass : newClasses) {
-                        List<GenericClass> path = typeNavigator.sublassPath(existing, newClass.getName());
-                        if (path == null) {
-                            continue;
-                        }
-                        GenericClass oldClass = path.get(path.size() - 1);
-                        for (int i = 0; i < oldClass.getArguments().size(); ++i) {
-                            if (!subtypeConstraint(oldClass.getArguments().get(i), newClass.getArguments().get(i))) {
-                                return false;
-                            }
-                        }
-                    }
-                }
-
-                return true;
+                return extendLowerBound(x, t);
+            } else if (x.boundType == BoundType.EXACT) {
+                return subtypeConstraint(t, x.bounds.iterator().next());
             }
             return false;
         } finally {
             x.visited = false;
         }
+    }
+
+    private boolean extendLowerBound(InferenceVar x, GenericType t) {
+        if (!(t instanceof GenericClass)) {
+            x.bounds.add(t);
+            return true;
+        }
+        GenericClass cls = (GenericClass) t;
+        List<GenericType> newLowerBounds = new ArrayList<>();
+        List<GenericClass> newClasses = new ArrayList<>();
+        Set<String> newErasure = new HashSet<>();
+        Map<String, GenericClass> erasureMap = new HashMap<>();
+        for (GenericType lowerBound : x.bounds) {
+            if (lowerBound instanceof GenericReference) {
+                newLowerBounds.add(lowerBound);
+            } else if (lowerBound instanceof GenericClass) {
+                GenericClass lowerBoundCls = (GenericClass) lowerBound;
+                newErasure.addAll(typeNavigator.commonSupertypes(Collections.singleton(cls.getName()),
+                        Collections.singleton(lowerBoundCls.getName())));
+                erasureMap.put(lowerBoundCls.getName(), lowerBoundCls);
+            }
+        }
+        if (newErasure.size() > 1) {
+            newErasure.remove("java.lang.Object");
+        }
+        if (newErasure.size() != 1 || erasureMap.size() != 1
+                || !erasureMap.keySet().containsAll(newErasure)) {
+            x.complexBound = true;
+        }
+
+        for (String erasure : newErasure) {
+            GenericClass existing = erasureMap.get(erasure);
+            if (existing == null) {
+                existing = typeNavigator.getGenericClass(erasure);
+                newClasses.add(existing);
+                erasureMap.put(erasure, existing);
+            }
+            newLowerBounds.add(existing);
+        }
+
+        x.bounds.clear();
+        x.bounds.addAll(newLowerBounds);
+
+        for (String erasure : newErasure) {
+            GenericClass existing = erasureMap.get(erasure);
+            List<GenericClass> path = typeNavigator.sublassPath(cls, erasure);
+            GenericClass newType = path.get(path.size() - 1);
+            for (int i = 0; i < existing.getArguments().size(); ++i) {
+                if (!subtypeConstraint(newType.getArguments().get(i), existing.getArguments().get(i))) {
+                    return false;
+                }
+            }
+        }
+
+        for (GenericClass existing : erasureMap.values()) {
+            if (newErasure.contains(existing)) {
+                continue;
+            }
+            for (GenericClass newClass : newClasses) {
+                List<GenericClass> path = typeNavigator.sublassPath(existing, newClass.getName());
+                if (path == null) {
+                    continue;
+                }
+                GenericClass oldClass = path.get(path.size() - 1);
+                for (int i = 0; i < oldClass.getArguments().size(); ++i) {
+                    if (!subtypeConstraint(oldClass.getArguments().get(i), newClass.getArguments().get(i))) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     private InferenceVar var(TypeVar typeVar) {

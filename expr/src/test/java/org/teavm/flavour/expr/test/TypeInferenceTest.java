@@ -71,6 +71,22 @@ public class TypeInferenceTest {
     }
 
     @Test
+    public void infersExaсtVariableReverse() {
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        GenericType first = cls(Map.class, ref(k), ref(v));
+        GenericType second = ref(k);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(cls(Integer.class), second);
+        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Number.class), cls(String.class)), first);
+
+        assertTrue(ok);
+        assertEquals("String", string(ref(v)));
+        assertEquals("Number", string(ref(k)));
+    }
+
+    @Test
     public void exactVariableInferenceFailsOnContradiction() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
