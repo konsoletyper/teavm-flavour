@@ -102,7 +102,7 @@ public class ValueTypeFormatter {
             }
         } else if (type instanceof GenericArray) {
             GenericArray array = (GenericArray) type;
-            format(array.getElementType());
+            format(array.getElementType(), sb);
             sb.append("[]");
         } else if (type instanceof GenericReference) {
             GenericReference ref = (GenericReference) type;

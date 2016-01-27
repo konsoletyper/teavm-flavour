@@ -22,12 +22,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
@@ -147,8 +150,70 @@ public class TypeInferenceTest {
         assertEquals("Number", string(ref(v)));
     }
 
+    @Test
+    public void respectsLowerDependencies() {
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        k.withUpperBound(ref(v));
+        GenericType formal = cls(Map.class, ref(k), out(ref(v)));
+        GenericType actual = cls(HashMap.class, cls(Integer.class), cls(Object.class));
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(actual, formal);
+
+        assertTrue(ok);
+        assertEquals("Integer", string(ref(k)));
+        assertEquals("Integer", string(ref(v)));
+    }
+
+    @Test
+    public void findsLowerDependenciesViolations() {
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        k.withUpperBound(ref(v));
+        GenericType formal = cls(Map.class, ref(k), out(ref(v)));
+        GenericType actual = cls(HashMap.class, cls(Number.class), cls(Integer.class));
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(actual, formal);
+
+        assertFalse(ok);
+    }
+
+    @Test
+    public void arrayCommonItem() {
+        TypeVar t = new TypeVar("T");
+        GenericType pattern = ref(t);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(array(cls(Integer.class)), pattern);
+        ok &= inf.subtypeConstraint(array(cls(Long.class)), pattern);
+
+        assertTrue(ok);
+        assertEquals("? extends Comparable<T> & Number[]", string(pattern));
+    }
+
+    @Test
+    public void primitiveArrayCommonItem() {
+        TypeVar t = new TypeVar("T");
+        GenericType pattern = ref(t);
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(array(cls(Integer.class)), pattern);
+        ok &= inf.subtypeConstraint(array(Primitive.LONG), pattern);
+
+        assertTrue(ok);
+        assertEquals("? extends Object", string(pattern));
+    }
+
+    private static native <T> T f(T a, T b);
+
     static GenericType cls(Class<?> cls, GenericType... args) {
         return new GenericClass(cls.getName(), args);
+    }
+
+    static GenericType array(ValueType item) {
+        return new GenericArray(item);
     }
 
     static GenericType in(GenericType cls) {

@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.stream.Collectors;
 
 /**
  *
@@ -95,10 +94,20 @@ public class TypeInference {
         if (x.boundType == null) {
             x.boundType = BoundType.EXACT;
             x.bounds.add(t);
+            for (InferenceVar dep : x.lowerDependencies) {
+                if (!subtypeConstraint(new GenericReference(dep.anyTypeVar()), t)) {
+                    return false;
+                }
+            }
+            for (InferenceVar dep : x.upperDependencies) {
+                if (!subtypeConstraint(t, new GenericReference(dep.anyTypeVar()))) {
+                    return false;
+                }
+            }
             return true;
         } else if (x.boundType == BoundType.EXACT) {
             return equalConstraint(x.bounds.iterator().next(), t);
-        } else if (x.boundType == BoundType.LOWER) {
+        } else if (x.boundType == BoundType.LOWER || x.boundType == BoundType.UPPER) {
             if (x.complexBound) {
                 return false;
             }
@@ -106,6 +115,16 @@ public class TypeInference {
             GenericType oldBound = x.bounds.iterator().next();
             x.bounds.clear();
             x.bounds.add(t);
+            for (InferenceVar dep : x.lowerDependencies) {
+                if (!subtypeConstraint(new GenericReference(dep.anyTypeVar()), t)) {
+                    return false;
+                }
+            }
+            for (InferenceVar dep : x.upperDependencies) {
+                if (!subtypeConstraint(t, new GenericReference(dep.anyTypeVar()))) {
+                    return false;
+                }
+            }
             return subtypeConstraint(oldBound, t);
         } else {
             return false;
@@ -131,7 +150,13 @@ public class TypeInference {
             return subtypeConstraintClasses((GenericClass) a, (GenericClass) b);
         } else if (a instanceof GenericArray) {
             if (b instanceof GenericArray) {
-                return true;
+                GenericArray p = (GenericArray) a;
+                GenericArray q = (GenericArray) b;
+                if (p.getElementType() instanceof GenericType && q.getElementType() instanceof GenericType) {
+                    return subtypeConstraint((GenericType) p.getElementType(), (GenericType) q.getElementType());
+                } else {
+                    return p.getElementType().equals(q.getElementType());
+                }
             } else if (b instanceof GenericClass && ((GenericClass) b).getName().equals("java.lang.Object")) {
                 return true;
             }
@@ -154,7 +179,31 @@ public class TypeInference {
     }
 
     private boolean addUpperBound(InferenceVar x, GenericType t) {
-        return true;
+        x = x.find();
+
+        if (t instanceof GenericReference) {
+            InferenceVar y = var(((GenericReference) t).getVar());
+            return addLowerDependency(y, x);
+        }
+
+        if (x.boundType == null) {
+            x.boundType = BoundType.UPPER;
+            x.bounds.add(t);
+            for (InferenceVar dependency : x.lowerDependencies) {
+                if (!subtypeConstraint(new GenericReference(dependency.anyTypeVar()), t)) {
+                    return false;
+                }
+            }
+        } else if (x.boundType == BoundType.UPPER) {
+            return equalConstraint(x.bounds.iterator().next(), t);
+        } else if (x.boundType == BoundType.EXACT) {
+            return subtypeConstraint(x.bounds.iterator().next(), t);
+        } else if (x.boundType == BoundType.LOWER && !x.complexBound) {
+            x.boundType = BoundType.EXACT;
+            return subtypeConstraint(x.bounds.iterator().next(), t);
+        }
+
+        return false;
     }
 
     private boolean addLowerBound(InferenceVar x, GenericType t) {
@@ -186,6 +235,17 @@ public class TypeInference {
                         }
                     }
                     x.bounds.add(bound);
+                } else if (t instanceof GenericArray) {
+                    GenericArray array = (GenericArray) t;
+                    if (array.getElementType() instanceof GenericType) {
+                        GenericReference arg = new GenericReference(new TypeVar());
+                        x.bounds.add(new GenericArray(arg));
+                        if (!subtypeConstraint((GenericType) array.getElementType(), arg)) {
+                            return false;
+                        }
+                    } else {
+                        x.bounds.add(array);
+                    }
                 } else {
                     x.bounds.add(t);
                 }
@@ -227,6 +287,9 @@ public class TypeInference {
             switch (x.boundType) {
                 case EXACT:
                 case UPPER:
+                    if (x.boundType == BoundType.LOWER && x.complexBound) {
+                        return false;
+                    }
                     for (GenericType type : x.bounds) {
                         if (!subtypeConstraint(new GenericReference(y.anyTypeVar()), type)) {
                             return false;
@@ -241,7 +304,10 @@ public class TypeInference {
             switch (y.boundType) {
                 case EXACT:
                 case LOWER:
-                    for (GenericType type : x.bounds) {
+                    if (x.boundType == BoundType.UPPER && x.complexBound) {
+                        return false;
+                    }
+                    for (GenericType type : y.bounds) {
                         if (!subtypeConstraint(type, new GenericReference(x.anyTypeVar()))) {
                             return false;
                         }
@@ -255,21 +321,60 @@ public class TypeInference {
     }
 
     private boolean extendLowerBound(InferenceVar x, GenericType t) {
-        if (!(t instanceof GenericClass)) {
-            x.bounds.add(t);
+        if (t instanceof GenericClass) {
+            extendLowerBoundClass(x, (GenericClass) t);
             return true;
+        } else if (t instanceof GenericArray) {
+            GenericArray array = (GenericArray) t;
+            for (GenericType lowerBound : x.bounds.toArray(new GenericType[0])) {
+                if (lowerBound instanceof GenericArray) {
+                    GenericArray other = (GenericArray) lowerBound;
+                    if (other.getElementType() instanceof GenericType
+                            && array.getElementType() instanceof GenericType) {
+                        GenericReference ref = new GenericReference(new TypeVar());
+                        x.bounds.clear();
+                        x.bounds.add(new GenericArray(ref));
+                        return subtypeConstraint((GenericType) array.getElementType(), ref)
+                                && subtypeConstraint((GenericType) other.getElementType(), ref);
+                    } else {
+                        if (other.getElementType().equals(array.getElementType())) {
+                            return true;
+                        } else {
+                            x.bounds.clear();
+                            x.bounds.add(new GenericClass("java.lang.Object"));
+                            x.complexBound = true;
+                            return true;
+                        }
+                    }
+                } else {
+                    x.bounds.clear();
+                    x.bounds.add(new GenericClass("java.lang.Object"));
+                    x.complexBound = true;
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return false;
         }
-        GenericClass cls = (GenericClass) t;
+    }
+
+    private boolean extendLowerBoundClass(InferenceVar x, GenericClass cls) {
         List<GenericType> newLowerBounds = new ArrayList<>();
         List<GenericClass> newClasses = new ArrayList<>();
         Set<String> newErasure = new HashSet<>();
         Map<String, GenericClass> erasureMap = new HashMap<>();
-        for (GenericType lowerBound : x.bounds) {
+        for (GenericType lowerBound : x.bounds.toArray(new GenericType[0])) {
             if (lowerBound instanceof GenericClass) {
                 GenericClass lowerBoundCls = (GenericClass) lowerBound;
                 newErasure.addAll(typeNavigator.commonSupertypes(Collections.singleton(cls.getName()),
                         Collections.singleton(lowerBoundCls.getName())));
                 erasureMap.put(lowerBoundCls.getName(), lowerBoundCls);
+            } else if (lowerBound instanceof GenericArray) {
+                x.complexBound = true;
+                x.bounds.clear();
+                x.bounds.add(new GenericClass("java.lang.Object"));
+                return true;
             }
         }
         if (newErasure.size() > 1) {
@@ -347,20 +452,22 @@ public class TypeInference {
             }
             switch (inferenceVar.boundType) {
                 case EXACT:
-                    return inferenceVar.filteredBounds().iterator().next();
+                    return inferenceVar.bounds.iterator().next();
                 case UPPER: {
+                    if (!inferenceVar.complexBound) {
+                        return inferenceVar.bounds.iterator().next();
+                    }
                     TypeVar v = new TypeVar();
-                    List<GenericType> bounds = inferenceVar.filteredBounds();
+                    Set<GenericType> bounds = inferenceVar.bounds;
                     v.withUpperBound(bounds.toArray(new GenericType[0]));
                     return new GenericReference(v);
                 }
                 case LOWER: {
-                    List<GenericType> bounds = inferenceVar.filteredBounds();
                     if (!inferenceVar.complexBound) {
-                        return bounds.iterator().next();
+                        return inferenceVar.bounds.iterator().next();
                     }
                     TypeVar v = new TypeVar();
-                    v.withLowerBound(bounds.toArray(new GenericType[0]));
+                    v.withLowerBound(inferenceVar.bounds.toArray(new GenericType[0]));
                     return new GenericReference(v);
                 }
             }
@@ -458,16 +565,6 @@ public class TypeInference {
         private void unionData(InferenceVar other) {
             variables.addAll(other.variables);
             recursive |= other.recursive;
-        }
-
-        public List<GenericType> filteredBounds() {
-            return bounds.stream().filter(bound -> {
-                if (!(bound instanceof GenericReference)) {
-                    return true;
-                }
-                InferenceVar var = var(((GenericReference) bound).getVar());
-                return var != this;
-            }).collect(Collectors.toList());
         }
     }
 
