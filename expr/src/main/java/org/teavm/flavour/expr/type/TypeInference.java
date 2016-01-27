@@ -75,8 +75,11 @@ public class TypeInference {
     private boolean equalConstraintTwoVars(InferenceVar x, InferenceVar y) {
         InferenceVar common = x.union(y);
         InferenceVar remaining = common == x ? y : x;
+        common.upperDependencies.addAll(remaining.upperDependencies);
+        common.lowerDependencies.addAll(remaining.lowerDependencies);
         if (common.boundType == null) {
             common.boundType = remaining.boundType;
+            common.bounds.addAll(remaining.bounds);
             return true;
         } else if (remaining.boundType == null) {
             return true;
@@ -143,7 +146,9 @@ public class TypeInference {
         }
         GenericClass pattern = path.get(path.size() - 1);
         for (int i = 0; i < pattern.getArguments().size(); ++i) {
-            equalConstraint(pattern.getArguments().get(i), t.getArguments().get(i));
+            if (!equalConstraint(pattern.getArguments().get(i), t.getArguments().get(i))) {
+                return false;
+            }
         }
         return true;
     }
@@ -154,6 +159,12 @@ public class TypeInference {
 
     private boolean addLowerBound(InferenceVar x, GenericType t) {
         x = x.find();
+
+        if (t instanceof GenericReference) {
+            InferenceVar y = var(((GenericReference) t).getVar());
+            return addLowerDependency(x, y);
+        }
+
         if (x.visited) {
             x.recursive = true;
             return true;
@@ -178,9 +189,22 @@ public class TypeInference {
                 } else {
                     x.bounds.add(t);
                 }
+                for (InferenceVar dependency : x.upperDependencies) {
+                    if (!subtypeConstraint(t, new GenericReference(dependency.anyTypeVar()))) {
+                        return false;
+                    }
+                }
                 return true;
             } else if (x.boundType == BoundType.LOWER) {
-                return extendLowerBound(x, t);
+                if (!extendLowerBound(x, t)) {
+                    return false;
+                }
+                for (InferenceVar dependency : x.upperDependencies) {
+                    if (!subtypeConstraint(t, new GenericReference(dependency.anyTypeVar()))) {
+                        return false;
+                    }
+                }
+                return true;
             } else if (x.boundType == BoundType.EXACT) {
                 return subtypeConstraint(t, x.bounds.iterator().next());
             }
@@ -188,6 +212,46 @@ public class TypeInference {
         } finally {
             x.visited = false;
         }
+    }
+
+    private boolean addLowerDependency(InferenceVar x, InferenceVar y) {
+        if (x == y) {
+            return true;
+        }
+        if (!x.lowerDependencies.add(y)) {
+            return true;
+        }
+        y.upperDependencies.add(x);
+
+        if (x.bounds != null) {
+            switch (x.boundType) {
+                case EXACT:
+                case UPPER:
+                    for (GenericType type : x.bounds) {
+                        if (!subtypeConstraint(new GenericReference(y.anyTypeVar()), type)) {
+                            return false;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (y.bounds != null) {
+            switch (y.boundType) {
+                case EXACT:
+                case LOWER:
+                    for (GenericType type : x.bounds) {
+                        if (!subtypeConstraint(type, new GenericReference(x.anyTypeVar()))) {
+                            return false;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return true;
     }
 
     private boolean extendLowerBound(InferenceVar x, GenericType t) {
@@ -201,9 +265,7 @@ public class TypeInference {
         Set<String> newErasure = new HashSet<>();
         Map<String, GenericClass> erasureMap = new HashMap<>();
         for (GenericType lowerBound : x.bounds) {
-            if (lowerBound instanceof GenericReference) {
-                newLowerBounds.add(lowerBound);
-            } else if (lowerBound instanceof GenericClass) {
+            if (lowerBound instanceof GenericClass) {
                 GenericClass lowerBoundCls = (GenericClass) lowerBound;
                 newErasure.addAll(typeNavigator.commonSupertypes(Collections.singleton(cls.getName()),
                         Collections.singleton(lowerBoundCls.getName())));
@@ -278,6 +340,8 @@ public class TypeInference {
             if (inferenceVar == null) {
                 return null;
             }
+            inferenceVar = inferenceVar.find();
+
             if (inferenceVar.boundType == null) {
                 return null;
             }
@@ -309,6 +373,8 @@ public class TypeInference {
         int rank;
         Set<TypeVar> variables = new HashSet<>();
         Set<GenericType> bounds = new HashSet<>();
+        Set<InferenceVar> lowerDependencies = new HashSet<>();
+        Set<InferenceVar> upperDependencies = new HashSet<>();
         BoundType boundType;
         boolean complexBound;
         boolean visited;
@@ -316,6 +382,33 @@ public class TypeInference {
 
         InferenceVar(TypeVar var) {
             variables.add(var);
+            if (!var.getUpperBound().isEmpty()) {
+                if (var.getUpperBound().size() != 1
+                        || !var.getUpperBound().contains(new GenericClass("java.lang.Object"))) {
+                    for (GenericType bound : var.getUpperBound()) {
+                        if (bound instanceof GenericReference) {
+                            InferenceVar other = var(((GenericReference) bound).getVar());
+                            upperDependencies.add(other);
+                            other.lowerDependencies.add(this);
+                        } else {
+                            boundType = BoundType.UPPER;
+                            bounds.add(bound);
+                        }
+                    }
+                }
+            } else if (!var.getLowerBound().isEmpty()) {
+                for (GenericType bound : var.getLowerBound()) {
+                    if (bound instanceof GenericReference) {
+                        InferenceVar other = var(((GenericReference) bound).getVar());
+                        lowerDependencies.add(other);
+                        other.upperDependencies.add(this);
+                    } else {
+                        boundType = BoundType.LOWER;
+                        bounds.add(bound);
+                    }
+                }
+            }
+            complexBound = bounds.size() > 1;
         }
 
         public TypeVar anyTypeVar() {

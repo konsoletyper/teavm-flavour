@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 import org.teavm.flavour.expr.type.GenericClass;
@@ -100,17 +101,63 @@ public class TypeInferenceTest {
         assertFalse(ok);
     }
 
+    @Test
+    public void mergesVariables() {
+        TypeVar t = new TypeVar("T");
+        GenericType actual = cls(List.class, in(cls(Number.class)));
+        GenericType formal = cls(List.class, ref(t));
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(actual, formal);
+
+        assertTrue(ok);
+        assertEquals("Number", string(ref(t)));
+    }
+
+    @Test
+    public void checksEqualClasses() {
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        GenericType first = cls(Map.class, ref(k), cls(Integer.class));
+        GenericType second = cls(Map.class, cls(String.class), ref(v));
+        GenericType actual = cls(Map.class, cls(String.class), cls(Integer.class));
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(actual, first);
+        ok &= inf.subtypeConstraint(actual, second);
+
+        assertTrue(ok);
+        assertEquals("String", string(ref(k)));
+        assertEquals("Integer", string(ref(v)));
+    }
+
+    @Test
+    public void respectsDependencies() {
+        TypeVar k = new TypeVar("K");
+        TypeVar v = new TypeVar("V");
+        k.withUpperBound(ref(v));
+        GenericType formal = cls(Map.class, ref(k), ref(v));
+        GenericType actual = cls(Map.class, cls(Integer.class), cls(Number.class));
+
+        boolean ok = true;
+        ok &= inf.subtypeConstraint(actual, formal);
+
+        assertTrue(ok);
+        assertEquals("Integer", string(ref(k)));
+        assertEquals("Number", string(ref(v)));
+    }
+
     static GenericType cls(Class<?> cls, GenericType... args) {
         return new GenericClass(cls.getName(), args);
     }
 
-    static GenericType in(GenericClass cls) {
+    static GenericType in(GenericType cls) {
         TypeVar var = new TypeVar();
         var.withLowerBound(cls);
         return new GenericReference(var);
     }
 
-    static GenericType out(GenericClass cls) {
+    static GenericType out(GenericType cls) {
         TypeVar var = new TypeVar();
         var.withLowerBound(cls);
         return new GenericReference(var);
