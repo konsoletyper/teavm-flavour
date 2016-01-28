@@ -40,4 +40,6 @@ public interface MethodDescriber extends AnnotationsDescriber {
     ValueType getReturnType();
 
     ValueType getRawReturnType();
+
+    boolean isVariableArgument();
 }

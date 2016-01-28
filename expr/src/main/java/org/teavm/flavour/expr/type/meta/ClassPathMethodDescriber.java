@@ -77,4 +77,9 @@ class ClassPathMethodDescriber extends ClassPathAbstractMethodDescriber {
     AnnotatedElement getAnnotatedElement() {
         return javaMethod;
     }
+
+    @Override
+    public boolean isVariableArgument() {
+        return javaMethod.isVarArgs();
+    }
 }

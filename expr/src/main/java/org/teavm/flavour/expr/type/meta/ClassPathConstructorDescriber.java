@@ -73,4 +73,9 @@ class ClassPathConstructorDescriber extends ClassPathAbstractMethodDescriber {
     AnnotatedElement getAnnotatedElement() {
         return javaConstructor;
     }
+
+    @Override
+    public boolean isVariableArgument() {
+        return javaConstructor.isVarArgs();
+    }
 }

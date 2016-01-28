@@ -261,7 +261,7 @@ public class GenericTypeNavigator {
     }
 
     public GenericMethod getMethod(GenericClass cls, String name, GenericClass... argumentTypes) {
-        return getMethodRec(cls, name, argumentTypes, new HashSet<GenericClass>());
+        return getMethodRec(cls, name, argumentTypes, new HashSet<>());
     }
 
     private GenericMethod getMethodRec(GenericClass cls, String name, GenericClass[] argumentTypes,

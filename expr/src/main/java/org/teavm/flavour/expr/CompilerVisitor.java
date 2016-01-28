@@ -85,22 +85,6 @@ import org.teavm.flavour.expr.type.meta.MethodDescriber;
  * @author Alexey Andreev
  */
 class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
-    private static final GenericClass booleanClass = new GenericClass("java.lang.Boolean");
-    private static final GenericClass characterClass = new GenericClass("java.lang.Character");
-    private static final GenericClass byteClass = new GenericClass("java.lang.Byte");
-    private static final GenericClass shortClass = new GenericClass("java.lang.Short");
-    private static final GenericClass integerClass = new GenericClass("java.lang.Integer");
-    private static final GenericClass longClass = new GenericClass("java.lang.Long");
-    private static final GenericClass floatClass = new GenericClass("java.lang.Float");
-    private static final GenericClass doubleClass = new GenericClass("java.lang.Double");
-    private static final GenericClass stringClass = new GenericClass("java.lang.String");
-    private static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.<ValueType>asList(
-            characterClass, byteClass, shortClass, integerClass, longClass,
-            floatClass, doubleClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
-            Primitive.INT, Primitive.LONG, Primitive.FLOAT, Primitive.DOUBLE));
-    private static final Map<Primitive, GenericClass> primitivesToWrappers = new HashMap<>();
-    private static final Map<GenericClass, Primitive> wrappersToPrimitives = new HashMap<>();
-
     GenericTypeNavigator navigator;
     private Scope scope;
     private Map<String, ValueType> boundVars = new HashMap<>();
@@ -112,22 +96,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     GenericMethod lambdaSam;
     ValueType lambdaReturnType;
     TypeInference lambdaInference;
-
-    static {
-        primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
-        primitiveAndWrapper(Primitive.CHAR, characterClass);
-        primitiveAndWrapper(Primitive.BYTE, byteClass);
-        primitiveAndWrapper(Primitive.SHORT, shortClass);
-        primitiveAndWrapper(Primitive.INT, integerClass);
-        primitiveAndWrapper(Primitive.LONG, longClass);
-        primitiveAndWrapper(Primitive.FLOAT, floatClass);
-        primitiveAndWrapper(Primitive.DOUBLE, doubleClass);
-    }
-
-    static void primitiveAndWrapper(Primitive primitive, GenericClass wrapper) {
-        primitivesToWrappers.put(primitive, wrapper);
-        wrappersToPrimitives.put(wrapper, primitive);
-    }
 
     CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
         this.navigator = navigator;
@@ -153,7 +121,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
                 BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan, secondOperand.getAttribute().plan,
                         getPlanType(expr.getOperation()), type);
-                expr.setAttribute(new TypedPlan(plan, getType(type)));
+                expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
                 break;
             }
             case AND:
@@ -167,8 +135,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             case EQUAL:
             case NOT_EQUAL: {
-                if (classesSuitableForComparison.contains(firstOperand.getAttribute().type)
-                        && classesSuitableForComparison.contains(secondOperand.getAttribute().type)) {
+                if (CompilerCommons.classesSuitableForComparison.contains(firstOperand.getAttribute().type)
+                        && CompilerCommons.classesSuitableForComparison.contains(secondOperand.getAttribute().type)) {
                     ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
                     BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan,
                             secondOperand.getAttribute().plan, getPlanType(expr.getOperation()), type);
@@ -207,7 +175,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         ValueType firstType = firstOperand.getAttribute().type;
         Expr<TypedPlan> secondOperand = expr.getSecondOperand();
         ValueType secondType = secondOperand.getAttribute().type;
-        if (firstType.equals(stringClass) || secondType.equals(stringClass)) {
+        if (firstType.equals(CompilerCommons.stringClass) || secondType.equals(CompilerCommons.stringClass)) {
             Plan firstPlan = firstOperand.getAttribute().plan;
             if (firstPlan instanceof InvocationPlan) {
                 InvocationPlan invocation = (InvocationPlan) firstPlan;
@@ -219,7 +187,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                             "(Ljava/lang/String;)Ljava/lang/StringBuilder;", instance,
                             secondOperand.getAttribute().plan);
                     invocation.setInstance(append);
-                    expr.setAttribute(new TypedPlan(invocation, stringClass));
+                    expr.setAttribute(new TypedPlan(invocation, CompilerCommons.stringClass));
                     copyLocation(expr);
                     return;
                 }
@@ -235,12 +203,12 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     secondOperand.getAttribute().plan);
             invocation = new InvocationPlan("java.lang.StringBuilder", "toString", "()Ljava/lang/String;",
                     invocation);
-            expr.setAttribute(new TypedPlan(invocation, stringClass));
+            expr.setAttribute(new TypedPlan(invocation, CompilerCommons.stringClass));
         } else {
             ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
             BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan, secondOperand.getAttribute().plan,
                     BinaryPlanType.ADD, type);
-            expr.setAttribute(new TypedPlan(plan, getType(type)));
+            expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
         }
         copyLocation(expr);
     }
@@ -265,7 +233,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     new GenericReference(v));
             TypeInference inference = new TypeInference(navigator);
             if (inference.subtypeConstraint((GenericClass) firstType, mapClass)) {
-                GenericType returnType = getType(new GenericReference(v).substitute(inference.getSubstitutions()));
+                GenericType returnType = new GenericReference(v).substitute(inference.getSubstitutions());
                 InvocationPlan plan = new InvocationPlan("java.util.Map", "get",
                         "(Ljava/lang/Object;)Ljava/lang/Object;",
                         firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
@@ -279,7 +247,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             GenericClass listClass = new GenericClass("java.util.List", new GenericReference(v));
             inference = new TypeInference(navigator);
             if (inference.subtypeConstraint((GenericClass) firstType, listClass)) {
-                GenericType returnType = getType(new GenericReference(v).substitute(inference.getSubstitutions()));
+                GenericType returnType = new GenericReference(v).substitute(inference.getSubstitutions());
                 ensureIntType(secondOperand);
                 InvocationPlan plan = new InvocationPlan("java.util.List", "get", "(I)Ljava/lang/Object;",
                         firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
@@ -341,7 +309,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!inference.subtypeConstraint((GenericType) plan.type, (GenericType) targetType)) {
             GenericType erasure = ((GenericType) targetType).erasure();
             plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)),
-                    getType(((GenericType) targetType).substitute(inference.getSubstitutions())));
+                    ((GenericType) targetType).substitute(inference.getSubstitutions()));
         }
 
         return plan;
@@ -522,8 +490,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 }
             }
             if (matchedPlan.type instanceof GenericType) {
-                GenericType type = getType(((GenericType) matchedPlan.type)
-                        .substitute(inferences.get(0).getSubstitutions()));
+                GenericType type = ((GenericType) matchedPlan.type).substitute(inferences.get(0).getSubstitutions());
                 matchedPlan = tryCast(matchedPlan, type);
             }
             expr.setAttribute(matchedPlan);
@@ -663,7 +630,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             case NEGATE: {
                 ArithmeticType type = getArithmeticType(expr.getOperand());
                 NegatePlan plan = new NegatePlan(expr.getOperand().getAttribute().plan, type);
-                expr.setAttribute(new TypedPlan(plan, getType(type)));
+                expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
                 copyLocation(expr);
                 break;
             }
@@ -797,7 +764,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else if (expr.getValue() instanceof Double) {
             type = Primitive.DOUBLE;
         } else if (expr.getValue() instanceof String) {
-            type = stringClass;
+            type = CompilerCommons.stringClass;
         } else {
             throw new IllegalArgumentException("Don't know how to compile constant: " + expr.getValue());
         }
@@ -815,7 +782,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
         ValueType a = expr.getConsequent().getAttribute().type;
         ValueType b = expr.getAlternative().getAttribute().type;
-        ValueType type = commonSupertype(a, b);
+        ValueType type = CompilerCommons.commonSupertype(a, b, navigator);
         if (type == null) {
             expr.setAttribute(new TypedPlan(new ConstantPlan(nullType), nullTypeRef));
             ValueTypeFormatter formatter = new ValueTypeFormatter();
@@ -841,20 +808,20 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private void convertToString(Expr<TypedPlan> expr) {
-        if (expr.getAttribute().getType().equals(stringClass)) {
+        if (expr.getAttribute().getType().equals(CompilerCommons.stringClass)) {
             return;
         }
         ValueType type = expr.getAttribute().type;
         Plan plan = expr.getAttribute().plan;
         if (type instanceof Primitive) {
-            GenericClass wrapperClass = primitivesToWrappers.get(type);
+            GenericClass wrapperClass = CompilerCommons.primitivesToWrappers.get(type);
             plan = new InvocationPlan(wrapperClass.getName(), "toString", "(" + typeToString(type)
                     + ")Ljava/lang/String;", null, plan);
         } else {
             plan = new InvocationPlan("java.lang.String", "valueOf", "(Ljava/lang/Object;)Ljava/lang/String;",
                     null, plan);
         }
-        expr.setAttribute(new TypedPlan(plan, stringClass));
+        expr.setAttribute(new TypedPlan(plan, CompilerCommons.stringClass));
     }
 
     private ArithmeticType getArithmeticType(Expr<TypedPlan> expr) {
@@ -864,13 +831,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         if (plan != null) {
             PrimitiveKind kind = ((Primitive) plan.type).getKind();
-            IntegerSubtype subtype = getIntegerSubtype(kind);
+            IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(kind);
             if (subtype != null) {
                 expr.setAttribute(new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT));
                 plan = expr.getAttribute();
                 kind = ((Primitive) plan.type).getKind();
             }
-            ArithmeticType type = getArithmeticType(kind);
+            ArithmeticType type = CompilerCommons.getArithmeticType(kind);
             if (type != null) {
                 expr.setAttribute(plan);
                 return type;
@@ -887,55 +854,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         ArithmeticType common = ArithmeticType.values()[Math.max(firstType.ordinal(), secondType.ordinal())];
         if (firstType != common) {
             firstExpr.setAttribute(new TypedPlan(new ArithmeticCastPlan(firstType, common,
-                    firstExpr.getAttribute().plan), getType(common)));
+                    firstExpr.getAttribute().plan), CompilerCommons.getType(common)));
         }
         if (secondType != common) {
             secondExpr.setAttribute(new TypedPlan(new ArithmeticCastPlan(secondType, common,
-                    secondExpr.getAttribute().plan), getType(common)));
+                    secondExpr.getAttribute().plan), CompilerCommons.getType(common)));
         }
         return common;
-    }
-
-    private ValueType getType(ArithmeticType type) {
-        switch (type) {
-            case DOUBLE:
-                return Primitive.DOUBLE;
-            case FLOAT:
-                return Primitive.FLOAT;
-            case INT:
-                return Primitive.INT;
-            case LONG:
-                return Primitive.LONG;
-        }
-        throw new AssertionError("Unexpected arithmetic type: " + type);
-    }
-
-    private ArithmeticType getArithmeticType(PrimitiveKind kind) {
-        switch (kind) {
-            case INT:
-                return ArithmeticType.INT;
-            case LONG:
-                return ArithmeticType.LONG;
-            case FLOAT:
-                return ArithmeticType.FLOAT;
-            case DOUBLE:
-                return ArithmeticType.DOUBLE;
-            default:
-                return null;
-        }
-    }
-
-    private IntegerSubtype getIntegerSubtype(PrimitiveKind kind) {
-        switch (kind) {
-            case BYTE:
-                return IntegerSubtype.BYTE;
-            case SHORT:
-                return IntegerSubtype.SHORT;
-            case CHAR:
-                return IntegerSubtype.CHAR;
-            default:
-                return null;
-        }
     }
 
     private BinaryPlanType getPlanType(BinaryOperation op) {
@@ -1017,7 +942,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     return null;
                 }
             }
-            if (!hasImplicitConversion(((Primitive) plan.type).getKind(), ((Primitive) targetType).getKind())) {
+            if (!CompilerCommons.hasImplicitConversion(((Primitive) plan.type).getKind(),
+                    ((Primitive) targetType).getKind())) {
                 return null;
             }
             plan = tryCastPrimitive(plan, (Primitive) targetType);
@@ -1037,55 +963,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return null;
         }
 
-        return new TypedPlan(plan.plan, getType(((GenericType) targetType).substitute(inference.getSubstitutions())));
-    }
-
-    private boolean hasImplicitConversion(PrimitiveKind from, PrimitiveKind to) {
-        if (from == to) {
-            return true;
-        }
-        if (from == PrimitiveKind.BOOLEAN || to == PrimitiveKind.BOOLEAN) {
-            return false;
-        }
-        if (from == PrimitiveKind.CHAR) {
-            switch (to) {
-                case INT:
-                case LONG:
-                case FLOAT:
-                case DOUBLE:
-                    return true;
-                default:
-                    return false;
-            }
-        } else if (to == PrimitiveKind.CHAR) {
-            return from == PrimitiveKind.BYTE;
-        } else {
-            int a = arithmeticSize(from);
-            int b = arithmeticSize(to);
-            if (a < 0 || b < 0) {
-                return false;
-            }
-            return a < b;
-        }
-    }
-
-    private int arithmeticSize(PrimitiveKind kind) {
-        switch (kind) {
-            case BYTE:
-                return 0;
-            case SHORT:
-                return 1;
-            case INT:
-                return 2;
-            case LONG:
-                return 3;
-            case FLOAT:
-                return 4;
-            case DOUBLE:
-                return 5;
-            default:
-                return -1;
-        }
+        return new TypedPlan(plan.plan, ((GenericType) targetType).substitute(inference.getSubstitutions()));
     }
 
     private TypedPlan tryCastPrimitive(TypedPlan plan, Primitive targetType) {
@@ -1098,17 +976,17 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 return null;
             }
         } else {
-            IntegerSubtype subtype = getIntegerSubtype(sourceType.getKind());
+            IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(sourceType.getKind());
             if (subtype != null) {
                 plan = new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT);
                 sourceType = (Primitive) plan.type;
             }
-            ArithmeticType sourceArithmetic = getArithmeticType(sourceType.getKind());
+            ArithmeticType sourceArithmetic = CompilerCommons.getArithmeticType(sourceType.getKind());
             if (sourceArithmetic == null) {
                 return null;
             }
-            subtype = getIntegerSubtype(targetType.getKind());
-            ArithmeticType targetArithmetic = getArithmeticType(targetType.getKind());
+            subtype = CompilerCommons.getIntegerSubtype(targetType.getKind());
+            ArithmeticType targetArithmetic = CompilerCommons.getArithmeticType(targetType.getKind());
             if (targetArithmetic == null) {
                 if (subtype == null) {
                     return null;
@@ -1116,7 +994,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 targetArithmetic = ArithmeticType.INT;
             }
             plan = new TypedPlan(new ArithmeticCastPlan(sourceArithmetic, targetArithmetic, plan.plan),
-                    getType(targetArithmetic));
+                    CompilerCommons.getType(targetArithmetic));
             if (subtype != null) {
                 plan = new TypedPlan(new CastFromIntegerPlan(subtype, plan.plan), targetType);
             }
@@ -1129,7 +1007,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return null;
         }
         GenericClass wrapper = (GenericClass) plan.type;
-        Primitive primitive = wrappersToPrimitives.get(wrapper);
+        Primitive primitive = CompilerCommons.wrappersToPrimitives.get(wrapper);
         if (primitive == null) {
             return null;
         }
@@ -1142,64 +1020,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!(plan.type instanceof Primitive)) {
             return null;
         }
-        GenericClass wrapper = primitivesToWrappers.get(plan.type);
+        GenericClass wrapper = CompilerCommons.primitivesToWrappers.get(plan.type);
         if (wrapper == null) {
             return null;
         }
         return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type)
                 + ")" + typeToString(wrapper), null, plan.plan), wrapper);
     }
-
-    private ValueType commonSupertype(ValueType a, ValueType b) {
-        if (a instanceof Primitive && b instanceof Primitive) {
-            if (a == Primitive.BOOLEAN && b == Primitive.BOOLEAN) {
-                return Primitive.BOOLEAN;
-            } else if (a == Primitive.CHAR && b == Primitive.CHAR) {
-                return Primitive.CHAR;
-            }
-            int p = numericTypeToOrder(((Primitive) a).getKind());
-            int q = numericTypeToOrder(((Primitive) b).getKind());
-            if (p < 0 || q < 0) {
-                return null;
-            }
-            return orderedNumericTypes[Math.max(p, q)];
-        } else if (a instanceof Primitive) {
-            a = primitivesToWrappers.get(a);
-        } else if (b instanceof Primitive) {
-            b = primitivesToWrappers.get(b);
-        }
-
-        TypeInference inference = new TypeInference(navigator);
-        GenericReference common = new GenericReference(new TypeVar());
-        if (inference.subtypeConstraint((GenericType) a, common)
-                && inference.subtypeConstraint((GenericType) b, common)) {
-            return getType(common.substitute(inference.getSubstitutions()));
-        }
-        return null;
-    }
-
-    private int numericTypeToOrder(PrimitiveKind kind) {
-        switch (kind) {
-            case BYTE:
-                return 0;
-            case SHORT:
-                return 1;
-            case INT:
-                return 2;
-            case LONG:
-                return 3;
-            case FLOAT:
-                return 4;
-            case DOUBLE:
-                return 5;
-            default:
-                break;
-        }
-        return -1;
-    }
-
-    private ValueType[] orderedNumericTypes = { Primitive.BYTE, Primitive.SHORT, Primitive.INT, Primitive.LONG,
-            Primitive.FLOAT, Primitive.DOUBLE };
 
     private Object getDefaultConstant(ValueType type) {
         if (type instanceof Primitive) {
@@ -1331,15 +1158,5 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void copyLocation(Expr<? extends TypedPlan> expr) {
         expr.getAttribute().plan.setLocation(new Location(expr.getStart(), expr.getEnd()));
-    }
-
-    private GenericType getType(GenericType type) {
-        if (type instanceof GenericReference) {
-            TypeVar var = ((GenericReference) type).getVar();
-            if (var.getLowerBound().size() == 1) {
-                type = var.getLowerBound().get(0);
-            }
-        }
-        return type;
     }
 }
