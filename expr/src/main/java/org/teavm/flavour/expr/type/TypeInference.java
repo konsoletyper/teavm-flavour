@@ -165,6 +165,9 @@ public class TypeInference {
     }
 
     private boolean subtypeConstraintClasses(GenericClass s, GenericClass t) {
+        if (t.getName().equals("java.lang.Object")) {
+            return true;
+        }
         List<GenericClass> path = typeNavigator.sublassPath(s, t.getName());
         if (path == null) {
             return false;
@@ -283,7 +286,7 @@ public class TypeInference {
         }
         y.upperDependencies.add(x);
 
-        if (x.bounds != null) {
+        if (x.boundType != null) {
             switch (x.boundType) {
                 case EXACT:
                 case UPPER:
@@ -300,7 +303,7 @@ public class TypeInference {
                     break;
             }
         }
-        if (y.bounds != null) {
+        if (y.boundType != null) {
             switch (y.boundType) {
                 case EXACT:
                 case LOWER:
