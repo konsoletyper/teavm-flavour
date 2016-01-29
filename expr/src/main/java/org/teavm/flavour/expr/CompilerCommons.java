@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.teavm.flavour.expr.plan.ArithmeticType;
 import org.teavm.flavour.expr.plan.IntegerSubtype;
@@ -224,6 +225,14 @@ final class CompilerCommons {
     }
 
     static ValueType unbox(ValueType type) {
+        if (type instanceof GenericReference) {
+            TypeVar v = ((GenericReference) type).getVar();
+            return v.getLowerBound().stream()
+                    .map(CompilerCommons.wrappersToPrimitives::get)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        }
         return CompilerCommons.wrappersToPrimitives.get(type);
     }
 

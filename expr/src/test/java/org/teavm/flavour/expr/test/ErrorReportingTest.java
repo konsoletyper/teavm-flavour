@@ -112,24 +112,16 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsInvalidMethodArgumentsError() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.extract(stringIntMap, object)").get(0);
-        assertThat(d.getMessage(), is("No corresponding method found: extract(" +
-                "java.util.Map<java.lang.String, java.lang.Integer>, java.lang.Object)"));
+        assertThat(d.getMessage(), is("Method extract(java.util.Map<K, V>, K) is not applicable to "
+                + "(java.util.Map<java.lang.String, java.lang.Integer>, java.lang.Object)"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(33));
     }
 
     @Test
-    public void reportMethodInvocationOnPrimitive() {
-        Diagnostic d = parseExpr(StringComputation.class, "intValue.toString()").get(0);
-        assertThat(d.getMessage(), is("Can't call method of non-class value: int"));
-        assertThat(d.getStart(), is(0));
-        assertThat(d.getEnd(), is(19));
-    }
-
-    @Test
     public void reportsMissingMethod() {
         Diagnostic d = parseExpr(StringComputation.class, "stringValue.doSomethingFancy()").get(0);
-        assertThat(d.getMessage(), is("No corresponding method found: doSomethingFancy()"));
+        assertThat(d.getMessage(), is("Method not found: doSomethingFancy"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(30));
     }
@@ -137,7 +129,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsAmbigousMethod() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.bar(null)").get(0);
-        assertThat(d.getMessage(), startsWith("Call to method bar('a) is ambigous."));
+        assertThat(d.getMessage(), startsWith("Ambigous method invocation bar(?)"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(13));
     }
@@ -145,7 +137,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsStaticCallOnInstance() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.staticMethod()").get(0);
-        assertThat(d.getMessage(), is("Method staticMethod() should be called from class"));
+        assertThat(d.getMessage(), is("Method should be called as a static method: staticMethod()"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(18));
     }
@@ -153,7 +145,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsVirtualCallOnClass() {
         Diagnostic d = parseExpr(StringComputation.class, "String.toUpperCase()").get(0);
-        assertThat(d.getMessage(), is("Method toUpperCase() should be called from instance"));
+        assertThat(d.getMessage(), is("Method should be called as an instance method: toUpperCase()"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(20));
     }

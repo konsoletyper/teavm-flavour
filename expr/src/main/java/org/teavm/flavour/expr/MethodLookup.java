@@ -110,6 +110,7 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            method = method.substitute(inference.getSubstitutions());
             if (result != null) {
                 if (isMoreSpecific(method, result)) {
                     result = method;
@@ -139,6 +140,7 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            method = method.substitute(inference.getSubstitutions());
             if (result != null) {
                 if (isMoreSpecific(method, result)) {
                     result = method;
@@ -148,7 +150,7 @@ public class MethodLookup {
                 }
             } else {
                 result = method;
-                inferReturnType(result, null);
+                inferReturnType(result, inference);
             }
         }
         return result;
@@ -178,11 +180,12 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            method = method.substitute(inference.getSubstitutions());
             if (result != null) {
                 return null;
             } else {
                 result = method;
-                inferReturnType(result, null);
+                inferReturnType(result, inference);
             }
         }
 

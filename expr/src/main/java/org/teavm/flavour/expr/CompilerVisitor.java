@@ -16,7 +16,6 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -98,7 +97,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private ClassResolver classResolver;
     GenericMethod lambdaSam;
     ValueType lambdaReturnType;
-    TypeInference lambdaInference;
 
     CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
         this.navigator = navigator;
@@ -386,167 +384,86 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
             String methodName, List<Expr<TypedPlan>> argumentExprList) {
+        TypeEstimator estimator = new TypeEstimator(classResolver, navigator, new BoundScope());
+        ValueType[] estimateTypes = argumentExprList.stream().map(estimator::estimate)
+                .toArray(sz -> new ValueType[sz]);
+
+        MethodLookup lookup = new MethodLookup(navigator);
+        GenericMethod method;
+        if (instance != null) {
+            method = lookup.lookupVirtual(classes, methodName, estimateTypes);
+        } else {
+            method = lookup.lookupStatic(classes, methodName, estimateTypes);
+        }
+
+        if (method == null) {
+            reportMissingMethod(expr, methodName, estimateTypes, lookup, classes, instance == null);
+            return;
+        }
+
+        ValueType[] argTypes = method.getActualArgumentTypes();
         TypedPlan[] actualArguments = new TypedPlan[argumentExprList.size()];
         for (int i = 0; i < actualArguments.length; ++i) {
             Expr<TypedPlan> arg = argumentExprList.get(i);
             if (arg instanceof LambdaExpr<?>) {
                 LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) arg;
+                GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) argTypes[i]);
                 for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
                     BoundVariable boundVar = lambda.getBoundVariables().get(j);
-                    lambda.getBoundVariables().set(j, new BoundVariable(boundVar.getName(),
-                            resolveType(boundVar.getType(), lambda)));
+                    resolveType(boundVar.getType(), lambda);
                 }
+                lambdaSam = sam;
+                visit(lambda);
             } else {
                 arg.acceptVisitor(this);
-                actualArguments[i] = arg.getAttribute();
+                convert(arg, argTypes[i], new TypeInference(navigator));
             }
         }
 
-        TypeEstimator estimator = new TypeEstimator(navigator, new BoundScope());
-        ValueType[] estimateTypes = argumentExprList.stream().map(estimator::estimate)
-                .toArray(sz -> new ValueType[sz]);
-        MethodLookup lookup = new MethodLookup(navigator);
-        if (instance != null) {
-            lookup.lookupVirtual(classes, methodName, estimateTypes);
-        }
+        String className = method.getDescriber().getOwner().getName();
+        String desc = methodToDesc(method.getDescriber());
+        Plan[] convertedArguments = argumentExprList.stream().map(arg -> arg.getAttribute().getPlan())
+                .toArray(sz -> new Plan[sz]);
+        Plan plan = new InvocationPlan(className, methodName, desc, instance != null ? instance.plan : null,
+                convertedArguments);
+        expr.setAttribute(new TypedPlan(plan, method.getActualReturnType()));
+    }
 
-        List<GenericMethod[]> samArgumentList = new ArrayList<>();
-        List<TypeInference> inferences = new ArrayList<>();
-        methods: for (GenericMethod method : methods) {
-            if ((instance == null) != method.getDescriber().isStatic()) {
-                wrongContextMethods.add(method);
-                continue;
+    private void reportMissingMethod(Expr<TypedPlan> expr, String methodName, ValueType[] estimateTypes,
+            MethodLookup lookup, Collection<GenericClass> classes, boolean isStatic) {
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+
+        MethodLookup altLookup = new MethodLookup(navigator);
+        GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, estimateTypes)
+                : altLookup.lookupStatic(classes, methodName, estimateTypes);
+        if (altMethod != null) {
+            if (isStatic) {
+                error(expr, "Method should be called as an instance method: " + altMethod);
+            } else {
+                error(expr, "Method should be called as a static method: " + altMethod);
             }
-
-            ValueType[] argTypes = method.getActualArgumentTypes();
-            Plan[] convertedArguments = new Plan[actualArguments.length];
-            GenericMethod[] samArguments = new GenericMethod[actualArguments.length];
-            TypeInference inference = new TypeInference(navigator);
-            boolean exactMatch = true;
-            for (int i = 0; i < argTypes.length; ++i) {
-                TypedPlan arg = actualArguments[i];
-                if (arg == null) {
-                    if (!(argTypes[i] instanceof GenericClass)) {
-                        continue;
-                    }
-                    GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) argTypes[i]);
-                    if (sam == null) {
-                        continue methods;
-                    }
-                    LambdaExpr<TypedPlan> lambdaArg = (LambdaExpr<TypedPlan>) argumentExprList.get(i);
-                    if (sam.getActualArgumentTypes().length != lambdaArg.getBoundVariables().size()) {
-                        continue methods;
-                    }
-                    samArguments[i] = sam;
-                } else {
-                    arg = tryConvert(arg, argTypes[i], inference);
-                    if (arg == null) {
-                        continue methods;
-                    }
-                    convertedArguments[i] = arg.plan;
-                    if (!arg.type.equals(actualArguments[i].type)) {
-                        exactMatch = false;
-                    }
-                }
-            }
-
-            for (int i = 0; i < argTypes.length; ++i) {
-                if (samArguments[i] == null) {
-                    continue;
-                }
-                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) argumentExprList.get(i);
-                GenericMethod sam = samArguments[i];
-                sam = sam.substitute(inference.getSubstitutions());
-                samArguments[i] = sam;
-                ValueType[] desiredLambdaArgs = sam.getActualArgumentTypes();
-                for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
-                    ValueType declaredLambdaArg = lambda.getBoundVariables().get(j).getType();
-                    if (declaredLambdaArg == null) {
-                        declaredLambdaArg = new GenericReference(new TypeVar());
-                    }
-                    ValueType desiredLambdaArg = desiredLambdaArgs[j];
-                    if (!desiredLambdaArg.equals(declaredLambdaArg) && declaredLambdaArg instanceof GenericType
-                            && desiredLambdaArg instanceof GenericType) {
-                        if (!inference.subtypeConstraint((GenericType) desiredLambdaArg,
-                                (GenericType) declaredLambdaArg)) {
-                            continue methods;
-                        }
-                    }
-                }
-            }
-
-            method = method.substitute(inference.getSubstitutions());
-
-            String className = method.getDescriber().getOwner().getName();
-            String desc = methodToDesc(method.getDescriber());
-
-            if (exactMatch) {
-                matchedPlans.clear();
-                matchedMethods.clear();
-                samArgumentList.clear();
-                inferences.clear();
-            }
-            matchedPlans.add(new TypedPlan(new InvocationPlan(className, methodName, desc,
-                    instance != null ? instance.plan : null, convertedArguments), method.getActualReturnType()));
-            samArgumentList.add(samArguments);
-            matchedMethods.add(method);
-            inferences.add(inference);
-            if (exactMatch) {
-                break;
-            }
-        }
-
-        if (matchedMethods.size() == 1) {
-            GenericMethod[] samArgs = samArgumentList.get(0);
-            TypedPlan matchedPlan = matchedPlans.get(0);
-            InvocationPlan invocation = (InvocationPlan) matchedPlan.plan;
-            for (int i = 0; i < samArgs.length; ++i) {
-                if (samArgs[i] != null) {
-                    lambdaSam = samArgs[i];
-                    lambdaInference = inferences.get(0);
-                    argumentExprList.get(i).acceptVisitor(this);
-                    invocation.getArguments().set(i, argumentExprList.get(i).getAttribute().plan);
-                }
-            }
-            if (matchedPlan.type instanceof GenericType) {
-                GenericType type = ((GenericType) matchedPlan.type).substitute(inferences.get(0).getSubstitutions());
-                matchedPlan = tryCast(matchedPlan, type);
-            }
-            expr.setAttribute(matchedPlan);
-
             return;
         }
 
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericReference(nullType)));
-        ValueType[] argumentTypes = new ValueType[actualArguments.length];
-        for (int i = 0; i < argumentTypes.length; ++i) {
-            if (actualArguments[i] != null) {
-                argumentTypes[i] = actualArguments[i].type;
+        StringBuilder sb = new StringBuilder();
+        ValueTypeFormatter formatter = new ValueTypeFormatter();
+        if (estimateTypes.length > 0) {
+            formatter.format(estimateTypes[0], sb);
+            for (int i = 1; i < estimateTypes.length; ++i) {
+                sb.append(", ");
+                if (estimateTypes[i] != null) {
+                    formatter.format(estimateTypes[i], sb);
+                } else {
+                    sb.append('?');
+                }
             }
         }
-        if (matchedMethods.isEmpty()) {
-            if (wrongContextMethods.isEmpty()) {
-                error(expr, "No corresponding method found: " + methodToString(methodName,
-                        Arrays.asList(argumentTypes)));
-            } else {
-                String methodDescription = methodToString(methodName, Arrays.asList(
-                        wrongContextMethods.get(0).getActualArgumentTypes()));
-                error(expr, "Method " + methodDescription + " should be called from "
-                        + (instance != null ? "class" : "instance"));
-            }
+        if (lookup.getCandidates().isEmpty()) {
+            error(expr, "Method not found: " + methodName);
+        } else if (lookup.getCandidates().size() == 1) {
+            error(expr, "Method " + lookup.getCandidates().get(0) + " is not applicable to (" + sb + ")");
         } else {
-            StringBuilder message = new StringBuilder();
-            message.append("Call to method ").append(methodToString(methodName,
-                    Arrays.asList(argumentTypes))).append(" is ambigous. The following methods match: ");
-            for (int i = 0; i < matchedMethods.size(); ++i) {
-                if (i > 0) {
-                    message.append(", ");
-                }
-                GenericMethod method = matchedMethods.get(i);
-                message.append(methodToString(method.getDescriber().getName(),
-                        Arrays.asList(method.getActualArgumentTypes())));
-            }
-            error(expr, message.toString());
+            error(expr, "Ambigous method invocation " + methodName + "(" + sb + ")");
         }
     }
 
@@ -699,11 +616,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         GenericMethod lambdaSam = this.lambdaSam;
         this.lambdaSam = null;
-        TypeInference inference = lambdaInference;
-        lambdaInference = null;
-        if (inference == null) {
-            inference = new TypeInference(navigator);
-        }
         ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
 
         ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
@@ -719,14 +631,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                     error(expr, "Duplicate bound variable name: " + boundVar.getName());
                 } else {
                     ValueType boundVarType = actualArgTypes[i];
-                    if (boundVarType instanceof GenericReference) {
-                        TypeVar typeVar = ((GenericReference) boundVarType).getVar();
-                        if (typeVar.getLowerBound().size() == 1) {
-                            boundVarType = typeVar.getLowerBound().get(0).substitute(inference.getSubstitutions());
-                        } else {
-                            boundVarType = new GenericClass("java.lang.Object");
-                        }
-                    }
                     boundVars.put(boundVar.getName(), boundVarType);
                     String renaming = "$" + boundVarRenamings.size();
                     boundVarRenamings.put(boundVar.getName(), renaming);
@@ -739,7 +643,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
         expr.getBody().acceptVisitor(this);
         if (lambdaSam.getActualReturnType() != null) {
-            convert(expr.getBody(), lambdaSam.getActualReturnType(), inference);
+            convert(expr.getBody(), lambdaSam.getActualReturnType(), new TypeInference(navigator));
         } else {
             lambdaReturnType = null;
         }
@@ -749,7 +653,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         String methodDesc = methodToDesc(lambdaSam.getDescriber());
 
         LambdaPlan lambda = new LambdaPlan(body.plan, className, methodName, methodDesc, boundVarNames);
-        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner().substitute(inference.getSubstitutions())));
+        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner()));
 
         for (int i = 0; i < oldVarTypes.length; ++i) {
             BoundVariable boundVar = expr.getBoundVariables().get(i);
@@ -1022,16 +926,28 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private TypedPlan unbox(TypedPlan plan) {
-        if (!(plan.type instanceof GenericClass)) {
+        GenericClass cls;
+        if (plan.type instanceof GenericReference) {
+            TypeVar v = ((GenericReference) plan.type).getVar();
+            cls = (GenericClass) v.getLowerBound().stream()
+                    .filter(CompilerCommons.wrappersToPrimitives::containsKey)
+                    .findFirst()
+                    .orElse(null);
+            if (cls == null) {
+                return null;
+            }
+        } else if (plan.type instanceof GenericClass) {
+            cls = (GenericClass) plan.type;
+        } else {
             return null;
         }
-        GenericClass wrapper = (GenericClass) plan.type;
-        Primitive primitive = CompilerCommons.wrappersToPrimitives.get(wrapper);
+
+        Primitive primitive = CompilerCommons.wrappersToPrimitives.get(cls);
         if (primitive == null) {
             return null;
         }
         String methodName = primitive.getKind().name().toLowerCase() + "Value";
-        return new TypedPlan(new InvocationPlan(wrapper.getName(), methodName, "()" + typeToString(primitive),
+        return new TypedPlan(new InvocationPlan(cls.getName(), methodName, "()" + typeToString(primitive),
                 plan.plan), primitive);
     }
 
@@ -1137,24 +1053,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else {
             return type;
         }
-    }
-
-    private String methodToString(String name, List<ValueType> arguments) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(name).append('(');
-        ValueTypeFormatter formatter = new ValueTypeFormatter();
-        for (int i = 0; i < arguments.size(); ++i) {
-            if (i > 0) {
-                sb.append(", ");
-            }
-            if (arguments.get(i) == null) {
-                sb.append("<lambda>");
-            } else {
-                formatter.format(arguments.get(i), sb);
-            }
-        }
-        sb.append(")");
-        return sb.toString();
     }
 
     String methodToDesc(MethodDescriber method) {

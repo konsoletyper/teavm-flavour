@@ -24,16 +24,18 @@ import org.teavm.flavour.expr.type.ValueType;
  * @author Alexey Andreev
  */
 public class TypeEstimator {
+    private ClassResolver classResolver;
     private GenericTypeNavigator navigator;
     private Scope scope;
 
-    public TypeEstimator(GenericTypeNavigator navigator, Scope scope) {
+    public TypeEstimator(ClassResolver classResolver, GenericTypeNavigator navigator, Scope scope) {
+        this.classResolver = classResolver;
         this.navigator = navigator;
         this.scope = scope;
     }
 
     public ValueType estimate(Expr<?> expr) {
-        TypeEstimatorVisitor visitor = new TypeEstimatorVisitor(navigator, scope);
+        TypeEstimatorVisitor visitor = new TypeEstimatorVisitor(classResolver, navigator, scope);
         expr.acceptVisitor(visitor);
         return visitor.result;
     }

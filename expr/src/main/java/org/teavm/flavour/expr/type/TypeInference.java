@@ -450,7 +450,7 @@ public class TypeInference {
             }
             inferenceVar = inferenceVar.find();
 
-            if (inferenceVar.boundType == null) {
+            if (inferenceVar.boundType == null || inferenceVar.recursive) {
                 return null;
             }
             switch (inferenceVar.boundType) {

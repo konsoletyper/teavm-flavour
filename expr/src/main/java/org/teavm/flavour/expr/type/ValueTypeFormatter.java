@@ -53,6 +53,10 @@ public class ValueTypeFormatter {
     }
 
     public void format(ValueType type, StringBuilder sb) {
+        if (type == null) {
+            sb.append('?');
+            return;
+        }
         if (type instanceof Primitive) {
             switch (((Primitive) type).getKind()) {
                 case BOOLEAN:

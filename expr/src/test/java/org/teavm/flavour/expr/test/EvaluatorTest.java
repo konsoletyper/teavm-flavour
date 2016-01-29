@@ -408,11 +408,6 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(mapping.apply("foo"), is("!foo"));
     }
 
-    @Test
-    public void combinesGenericTypes() {
-
-    }
-
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")

@@ -55,12 +55,14 @@ import org.teavm.flavour.expr.type.ValueType;
  * @author Alexey Andreev
  */
 class TypeEstimatorVisitor implements ExprVisitor<Object> {
+    private ClassResolver classResolver;
     private GenericTypeNavigator navigator;
     ValueType result;
     private Scope scope;
     Map<String, ValueType> boundVars = new HashMap<>();
 
-    TypeEstimatorVisitor(GenericTypeNavigator navigator, Scope scope) {
+    TypeEstimatorVisitor(ClassResolver classResolver, GenericTypeNavigator navigator, Scope scope) {
+        this.classResolver = classResolver;
         this.navigator = navigator;
         this.scope = scope;
     }
@@ -139,7 +141,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     @Override
     public void visit(CastExpr<? extends Object> expr) {
-        result = expr.getTargetType();
+        result = resolveType(expr.getTargetType());
     }
 
     @Override
@@ -372,5 +374,30 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             return CompilerCommons.getArithmeticType(kind);
         }
         return null;
+    }
+
+    private ValueType resolveType(ValueType type) {
+        if (type instanceof GenericClass) {
+            GenericClass cls = (GenericClass) type;
+            String resolvedName = classResolver.findClass(cls.getName());
+            if (resolvedName == null) {
+                return type;
+            }
+            boolean changed = !resolvedName.equals(cls.getName());
+            List<GenericType> arguments = new ArrayList<>();
+            for (GenericType arg : cls.getArguments()) {
+                GenericType resolvedArg = (GenericType) resolveType(arg);
+                if (resolvedArg != arg) {
+                    changed = true;
+                }
+            }
+            return !changed ? type : new GenericClass(resolvedName, arguments);
+        } else if (type instanceof GenericArray) {
+            GenericArray array = (GenericArray) type;
+            ValueType elementType = resolveType(array.getElementType());
+            return elementType == array.getElementType() ? type : new GenericArray(elementType);
+        } else {
+            return type;
+        }
     }
 }

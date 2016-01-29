@@ -71,4 +71,20 @@ public class GenericMethod {
         }
         return new GenericMethod(describer, actualOwner, actualArgumentTypes, actualReturnType);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(describer.getName()).append('(');
+        ValueTypeFormatter formatter = new ValueTypeFormatter();
+        if (actualArgumentTypes.length > 0) {
+            formatter.format(actualArgumentTypes[0], sb);
+            for (int i = 1; i < actualArgumentTypes.length; ++i) {
+                sb.append(", ");
+                formatter.format(actualArgumentTypes[i], sb);
+            }
+        }
+        sb.append(')');
+        return sb.toString();
+    }
 }
