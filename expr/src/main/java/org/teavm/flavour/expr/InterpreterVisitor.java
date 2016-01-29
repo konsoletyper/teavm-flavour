@@ -500,6 +500,18 @@ class InterpreterVisitor implements PlanVisitor {
     }
 
     @Override
+    public void visit(ArrayConstructionPlan plan) {
+        TypeDecoder decoder = new TypeDecoder(plan.getElementType());
+        Class<?> type = decoder.decode();
+        Object array = Array.newInstance(type, plan.getElements().size());
+        for (int i = 0; i < plan.getElements().size(); ++i) {
+            plan.getElements().get(i).acceptVisitor(this);
+            Array.set(array, i, value);
+        }
+        value = array;
+    }
+
+    @Override
     public void visit(ConditionalPlan plan) {
         plan.getCondition().acceptVisitor(this);
         Boolean condition = (Boolean) value;

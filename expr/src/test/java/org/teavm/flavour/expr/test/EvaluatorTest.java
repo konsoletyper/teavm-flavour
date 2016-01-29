@@ -408,6 +408,14 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(mapping.apply("foo"), is("!foo"));
     }
 
+    @Test
+    public void callsVarArgs() {
+        ObjectComputation c = parseExpr(ObjectComputation.class, "EvaluatorTest.map(Arrays.asList(2, 3, 4), "
+                + "i -> Integer.toBinaryString(i))");
+        Object result = c.compute();
+        assertThat(result, is(Arrays.asList("10", "11", "100")));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")

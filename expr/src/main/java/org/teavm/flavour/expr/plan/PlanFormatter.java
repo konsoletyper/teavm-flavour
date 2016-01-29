@@ -218,6 +218,19 @@ public class PlanFormatter implements PlanVisitor {
     }
 
     @Override
+    public void visit(ArrayConstructionPlan plan) {
+        sb.append("[new-array ");
+        sb.append(plan.getElementType());
+        ++indentLevel;
+        for (Plan elem : plan.getElements()) {
+            newLine();
+            elem.acceptVisitor(this);
+        }
+        sb.append(']');
+        --indentLevel;
+    }
+
+    @Override
     public void visit(ConditionalPlan plan) {
         sb.append("[if");
         ++indentLevel;

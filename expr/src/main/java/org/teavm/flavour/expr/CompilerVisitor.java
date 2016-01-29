@@ -16,6 +16,7 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import org.teavm.flavour.expr.ast.UnaryExpr;
 import org.teavm.flavour.expr.ast.VariableExpr;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
 import org.teavm.flavour.expr.plan.ArithmeticType;
+import org.teavm.flavour.expr.plan.ArrayConstructionPlan;
 import org.teavm.flavour.expr.plan.ArrayLengthPlan;
 import org.teavm.flavour.expr.plan.BinaryPlan;
 import org.teavm.flavour.expr.plan.BinaryPlanType;
@@ -76,6 +78,7 @@ import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveKind;
+import org.teavm.flavour.expr.type.Substitutions;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -360,8 +363,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             classes.add((GenericClass) instance.type);
         } else if (instance.type instanceof GenericReference) {
             TypeVar var = ((GenericReference) instance.type).getVar();
-            if (!var.getUpperBound().isEmpty()) {
-                classes.addAll(var.getUpperBound().stream()
+            if (!var.getLowerBound().isEmpty()) {
+                classes.addAll(var.getLowerBound().stream()
                         .filter(bound -> bound instanceof GenericClass)
                         .map(bound -> (GenericClass) bound)
                         .collect(Collectors.toList()));
@@ -402,21 +405,42 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         ValueType[] argTypes = method.getActualArgumentTypes();
-        TypedPlan[] actualArguments = new TypedPlan[argumentExprList.size()];
-        for (int i = 0; i < actualArguments.length; ++i) {
+        ValueType[] matchArgTypes = new ValueType[argumentExprList.size()];
+        TypeInference inference = new TypeInference(navigator);
+        for (int i = 0; i < argumentExprList.size(); ++i) {
             Expr<TypedPlan> arg = argumentExprList.get(i);
+            ValueType paramType;
+            if (lookup.isVarArgs() && i >= argTypes.length - 1) {
+                paramType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
+            } else {
+                paramType = argTypes[i];
+            }
+            matchArgTypes[i] = paramType;
+            if (!(arg instanceof LambdaExpr<?>)) {
+                arg.acceptVisitor(this);
+                convert(arg, paramType, new TypeInference(navigator));
+                if (paramType instanceof GenericType) {
+                    GenericType actualType = CompilerCommons.box(arg.getAttribute().type);
+                    inference.subtypeConstraint(actualType, (GenericType) paramType);
+                }
+            }
+        }
+        method = method.substitute(inference.getSubstitutions());
+        for (int i = 0; i < matchArgTypes.length; ++i) {
+            matchArgTypes[i] = substitute(matchArgTypes[i], inference.getSubstitutions());
+        }
+        for (int i = 0; i < argTypes.length; ++i) {
+            argTypes[i] = substitute(argTypes[i], inference.getSubstitutions());
+        }
+
+        for (int i = 0; i < argumentExprList.size(); ++i) {
+            Expr<TypedPlan> arg = argumentExprList.get(i);
+            ValueType paramType = matchArgTypes[i];
             if (arg instanceof LambdaExpr<?>) {
                 LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) arg;
-                GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) argTypes[i]);
-                for (int j = 0; j < lambda.getBoundVariables().size(); ++j) {
-                    BoundVariable boundVar = lambda.getBoundVariables().get(j);
-                    resolveType(boundVar.getType(), lambda);
-                }
+                GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) paramType);
                 lambdaSam = sam;
                 visit(lambda);
-            } else {
-                arg.acceptVisitor(this);
-                convert(arg, argTypes[i], new TypeInference(navigator));
             }
         }
 
@@ -424,9 +448,29 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         String desc = methodToDesc(method.getDescriber());
         Plan[] convertedArguments = argumentExprList.stream().map(arg -> arg.getAttribute().getPlan())
                 .toArray(sz -> new Plan[sz]);
+        if (lookup.isVarArgs()) {
+            Plan[] varargs = new Plan[argTypes.length];
+            for (int i = 0; i < varargs.length - 1; ++i) {
+                varargs[i] = convertedArguments[i];
+            }
+            Plan[] array = new Plan[convertedArguments.length - varargs.length + 1];
+            for (int i = 0; i < array.length; ++i) {
+                array[i] = convertedArguments[varargs.length - 1 + i];
+            }
+            ValueType elementType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
+            ArrayConstructionPlan arrayPlan = new ArrayConstructionPlan(typeToString(elementType));
+            arrayPlan.getElements().addAll(Arrays.asList(array));
+            varargs[varargs.length - 1] = arrayPlan;
+            convertedArguments = varargs;
+        }
+
         Plan plan = new InvocationPlan(className, methodName, desc, instance != null ? instance.plan : null,
                 convertedArguments);
         expr.setAttribute(new TypedPlan(plan, method.getActualReturnType()));
+    }
+
+    private ValueType substitute(ValueType type, Substitutions substitutions) {
+        return type instanceof GenericType ? ((GenericType) type).substitute(substitutions) : type;
     }
 
     private void reportMissingMethod(Expr<TypedPlan> expr, String methodName, ValueType[] estimateTypes,
@@ -1026,6 +1070,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             typeToString(((GenericArray) type).getElementType(), sb);
         } else if (type instanceof GenericClass) {
             sb.append('L').append(((GenericClass) type).getName().replace('.', '/')).append(';');
+        } else if (type instanceof GenericReference) {
+            TypeVar var = ((GenericReference) type).getVar();
+            if (var.getLowerBound().size() == 1) {
+                typeToString(var.getLowerBound().get(0), sb);
+            } else {
+                sb.append("Ljava/lang/Object;");
+            }
         }
     }
 
