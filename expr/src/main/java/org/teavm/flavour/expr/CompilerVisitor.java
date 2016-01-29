@@ -17,11 +17,14 @@ package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.BinaryOperation;
 import org.teavm.flavour.expr.ast.BoundVariable;
@@ -351,26 +354,38 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             instance = new TypedPlan(new ThisPlan(), scope.variableType("this"));
         }
 
-        if (!(instance.type instanceof GenericClass)) {
-            error(expr, "Can't call method of non-class value: " + instance.type);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
-            copyLocation(expr);
-            return;
+        if (instance.type instanceof Primitive) {
+            instance = box(instance);
+        }
+        List<GenericClass> classes = new ArrayList<>();
+        if (instance.type instanceof GenericClass) {
+            classes.add((GenericClass) instance.type);
+        } else if (instance.type instanceof GenericReference) {
+            TypeVar var = ((GenericReference) instance.type).getVar();
+            if (!var.getUpperBound().isEmpty()) {
+                classes.addAll(var.getUpperBound().stream()
+                        .filter(bound -> bound instanceof GenericClass)
+                        .map(bound -> (GenericClass) bound)
+                        .collect(Collectors.toList()));
+            }
+        }
+        if (classes.isEmpty()) {
+            classes.add(new GenericClass("java.lang.Object"));
         }
 
-        compileInvocation(expr, instance, (GenericClass) instance.type, expr.getMethodName(), expr.getArguments());
+        compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments());
         copyLocation(expr);
     }
 
     @Override
     public void visit(StaticInvocationExpr<TypedPlan> expr) {
-        compileInvocation(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getMethodName(),
-                expr.getArguments());
+        compileInvocation(expr, null, Collections.singleton(navigator.getGenericClass(expr.getClassName())),
+                expr.getMethodName(), expr.getArguments());
         copyLocation(expr);
     }
 
-    private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls, String methodName,
-            List<Expr<TypedPlan>> argumentExprList) {
+    private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
+            String methodName, List<Expr<TypedPlan>> argumentExprList) {
         TypedPlan[] actualArguments = new TypedPlan[argumentExprList.size()];
         for (int i = 0; i < actualArguments.length; ++i) {
             Expr<TypedPlan> arg = argumentExprList.get(i);
@@ -387,10 +402,14 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         }
 
-        GenericMethod[] methods = navigator.findMethods(cls, methodName, actualArguments.length);
-        List<TypedPlan> matchedPlans = new ArrayList<>();
-        List<GenericMethod> matchedMethods = new ArrayList<>();
-        List<GenericMethod> wrongContextMethods = new ArrayList<>();
+        TypeEstimator estimator = new TypeEstimator(navigator, new BoundScope());
+        ValueType[] estimateTypes = argumentExprList.stream().map(estimator::estimate)
+                .toArray(sz -> new ValueType[sz]);
+        MethodLookup lookup = new MethodLookup(navigator);
+        if (instance != null) {
+            lookup.lookupVirtual(classes, methodName, estimateTypes);
+        }
+
         List<GenericMethod[]> samArgumentList = new ArrayList<>();
         List<TypeInference> inferences = new ArrayList<>();
         methods: for (GenericMethod method : methods) {
@@ -1158,5 +1177,16 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void copyLocation(Expr<? extends TypedPlan> expr) {
         expr.getAttribute().plan.setLocation(new Location(expr.getStart(), expr.getEnd()));
+    }
+
+    class BoundScope implements Scope {
+        @Override
+        public ValueType variableType(String variableName) {
+            ValueType result = boundVars.get(variableName);
+            if (result == null) {
+                result = scope.variableType(variableName);
+            }
+            return result;
+        }
     }
 }

@@ -16,13 +16,10 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.CastExpr;
@@ -47,14 +44,11 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.MapSubstitutions;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveKind;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
-import org.teavm.flavour.expr.type.meta.ClassDescriber;
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
  *
@@ -66,8 +60,9 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     private Scope scope;
     Map<String, ValueType> boundVars = new HashMap<>();
 
-    TypeEstimatorVisitor(GenericTypeNavigator navigator) {
+    TypeEstimatorVisitor(GenericTypeNavigator navigator, Scope scope) {
         this.navigator = navigator;
+        this.scope = scope;
     }
 
     @Override
@@ -124,7 +119,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
                     new GenericReference(v));
             TypeInference inference = new TypeInference(navigator);
             if (inference.subtypeConstraint((GenericClass) first, mapClass)) {
-                GenericType keyType = box(second);
+                GenericType keyType = CompilerCommons.box(second);
                 inference.subtypeConstraint(keyType, new GenericReference(k));
                 return new GenericReference(v).substitute(inference.getSubstitutions());
             }
@@ -158,7 +153,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
         if (result == null) {
             return;
         }
-        GenericType instance = box(result);
+        GenericType instance = CompilerCommons.box(result);
         List<GenericClass> classes = new ArrayList<>();
         if (instance instanceof GenericClass) {
             classes.add((GenericClass) instance);
@@ -181,143 +176,24 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             args[i] = result;
         }
 
-        GenericMethod method = lookupMethod(classes, expr.getMethodName(), args);
-        result = method.getActualReturnType();
+        MethodLookup lookup = new MethodLookup(navigator);
+        GenericMethod method = lookup.lookupVirtual(classes, expr.getMethodName(), args);
+        result = method == null ? null : lookup.getReturnType();
     }
 
     @Override
     public void visit(StaticInvocationExpr<? extends Object> expr) {
-
-    }
-
-    private GenericMethod lookupMethod(Collection<GenericClass> classes, String name, ValueType[] args) {
-        GenericMethod result = lookupMethodStrict(classes, name, args);
-        if (result != null) {
-            return result;
+        ValueType[] args = new ValueType[expr.getArguments().size()];
+        for (int i = 0; i < args.length; ++i) {
+            expr.getArguments().get(i).acceptVisitor(this);
+            args[i] = result;
         }
-        result = lookupMethodCompatible(classes, name, args);
-        if (result != null) {
-            return result;
-        }
-        return lookupVarargMethod(classes, name, args);
-    }
 
-    private GenericMethod lookupMethodStrict(Collection<GenericClass> classes, String name, ValueType[] args) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : findAllMethods(classes, name)) {
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (paramTypes.length != args.length) {
-                continue;
-            }
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length; ++i) {
-                if (!same(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-            if (result != null) {
-                return null;
-            } else {
-                result = method;
-            }
-        }
-        return result;
-    }
+        GenericClass cls = navigator.getGenericClass(expr.getClassName());
 
-    private GenericMethod lookupMethodCompatible(Collection<GenericClass> classes, String name, ValueType[] args) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : findAllMethods(classes, name)) {
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (paramTypes.length != args.length) {
-                continue;
-            }
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length; ++i) {
-                if (!subtype(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-            if (result != null) {
-                return null;
-            } else {
-                result = method;
-            }
-        }
-        return result;
-    }
-
-    private GenericMethod lookupVarargMethod(Collection<GenericClass> classes, String name, ValueType[] args) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : findAllMethods(classes, name)) {
-            if (!method.getDescriber().isVariableArgument()) {
-                continue;
-            }
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (args.length < paramTypes.length - 1) {
-                continue;
-            }
-
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length - 1; ++i) {
-                if (!subtype(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-
-            ValueType lastParam = ((GenericArray) paramTypes[paramTypes.length - 1]).getElementType();
-            for (int i = paramTypes.length - 1; i < args.length; ++i) {
-                if (!subtype(args[i], lastParam, inference)) {
-                    continue lookup;
-                }
-            }
-            if (result != null) {
-                return null;
-            } else {
-                result = method;
-            }
-        }
-        return result;
-    }
-
-    private List<GenericMethod> findAllMethods(Collection<GenericClass> classes, String name) {
-        List<GenericMethod> methods = new ArrayList<>();
-        Set<String> visited = new HashSet<>();
-        outer: for (GenericClass cls : classes) {
-            while (cls != null) {
-                if (!visited.add(cls.getName())) {
-                    continue;
-                }
-                ClassDescriber desc = navigator.getClassRepository().describe(cls.getName());
-                if (desc == null) {
-                    continue outer;
-                }
-
-                Map<TypeVar, GenericType> substitutionMap = new HashMap<>();
-                TypeVar[] typeVars = desc.getTypeVariables();
-                for (int i = 0; i < typeVars.length; ++i) {
-                    substitutionMap.put(typeVars[i], cls.getArguments().get(i));
-                }
-                MapSubstitutions substitutions = new MapSubstitutions(substitutionMap);
-                for (MethodDescriber methodDesc : desc.getMethods()) {
-                    if (!methodDesc.getName().equals(name)) {
-                        continue;
-                    }
-                    ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
-                            .map(arg -> arg instanceof GenericType
-                                    ? ((GenericType) arg).substitute(substitutions)
-                                    : arg)
-                            .toArray(sz -> new ValueType[sz]);
-                    ValueType returnType = methodDesc.getReturnType() instanceof GenericType
-                            ? ((GenericType) methodDesc.getReturnType()).substitute(substitutions)
-                            : methodDesc.getReturnType();
-                    GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
-                    methods.add(method);
-                }
-
-                cls = navigator.getParent(cls);
-            }
-        }
-        return methods;
+        MethodLookup lookup = new MethodLookup(navigator);
+        GenericMethod method = lookup.lookupStatic(Collections.singleton(cls), expr.getMethodName(), args);
+        result = method == null ? null : lookup.getReturnType();
     }
 
     @Override
@@ -411,8 +287,9 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     @Override
     public void visit(VariableExpr<? extends Object> expr) {
-        result = boundVars.get(expr.getName());
-        if (result == null) {
+        if (boundVars.containsKey(expr.getName())) {
+            result = boundVars.get(expr);
+        } else {
             result = scope.variableType(expr.getName());
         }
     }
@@ -484,7 +361,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     private ArithmeticType getArithmeticType(ValueType type) {
         if (!(type instanceof Primitive)) {
-            type = unbox(type);
+            type = CompilerCommons.unbox(type);
         }
         if (type != null) {
             PrimitiveKind kind = ((Primitive) type).getKind();
@@ -495,81 +372,5 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             return CompilerCommons.getArithmeticType(kind);
         }
         return null;
-    }
-
-    private boolean same(ValueType a, ValueType b, TypeInference inference) {
-        if (a == null || b == null) {
-            return true;
-        }
-        if (a instanceof GenericType && b instanceof GenericType) {
-            return inference.equalConstraint((GenericType) a, (GenericType) b);
-        } else {
-            return a.equals(b);
-        }
-    }
-
-    private boolean subtype(ValueType a, ValueType b, TypeInference inference) {
-        if (a == null || b == null) {
-            return true;
-        }
-        if (a.equals(b)) {
-            return true;
-        }
-        if (b instanceof Primitive) {
-            if (!(a instanceof Primitive)) {
-                a = unbox(a);
-                if (a == null) {
-                    return false;
-                }
-            }
-            if (!CompilerCommons.hasImplicitConversion(((Primitive) a).getKind(),
-                    ((Primitive) b).getKind())) {
-                return false;
-            }
-            return tryCastPrimitive((Primitive) a, (Primitive) b);
-        }
-        if (a instanceof Primitive) {
-            a = box(a);
-            if (a == null) {
-                return false;
-            }
-        }
-
-        return inference.subtypeConstraint((GenericType) a, (GenericType) b);
-    }
-
-    private boolean tryCastPrimitive(Primitive source, Primitive target) {
-        if (source.getKind() == PrimitiveKind.BOOLEAN) {
-            return target == Primitive.BOOLEAN;
-        } else {
-            IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(source.getKind());
-            if (subtype != null) {
-                source = Primitive.INT;
-            }
-            ArithmeticType sourceArithmetic = CompilerCommons.getArithmeticType(source.getKind());
-            if (sourceArithmetic == null) {
-                return false;
-            }
-            subtype = CompilerCommons.getIntegerSubtype(target.getKind());
-            ArithmeticType targetArithmetic = CompilerCommons.getArithmeticType(target.getKind());
-            if (targetArithmetic == null) {
-                if (subtype == null) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    private ValueType unbox(ValueType type) {
-        return CompilerCommons.wrappersToPrimitives.get(type);
-    }
-
-    private GenericType box(ValueType type) {
-        GenericClass wrapper = CompilerCommons.primitivesToWrappers.get(type);
-        if (wrapper == null) {
-            return (GenericType) type;
-        }
-        return wrapper;
     }
 }

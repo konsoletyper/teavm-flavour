@@ -222,4 +222,39 @@ final class CompilerCommons {
             return a < b;
         }
     }
+
+    static ValueType unbox(ValueType type) {
+        return CompilerCommons.wrappersToPrimitives.get(type);
+    }
+
+    static GenericType box(ValueType type) {
+        GenericClass wrapper = CompilerCommons.primitivesToWrappers.get(type);
+        if (wrapper == null) {
+            return (GenericType) type;
+        }
+        return wrapper;
+    }
+
+    static boolean tryCastPrimitive(Primitive source, Primitive target) {
+        if (source.getKind() == PrimitiveKind.BOOLEAN) {
+            return target == Primitive.BOOLEAN;
+        } else {
+            IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(source.getKind());
+            if (subtype != null) {
+                source = Primitive.INT;
+            }
+            ArithmeticType sourceArithmetic = CompilerCommons.getArithmeticType(source.getKind());
+            if (sourceArithmetic == null) {
+                return false;
+            }
+            subtype = CompilerCommons.getIntegerSubtype(target.getKind());
+            ArithmeticType targetArithmetic = CompilerCommons.getArithmeticType(target.getKind());
+            if (targetArithmetic == null) {
+                if (subtype == null) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
 }
