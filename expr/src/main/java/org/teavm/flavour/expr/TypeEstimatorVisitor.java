@@ -16,11 +16,11 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.CastExpr;
 import org.teavm.flavour.expr.ast.ConstantExpr;
@@ -151,26 +151,17 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     @Override
     public void visit(InvocationExpr<? extends Object> expr) {
-        expr.getInstance().acceptVisitor(this);
+        if (expr.getInstance() != null) {
+            expr.getInstance().acceptVisitor(this);
+        } else {
+            result = scope.variableType("this");
+        }
         if (result == null) {
             return;
         }
+
         GenericType instance = CompilerCommons.box(result);
-        List<GenericClass> classes = new ArrayList<>();
-        if (instance instanceof GenericClass) {
-            classes.add((GenericClass) instance);
-        } else if (instance instanceof GenericReference) {
-            TypeVar var = ((GenericReference) instance).getVar();
-            if (!var.getUpperBound().isEmpty()) {
-                classes.addAll(var.getUpperBound().stream()
-                        .filter(bound -> bound instanceof GenericClass)
-                        .map(bound -> (GenericClass) bound)
-                        .collect(Collectors.toList()));
-            }
-        }
-        if (classes.isEmpty()) {
-            classes.add(new GenericClass("java.lang.Object"));
-        }
+        Collection<GenericClass> classes = CompilerCommons.extractClasses(instance);
 
         ValueType[] args = new ValueType[expr.getArguments().size()];
         for (int i = 0; i < args.length; ++i) {
@@ -211,48 +202,47 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             return;
         }
 
-        if (!(instance instanceof GenericClass)) {
-            result = null;
-            return;
-        }
-
-        GenericClass cls = (GenericClass) instance;
-        result = estimatePropertyAccess(instance, cls, expr.getPropertyName());
+        result = estimatePropertyAccess(instance, CompilerCommons.extractClasses(instance), expr.getPropertyName());
     }
 
     @Override
     public void visit(StaticPropertyExpr<? extends Object> expr) {
-        result = estimatePropertyAccess(null, navigator.getGenericClass(expr.getClassName()), expr.getPropertyName());
+        GenericClass cls = navigator.getGenericClass(expr.getClassName());
+        result = estimatePropertyAccess(null, Collections.singleton(cls), expr.getPropertyName());
     }
 
-    private ValueType estimatePropertyAccess(ValueType instance, GenericClass cls, String propertyName) {
-        GenericField field = navigator.getField(cls, propertyName);
-        boolean isStatic = instance == null;
+    private ValueType estimatePropertyAccess(ValueType instance, Collection<GenericClass> classes,
+            String propertyName) {
+        for (GenericClass cls : classes) {
+            GenericField field = navigator.getField(cls, propertyName);
+            boolean isStatic = instance == null;
 
-        if (field != null) {
-            if (isStatic == field.getDescriber().isStatic()) {
-                return field.getActualType();
-            } else {
-                return null;
-            }
-        } else {
-            GenericMethod method = navigator.getMethod(cls, getGetterName(propertyName));
-            if (method == null) {
-                method = navigator.getMethod(cls, getBooleanGetterName(propertyName));
-                if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
-                    return null;
-                }
-            }
-            if (method != null) {
-                if (isStatic == method.getDescriber().isStatic()) {
-                    return method.getActualReturnType();
+            if (field != null) {
+                if (isStatic == field.getDescriber().isStatic()) {
+                    return field.getActualType();
                 } else {
-                    return null;
+                    continue;
                 }
             } else {
-                return null;
+                GenericMethod method = navigator.getMethod(cls, getGetterName(propertyName));
+                if (method == null) {
+                    method = navigator.getMethod(cls, getBooleanGetterName(propertyName));
+                    if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
+                        continue;
+                    }
+                }
+                if (method != null) {
+                    if (isStatic == method.getDescriber().isStatic()) {
+                        return method.getActualReturnType();
+                    } else {
+                        continue;
+                    }
+                } else {
+                    continue;
+                }
             }
         }
+        return null;
     }
 
     private String getGetterName(String propertyName) {
@@ -293,6 +283,10 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             result = boundVars.get(expr);
         } else {
             result = scope.variableType(expr.getName());
+            if (result == null) {
+                ValueType thisType = scope.variableType("this");
+                result = estimatePropertyAccess(thisType, CompilerCommons.extractClasses(thisType), expr.getName());
+            }
         }
     }
 

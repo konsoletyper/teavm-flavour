@@ -15,8 +15,15 @@
  */
 package org.teavm.flavour.expr;
 
+import java.util.HashMap;
+import java.util.Map;
+import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.Expr;
+import org.teavm.flavour.expr.ast.LambdaExpr;
+import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.ValueType;
 
 /**
@@ -38,5 +45,54 @@ public class TypeEstimator {
         TypeEstimatorVisitor visitor = new TypeEstimatorVisitor(classResolver, navigator, scope);
         expr.acceptVisitor(visitor);
         return visitor.result;
+    }
+
+    public ValueType estimateLambda(LambdaExpr<?> expr, GenericMethod method) {
+        BoundVarsScope innerScope = new BoundVarsScope();
+        ValueType[] argTypes = method.getActualArgumentTypes();
+        TypeInference inference = new TypeInference(navigator);
+        for (int i = 0; i < expr.getBoundVariables().size(); ++i) {
+            BoundVariable boundVar = expr.getBoundVariables().get(i);
+            ValueType type = argTypes[i];
+            if (boundVar.getType() != null) {
+                if (!TypeUtil.subtype(boundVar.getType(), type, inference)) {
+                    return null;
+                }
+            }
+        }
+
+        for (int i = 0; i < expr.getBoundVariables().size(); ++i) {
+            BoundVariable boundVar = expr.getBoundVariables().get(i);
+            ValueType type = argTypes[i];
+            if (type instanceof GenericType) {
+                type = ((GenericType) type).substitute(inference.getSubstitutions());
+            }
+            innerScope.boundVars.put(boundVar.getName(), type);
+        }
+
+        TypeEstimatorVisitor visitor = new TypeEstimatorVisitor(classResolver, navigator, innerScope);
+        expr.getBody().acceptVisitor(visitor);
+        if (visitor.result == null) {
+            return null;
+        }
+        if (!TypeUtil.subtype(method.getActualReturnType(), visitor.result, inference)) {
+            return null;
+        }
+
+        ValueType result = method.getActualReturnType();
+        if (result instanceof GenericType) {
+            result = ((GenericType) result).substitute(inference.getSubstitutions());
+        }
+        return result;
+    }
+
+    class BoundVarsScope implements Scope {
+        Map<String, ValueType> boundVars = new HashMap<>();
+
+        @Override
+        public ValueType variableType(String variableName) {
+            return boundVars.containsKey(variableName) ? boundVars.get(variableName)
+                    : scope.variableType(variableName);
+        }
     }
 }

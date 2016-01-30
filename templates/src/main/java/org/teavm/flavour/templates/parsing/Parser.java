@@ -46,10 +46,14 @@ import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.ImportingClassResolver;
 import org.teavm.flavour.expr.Location;
 import org.teavm.flavour.expr.Scope;
+import org.teavm.flavour.expr.TypeEstimator;
+import org.teavm.flavour.expr.TypeUtil;
 import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
+import org.teavm.flavour.expr.ast.LambdaExpr;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.TypeInference;
@@ -224,23 +228,21 @@ public class Parser {
             return null;
         }
 
-        Map<String, ValueType> declaredVars = new HashMap<>();
         List<PostponedDirectiveParse> postponedList = new ArrayList<>();
-        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList, declaredVars);
-        completeDirectiveParsing(postponedList, declaredVars);
+        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList);
+        completeDirectiveParsing(postponedList);
         return node;
     }
 
     private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name,
-            Element elem, List<PostponedDirectiveParse> postponed, Map<String, ValueType> declaredVars) {
+            Element elem, List<PostponedDirectiveParse> postponed) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
 
-        TypeInference inference = new TypeInference(typeNavigator);
-
+        List<PostponedAttributeParse> attributesParse = new ArrayList<>();
         for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
             Attribute attr = elem.getAttributes().get(attrMeta.name);
             if (attr == null) {
@@ -252,43 +254,14 @@ public class Parser {
             if (attrMeta.type == null || attrMeta.valueType == null) {
                 continue;
             }
-            MethodDescriber getter = attrMeta.getter;
-            MethodDescriber setter = attrMeta.setter;
-            switch (attrMeta.type) {
-                case VARIABLE: {
-                    String varName = attr.getValue();
-                    if (declaredVars.containsKey(varName)) {
-                        error(attr.getValueSegment(), "Variable " + varName + " is already used by the same "
-                                + "directive");
-                    } else {
-                        declaredVars.put(varName, attrMeta.valueType);
-                    }
-                    DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
-                            getter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(),
-                            attrMeta.valueType);
-                    directive.getVariables().add(varBinding);
-                    break;
-                }
-                case FUNCTION: {
-                    TypedPlan plan = compileExpr(attr.getValueSegment(), (GenericClass) attrMeta.valueType);
-                    if (plan != null) {
-                        DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
-                                setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
-                                attrMeta.sam.getActualOwner().getName());
-                        directive.getComputations().add(computationBinding);
-                        inference.equalConstraint((GenericType) plan.getType(), attrMeta.sam.getActualOwner());
-                    }
-                    break;
-                }
+            PostponedAttributeParse attrParse = new PostponedAttributeParse();
+            attrParse.meta = attrMeta;
+            attrParse.node = attr;
+            if (attrMeta.type == DirectiveAttributeType.FUNCTION) {
+                attrParse.expr = parseExpr(attr.getValueSegment());
             }
-        }
 
-        for (Map.Entry<String, ValueType> varEntry : declaredVars.entrySet()) {
-            ValueType type = varEntry.getValue();
-            if (type instanceof GenericType) {
-                type = ((GenericType) type).substitute(inference.getSubstitutions());
-            }
-            pushVar(varEntry.getKey(), type);
+            attributesParse.add(attrParse);
         }
 
         for (Attribute attr : elem.getAttributes()) {
@@ -297,7 +270,10 @@ public class Parser {
             }
         }
 
-        int start = position;
+        PostponedDirectiveParse directiveParse = new PostponedDirectiveParse(position, directiveMeta, directive, elem);
+        directiveParse.attributes.addAll(attributesParse);
+        postponed.add(directiveParse);
+
         parseSegment(elem.getEnd(), new ArrayList<>(), child -> {
             int nestedPrefixLength = child.getName().indexOf(':');
             if (nestedPrefixLength > 0) {
@@ -307,7 +283,7 @@ public class Parser {
                     NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
                     if (nested != null) {
                         DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child,
-                                postponed, declaredVars);
+                                postponed);
                         NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
                         binding.getDirectives().add(nestedNode);
                     }
@@ -317,14 +293,86 @@ public class Parser {
         });
         validateNestedDirectives(directive, directiveMeta, elem, prefix);
 
-        postponed.add(new PostponedDirectiveParse(start, directiveMeta, directive, elem));
         return directive;
     }
 
-    private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed,
-            Map<String, ValueType> declaredVars) {
+    private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed) {
         Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
 
+        // Attempting to infer values for directive's type parameters
+        TypeEstimator estimator = new TypeEstimator(classResolver, typeNavigator, new TemplateScope());
+        TypeInference inference = new TypeInference(typeNavigator);
+        boolean inferenceFailed = false;
+        for (PostponedDirectiveParse parse : postponed) {
+            for (PostponedAttributeParse attrParse : parse.attributes) {
+                if (attrParse.expr != null) {
+                    attrParse.sam = attrParse.meta.sam.newCapture();
+                    if (attrParse.expr instanceof LambdaExpr) {
+                        attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
+                                attrParse.sam);
+                    } else {
+                        attrParse.typeEstimate = estimator.estimate(attrParse.expr);
+                    }
+                    if (attrParse.typeEstimate != null && !inferenceFailed) {
+                        inferenceFailed |= !TypeUtil.subtype(attrParse.typeEstimate,
+                                attrParse.sam.getActualReturnType(), inference);
+                    }
+                }
+            }
+        }
+        if (inferenceFailed) {
+            inference = new TypeInference(typeNavigator);
+        }
+
+        // Process functions
+        TypeInference varInference = new TypeInference(typeNavigator);
+        for (PostponedDirectiveParse parse : postponed) {
+            for (PostponedAttributeParse attrParse : parse.attributes) {
+                if (attrParse.expr == null) {
+                    continue;
+                }
+                MethodDescriber setter = attrParse.meta.setter;
+                GenericType type = attrParse.sam.getActualOwner();
+                type = type.substitute(inference.getSubstitutions());
+                TypedPlan plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
+                if (plan == null) {
+                    continue;
+                }
+                DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
+                        setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                        attrParse.sam.getActualOwner().getName());
+                parse.directive.getComputations().add(computationBinding);
+                varInference.equalConstraint((GenericType) plan.getType(), attrParse.sam.getActualOwner());
+            }
+        }
+
+        // Process variables
+        Map<String, ValueType> declaredVars = new HashMap<>();
+        for (PostponedDirectiveParse parse : postponed) {
+            for (PostponedAttributeParse attrParse : parse.attributes) {
+                if (attrParse.meta.type != DirectiveAttributeType.VARIABLE) {
+                    continue;
+                }
+                MethodDescriber getter = attrParse.meta.getter;
+                String varName = attrParse.node.getValue();
+                ValueType type = attrParse.meta.valueType;
+                if (type instanceof GenericType) {
+                    type = ((GenericType) type).substitute(varInference.getSubstitutions());
+                }
+                if (declaredVars.containsKey(varName)) {
+                    error(attrParse.node.getValueSegment(), "Variable " + varName + " is already used by "
+                            + "the same directive");
+                } else {
+                    declaredVars.put(varName, type);
+                    pushVar(varName, type);
+                }
+                DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
+                        getter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(), type);
+                parse.directive.getVariables().add(varBinding);
+            }
+        }
+
+        // Process bodies
         for (PostponedDirectiveParse parse : postponed) {
             position = parse.position;
             parseSegment(parse.elem.getEnd(), parse.directive.getContentNodes(),
@@ -350,6 +398,7 @@ public class Parser {
         DirectiveMetadata metadata;
         DirectiveBinding directive;
         Element elem;
+        List<PostponedAttributeParse> attributes = new ArrayList<>();
 
         PostponedDirectiveParse(int position, DirectiveMetadata metadata, DirectiveBinding directive, Element elem) {
             this.position = position;
@@ -357,6 +406,14 @@ public class Parser {
             this.directive = directive;
             this.elem = elem;
         }
+    }
+
+    static class PostponedAttributeParse {
+        DirectiveAttributeMetadata meta;
+        Attribute node;
+        Expr<Void> expr;
+        ValueType typeEstimate;
+        GenericMethod sam;
     }
 
     private void validateNestedDirectives(DirectiveBinding directive, DirectiveMetadata metadata,
@@ -454,13 +511,18 @@ public class Parser {
                 break;
             }
             case FUNCTION: {
-                TypedPlan plan = compileExpr(attr.getValueSegment(), directiveMeta.sam.getActualOwner());
-                if (plan != null) {
-                    DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
-                            setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
-                            directiveMeta.sam.getDescriber().getOwner().getName());
-                    directive.getFunctions().add(functionBinding);
+                Expr<Void> expr = parseExpr(attr.getValueSegment());
+                if (expr == null) {
+                    break;
                 }
+                TypedPlan plan = compileExpr(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
+                if (plan == null) {
+                    break;
+                }
+                DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
+                        setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                        directiveMeta.sam.getDescriber().getOwner().getName());
+                directive.getFunctions().add(functionBinding);
                 break;
             }
         }
@@ -468,7 +530,7 @@ public class Parser {
         return directive;
     }
 
-    private TypedPlan compileExpr(Segment segment, GenericClass type) {
+    private Expr<Void> parseExpr(Segment segment) {
         boolean hasErrors = false;
         org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
         Expr<Void> expr = exprParser.parse(segment.toString());
@@ -479,10 +541,19 @@ public class Parser {
             diagnostics.add(diagnostic);
             hasErrors = true;
         }
+        if (hasErrors) {
+            return null;
+        }
+        return expr;
+    }
+
+    private TypedPlan compileExpr(Segment segment, Expr<?> expr, GenericClass type) {
+        boolean hasErrors = false;
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
         TypedPlan result = compiler.compileLambda(expr, type);
         PlanOffsetVisitor offsetVisitor = new PlanOffsetVisitor(segment.getBegin());
         result.getPlan().acceptVisitor(offsetVisitor);
+        int offset = segment.getBegin();
         for (Diagnostic diagnostic : compiler.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
                     diagnostic.getMessage());

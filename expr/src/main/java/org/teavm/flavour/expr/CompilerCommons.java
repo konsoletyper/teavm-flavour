@@ -15,12 +15,16 @@
  */
 package org.teavm.flavour.expr;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.teavm.flavour.expr.plan.ArithmeticType;
 import org.teavm.flavour.expr.plan.IntegerSubtype;
 import org.teavm.flavour.expr.type.GenericClass;
@@ -265,5 +269,28 @@ final class CompilerCommons {
             }
             return true;
         }
+    }
+
+    static Collection<GenericClass> extractClasses(ValueType type) {
+        List<GenericClass> classes = new ArrayList<>();
+        if (type instanceof Primitive) {
+            type = CompilerCommons.box(type);
+            if (type instanceof GenericClass) {
+                classes.add((GenericClass) type);
+            }
+        } else if (type instanceof GenericReference) {
+            TypeVar var = ((GenericReference) type).getVar();
+            classes.addAll(var.getLowerBound().stream()
+                    .filter(bound -> bound instanceof GenericClass)
+                    .map(bound -> (GenericClass) bound)
+                    .collect(Collectors.toList()));
+        } else if (type instanceof GenericClass) {
+            classes.add((GenericClass) type);
+        }
+
+        if (classes.isEmpty()) {
+            classes.add(new GenericClass("java.lang.Object"));
+        }
+        return classes;
     }
 }

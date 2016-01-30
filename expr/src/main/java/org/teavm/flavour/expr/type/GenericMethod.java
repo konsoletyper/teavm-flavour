@@ -15,6 +15,9 @@
  */
 package org.teavm.flavour.expr.type;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 /**
@@ -70,6 +73,42 @@ public class GenericMethod {
             actualReturnType = ((GenericType) actualReturnType).substitute(substitutions);
         }
         return new GenericMethod(describer, actualOwner, actualArgumentTypes, actualReturnType);
+    }
+
+    public GenericMethod newCapture() {
+        return substitute(new CapturingSubstitutions(new HashSet<>(Arrays.asList(describer.getTypeVariables()))));
+    }
+
+    static class CapturingSubstitutions implements Substitutions {
+        Set<TypeVar> capturedTypeVars;
+
+        public CapturingSubstitutions(Set<TypeVar> capturedTypeVars) {
+            this.capturedTypeVars = capturedTypeVars;
+        }
+
+        @Override
+        public GenericType get(TypeVar var) {
+            if (var.getName() == null) {
+                return null;
+            }
+            if (capturedTypeVars.contains(var)) {
+                TypeVar copy = new TypeVar(var.getName());
+                if (var.getUpperBound().isEmpty()) {
+                    GenericType[] bounds = var.getUpperBound().stream()
+                            .map(bound -> bound.substitute(this))
+                            .toArray(sz -> new GenericType[sz]);
+                    copy.withUpperBound(bounds);
+                } else if (!var.getLowerBound().isEmpty()) {
+                    GenericType[] bounds = var.getLowerBound().stream()
+                            .map(bound -> bound.substitute(this))
+                            .toArray(sz -> new GenericType[sz]);
+                    copy.withLowerBound(bounds);
+                }
+                return new GenericReference(copy);
+            } else {
+                return null;
+            }
+        }
     }
 
     @Override

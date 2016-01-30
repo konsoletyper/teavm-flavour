@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.BinaryOperation;
 import org.teavm.flavour.expr.ast.BoundVariable;
@@ -364,22 +363,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (instance.type instanceof Primitive) {
             instance = box(instance);
         }
-        List<GenericClass> classes = new ArrayList<>();
-        if (instance.type instanceof GenericClass) {
-            classes.add((GenericClass) instance.type);
-        } else if (instance.type instanceof GenericReference) {
-            TypeVar var = ((GenericReference) instance.type).getVar();
-            if (!var.getLowerBound().isEmpty()) {
-                classes.addAll(var.getLowerBound().stream()
-                        .filter(bound -> bound instanceof GenericClass)
-                        .map(bound -> (GenericClass) bound)
-                        .collect(Collectors.toList()));
-            }
-        }
-        if (classes.isEmpty()) {
-            classes.add(new GenericClass("java.lang.Object"));
-        }
-
+        Collection<GenericClass> classes = CompilerCommons.extractClasses(instance.type);
         compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments(), expectedType);
         copyLocation(expr);
     }
@@ -533,27 +517,28 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return;
         }
 
-        if (!(instance.type instanceof GenericClass)) {
-            error(expr, "Can't get property of non-class value: " + instance.type);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
-            copyLocation(expr);
-            return;
+        if (instance.type instanceof Primitive) {
+            instance = box(instance);
         }
-
-        GenericClass cls = (GenericClass) instance.type;
-        compilePropertyAccess(expr, instance, cls, expr.getPropertyName());
+        Collection<GenericClass> classes = CompilerCommons.extractClasses(instance.type);
+        compilePropertyAccess(expr, instance, classes, expr.getPropertyName());
         copyLocation(expr);
     }
 
-    private GenericMethod findGetter(GenericClass cls, String name) {
-        GenericMethod method = navigator.getMethod(cls, getGetterName(name));
-        if (method == null) {
-            method = navigator.getMethod(cls, getBooleanGetterName(name));
-            if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
-                method = null;
+    private GenericMethod findGetter(Collection<GenericClass> classes, String name) {
+        for (GenericClass cls : classes) {
+            GenericMethod method = navigator.getMethod(cls, getGetterName(name));
+            if (method == null) {
+                method = navigator.getMethod(cls, getBooleanGetterName(name));
+                if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
+                    method = null;
+                }
+            }
+            if (method != null) {
+                return method;
             }
         }
-        return method;
+        return null;
     }
 
     private String getGetterName(String propertyName) {
@@ -572,13 +557,20 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(StaticPropertyExpr<TypedPlan> expr) {
-        compilePropertyAccess(expr, null, navigator.getGenericClass(expr.getClassName()), expr.getPropertyName());
+        Collection<GenericClass> classes = Collections.singleton(navigator.getGenericClass(expr.getClassName()));
+        compilePropertyAccess(expr, null, classes, expr.getPropertyName());
         copyLocation(expr);
     }
 
-    private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, GenericClass cls,
+    private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
             String propertyName) {
-        GenericField field = navigator.getField(cls, propertyName);
+        GenericField field = null;
+        for (GenericClass cls : classes) {
+            field = navigator.getField(cls, propertyName);
+            if (field != null) {
+                break;
+            }
+        }
         boolean isStatic = instance == null;
         if (field != null) {
             if (isStatic == field.getDescriber().isStatic()) {
@@ -590,7 +582,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 error(expr, "Field " + propertyName + " should " + (!isStatic ? "not " : "") + "be static");
             }
         } else {
-            GenericMethod getter = findGetter(cls, propertyName);
+            GenericMethod getter = findGetter(classes, propertyName);
             if (getter != null) {
                 if (isStatic == getter.getDescriber().isStatic()) {
                     String desc = "()" + typeToString(getter.getDescriber().getRawReturnType());
@@ -647,7 +639,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         type = scope.variableType(expr.getName());
         if (type == null) {
             type = scope.variableType("this");
-            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), (GenericClass) type, expr.getName());
+            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), CompilerCommons.extractClasses(type),
+                    expr.getName());
             copyLocation(expr);
             return;
         }
@@ -701,8 +694,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
         expectedType = lambdaSam.getActualReturnType();
         expr.getBody().acceptVisitor(this);
+        TypeInference inference = new TypeInference(navigator);
         if (lambdaSam.getActualReturnType() != null) {
-            convert(expr.getBody(), lambdaSam.getActualReturnType(), new TypeInference(navigator));
+            convert(expr.getBody(), lambdaSam.getActualReturnType(), inference);
         }
         TypedPlan body = expr.getBody().getAttribute();
         String className = lambdaSam.getDescriber().getOwner().getName();
@@ -710,7 +704,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         String methodDesc = methodToDesc(lambdaSam.getDescriber());
 
         LambdaPlan lambda = new LambdaPlan(body.plan, className, methodName, methodDesc, boundVarNames);
-        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner()));
+        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner().substitute(inference.getSubstitutions())));
 
         for (int i = 0; i < oldVarTypes.length; ++i) {
             BoundVariable boundVar = expr.getBoundVariables().get(i);
