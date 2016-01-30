@@ -70,9 +70,7 @@ public class Compiler {
         Expr<TypedPlan> attributedExpr = copier.getResult();
         CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository),
                 classResolver, scope);
-        if (attributedExpr instanceof LambdaExpr<?> && type instanceof GenericClass) {
-            visitor.lambdaSam = visitor.navigator.findSingleAbstractMethod((GenericClass) type);
-        }
+        visitor.expectedType = type;
         attributedExpr.acceptVisitor(visitor);
         if (type != null) {
             visitor.convert(attributedExpr, type);

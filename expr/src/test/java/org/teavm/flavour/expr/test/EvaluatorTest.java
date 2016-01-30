@@ -17,7 +17,13 @@ package org.teavm.flavour.expr.test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -414,6 +420,14 @@ public class EvaluatorTest extends BaseEvaluatorTest {
                 + "i -> Integer.toBinaryString(i))");
         Object result = c.compute();
         assertThat(result, is(Arrays.asList("10", "11", "100")));
+    }
+
+    @Test
+    public void infersTypeByAssignmentTarget() {
+        StringComputation c = parseExpr(StringComputation.class, "EvaluatorTest.reduce(Collections.emptyList(),"
+                + "'', (a, b) -> a + b)");
+        String result = c.compute();
+        assertThat(result, is(""));
     }
 
     private <T> T parseExpr(Class<T> cls, String str) {

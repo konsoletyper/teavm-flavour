@@ -52,16 +52,18 @@ public class MethodLookup {
         this.navigator = navigator;
     }
 
-    public GenericMethod lookupVirtual(Collection<GenericClass> classes, String name, ValueType[] args) {
-        return lookupMethod(classes, name, args, false);
+    public GenericMethod lookupVirtual(Collection<GenericClass> classes, String name, ValueType[] args,
+            ValueType returnType) {
+        return lookupMethod(classes, name, args, returnType, false);
     }
 
-    public GenericMethod lookupStatic(Collection<GenericClass> classes, String name, ValueType[] args) {
-        return lookupMethod(classes, name, args, true);
+    public GenericMethod lookupStatic(Collection<GenericClass> classes, String name, ValueType[] args,
+            ValueType returnType) {
+        return lookupMethod(classes, name, args, returnType, true);
     }
 
     private GenericMethod lookupMethod(Collection<GenericClass> classes, String name, ValueType[] args,
-            boolean isStatic) {
+            ValueType expectedReturnType, boolean isStatic) {
         varArgs = false;
         returnType = null;
         candidates.clear();
@@ -70,15 +72,15 @@ public class MethodLookup {
             return null;
         }
 
-        GenericMethod result = lookupMethodStrict(args);
+        GenericMethod result = lookupMethodStrict(args, expectedReturnType);
         if (result != null) {
             return result;
         }
-        result = lookupMethodCompatible(args);
+        result = lookupMethodCompatible(args, expectedReturnType);
         if (result != null) {
             return result;
         }
-        result = lookupVarargMethod(args);
+        result = lookupVarargMethod(args, expectedReturnType);
         if (result != null) {
             varArgs = true;
         }
@@ -97,7 +99,7 @@ public class MethodLookup {
         return returnType;
     }
 
-    private GenericMethod lookupMethodStrict(ValueType[] args) {
+    private GenericMethod lookupMethodStrict(ValueType[] args, ValueType expectedReturnType) {
         GenericMethod result = null;
         lookup: for (GenericMethod method : candidates) {
             ValueType[] paramTypes = method.getActualArgumentTypes();
@@ -110,6 +112,13 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            if (expectedReturnType != null) {
+                if (method.getActualReturnType() == null
+                        || !subtype(method.getActualReturnType(), expectedReturnType, inference)) {
+                    continue lookup;
+                }
+            }
+
             method = method.substitute(inference.getSubstitutions());
             if (result != null) {
                 if (isMoreSpecific(method, result)) {
@@ -127,7 +136,7 @@ public class MethodLookup {
         return result;
     }
 
-    private GenericMethod lookupMethodCompatible(ValueType[] args) {
+    private GenericMethod lookupMethodCompatible(ValueType[] args, ValueType expectedReturnType) {
         GenericMethod result = null;
         lookup: for (GenericMethod method : candidates) {
             ValueType[] paramTypes = method.getActualArgumentTypes();
@@ -140,6 +149,13 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            if (expectedReturnType != null) {
+                if (method.getActualReturnType() == null
+                        || !subtype(method.getActualReturnType(), expectedReturnType, inference)) {
+                    continue lookup;
+                }
+            }
+
             method = method.substitute(inference.getSubstitutions());
             if (result != null) {
                 if (isMoreSpecific(method, result)) {
@@ -156,7 +172,7 @@ public class MethodLookup {
         return result;
     }
 
-    private GenericMethod lookupVarargMethod(ValueType[] args) {
+    private GenericMethod lookupVarargMethod(ValueType[] args, ValueType expectedReturnType) {
         GenericMethod result = null;
         lookup: for (GenericMethod method : candidates) {
             if (!method.getDescriber().isVariableArgument()) {
@@ -173,6 +189,12 @@ public class MethodLookup {
                     continue lookup;
                 }
             }
+            if (expectedReturnType != null) {
+                if (method.getActualReturnType() == null
+                        || !subtype(method.getActualReturnType(), expectedReturnType, inference)) {
+                    continue lookup;
+                }
+            }
 
             ValueType lastParam = ((GenericArray) paramTypes[paramTypes.length - 1]).getElementType();
             for (int i = paramTypes.length - 1; i < args.length; ++i) {
@@ -185,7 +207,7 @@ public class MethodLookup {
                 return null;
             } else {
                 result = method;
-                inferReturnType(result, inference);
+                returnType = inferReturnType(result, inference);
             }
         }
 
@@ -279,9 +301,12 @@ public class MethodLookup {
         }
         if (b instanceof Primitive) {
             if (!(a instanceof Primitive)) {
-                a = CompilerCommons.unbox(a);
-                if (a == null) {
-                    return false;
+                ValueType unboxed = CompilerCommons.unbox(a);
+                if (unboxed == null) {
+                    GenericType boxed = CompilerCommons.box(b);
+                    return inference.subtypeConstraint((GenericType) a, boxed);
+                } else {
+                    a = unboxed;
                 }
             }
             if (!CompilerCommons.hasImplicitConversion(((Primitive) a).getKind(),

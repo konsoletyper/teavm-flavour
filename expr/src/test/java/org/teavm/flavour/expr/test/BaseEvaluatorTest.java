@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.expr.test;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.expr.VariableName;
@@ -106,6 +107,10 @@ public abstract class BaseEvaluatorTest {
 
         public String bar(String x) {
             return x + y;
+        }
+
+        public String bar(Date x) {
+            return String.valueOf(y) + x.getTime();
         }
 
         public <K, V> V extract(Map<K, V> map, K key) {

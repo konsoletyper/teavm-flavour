@@ -98,8 +98,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private TypeVar nullType = new TypeVar();
     private GenericReference nullTypeRef = new GenericReference(nullType);
     private ClassResolver classResolver;
-    GenericMethod lambdaSam;
-    ValueType lambdaReturnType;
+    ValueType expectedType;
 
     CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
         this.navigator = navigator;
@@ -115,7 +114,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     public void visit(BinaryExpr<TypedPlan> expr) {
         Expr<TypedPlan> firstOperand = expr.getFirstOperand();
         Expr<TypedPlan> secondOperand = expr.getSecondOperand();
+        expectedType = null;
         firstOperand.acceptVisitor(this);
+        expectedType = null;
         secondOperand.acceptVisitor(this);
         switch (expr.getOperation()) {
             case SUBTRACT:
@@ -268,6 +269,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(CastExpr<TypedPlan> expr) {
+        expectedType = null;
         expr.getValue().acceptVisitor(this);
         expr.setAttribute(expr.getValue().getAttribute());
         expr.setTargetType(resolveType(expr.getTargetType(), expr));
@@ -321,6 +323,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(InstanceOfExpr<TypedPlan> expr) {
+        expectedType = null;
         expr.setCheckedType((GenericType) resolveType(expr.getCheckedType(), expr));
         Expr<TypedPlan> value = expr.getValue();
         value.acceptVisitor(this);
@@ -347,8 +350,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(InvocationExpr<TypedPlan> expr) {
+        ValueType expectedType = this.expectedType;
+
         TypedPlan instance;
         if (expr.getInstance() != null) {
+            this.expectedType = null;
             expr.getInstance().acceptVisitor(this);
             instance = expr.getInstance().getAttribute();
         } else {
@@ -374,19 +380,20 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             classes.add(new GenericClass("java.lang.Object"));
         }
 
-        compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments());
+        compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments(), expectedType);
         copyLocation(expr);
     }
 
     @Override
     public void visit(StaticInvocationExpr<TypedPlan> expr) {
+        ValueType expectedType = this.expectedType;
         compileInvocation(expr, null, Collections.singleton(navigator.getGenericClass(expr.getClassName())),
-                expr.getMethodName(), expr.getArguments());
+                expr.getMethodName(), expr.getArguments(), expectedType);
         copyLocation(expr);
     }
 
     private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
-            String methodName, List<Expr<TypedPlan>> argumentExprList) {
+            String methodName, List<Expr<TypedPlan>> argumentExprList, ValueType expectedType) {
         TypeEstimator estimator = new TypeEstimator(classResolver, navigator, new BoundScope());
         ValueType[] estimateTypes = argumentExprList.stream().map(estimator::estimate)
                 .toArray(sz -> new ValueType[sz]);
@@ -394,9 +401,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         MethodLookup lookup = new MethodLookup(navigator);
         GenericMethod method;
         if (instance != null) {
-            method = lookup.lookupVirtual(classes, methodName, estimateTypes);
+            method = lookup.lookupVirtual(classes, methodName, estimateTypes, expectedType);
         } else {
-            method = lookup.lookupStatic(classes, methodName, estimateTypes);
+            method = lookup.lookupStatic(classes, methodName, estimateTypes, expectedType);
         }
 
         if (method == null) {
@@ -417,6 +424,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
             matchArgTypes[i] = paramType;
             if (!(arg instanceof LambdaExpr<?>)) {
+                this.expectedType = paramType;
                 arg.acceptVisitor(this);
                 convert(arg, paramType, new TypeInference(navigator));
                 if (paramType instanceof GenericType) {
@@ -437,10 +445,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             Expr<TypedPlan> arg = argumentExprList.get(i);
             ValueType paramType = matchArgTypes[i];
             if (arg instanceof LambdaExpr<?>) {
-                LambdaExpr<TypedPlan> lambda = (LambdaExpr<TypedPlan>) arg;
-                GenericMethod sam = navigator.findSingleAbstractMethod((GenericClass) paramType);
-                lambdaSam = sam;
-                visit(lambda);
+                this.expectedType = paramType;
+                arg.acceptVisitor(this);
             }
         }
 
@@ -449,24 +455,28 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         Plan[] convertedArguments = argumentExprList.stream().map(arg -> arg.getAttribute().getPlan())
                 .toArray(sz -> new Plan[sz]);
         if (lookup.isVarArgs()) {
-            Plan[] varargs = new Plan[argTypes.length];
-            for (int i = 0; i < varargs.length - 1; ++i) {
-                varargs[i] = convertedArguments[i];
-            }
-            Plan[] array = new Plan[convertedArguments.length - varargs.length + 1];
-            for (int i = 0; i < array.length; ++i) {
-                array[i] = convertedArguments[varargs.length - 1 + i];
-            }
-            ValueType elementType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
-            ArrayConstructionPlan arrayPlan = new ArrayConstructionPlan(typeToString(elementType));
-            arrayPlan.getElements().addAll(Arrays.asList(array));
-            varargs[varargs.length - 1] = arrayPlan;
-            convertedArguments = varargs;
+            convertedArguments = convertVarArgs(convertedArguments, argTypes);
         }
 
         Plan plan = new InvocationPlan(className, methodName, desc, instance != null ? instance.plan : null,
                 convertedArguments);
         expr.setAttribute(new TypedPlan(plan, method.getActualReturnType()));
+    }
+
+    private Plan[] convertVarArgs(Plan[] args, ValueType[] argTypes) {
+        Plan[] varargs = new Plan[argTypes.length];
+        for (int i = 0; i < varargs.length - 1; ++i) {
+            varargs[i] = args[i];
+        }
+        Plan[] array = new Plan[args.length - varargs.length + 1];
+        for (int i = 0; i < array.length; ++i) {
+            array[i] = args[varargs.length - 1 + i];
+        }
+        ValueType elementType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
+        ArrayConstructionPlan arrayPlan = new ArrayConstructionPlan(typeToString(elementType));
+        arrayPlan.getElements().addAll(Arrays.asList(array));
+        varargs[varargs.length - 1] = arrayPlan;
+        return varargs;
     }
 
     private ValueType substitute(ValueType type, Substitutions substitutions) {
@@ -478,8 +488,8 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
 
         MethodLookup altLookup = new MethodLookup(navigator);
-        GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, estimateTypes)
-                : altLookup.lookupStatic(classes, methodName, estimateTypes);
+        GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, estimateTypes, null)
+                : altLookup.lookupStatic(classes, methodName, estimateTypes, null);
         if (altMethod != null) {
             if (isStatic) {
                 error(expr, "Method should be called as an instance method: " + altMethod);
@@ -513,6 +523,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(PropertyExpr<TypedPlan> expr) {
+        expectedType = null;
         expr.getInstance().acceptVisitor(this);
         TypedPlan instance = expr.getInstance().getAttribute();
 
@@ -605,6 +616,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(UnaryExpr<TypedPlan> expr) {
+        expectedType = null;
         expr.getOperand().acceptVisitor(this);
         switch (expr.getOperation()) {
             case NEGATE: {
@@ -652,16 +664,18 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(LambdaExpr<TypedPlan> expr) {
+        GenericMethod lambdaSam = null;
+        if (expectedType instanceof GenericClass) {
+            lambdaSam = navigator.findSingleAbstractMethod((GenericClass) expectedType);
+        }
         if (lambdaSam == null) {
-            error(expr, "Unexpected lambda here. Lambdas can only be passed for SAM classes");
+            error(expr, "Can't infer type of the lambda expression");
             expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
             copyLocation(expr);
             return;
         }
-        GenericMethod lambdaSam = this.lambdaSam;
-        this.lambdaSam = null;
-        ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
 
+        ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
         ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
         String[] oldRenamings = new String[oldVarTypes.length];
         Set<String> usedNames = new HashSet<>();
@@ -685,11 +699,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         }
 
+        expectedType = lambdaSam.getActualReturnType();
         expr.getBody().acceptVisitor(this);
         if (lambdaSam.getActualReturnType() != null) {
             convert(expr.getBody(), lambdaSam.getActualReturnType(), new TypeInference(navigator));
-        } else {
-            lambdaReturnType = null;
         }
         TypedPlan body = expr.getBody().getAttribute();
         String className = lambdaSam.getDescriber().getOwner().getName();
@@ -741,10 +754,14 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     @Override
     public void visit(TernaryConditionExpr<TypedPlan> expr) {
+        ValueType expectedType = null;
+        this.expectedType = Primitive.BOOLEAN;
         expr.getCondition().acceptVisitor(this);
         convert(expr.getCondition(), Primitive.BOOLEAN);
 
+        this.expectedType = expectedType;
         expr.getConsequent().acceptVisitor(this);
+        this.expectedType = expectedType;
         expr.getAlternative().acceptVisitor(this);
 
         ValueType a = expr.getConsequent().getAttribute().type;

@@ -179,7 +179,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
         }
 
         MethodLookup lookup = new MethodLookup(navigator);
-        GenericMethod method = lookup.lookupVirtual(classes, expr.getMethodName(), args);
+        GenericMethod method = lookup.lookupVirtual(classes, expr.getMethodName(), args, null);
         result = method == null ? null : lookup.getReturnType();
     }
 
@@ -194,7 +194,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
         GenericClass cls = navigator.getGenericClass(expr.getClassName());
 
         MethodLookup lookup = new MethodLookup(navigator);
-        GenericMethod method = lookup.lookupStatic(Collections.singleton(cls), expr.getMethodName(), args);
+        GenericMethod method = lookup.lookupStatic(Collections.singleton(cls), expr.getMethodName(), args, null);
         result = method == null ? null : lookup.getReturnType();
     }
 
