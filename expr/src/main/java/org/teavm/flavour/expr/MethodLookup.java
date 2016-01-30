@@ -237,13 +237,12 @@ public class MethodLookup {
                         continue;
                     }
                     ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
-                            .map(arg -> arg instanceof GenericType
-                                    ? ((GenericType) arg).substitute(substitutions)
-                                    : arg)
+                            .map(arg -> arg.substitute(substitutions))
                             .toArray(sz -> new ValueType[sz]);
-                    ValueType returnType = methodDesc.getReturnType() instanceof GenericType
-                            ? ((GenericType) methodDesc.getReturnType()).substitute(substitutions)
-                            : methodDesc.getReturnType();
+                    ValueType returnType = methodDesc.getReturnType();
+                    if (returnType != null) {
+                        returnType = returnType.substitute(substitutions);
+                    }
                     GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
                     methods.add(method);
                 }
@@ -274,7 +273,7 @@ public class MethodLookup {
             return null;
         }
         if (method.getActualReturnType() instanceof GenericType) {
-            return ((GenericType) method.getActualReturnType()).substitute(inference.getSubstitutions());
+            return method.getActualReturnType().substitute(inference.getSubstitutions());
         } else {
             return method.getActualReturnType();
         }

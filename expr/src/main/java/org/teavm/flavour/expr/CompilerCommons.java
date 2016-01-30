@@ -31,6 +31,7 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveKind;
 import org.teavm.flavour.expr.type.TypeInference;
@@ -195,6 +196,11 @@ final class CompilerCommons {
             if (var.getLowerBound().size() == 1) {
                 type = var.getLowerBound().get(0);
             }
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            if (wildcard.getLowerBound().size() == 1) {
+                type = wildcard.getLowerBound().get(0);
+            }
         }
         return type;
     }
@@ -232,6 +238,13 @@ final class CompilerCommons {
         if (type instanceof GenericReference) {
             TypeVar v = ((GenericReference) type).getVar();
             return v.getLowerBound().stream()
+                    .map(CompilerCommons.wrappersToPrimitives::get)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            return wildcard.getLowerBound().stream()
                     .map(CompilerCommons.wrappersToPrimitives::get)
                     .filter(Objects::nonNull)
                     .findFirst()
@@ -281,6 +294,12 @@ final class CompilerCommons {
         } else if (type instanceof GenericReference) {
             TypeVar var = ((GenericReference) type).getVar();
             classes.addAll(var.getLowerBound().stream()
+                    .filter(bound -> bound instanceof GenericClass)
+                    .map(bound -> (GenericClass) bound)
+                    .collect(Collectors.toList()));
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            classes.addAll(wildcard.getLowerBound().stream()
                     .filter(bound -> bound instanceof GenericClass)
                     .map(bound -> (GenericClass) bound)
                     .collect(Collectors.toList()));

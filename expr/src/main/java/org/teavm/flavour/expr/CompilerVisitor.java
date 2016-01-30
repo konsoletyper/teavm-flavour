@@ -75,9 +75,9 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveKind;
-import org.teavm.flavour.expr.type.Substitutions;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -94,8 +94,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     private Map<String, ValueType> boundVars = new HashMap<>();
     private Map<String, String> boundVarRenamings = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
-    private TypeVar nullType = new TypeVar();
-    private GenericReference nullTypeRef = new GenericReference(nullType);
     private ClassResolver classResolver;
     ValueType expectedType;
 
@@ -314,7 +312,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (!inference.subtypeConstraint((GenericType) plan.type, (GenericType) targetType)) {
             GenericType erasure = ((GenericType) targetType).erasure();
             plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)),
-                    ((GenericType) targetType).substitute(inference.getSubstitutions()));
+                    targetType.substitute(inference.getSubstitutions()));
         }
 
         return plan;
@@ -419,10 +417,10 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         method = method.substitute(inference.getSubstitutions());
         for (int i = 0; i < matchArgTypes.length; ++i) {
-            matchArgTypes[i] = substitute(matchArgTypes[i], inference.getSubstitutions());
+            matchArgTypes[i] = matchArgTypes[i].substitute(inference.getSubstitutions());
         }
         for (int i = 0; i < argTypes.length; ++i) {
-            argTypes[i] = substitute(argTypes[i], inference.getSubstitutions());
+            argTypes[i] = argTypes[i].substitute(inference.getSubstitutions());
         }
 
         for (int i = 0; i < argumentExprList.size(); ++i) {
@@ -463,13 +461,9 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         return varargs;
     }
 
-    private ValueType substitute(ValueType type, Substitutions substitutions) {
-        return type instanceof GenericType ? ((GenericType) type).substitute(substitutions) : type;
-    }
-
     private void reportMissingMethod(Expr<TypedPlan> expr, String methodName, ValueType[] estimateTypes,
             MethodLookup lookup, Collection<GenericClass> classes, boolean isStatic) {
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
 
         MethodLookup altLookup = new MethodLookup(navigator);
         GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, estimateTypes, null)
@@ -603,7 +597,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             }
         }
 
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+        expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
     }
 
     @Override
@@ -663,7 +657,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
         if (lambdaSam == null) {
             error(expr, "Can't infer type of the lambda expression");
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), nullTypeRef));
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
             copyLocation(expr);
             return;
         }
@@ -720,7 +714,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     public void visit(ConstantExpr<TypedPlan> expr) {
         ValueType type;
         if (expr.getValue() == null) {
-            type = new GenericReference(nullType);
+            type = GenericWildcard.unbounded();
         } else if (expr.getValue() instanceof Boolean) {
             type = Primitive.BOOLEAN;
         } else if (expr.getValue() instanceof Character) {
@@ -762,7 +756,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         ValueType b = expr.getAlternative().getAttribute().type;
         ValueType type = CompilerCommons.commonSupertype(a, b, navigator);
         if (type == null) {
-            expr.setAttribute(new TypedPlan(new ConstantPlan(nullType), nullTypeRef));
+            expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
             ValueTypeFormatter formatter = new ValueTypeFormatter();
             error(expr, "Clauses of ternary conditional operator are not compatible: "
                     + formatter.format(a) + " vs. " + formatter.format(b));
@@ -909,7 +903,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (plan.getType().equals(targetType)) {
             return plan;
         }
-        if (plan.getType().equals(nullTypeRef)) {
+        if (plan.getType().equals(GenericWildcard.unbounded())) {
             return new TypedPlan(plan.plan, targetType);
         }
 
@@ -941,7 +935,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return null;
         }
 
-        return new TypedPlan(plan.plan, ((GenericType) targetType).substitute(inference.getSubstitutions()));
+        return new TypedPlan(plan.plan, targetType.substitute(inference.getSubstitutions()));
     }
 
     private TypedPlan tryCastPrimitive(TypedPlan plan, Primitive targetType) {
@@ -985,6 +979,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (plan.type instanceof GenericReference) {
             TypeVar v = ((GenericReference) plan.type).getVar();
             cls = (GenericClass) v.getLowerBound().stream()
+                    .filter(CompilerCommons.wrappersToPrimitives::containsKey)
+                    .findFirst()
+                    .orElse(null);
+            if (cls == null) {
+                return null;
+            }
+        } else if (plan.type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) plan.type;
+            cls = (GenericClass) wildcard.getLowerBound().stream()
                     .filter(CompilerCommons.wrappersToPrimitives::containsKey)
                     .findFirst()
                     .orElse(null);
@@ -1085,6 +1088,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             TypeVar var = ((GenericReference) type).getVar();
             if (var.getLowerBound().size() == 1) {
                 typeToString(var.getLowerBound().get(0), sb);
+            } else {
+                sb.append("Ljava/lang/Object;");
+            }
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            if (wildcard.getLowerBound().size() == 1) {
+                typeToString(wildcard.getLowerBound().get(0), sb);
             } else {
                 sb.append("Ljava/lang/Object;");
             }

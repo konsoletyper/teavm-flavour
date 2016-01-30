@@ -111,11 +111,20 @@ public class ValueTypeFormatter {
         } else if (type instanceof GenericReference) {
             GenericReference ref = (GenericReference) type;
             sb.append(getNameOfTypeVar(ref.getVar()));
-            if (ref.getVar().getName() == null && !ref.getVar().getLowerBound().isEmpty()) {
-                sb.append(" extends ");
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            sb.append("?");
+            List<GenericType> bounds = !wildcard.getLowerBound().isEmpty() ? wildcard.getLowerBound()
+                    : wildcard.getUpperBound();
+            if (!bounds.isEmpty()) {
+                if (bounds == wildcard.getLowerBound()) {
+                    sb.append(" extends ");
+                } else {
+                    sb.append(" super ");
+                }
                 StringBuilder inner = new StringBuilder();
                 List<String> parts = new ArrayList<>();
-                for (GenericType bound : ref.getVar().getLowerBound()) {
+                for (GenericType bound : bounds) {
                     format(bound, inner);
                     parts.add(inner.toString());
                     inner.setLength(0);

@@ -20,10 +20,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
+import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -118,13 +120,17 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             WildcardType wildcard = (WildcardType) javaType;
             Type[] upperBounds = wildcard.getUpperBounds();
             Type[] lowerBounds = wildcard.getLowerBounds();
-            TypeVar var = new TypeVar();
             if (lowerBounds.length > 0) {
-                var.withLowerBound((GenericType) convertGenericType(lowerBounds[0]));
+                return GenericWildcard.lowerBounded(Arrays.stream(lowerBounds)
+                        .map(bound -> (GenericType) convertGenericType(bound))
+                        .collect(Collectors.toList()));
             } else if (upperBounds.length > 0) {
-                var.withUpperBound((GenericType) convertGenericType(upperBounds[0]));
+                return GenericWildcard.upperBounded(Arrays.stream(upperBounds)
+                        .map(bound -> (GenericType) convertGenericType(bound))
+                        .collect(Collectors.toList()));
+            } else {
+                return GenericWildcard.unbounded();
             }
-            return new GenericReference(var);
         } else {
             throw new AssertionError("Unsupported type: " + javaType);
         }
@@ -163,6 +169,8 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
                 throw new RuntimeException("Class not found: " + cls.getName());
             }
         } else if (type instanceof GenericReference) {
+            return Object.class;
+        } else if (type instanceof GenericWildcard) {
             return Object.class;
         } else {
             throw new AssertionError("Can't convert type: " + type);

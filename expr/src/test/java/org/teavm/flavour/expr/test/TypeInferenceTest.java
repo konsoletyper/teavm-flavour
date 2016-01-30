@@ -18,6 +18,7 @@ package org.teavm.flavour.expr.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
@@ -217,15 +219,11 @@ public class TypeInferenceTest {
     }
 
     static GenericType in(GenericType cls) {
-        TypeVar var = new TypeVar();
-        var.withLowerBound(cls);
-        return new GenericReference(var);
+        return GenericWildcard.lowerBounded(Arrays.asList(cls));
     }
 
     static GenericType out(GenericType cls) {
-        TypeVar var = new TypeVar();
-        var.withLowerBound(cls);
-        return new GenericReference(var);
+        return GenericWildcard.upperBounded(Arrays.asList(cls));
     }
 
     static GenericType ref(TypeVar var) {

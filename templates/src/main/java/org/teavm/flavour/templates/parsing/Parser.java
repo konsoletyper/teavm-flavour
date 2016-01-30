@@ -52,11 +52,14 @@ import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
 import org.teavm.flavour.expr.plan.LambdaPlan;
+import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
@@ -229,13 +232,13 @@ public class Parser {
         }
 
         List<PostponedDirectiveParse> postponedList = new ArrayList<>();
-        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList);
+        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList, new HashMap<>());
         completeDirectiveParsing(postponedList);
         return node;
     }
 
     private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name,
-            Element elem, List<PostponedDirectiveParse> postponed) {
+            Element elem, List<PostponedDirectiveParse> postponed, Map<TypeVar, TypeVar> typeVars) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
@@ -274,6 +277,13 @@ public class Parser {
         directiveParse.attributes.addAll(attributesParse);
         postponed.add(directiveParse);
 
+        Map<NestedDirective, Set<TypeVar>> nestedNewVars = new HashMap<>();
+        for (NestedDirective nestedDirective : directiveMeta.nestedDirectives) {
+            Set<TypeVar> newVars = new HashSet<>();
+            newVariables(typeVars.keySet(), newVars, nestedDirective.setter.getArgumentTypes()[0]);
+            nestedNewVars.put(nestedDirective, newVars);
+        }
+
         parseSegment(elem.getEnd(), new ArrayList<>(), child -> {
             int nestedPrefixLength = child.getName().indexOf(':');
             if (nestedPrefixLength > 0) {
@@ -282,8 +292,13 @@ public class Parser {
                 if (nestedPrefix.equals(prefix)) {
                     NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
                     if (nested != null) {
+                        Set<TypeVar> newVars = nestedNewVars.get(nested);
+                        for (TypeVar var : newVars) {
+                            typeVars.put(var, new TypeVar());
+                        }
                         DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child,
-                                postponed);
+                                postponed, typeVars);
+                        typeVars.keySet().removeAll(newVars);
                         NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
                         binding.getDirectives().add(nestedNode);
                     }
@@ -296,6 +311,21 @@ public class Parser {
         return directive;
     }
 
+    private void newVariables(Set<TypeVar> fixedVars, Set<TypeVar> result, ValueType type) {
+        if (type instanceof GenericClass) {
+            for (GenericType arg : ((GenericClass) type).getArguments()) {
+                newVariables(fixedVars, result, arg);
+            }
+        } else if (type instanceof GenericArray) {
+            newVariables(fixedVars, result, ((GenericArray) type).getElementType());
+        } else if (type instanceof GenericReference) {
+            TypeVar var = ((GenericReference) type).getVar();
+            if (!fixedVars.contains(var)) {
+                result.add(var);
+            }
+        }
+    }
+
     private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed) {
         Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
 
@@ -305,8 +335,9 @@ public class Parser {
         boolean inferenceFailed = false;
         for (PostponedDirectiveParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
+                attrParse.type = attrParse.meta.valueType;
                 if (attrParse.expr != null) {
-                    attrParse.sam = attrParse.meta.sam.newCapture();
+                    attrParse.sam = attrParse.meta.sam;
                     if (attrParse.expr instanceof LambdaExpr) {
                         attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
                                 attrParse.sam);
@@ -332,8 +363,7 @@ public class Parser {
                     continue;
                 }
                 MethodDescriber setter = attrParse.meta.setter;
-                GenericType type = attrParse.sam.getActualOwner();
-                type = type.substitute(inference.getSubstitutions());
+                GenericType type = attrParse.sam.getActualOwner().substitute(inference.getSubstitutions());
                 TypedPlan plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
                 if (plan == null) {
                     continue;
@@ -355,7 +385,7 @@ public class Parser {
                 }
                 MethodDescriber getter = attrParse.meta.getter;
                 String varName = attrParse.node.getValue();
-                ValueType type = attrParse.meta.valueType;
+                ValueType type = attrParse.type;
                 if (type instanceof GenericType) {
                     type = ((GenericType) type).substitute(varInference.getSubstitutions());
                 }
@@ -412,6 +442,7 @@ public class Parser {
         DirectiveAttributeMetadata meta;
         Attribute node;
         Expr<Void> expr;
+        ValueType type;
         ValueType typeEstimate;
         GenericMethod sam;
     }

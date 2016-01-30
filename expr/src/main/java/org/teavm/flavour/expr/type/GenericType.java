@@ -26,10 +26,12 @@ public abstract class GenericType extends ValueType {
     GenericType() {
     }
 
+    @Override
     public GenericType substitute(Substitutions substitutions) {
         return substitute(substitutions, new HashSet<>());
     }
 
+    @Override
     abstract GenericType substitute(Substitutions substitutions, Set<TypeVar> visited);
 
     public abstract GenericType erasure();

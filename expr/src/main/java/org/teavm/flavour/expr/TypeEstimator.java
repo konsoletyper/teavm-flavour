@@ -21,7 +21,6 @@ import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
 import org.teavm.flavour.expr.type.GenericMethod;
-import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.ValueType;
@@ -63,10 +62,7 @@ public class TypeEstimator {
 
         for (int i = 0; i < expr.getBoundVariables().size(); ++i) {
             BoundVariable boundVar = expr.getBoundVariables().get(i);
-            ValueType type = argTypes[i];
-            if (type instanceof GenericType) {
-                type = ((GenericType) type).substitute(inference.getSubstitutions());
-            }
+            ValueType type = argTypes[i].substitute(inference.getSubstitutions());
             innerScope.boundVars.put(boundVar.getName(), type);
         }
 
@@ -79,10 +75,7 @@ public class TypeEstimator {
             return null;
         }
 
-        ValueType result = method.getActualReturnType();
-        if (result instanceof GenericType) {
-            result = ((GenericType) result).substitute(inference.getSubstitutions());
-        }
+        ValueType result = method.getActualReturnType().substitute(inference.getSubstitutions());
         return result;
     }
 

@@ -37,6 +37,8 @@ public class TypeInference {
     }
 
     public boolean equalConstraint(GenericType a, GenericType b) {
+        a = eliminateWildcard(a);
+        b = eliminateWildcard(b);
         if (a instanceof GenericReference && b instanceof GenericReference) {
             InferenceVar x = var(((GenericReference) a).getVar());
             InferenceVar y = var(((GenericReference) b).getVar());
@@ -69,6 +71,21 @@ public class TypeInference {
             }
         }
         return false;
+    }
+
+    private GenericType eliminateWildcard(GenericType type) {
+        if (!(type instanceof GenericWildcard)) {
+            return type;
+        }
+        GenericWildcard wildcard = (GenericWildcard) type;
+        TypeVar var = new TypeVar();
+        if (!wildcard.getLowerBound().isEmpty()) {
+            var.withLowerBound(wildcard.getLowerBound().toArray(new GenericType[0]));
+        }
+        if (!wildcard.getUpperBound().isEmpty()) {
+            var.withUpperBound(wildcard.getUpperBound().toArray(new GenericType[0]));
+        }
+        return new GenericReference(var);
     }
 
     private boolean equalConstraintTwoVars(InferenceVar x, InferenceVar y) {
@@ -132,6 +149,8 @@ public class TypeInference {
     }
 
     public boolean subtypeConstraint(GenericType a, GenericType b) {
+        a = eliminateWildcard(a);
+        b = eliminateWildcard(b);
         if (a instanceof GenericReference || b instanceof GenericReference) {
             if (a instanceof GenericReference) {
                 InferenceVar x = var(((GenericReference) a).getVar());
@@ -197,6 +216,7 @@ public class TypeInference {
                     return false;
                 }
             }
+            return true;
         } else if (x.boundType == BoundType.UPPER) {
             return equalConstraint(x.bounds.iterator().next(), t);
         } else if (x.boundType == BoundType.EXACT) {
@@ -270,6 +290,12 @@ public class TypeInference {
                 return true;
             } else if (x.boundType == BoundType.EXACT) {
                 return subtypeConstraint(t, x.bounds.iterator().next());
+            } else if (x.boundType == BoundType.UPPER && !x.complexBound) {
+                if (!equalConstraint(x.bounds.iterator().next(), t)) {
+                    return false;
+                }
+                x.boundType = BoundType.EXACT;
+                return true;
             }
             return false;
         } finally {
@@ -444,14 +470,13 @@ public class TypeInference {
     private Substitutions substitutions = new Substitutions() {
         @Override
         public GenericType get(TypeVar var) {
-            InferenceVar inferenceVar = inferenceVars.get(var);
-            if (inferenceVar == null) {
+            InferenceVar inferenceVar = var(var);
+
+            if (inferenceVar.recursive) {
                 return null;
             }
-            inferenceVar = inferenceVar.find();
-
-            if (inferenceVar.boundType == null || inferenceVar.recursive) {
-                return null;
+            if (inferenceVar.boundType == null) {
+                return GenericWildcard.unbounded();
             }
             switch (inferenceVar.boundType) {
                 case EXACT:
@@ -460,20 +485,16 @@ public class TypeInference {
                     if (!inferenceVar.complexBound) {
                         return inferenceVar.bounds.iterator().next();
                     }
-                    TypeVar v = new TypeVar();
-                    Set<GenericType> bounds = inferenceVar.bounds;
-                    v.withUpperBound(bounds.toArray(new GenericType[0]));
-                    return new GenericReference(v);
+                    return GenericWildcard.upperBounded(new ArrayList<>(inferenceVar.bounds));
                 }
                 case LOWER: {
                     if (!inferenceVar.complexBound) {
                         return inferenceVar.bounds.iterator().next();
                     }
-                    TypeVar v = new TypeVar();
-                    v.withLowerBound(inferenceVar.bounds.toArray(new GenericType[0]));
-                    return new GenericReference(v);
+                    return GenericWildcard.upperBounded(new ArrayList<>(inferenceVar.bounds));
                 }
             }
+
             return null;
         }
     };

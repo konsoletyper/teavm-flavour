@@ -201,13 +201,11 @@ class DirectiveParser {
         for (MethodDescriber methodDesc : clsDesc.getMethods()) {
             ValueType[] argumentTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < argumentTypes.length; ++i) {
-                if (argumentTypes[i] instanceof GenericType) {
-                    argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(subst);
-                }
+                argumentTypes[i] = argumentTypes[i].substitute(subst);
             }
             ValueType returnType = methodDesc.getReturnType();
-            if (returnType instanceof GenericType) {
-                returnType = ((GenericType) returnType).substitute(subst);
+            if (returnType != null) {
+                returnType = returnType.substitute(subst);
             }
             GenericMethod method = new GenericMethod(methodDesc, genericCls, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {

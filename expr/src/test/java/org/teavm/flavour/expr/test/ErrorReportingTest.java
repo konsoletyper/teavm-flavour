@@ -153,7 +153,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsPropertyAccessOnPrimitive() {
         Diagnostic d = parseExpr(StringComputation.class, "intValue.foo").get(0);
-        assertThat(d.getMessage(), is("Can't get property of non-class value: int"));
+        assertThat(d.getMessage(), is("Property foo was not found"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(12));
     }

@@ -42,21 +42,6 @@ public final class GenericReference extends GenericType {
             }
             GenericType substitution = substitutions.get(var);
             if (substitution == null) {
-                if (var.getName() == null) {
-                    TypeVar tmpVar = new TypeVar();
-                    if (!var.getLowerBound().isEmpty()) {
-                        GenericType[] bounds = var.getLowerBound().stream()
-                                .map(bound -> bound.substitute(substitutions, visited))
-                                .toArray(sz -> new GenericType[sz]);
-                        tmpVar.withLowerBound(bounds);
-                    } else {
-                        GenericType[] bounds = var.getUpperBound().stream()
-                                .map(bound -> bound.substitute(substitutions, visited))
-                                .toArray(sz -> new GenericType[sz]);
-                        tmpVar.withUpperBound(bounds);
-                    }
-                    return new GenericReference(tmpVar);
-                }
                 return this;
             }
             return substitution != this ? substitution.substitute(substitutions, visited) : substitution;
