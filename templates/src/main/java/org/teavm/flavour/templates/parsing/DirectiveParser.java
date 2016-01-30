@@ -30,7 +30,7 @@ import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.MapSubstitutions;
-import org.teavm.flavour.expr.type.TypeUnifier;
+import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
@@ -359,10 +359,10 @@ class DirectiveParser {
 
         boolean multiple = false;
         GenericType type = (GenericType) arguments[0];
-        TypeUnifier unifier = new TypeUnifier(classRepository);
+        TypeInference inference = new TypeInference(typeNavigator);
         TypeVar var = new TypeVar();
-        if (unifier.unify(new GenericClass("java.util.List", new GenericReference(var)), type, true)) {
-             type = unifier.getSubstitutions().get(var);
+        if (inference.subtypeConstraint(type, new GenericClass("java.util.List", new GenericReference(var)))) {
+             type = inference.getSubstitutions().get(var);
              multiple = true;
         }
 

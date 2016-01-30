@@ -549,6 +549,9 @@ public class TypeInference {
         }
 
         private InferenceVar unionImpl(InferenceVar other) {
+            if (this == other) {
+                return this;
+            }
             if (rank > other.rank) {
                 other.parent = this;
                 unionData(other);

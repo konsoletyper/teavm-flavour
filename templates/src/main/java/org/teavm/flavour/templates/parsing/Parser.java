@@ -51,7 +51,8 @@ import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericType;
-import org.teavm.flavour.expr.type.TypeUnifier;
+import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
@@ -73,6 +74,7 @@ public class Parser {
     private ClassDescriberRepository classRepository;
     private ImportingClassResolver classResolver;
     private ResourceProvider resourceProvider;
+    private GenericTypeNavigator typeNavigator;
     private Map<String, List<DirectiveMetadata>> avaliableDirectives = new HashMap<>();
     private Map<String, List<AttributeDirectiveMetadata>> avaliableAttrDirectives = new HashMap<>();
     private Map<String, DirectiveMetadata> directives = new HashMap<>();
@@ -88,6 +90,7 @@ public class Parser {
         this.classResolver = new ImportingClassResolver(classResolver);
         this.resourceProvider = resourceProvider;
         this.classResolver.importPackage("java.lang");
+        this.typeNavigator = new GenericTypeNavigator(classRepository);
     }
 
     public List<Diagnostic> getDiagnostics() {
@@ -236,7 +239,7 @@ public class Parser {
             directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
         }
 
-        TypeUnifier unifier = new TypeUnifier(classRepository);
+        TypeInference inference = new TypeInference(typeNavigator);
 
         for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
             Attribute attr = elem.getAttributes().get(attrMeta.name);
@@ -273,7 +276,7 @@ public class Parser {
                                 setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                                 attrMeta.sam.getActualOwner().getName());
                         directive.getComputations().add(computationBinding);
-                        unifier.unify(attrMeta.sam.getActualOwner(), (GenericType) plan.getType(), false);
+                        inference.equalConstraint((GenericType) plan.getType(), attrMeta.sam.getActualOwner());
                     }
                     break;
                 }
@@ -283,7 +286,7 @@ public class Parser {
         for (Map.Entry<String, ValueType> varEntry : declaredVars.entrySet()) {
             ValueType type = varEntry.getValue();
             if (type instanceof GenericType) {
-                type = ((GenericType) type).substitute(unifier.getSubstitutions());
+                type = ((GenericType) type).substitute(inference.getSubstitutions());
             }
             pushVar(varEntry.getKey(), type);
         }

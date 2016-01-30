@@ -143,6 +143,14 @@ class PlanOffsetVisitor implements PlanVisitor {
     }
 
     @Override
+    public void visit(ArrayConstructionPlan plan) {
+        apply(plan);
+        for (Plan elem : plan.getElements()) {
+            elem.acceptVisitor(this);
+        }
+    }
+
+    @Override
     public void visit(ConditionalPlan plan) {
         apply(plan);
         plan.getCondition().acceptVisitor(this);

@@ -18,6 +18,7 @@ package org.teavm.flavour.templates.emitting;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
+import org.teavm.flavour.expr.plan.ArrayConstructionPlan;
 import org.teavm.flavour.expr.plan.ArrayLengthPlan;
 import org.teavm.flavour.expr.plan.BinaryPlan;
 import org.teavm.flavour.expr.plan.CastFromIntegerPlan;
@@ -568,6 +569,27 @@ class ExprPlanEmitter implements PlanVisitor {
             } finally {
                 em = oldEm;
             }
+        });
+    }
+
+    @Override
+    public void visit(ArrayConstructionPlan plan) {
+        List<Value<Object>> elements = new ArrayList<>();
+        for (Plan elemPlan : plan.getElements()) {
+            elemPlan.acceptVisitor(this);
+            elements.add(var);
+        }
+        ReflectClass<Object> cls = new TypeParser(plan.getElementType()).parse().asSubclass(Object.class);
+        var = em.lazyFragment(Object.class, lem -> {
+            location(plan);
+            int sz = elements.size();
+            Value<Object[]> array = lem.emit(() -> cls.createArray(sz));
+            for (int i = 0; i < sz; ++i) {
+                Value<Object> elem = elements.get(i);
+                int index = i;
+                lem.emit(() -> array.get()[index] = elem.get());
+            }
+            lem.returnValue(array);
         });
     }
 
