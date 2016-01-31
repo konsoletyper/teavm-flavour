@@ -32,17 +32,23 @@ import org.teavm.flavour.templates.Slot;
  */
 @BindDirective(name = "validator")
 public class Validator extends AbstractComponent {
-    private boolean valid;
+    private ValidatorState state;
+    boolean valid;
     private List<ValidationEntry<?>> entries = new ArrayList<>();
     private Fragment content;
     private Component component;
 
     public Validator(Slot slot) {
         super(slot);
+        state = new ValidatorState(this);
     }
 
-    @BindAttribute(name = "result")
+    @BindAttribute(name = "as")
     @OptionalBinding
+    public ValidatorState getState() {
+        return state;
+    }
+
     public boolean isValid() {
         return valid;
     }
@@ -71,15 +77,18 @@ public class Validator extends AbstractComponent {
         component.render();
     }
 
-    public void update() {
-        component.render();
-    }
-
     void updateValid() {
         valid = true;
         for (ValidationEntry<?> entry : entries) {
             valid &= entry.validation.isValid();
         }
+    }
+
+    void update() {
+        for (ValidationEntry<?> entry : entries) {
+            entry.validation.check();
+        }
+        updateValid();
     }
 
     @Override

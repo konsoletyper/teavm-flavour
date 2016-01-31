@@ -15,38 +15,28 @@
  */
 package org.teavm.flavour.validation;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import org.teavm.flavour.templates.Templates;
 
 /**
  *
  * @author Alexey Andreev
  */
-public class Validation<T> {
+public class ValidatorState {
     Validator validator;
-    boolean valid = true;
-    boolean validFormat = true;
-    Supplier<Converter<T>> converter;
-    Supplier<T> supplier;
-    Consumer<T> consumer;
-    List<ValidationRule<T>> rules = new ArrayList<>();
-    Set<BindValidation<T>> bindings = new HashSet<>();
 
-    public boolean isValidFormat() {
-        return validFormat;
+    ValidatorState(Validator validator) {
+        this.validator = validator;
     }
 
     public boolean isValid() {
-        return valid && validFormat;
+        return validator.isValid();
     }
 
-    void check() {
-        for (BindValidation<T> binding : bindings) {
-            binding.check();
+    public void submit(Runnable action) {
+        validator.update();
+        if (isValid()) {
+            action.run();
         }
+        Templates.update();
     }
 }

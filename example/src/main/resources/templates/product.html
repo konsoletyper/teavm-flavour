@@ -1,6 +1,6 @@
 <?use v:org.teavm.flavour.validation?>
 <?import org.teavm.flavour.validation.Converter?>
-<v:validator result="valid">
+<v:validator as="validator">
   <v:validation as="skuField" convert="Converter.stringFormat()" show="product.sku" onchange="v -> product.setSku(v)">
     <v:check rule="v -> not v.empty" as="skuNotEmpty">
   </v:validation>
@@ -41,6 +41,7 @@
         <span class="help-block">Price must be positive.</span>
       </std:if>
     </div>
-    <button type="button" class="btn btn-default" event:click="save()" html:enabled="valid">Save</button>
+    <button type="button" class="btn btn-default" event:click="validator.submit(() -> save())"
+        html:enabled="validator.valid">Save</button>
   </form>
 </v:validator>

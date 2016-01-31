@@ -34,6 +34,7 @@ public class BindValidation<T> implements Renderable {
     private HTMLElement element;
     private boolean bound;
     private Supplier<Validation<T>> validation;
+    private Validation<T> currentValidation;
 
     public BindValidation(HTMLElement element) {
         this.element = element;
@@ -53,6 +54,12 @@ public class BindValidation<T> implements Renderable {
             bound = true;
         }
         Validation<T> v = validation.get();
+        if (currentValidation != v) {
+            if (currentValidation != null) {
+                currentValidation.bindings.remove(this);
+            }
+            v.bindings.add(this);
+        }
         if (!hasFocus(element) && v.validFormat) {
             setValue(element, v.converter.get().makeString(v.supplier.get()));
         }
@@ -60,6 +67,9 @@ public class BindValidation<T> implements Renderable {
 
     @Override
     public void destroy() {
+        if (currentValidation != null) {
+            currentValidation.bindings.remove(this);
+        }
         if (bound) {
             element.removeEventListener("change", listener);
             element.neglectFocus(focusListener);
@@ -68,7 +78,7 @@ public class BindValidation<T> implements Renderable {
         }
     }
 
-    private EventListener<Event> listener = event -> {
+    void check() {
         Validation<T> v = validation.get();
         String text = getValue(element);
         T value;
@@ -77,7 +87,6 @@ public class BindValidation<T> implements Renderable {
         } catch (ConversionException e) {
             v.validFormat = false;
             v.valid = true;
-            Templates.update();
             return;
         }
 
@@ -90,6 +99,10 @@ public class BindValidation<T> implements Renderable {
             }
         }
         v.consumer.accept(value);
+    }
+
+    private EventListener<Event> listener = event -> {
+        check();
         Templates.update();
     };
 
