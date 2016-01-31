@@ -38,6 +38,16 @@ public class Validation<T> {
     }
 
     public boolean isValid() {
-        return valid && rules.stream().allMatch(rule -> rule.predicate.test(null));
+        if (!valid) {
+            return false;
+        }
+        T value = supplier.get();
+        boolean result = true;
+        for (ValidationRule<T> rule : rules) {
+            if (!rule.predicate.test(value)) {
+                result = false;
+            }
+        }
+        return result;
     }
 }

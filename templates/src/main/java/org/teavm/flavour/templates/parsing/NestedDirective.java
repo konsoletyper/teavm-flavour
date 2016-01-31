@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import org.teavm.flavour.expr.type.GenericMethod;
 
 /**
  *
@@ -23,7 +23,7 @@ import org.teavm.flavour.expr.type.meta.MethodDescriber;
  */
 class NestedDirective {
     boolean multiple;
-    MethodDescriber setter;
+    GenericMethod setter;
     boolean required;
     DirectiveMetadata metadata;
 }

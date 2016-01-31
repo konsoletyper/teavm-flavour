@@ -58,6 +58,7 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.MapSubstitutions;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -232,13 +233,15 @@ public class Parser {
         }
 
         List<PostponedDirectiveParse> postponedList = new ArrayList<>();
-        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList, new HashMap<>());
+        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList,
+                new MapSubstitutions(new HashMap<>()));
         completeDirectiveParsing(postponedList);
+        position = elem.getEnd();
         return node;
     }
 
     private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name,
-            Element elem, List<PostponedDirectiveParse> postponed, Map<TypeVar, TypeVar> typeVars) {
+            Element elem, List<PostponedDirectiveParse> postponed, MapSubstitutions typeVars) {
         DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
         directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (directiveMeta.nameSetter != null) {
@@ -264,6 +267,12 @@ public class Parser {
                 attrParse.expr = parseExpr(attr.getValueSegment());
             }
 
+            if (attrParse.meta.valueType != null) {
+                attrParse.type = attrParse.meta.valueType.substitute(typeVars);
+            }
+            if (attrParse.meta.sam != null) {
+                attrParse.sam = attrParse.meta.sam.substitute(typeVars);
+            }
             attributesParse.add(attrParse);
         }
 
@@ -280,7 +289,7 @@ public class Parser {
         Map<NestedDirective, Set<TypeVar>> nestedNewVars = new HashMap<>();
         for (NestedDirective nestedDirective : directiveMeta.nestedDirectives) {
             Set<TypeVar> newVars = new HashSet<>();
-            newVariables(typeVars.keySet(), newVars, nestedDirective.setter.getArgumentTypes()[0]);
+            newVariables(typeVars.getMap().keySet(), newVars, nestedDirective.setter.getActualArgumentTypes()[0]);
             nestedNewVars.put(nestedDirective, newVars);
         }
 
@@ -294,11 +303,11 @@ public class Parser {
                     if (nested != null) {
                         Set<TypeVar> newVars = nestedNewVars.get(nested);
                         for (TypeVar var : newVars) {
-                            typeVars.put(var, new TypeVar());
+                            typeVars.getMap().put(var, new GenericReference(new TypeVar()));
                         }
                         DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child,
                                 postponed, typeVars);
-                        typeVars.keySet().removeAll(newVars);
+                        typeVars.getMap().keySet().removeAll(newVars);
                         NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
                         binding.getDirectives().add(nestedNode);
                     }
@@ -327,17 +336,13 @@ public class Parser {
     }
 
     private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed) {
-        Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
-
         // Attempting to infer values for directive's type parameters
         TypeEstimator estimator = new TypeEstimator(classResolver, typeNavigator, new TemplateScope());
         TypeInference inference = new TypeInference(typeNavigator);
         boolean inferenceFailed = false;
         for (PostponedDirectiveParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
-                attrParse.type = attrParse.meta.valueType;
                 if (attrParse.expr != null) {
-                    attrParse.sam = attrParse.meta.sam;
                     if (attrParse.expr instanceof LambdaExpr) {
                         attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
                                 attrParse.sam);
@@ -403,6 +408,7 @@ public class Parser {
         }
 
         // Process bodies
+        Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
         for (PostponedDirectiveParse parse : postponed) {
             position = parse.position;
             parseSegment(parse.elem.getEnd(), parse.directive.getContentNodes(),
@@ -472,7 +478,8 @@ public class Parser {
     private NestedDirectiveBinding getNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
         NestedDirectiveBinding binding = findNestedDirectiveBinding(directive, metadata);
         if (binding == null) {
-            binding = new NestedDirectiveBinding(metadata.setter.getOwner().getName(), metadata.setter.getName(),
+            binding = new NestedDirectiveBinding(metadata.setter.getDescriber().getOwner().getName(),
+                    metadata.setter.getDescriber().getName(),
                     metadata.metadata.cls.getName(), metadata.multiple);
             directive.getNestedDirectives().add(binding);
         }
@@ -481,8 +488,8 @@ public class Parser {
 
     private NestedDirectiveBinding findNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
         for (NestedDirectiveBinding binding : directive.getNestedDirectives()) {
-            if (binding.getMethodName().equals(metadata.setter.getName())
-                    && binding.getMethodOwner().equals(metadata.setter.getOwner().getName())) {
+            if (binding.getMethodName().equals(metadata.setter.getDescriber().getName())
+                    && binding.getMethodOwner().equals(metadata.setter.getDescriber().getOwner().getName())) {
                 return binding;
             }
         }

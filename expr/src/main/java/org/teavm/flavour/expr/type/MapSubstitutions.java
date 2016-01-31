@@ -28,6 +28,10 @@ public class MapSubstitutions implements Substitutions {
         this.map = map;
     }
 
+    public Map<TypeVar, GenericType> getMap() {
+        return map;
+    }
+
     @Override
     public GenericType get(TypeVar var) {
         return map.get(var);

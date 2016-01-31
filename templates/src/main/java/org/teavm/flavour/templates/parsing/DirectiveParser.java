@@ -22,13 +22,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
+import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.MapSubstitutions;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
@@ -343,6 +346,7 @@ class DirectiveParser {
 
         bindings.add(binding);
 
+        method = replaceWildcards(method);
         ValueType[] arguments = method.getActualArgumentTypes();
         if (method.getActualReturnType() != null || arguments.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindDirective.class.getName()
@@ -373,9 +377,53 @@ class DirectiveParser {
         NestedDirective nestedDirective = new NestedDirective();
         nestedDirective.multiple = multiple;
         nestedDirective.metadata = parseElement((GenericClass) type, binding, false);
-        nestedDirective.setter = method.getDescriber();
+        nestedDirective.setter = method;
         nestedDirective.required = method.getDescriber().getAnnotation(OptionalBinding.class.getName()) == null;
         metadata.nestedDirectives.add(nestedDirective);
+    }
+
+    private GenericMethod replaceWildcards(GenericMethod method) {
+        ValueType[] args = Arrays.stream(method.getActualArgumentTypes())
+                .map(this::replaceWildcards)
+                .toArray(sz -> new ValueType[sz]);
+        ValueType returnType = method.getActualReturnType();
+        if (returnType != null) {
+            returnType = replaceWildcards(returnType);
+        }
+        return new GenericMethod(method.getDescriber(), method.getActualOwner(), args, returnType);
+    }
+
+    private ValueType replaceWildcards(ValueType type) {
+        if (type instanceof GenericClass) {
+            GenericClass cls = (GenericClass) type;
+            List<GenericType> args = cls.getArguments().stream()
+                    .map(this::replaceWildcards)
+                    .map(arg -> (GenericType) arg)
+                    .collect(Collectors.toList());
+            return new GenericClass(cls.getName(), args);
+        } else if (type instanceof GenericArray) {
+            GenericArray array = (GenericArray) type;
+            return new GenericArray(replaceWildcards(array.getElementType()));
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            TypeVar var = new TypeVar();
+            if (!wildcard.getLowerBound().isEmpty()) {
+                GenericType[] bounds = var.getLowerBound().stream()
+                        .map(this::replaceWildcards)
+                        .map(arg -> (GenericType) arg)
+                        .toArray(sz -> new GenericType[sz]);
+                var.withLowerBound(bounds);
+            } else if (!wildcard.getUpperBound().isEmpty()) {
+                GenericType[] bounds = var.getUpperBound().stream()
+                        .map(this::replaceWildcards)
+                        .map(arg -> (GenericType) arg)
+                        .toArray(sz -> new GenericType[sz]);
+                var.withUpperBound(bounds);
+            }
+            return new GenericReference(var);
+        } else {
+            return type;
+        }
     }
 
     private boolean parseAttributeType(DirectiveAttributeMetadata attrMetadata, ValueType valueType,

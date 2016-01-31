@@ -8,8 +8,8 @@
       onchange="v -> product.setName(v)">
     <v:check rule="v -> not v.empty" as="nameNotEmpty">
   </v:validation>
-  <v:validation as="priceField" convert="Converter.doubleFormat('#,##0.00')" show="product.price"
-      onchange="v -> product.setPrice(v)">
+  <v:validation as="priceField" convert="Converter.doubleFormat('#,##0.00')" show="product.unitPrice"
+      onchange="v -> product.setUnitPrice(v)">
     <v:check rule="v -> v != null" as="priceNotEmpty">
     <v:check rule="v -> v > 0" as="pricePositive">
   </v:validation>
@@ -31,7 +31,7 @@
     <div attr:class="priceField.valid ? 'form-group' : 'form-group has-error'">
       <label>Price</label>
       <input type="text" class="form-control" v:bind="priceField"/>
-      <std:if condition="not priceEmpty">
+      <std:if condition="not priceNotEmpty">
         <span class="help-block">Price is required.</span>
       </std:if>
       <std:if condition="not priceField.validFormat">
