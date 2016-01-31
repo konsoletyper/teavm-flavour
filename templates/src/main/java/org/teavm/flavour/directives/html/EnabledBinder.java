@@ -30,7 +30,7 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 public class EnabledBinder implements Renderable {
     private HTMLInputElement element;
     private Supplier<Boolean> value;
-    private boolean cachedValue;
+    private boolean cachedValue = true;
 
     public EnabledBinder(HTMLElement element) {
         this.element = (HTMLInputElement) element;

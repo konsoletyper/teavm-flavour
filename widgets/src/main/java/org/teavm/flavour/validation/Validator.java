@@ -67,11 +67,19 @@ public class Validator extends AbstractComponent {
             }
         }
 
+        updateValid();
         component.render();
     }
 
     public void update() {
         component.render();
+    }
+
+    void updateValid() {
+        valid = true;
+        for (ValidationEntry<?> entry : entries) {
+            valid &= entry.validation.isValid();
+        }
     }
 
     @Override
