@@ -38,16 +38,6 @@ public class Validation<T> {
     }
 
     public boolean isValid() {
-        if (!valid) {
-            return false;
-        }
-        T value = supplier.get();
-        boolean result = true;
-        for (ValidationRule<T> rule : rules) {
-            if (!rule.predicate.test(value)) {
-                result = false;
-            }
-        }
-        return result;
+        return valid && validFormat;
     }
 }

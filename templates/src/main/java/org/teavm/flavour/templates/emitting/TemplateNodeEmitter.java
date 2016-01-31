@@ -233,7 +233,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             int capacity = nested.getDirectives().size();
             Value<List<Object>> list = em.emit(() -> new ArrayList<>(capacity));
             for (DirectiveBinding nestedDirective : nested.getDirectives()) {
-                Value<Object> nestedComponent = emitNestedComponent(nestedDirective, em, root);
+                Value<Object> nestedComponent = emitNestedComponent(nestedDirective, em, root, instancesToFill);
                 em.emit(() -> list.get().add(nestedComponent));
                 instancesToFill.add(new NestedComponentInstance(nestedDirective, nestedComponent, root));
             }
@@ -241,19 +241,21 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         } else {
             ReflectClass<?> directiveType = em.getContext().findClass(nested.getDirectiveType());
             ReflectMethod setter = cls.getMethod(nested.getMethodName(), directiveType);
-            Value<Object> nestedComponent = emitNestedComponent(nested.getDirectives().get(0), em, root);
+            Value<Object> nestedComponent = emitNestedComponent(nested.getDirectives().get(0), em, root,
+                    instancesToFill);
             em.emit(() -> setter.invoke(component, nestedComponent));
             instancesToFill.add(new NestedComponentInstance(nested.getDirectives().get(0), nestedComponent, root));
         }
         return instancesToFill;
     }
 
-    private Value<Object> emitNestedComponent(DirectiveBinding node, Emitter<?> em, Value<? extends Object> root) {
+    private Value<Object> emitNestedComponent(DirectiveBinding node, Emitter<?> em, Value<? extends Object> root,
+            List<NestedComponentInstance> instances) {
         context.location(em, node.getLocation());
         ReflectClass<?> componentType = em.getContext().findClass(node.getClassName());
         ReflectMethod ctor = componentType.getMethod("<init>");
         Value<Object> component = em.emit(() -> ctor.construct());
-        emitDirective(node, component, root);
+        instances.addAll(emitDirective(node, component, root));
         return component;
     }
 

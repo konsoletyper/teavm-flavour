@@ -16,7 +16,7 @@
 package org.teavm.flavour.validation;
 
 import java.text.DecimalFormat;
-import java.text.ParseException;
+import java.text.ParsePosition;
 
 /**
  *
@@ -73,11 +73,13 @@ public interface Converter<T> {
 
             @Override
             public Double parse(String value) throws ConversionException {
-                try {
-                    return format.parse(formatString).doubleValue();
-                } catch (ParseException e) {
+                value = value.trim();
+                ParsePosition position = new ParsePosition(0);
+                Number result = format.parse(value, position);
+                if (result == null || position.getIndex() != value.length()) {
                     throw new ConversionException();
                 }
+                return result.doubleValue();
             }
         };
     }

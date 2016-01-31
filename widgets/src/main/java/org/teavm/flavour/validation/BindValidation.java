@@ -53,7 +53,7 @@ public class BindValidation<T> implements Renderable {
             bound = true;
         }
         Validation<T> v = validation.get();
-        if (!hasFocus(element)) {
+        if (!hasFocus(element) && v.validFormat) {
             setValue(element, v.converter.get().makeString(v.supplier.get()));
         }
     }

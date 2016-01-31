@@ -25,7 +25,7 @@ import org.teavm.flavour.templates.OptionalBinding;
  */
 public class ValidationRule<T> {
     Predicate<T> predicate;
-    boolean valid;
+    boolean valid = true;
 
     @BindAttribute(name = "as")
     @OptionalBinding
