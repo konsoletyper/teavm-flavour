@@ -48,6 +48,8 @@ public interface PlanVisitor {
 
     void visit(FieldPlan plan);
 
+    void visit(FieldAssignmentPlan plan);
+
     void visit(InstanceOfPlan plan);
 
     void visit(InvocationPlan plan);

@@ -441,6 +441,25 @@ class InterpreterVisitor implements PlanVisitor {
     }
 
     @Override
+    public void visit(FieldAssignmentPlan plan) {
+        Object instance;
+        if (plan.getInstance() != null) {
+            plan.getInstance().acceptVisitor(this);
+            instance = value;
+        } else {
+            instance = null;
+        }
+        plan.getValue().acceptVisitor(this);
+        try {
+            getField(plan.getClassName(), plan.getFieldName()).set(instance, value);
+        } catch (IllegalAccessException e) {
+            throw new InterpretationException("Can't access field " + plan.getClassName() + "."
+                    + plan.getFieldName(), e);
+        }
+        value = null;
+    }
+
+    @Override
     public void visit(InstanceOfPlan plan) {
         plan.getOperand().acceptVisitor(this);
         if (value == null) {

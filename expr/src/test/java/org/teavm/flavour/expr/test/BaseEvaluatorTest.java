@@ -56,6 +56,8 @@ public abstract class BaseEvaluatorTest {
 
         @VariableName("this")
         void self(Foo v);
+
+        void bean(TestBean bean);
     }
 
     interface BooleanComputation {

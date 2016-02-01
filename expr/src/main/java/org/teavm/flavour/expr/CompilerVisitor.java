@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.BinaryOperation;
 import org.teavm.flavour.expr.ast.BoundVariable;
@@ -53,6 +54,7 @@ import org.teavm.flavour.expr.plan.CastToIntegerPlan;
 import org.teavm.flavour.expr.plan.ConditionalPlan;
 import org.teavm.flavour.expr.plan.ConstantPlan;
 import org.teavm.flavour.expr.plan.ConstructionPlan;
+import org.teavm.flavour.expr.plan.FieldAssignmentPlan;
 import org.teavm.flavour.expr.plan.FieldPlan;
 import org.teavm.flavour.expr.plan.GetArrayElementPlan;
 import org.teavm.flavour.expr.plan.InstanceOfPlan;
@@ -519,36 +521,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         copyLocation(expr);
     }
 
-    private GenericMethod findGetter(Collection<GenericClass> classes, String name) {
-        for (GenericClass cls : classes) {
-            GenericMethod method = navigator.getMethod(cls, getGetterName(name));
-            if (method == null) {
-                method = navigator.getMethod(cls, getBooleanGetterName(name));
-                if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
-                    method = null;
-                }
-            }
-            if (method != null) {
-                return method;
-            }
-        }
-        return null;
-    }
-
-    private String getGetterName(String propertyName) {
-        if (propertyName.isEmpty()) {
-            return "get";
-        }
-        return "get" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
-    }
-
-    private String getBooleanGetterName(String propertyName) {
-        if (propertyName.isEmpty()) {
-            return "is";
-        }
-        return "is" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
-    }
-
     @Override
     public void visit(StaticPropertyExpr<TypedPlan> expr) {
         Collection<GenericClass> classes = Collections.singleton(navigator.getGenericClass(expr.getClassName()));
@@ -558,13 +530,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
 
     private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
             String propertyName) {
-        GenericField field = null;
-        for (GenericClass cls : classes) {
-            field = navigator.getField(cls, propertyName);
-            if (field != null) {
-                break;
-            }
-        }
+        GenericField field = findField(classes, propertyName);
         boolean isStatic = instance == null;
         if (field != null) {
             if (isStatic == field.getDescriber().isStatic()) {
@@ -769,6 +735,132 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 expr.getConsequent().getAttribute().plan, expr.getAlternative().getAttribute().plan), type);
         expr.setAttribute(plan);
         copyLocation(expr);
+    }
+
+    @Override
+    public void visit(AssignmentExpr<TypedPlan> expr) {
+        if (expr.getTarget() instanceof VariableExpr) {
+            ValueType instanceType = scope.variableType("this");
+            String identifier = ((VariableExpr<?>) expr.getTarget()).getName();
+            TypedPlan instance = new TypedPlan(new ThisPlan(), instanceType);
+            TypedPlan result = compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
+                    expr.getValue(), expr);
+            expr.setAttribute(result);
+        } else if (expr.getTarget() instanceof PropertyExpr) {
+            PropertyExpr<TypedPlan> property = (PropertyExpr<TypedPlan>) expr.getTarget();
+            property.getInstance().acceptVisitor(this);
+            TypedPlan instance = property.getInstance().getAttribute();
+            ValueType instanceType = instance.getType();
+            String identifier = property.getPropertyName();
+            TypedPlan result = compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
+                    expr.getValue(), expr);
+            expr.setAttribute(result);
+        } else if (expr.getTarget() instanceof StaticPropertyExpr) {
+            StaticPropertyExpr<TypedPlan> property = (StaticPropertyExpr<TypedPlan>) expr.getTarget();
+            ValueType instanceType = navigator.getGenericClass(property.getClassName());
+            String identifier = property.getPropertyName();
+            TypedPlan result = compileAssignment(null, CompilerCommons.extractClasses(instanceType), identifier,
+                    expr.getValue(), expr);
+            expr.setAttribute(result);
+        } else {
+            error(expr.getTarget(), "Invalid left side of assignment");
+            expr.setAttribute(new TypedPlan(new ThisPlan(), voidType()));
+        }
+    }
+
+    private GenericType voidType() {
+        return new GenericClass("java.lang.Void");
+    }
+
+    private TypedPlan compileAssignment(TypedPlan instance, Collection<GenericClass> classes, String name,
+            Expr<TypedPlan> value, Expr<TypedPlan> expr) {
+        value.acceptVisitor(this);
+        if (value.getAttribute().getType() == null) {
+            error(value, "Right side of assignment must return a value");
+            return new TypedPlan(new ThisPlan(), voidType());
+        }
+
+        GenericField field = findField(classes, name);
+        if (field != null) {
+            String owner = field.getDescriber().getOwner().getName();
+            String fieldName = field.getDescriber().getName();
+            String desc = typeToString(field.getDescriber().getRawType());
+            return new TypedPlan(new FieldAssignmentPlan(instance != null ? instance.getPlan() : null,
+                    owner, fieldName, desc, value.getAttribute().getPlan()), voidType());
+        }
+
+        GenericMethod setter = findSetter(classes, name, value.getAttribute().getType());
+        if (setter != null) {
+            String owner = setter.getDescriber().getOwner().getName();
+            String methodName = setter.getDescriber().getName();
+            String methodDesc = methodToDesc(setter.getDescriber());
+            return new TypedPlan(new InvocationPlan(owner, methodName, methodDesc,
+                    instance != null ? instance.getPlan() : null, value.getAttribute().getPlan()), voidType());
+        }
+
+        error(expr, "Property not found: " + name);
+        return new TypedPlan(new ThisPlan(), voidType());
+    }
+
+    private GenericField findField(Collection<GenericClass> classes, String name) {
+        for (GenericClass cls : classes) {
+            GenericField field = navigator.getField(cls, name);
+            if (field != null) {
+                return field;
+            }
+        }
+        return null;
+    }
+
+    private GenericMethod findGetter(Collection<GenericClass> classes, String name) {
+        String getterName = getGetterName(name);
+        String booleanGetterName = getBooleanGetterName(name);
+        for (GenericClass cls : classes) {
+            GenericMethod method = navigator.getMethod(cls, getterName);
+            if (method == null) {
+                method = navigator.getMethod(cls, booleanGetterName);
+                if (method != null && method.getActualReturnType() != Primitive.BOOLEAN) {
+                    method = null;
+                }
+            }
+            if (method != null) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private GenericMethod findSetter(Collection<GenericClass> classes, String propertyName, ValueType type) {
+        String setterName = getSetterName(propertyName);
+        for (GenericClass cls : classes) {
+            for (GenericMethod method : navigator.findMethods(cls, setterName, 1)) {
+                if (TypeUtil.subtype(type, method.getActualArgumentTypes()[0], new TypeInference(navigator))) {
+                    return method;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getGetterName(String propertyName) {
+        if (propertyName.isEmpty()) {
+            return "get";
+        }
+        return "get" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
+    }
+
+    private String getSetterName(String propertyName) {
+        if (propertyName.isEmpty()) {
+            return "set";
+        }
+        return "set" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
+    }
+
+    private String getBooleanGetterName(String propertyName) {
+        if (propertyName.isEmpty()) {
+            return "is";
+        }
+        return "is" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
     }
 
     private void ensureBooleanType(Expr<TypedPlan> expr) {

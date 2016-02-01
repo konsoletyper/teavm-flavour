@@ -27,6 +27,7 @@ import org.teavm.flavour.expr.plan.CastToIntegerPlan;
 import org.teavm.flavour.expr.plan.ConditionalPlan;
 import org.teavm.flavour.expr.plan.ConstantPlan;
 import org.teavm.flavour.expr.plan.ConstructionPlan;
+import org.teavm.flavour.expr.plan.FieldAssignmentPlan;
 import org.teavm.flavour.expr.plan.FieldPlan;
 import org.teavm.flavour.expr.plan.GetArrayElementPlan;
 import org.teavm.flavour.expr.plan.InstanceOfPlan;
@@ -501,6 +502,30 @@ class ExprPlanEmitter implements PlanVisitor {
         } else {
             location(plan);
             var = em.lazy(() -> field.get(null));
+        }
+    }
+
+    @Override
+    public void visit(FieldAssignmentPlan plan) {
+        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
+        ReflectField field = cls.getField(plan.getFieldName());
+
+        plan.getValue().acceptVisitor(this);
+        Value<Object> value = var;
+        if (plan.getInstance() != null) {
+            plan.getInstance().acceptVisitor(this);
+            Value<Object> instance = var;
+            location(plan);
+            var = em.lazy(() -> {
+                field.set(instance.get(), value.get());
+                return null;
+            });
+        } else {
+            location(plan);
+            var = em.lazy(() -> {
+                field.set(null, value.get());
+                return null;
+            });
         }
     }
 

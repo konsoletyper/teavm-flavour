@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2016 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,32 +19,30 @@ package org.teavm.flavour.expr.ast;
  *
  * @author Alexey Andreev
  */
-public interface ExprVisitorStrict<T> {
-    void visit(BinaryExpr<T> expr);
+public class AssignmentExpr<T> extends Expr<T> {
+    private Expr<T> target;
+    private Expr<T> value;
 
-    void visit(CastExpr<T> expr);
+    public AssignmentExpr(Expr<T> target, Expr<T> value) {
+        this.target = target;
+        this.value = value;
+    }
 
-    void visit(InstanceOfExpr<T> expr);
+    public Expr<T> getTarget() {
+        return target;
+    }
 
-    void visit(InvocationExpr<T> expr);
+    public Expr<T> getValue() {
+        return value;
+    }
 
-    void visit(StaticInvocationExpr<T> expr);
+    @Override
+    public void acceptVisitor(ExprVisitor<? super T> visitor) {
+        visitor.visit(this);
+    }
 
-    void visit(PropertyExpr<T> expr);
-
-    void visit(StaticPropertyExpr<T> expr);
-
-    void visit(UnaryExpr<T> expr);
-
-    void visit(VariableExpr<T> expr);
-
-    void visit(ConstantExpr<T> expr);
-
-    void visit(TernaryConditionExpr<T> expr);
-
-    void visit(ThisExpr<T> expr);
-
-    void visit(LambdaExpr<T> expr);
-
-    void visit(AssignmentExpr<T> expr);
+    @Override
+    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
+        visitor.visit(this);
+    }
 }

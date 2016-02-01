@@ -175,6 +175,24 @@ public class PlanFormatter implements PlanVisitor {
     }
 
     @Override
+    public void visit(FieldAssignmentPlan plan) {
+        sb.append("[set-field");
+        if (plan.getInstance() == null) {
+            sb.append("-static");
+        }
+        sb.append(" ").append(plan.getClassName()).append('.').append(plan.getFieldName());
+        ++indentLevel;
+        if (plan.getInstance() != null) {
+            newLine();
+            plan.getInstance().acceptVisitor(this);
+        }
+        newLine();
+        plan.getValue().acceptVisitor(this);
+        sb.append(']');
+        --indentLevel;
+    }
+
+    @Override
     public void visit(InstanceOfPlan plan) {
         sb.append("[instanceof ").append(plan.getClassName());
         ++indentLevel;

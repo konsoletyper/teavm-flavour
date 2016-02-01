@@ -140,6 +140,16 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         copyLocation(expr);
     }
 
+    @Override
+    public void visit(AssignmentExpr<? extends Object> expr) {
+        expr.getTarget().acceptVisitor(this);
+        Expr<T> target = result;
+        expr.getValue().acceptVisitor(this);
+        Expr<T> value = result;
+        result = new AssignmentExpr<>(target, value);
+        copyLocation(expr);
+    }
+
     private void copyLocation(Expr<? extends Object> expr) {
         result.setStart(expr.getStart());
         result.setEnd(expr.getEnd());

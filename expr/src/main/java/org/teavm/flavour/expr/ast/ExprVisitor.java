@@ -45,4 +45,6 @@ public interface ExprVisitor<T> {
     void visit(ThisExpr<? extends T> expr);
 
     void visit(LambdaExpr<? extends T> expr);
+
+    void visit(AssignmentExpr<? extends T> expr);
 }

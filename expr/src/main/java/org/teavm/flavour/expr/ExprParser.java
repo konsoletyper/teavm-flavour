@@ -49,10 +49,10 @@ class ExprParser extends BaseParser<Holder> {
                 boundVars.set(new ArrayList<BoundVariable>()),
                 LambdaBoundVariables(boundVars),
                 Keyword("->"),
-                Expression(),
+                Assignment(),
                 push(wrap(new LambdaExpr<>(pop().expr, boundVars.get()))),
                 setLocations(start)),
-            Expression());
+            Assignment());
     }
 
     Rule LambdaBoundVariables(Var<List<BoundVariable>> boundVars) {
@@ -82,6 +82,19 @@ class ExprParser extends BaseParser<Holder> {
         return FirstOf(
             Sequence(Keyword("_"), name.set("")),
             Identifier(name));
+    }
+
+    Rule Assignment() {
+        Var<Integer> start = new Var<>();
+        return FirstOf(
+            Sequence(
+                start.set(currentIndex()),
+                Path(),
+                Keyword("="),
+                TernaryCondition(),
+                push(wrap(new AssignmentExpr<>(pop(1).expr, pop().expr))),
+                setLocations(start)),
+            TernaryCondition());
     }
 
     Rule Expression() {

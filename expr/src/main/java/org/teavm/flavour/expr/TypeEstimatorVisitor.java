@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.CastExpr;
 import org.teavm.flavour.expr.ast.ConstantExpr;
@@ -340,6 +341,11 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     @Override
     public void visit(LambdaExpr<? extends Object> expr) {
+        result = null;
+    }
+
+    @Override
+    public void visit(AssignmentExpr<? extends Object> expr) {
         result = null;
     }
 

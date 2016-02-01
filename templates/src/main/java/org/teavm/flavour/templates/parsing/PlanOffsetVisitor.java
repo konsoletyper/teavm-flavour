@@ -118,6 +118,15 @@ class PlanOffsetVisitor implements PlanVisitor {
     }
 
     @Override
+    public void visit(FieldAssignmentPlan plan) {
+        apply(plan);
+        if (plan.getInstance() != null) {
+            plan.getInstance().acceptVisitor(this);
+        }
+        plan.getValue().acceptVisitor(this);
+    }
+
+    @Override
     public void visit(InstanceOfPlan plan) {
         apply(plan);
         plan.getOperand().acceptVisitor(this);

@@ -430,6 +430,24 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         assertThat(result, is(""));
     }
 
+    @Test
+    public void setsProperty() {
+        TestBean bean = new TestBean();
+        ObjectComputation c = parseExpr(ObjectComputation.class, "bean.foo = 'qwe'");
+        vars.bean(bean);
+        c.compute();
+        assertThat(bean.getFoo(), is("qwe"));
+    }
+
+    @Test
+    public void setsField() {
+        TestBean bean = new TestBean();
+        ObjectComputation c = parseExpr(ObjectComputation.class, "bean.bar = 123");
+        vars.bean(bean);
+        c.compute();
+        assertThat(bean.bar, is(123));
+    }
+
     private <T> T parseExpr(Class<T> cls, String str) {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")
