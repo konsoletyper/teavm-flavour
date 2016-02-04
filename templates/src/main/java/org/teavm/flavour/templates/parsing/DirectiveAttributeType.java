@@ -21,5 +21,6 @@ package org.teavm.flavour.templates.parsing;
  */
 enum DirectiveAttributeType {
     VARIABLE,
-    FUNCTION
+    FUNCTION,
+    BIDIRECTIONAL
 }

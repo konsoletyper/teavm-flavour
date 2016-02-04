@@ -28,7 +28,10 @@ class DirectiveAttributeMetadata {
     DirectiveAttributeType type;
     boolean required;
     MethodDescriber setter;
+    MethodDescriber altSetter;
     MethodDescriber getter;
     GenericMethod sam;
+    GenericMethod altSam;
     ValueType valueType;
+    ValueType altValueType;
 }

@@ -1,17 +1,15 @@
 <?use v:org.teavm.flavour.validation?>
 <?import org.teavm.flavour.validation.Converter?>
 <v:validator as="validator">
-  <v:validation as="skuField" convert="Converter.stringFormat()" show="product.sku" onchange="v -> product.sku = v">
-    <v:check rule="v -> not v.empty" as="skuNotEmpty">
+  <v:validation of="product.sku" as="skuField" convert="Converter.stringFormat()">
+    <v:check rule="not it.empty" as="skuNotEmpty">
   </v:validation>
-  <v:validation as="nameField" convert="Converter.stringFormat()" show="product.name"
-      onchange="v -> product.name = v">
-    <v:check rule="v -> not v.empty" as="nameNotEmpty">
+  <v:validation of="product.name" as="nameField" convert="Converter.stringFormat()">
+    <v:check rule="not it.empty" as="nameNotEmpty">
   </v:validation>
-  <v:validation as="priceField" convert="Converter.doubleFormat('#,##0.00')" show="product.unitPrice"
-      onchange="v -> product.unitPrice = v">
-    <v:check rule="v -> v != null" as="priceNotEmpty">
-    <v:check rule="v -> v > 0" as="pricePositive">
+  <v:validation of="product.unitPrice" as="priceField" convert="Converter.doubleFormat('#,##0.00')">
+    <v:check rule="it != null" as="priceNotEmpty">
+    <v:check rule="it > 0" as="pricePositive">
   </v:validation>
   <form>
     <div class="form-group" attr:class="skuField.valid ? 'form-group' : 'form-group has-error'">

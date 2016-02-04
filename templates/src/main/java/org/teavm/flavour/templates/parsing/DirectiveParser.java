@@ -301,8 +301,10 @@ class DirectiveParser {
 
         DirectiveAttributeMetadata existing = metadata.attributes.get(name);
         if (existing != null) {
-            error("Method " + methodToString(method.getDescriber()) + " is bound to " + name + " attribute, but "
-                    + "it is already bound to another method: " + methodToString(existing.setter));
+            if (!tryBidirectional(existing, method)) {
+                error("Method " + methodToString(method.getDescriber()) + " is bound to " + name + " attribute, but "
+                        + "it is already bound to another method: " + methodToString(existing.setter));
+            }
             return;
         }
 
@@ -335,6 +337,47 @@ class DirectiveParser {
             error("Method " + methodToString(method.getDescriber()) + " should either take lambda or return value, "
                     + "since it is mapped to an attribute: " + arguments[0]);
         }
+    }
+
+    private boolean tryBidirectional(DirectiveAttributeMetadata attribute, GenericMethod method) {
+        if (attribute.type != DirectiveAttributeType.FUNCTION) {
+            return false;
+        }
+        if (method.getActualReturnType() != null || method.getActualArgumentTypes().length != 1) {
+            return false;
+        }
+        ValueType valueType = method.getActualArgumentTypes()[0];
+        if (!(valueType instanceof GenericClass)) {
+            return false;
+        }
+        GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass) valueType);
+
+        if (isGetterLike(sam) && isSetterLike(attribute.sam)) {
+            attribute.type = DirectiveAttributeType.BIDIRECTIONAL;
+            attribute.altSam = attribute.sam;
+            attribute.altSetter = attribute.setter;
+            attribute.altValueType = attribute.valueType;
+            attribute.sam = sam;
+            attribute.setter = method.getDescriber();
+            attribute.valueType = valueType;
+            return true;
+        } else if (isSetterLike(sam) && isGetterLike(attribute.sam)) {
+            attribute.type = DirectiveAttributeType.BIDIRECTIONAL;
+            attribute.altSam = sam;
+            attribute.altSetter = method.getDescriber();
+            attribute.altValueType = valueType;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean isGetterLike(GenericMethod sam) {
+        return sam.getActualArgumentTypes().length == 0 && sam.getActualReturnType() != null;
+    }
+
+    private boolean isSetterLike(GenericMethod sam) {
+        return sam.getActualArgumentTypes().length == 1 && sam.getActualReturnType() == null;
     }
 
     private void parseBindDirective(DirectiveMetadata metadata, GenericMethod method,

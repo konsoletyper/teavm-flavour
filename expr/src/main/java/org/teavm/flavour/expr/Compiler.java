@@ -16,12 +16,16 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.ExprCopier;
 import org.teavm.flavour.expr.ast.LambdaExpr;
+import org.teavm.flavour.expr.ast.PropertyExpr;
+import org.teavm.flavour.expr.ast.VariableExpr;
 import org.teavm.flavour.expr.type.*;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
@@ -31,16 +35,16 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
  * @author Alexey Andreev
  */
 public class Compiler {
-    private ClassDescriberRepository classRepository;
     private ClassResolver classResolver;
     private Scope scope;
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private List<Diagnostic> safeDiagnostics = Collections.unmodifiableList(diagnostics);
+    private GenericTypeNavigator typeNavigator;
 
     public Compiler(ClassDescriberRepository classRepository, ClassResolver classResolver, Scope scope) {
-        this.classRepository = classRepository;
         this.classResolver = classResolver;
         this.scope = scope;
+        this.typeNavigator = new GenericTypeNavigator(classRepository);
     }
 
     /**
@@ -68,8 +72,7 @@ public class Compiler {
         ExprCopier<TypedPlan> copier = new ExprCopier<>();
         expr.acceptVisitor(copier);
         Expr<TypedPlan> attributedExpr = copier.getResult();
-        CompilerVisitor visitor = new CompilerVisitor(new GenericTypeNavigator(classRepository),
-                classResolver, scope);
+        CompilerVisitor visitor = new CompilerVisitor(typeNavigator, classResolver, scope);
         visitor.expectedType = type;
         attributedExpr.acceptVisitor(visitor);
         if (type != null) {
@@ -81,15 +84,31 @@ public class Compiler {
 
     public TypedPlan compileLambda(Expr<?> expr, GenericClass cls) {
         if (!(expr instanceof LambdaExpr<?>)) {
-            List<BoundVariable> boundVars = new ArrayList<>();
-            GenericMethod sam = new GenericTypeNavigator(classRepository).findSingleAbstractMethod(cls);
-            for (ValueType arg : sam.getActualArgumentTypes()) {
-                boundVars.add(new BoundVariable("", arg));
+            GenericMethod sam = typeNavigator.findSingleAbstractMethod(cls);
+            if (sam.getActualReturnType() == null && sam.getActualArgumentTypes().length == 1
+                    && (expr instanceof VariableExpr || expr instanceof PropertyExpr)) {
+                BoundVariable var = new BoundVariable("$value$", sam.getActualArgumentTypes()[0]);
+                AssignmentExpr<?> assignment = new AssignmentExpr<>(expr, new VariableExpr<>("$value$"));
+                assignment.setStart(expr.getStart());
+                assignment.setEnd(expr.getEnd());
+                LambdaExpr<?> lambda = new LambdaExpr<>(assignment, Arrays.asList(var));
+                lambda.setStart(expr.getStart());
+                lambda.setEnd(expr.getEnd());
+                expr = lambda;
+            } else {
+                List<BoundVariable> boundVars = new ArrayList<>();
+                if (sam.getActualArgumentTypes().length == 1) {
+                    boundVars.add(new BoundVariable("it", sam.getActualArgumentTypes()[0]));
+                } else {
+                    for (ValueType arg : sam.getActualArgumentTypes()) {
+                        boundVars.add(new BoundVariable("", arg));
+                    }
+                }
+                LambdaExpr<?> lambda = new LambdaExpr<>(expr, boundVars);
+                lambda.setStart(expr.getStart());
+                lambda.setEnd(expr.getEnd());
+                expr = lambda;
             }
-            LambdaExpr<?> lambda = new LambdaExpr<>(expr, boundVars);
-            lambda.setStart(expr.getStart());
-            lambda.setEnd(expr.getEnd());
-            expr = lambda;
         }
         return compile(expr, cls);
     }

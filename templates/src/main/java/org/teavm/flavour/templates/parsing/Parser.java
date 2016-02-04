@@ -263,7 +263,8 @@ public class Parser {
             PostponedAttributeParse attrParse = new PostponedAttributeParse();
             attrParse.meta = attrMeta;
             attrParse.node = attr;
-            if (attrMeta.type == DirectiveAttributeType.FUNCTION) {
+            if (attrMeta.type == DirectiveAttributeType.FUNCTION
+                    || attrMeta.type == DirectiveAttributeType.BIDIRECTIONAL) {
                 attrParse.expr = parseExpr(attr.getValueSegment());
             }
 
@@ -272,6 +273,9 @@ public class Parser {
             }
             if (attrParse.meta.sam != null) {
                 attrParse.sam = attrParse.meta.sam.substitute(typeVars);
+            }
+            if (attrParse.meta.altSam != null) {
+                attrParse.altSam = attrParse.meta.altSam.substitute(typeVars);
             }
             attributesParse.add(attrParse);
         }
@@ -342,7 +346,7 @@ public class Parser {
         boolean inferenceFailed = false;
         for (PostponedDirectiveParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
-                if (attrParse.expr != null) {
+                if (attrParse.expr != null && attrParse.meta.type == DirectiveAttributeType.FUNCTION) {
                     if (attrParse.expr instanceof LambdaExpr) {
                         attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
                                 attrParse.sam);
@@ -378,6 +382,16 @@ public class Parser {
                         attrParse.sam.getActualOwner().getName());
                 parse.directive.getComputations().add(computationBinding);
                 varInference.equalConstraint((GenericType) plan.getType(), attrParse.sam.getActualOwner());
+
+                if (attrParse.meta.type == DirectiveAttributeType.BIDIRECTIONAL) {
+                    setter = attrParse.meta.altSetter;
+                    type = attrParse.altSam.getActualOwner().substitute(inference.getSubstitutions());
+                    plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
+                    computationBinding = new DirectiveFunctionBinding(
+                            setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                            attrParse.altSam.getActualOwner().getName());
+                    parse.directive.getComputations().add(computationBinding);
+                }
             }
         }
 
@@ -451,6 +465,7 @@ public class Parser {
         ValueType type;
         ValueType typeEstimate;
         GenericMethod sam;
+        GenericMethod altSam;
     }
 
     private void validateNestedDirectives(DirectiveBinding directive, DirectiveMetadata metadata,
@@ -561,6 +576,11 @@ public class Parser {
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                         directiveMeta.sam.getDescriber().getOwner().getName());
                 directive.getFunctions().add(functionBinding);
+                break;
+            }
+            case BIDIRECTIONAL: {
+                diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), "Bidirectional attributes "
+                        + "are not supported yet"));
                 break;
             }
         }

@@ -38,12 +38,12 @@ public class ValidationEntry<T> {
         validation.converter = converter;
     }
 
-    @BindAttribute(name = "onchange")
+    @BindAttribute(name = "of")
     public void setConsumer(Consumer<T> consumer) {
         validation.consumer = consumer;
     }
 
-    @BindAttribute(name = "show")
+    @BindAttribute(name = "of")
     public void setSupplier(Supplier<T> supplier) {
         validation.supplier = supplier;
     }
