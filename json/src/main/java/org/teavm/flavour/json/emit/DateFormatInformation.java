@@ -16,12 +16,8 @@
 package org.teavm.flavour.json.emit;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 class DateFormatInformation {
     boolean asString;
     String pattern;

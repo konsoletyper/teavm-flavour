@@ -18,10 +18,6 @@ package org.teavm.flavour.json.emit;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- *
- * @author Alexey Andreev
- */
 class InheritanceInformation implements Cloneable {
     InheritanceKey key;
     InheritanceValue value = InheritanceValue.NONE;

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.json.emit;
 
-/**
- *
- * @author Alexey Andreev
- */
 enum InheritanceValue {
     CLASS,
     MINIMAL_CLASS,

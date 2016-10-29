@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.json.emit;
 
+import static org.teavm.metaprogramming.Metaprogramming.findClass;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -28,32 +29,24 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ClassInformationProvider {
-    private EmitterContext context;
     private Map<String, ClassInformation> cache = new HashMap<>();
-    private EmitterDiagnostics diagnostics;
-    private static Map<EmitterContext, ClassInformationProvider> instanceCache = new WeakHashMap<>();
+    private static Diagnostics diagnostics = Metaprogramming.getDiagnostics();
+    private static ClassInformationProvider instance = new ClassInformationProvider();
 
-    private ClassInformationProvider(EmitterContext context) {
-        this.context = context;
-        this.diagnostics = context.getDiagnostics();
+    private ClassInformationProvider() {
     }
 
-    public static ClassInformationProvider getInstance(EmitterContext context) {
-        return instanceCache.computeIfAbsent(context, ClassInformationProvider::new);
+    public static ClassInformationProvider getInstance() {
+        return instance;
     }
 
     public ClassInformation get(String className) {
@@ -63,14 +56,14 @@ class ClassInformationProvider {
         ClassInformation info = createClassInformation(className);
         cache.put(className, info);
         if (info != null) {
-            ReflectClass<?> cls = context.findClass(className);
+            ReflectClass<?> cls = findClass(className);
             getSubTypes(info, cls);
         }
         return info;
     }
 
     private ClassInformation createClassInformation(String className) {
-        ReflectClass<?> cls = context.findClass(className);
+        ReflectClass<?> cls = findClass(className);
         if (cls == null) {
             return null;
         }
@@ -284,14 +277,14 @@ class ClassInformationProvider {
                 continue;
             }
             if (isGetterName(method.getName()) && method.getParameterCount() == 0
-                    && method.getReturnType() != context.findClass(void.class)) {
+                    && method.getReturnType() != findClass(void.class)) {
                 if (hasExplicitPropertyDeclaration(method)
                         || information.getterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(3));
                     addGetter(information, propertyName, method);
                 }
             } else if (isBooleanName(method.getName()) && method.getParameterCount() == 0
-                    && method.getReturnType() == context.findClass(boolean.class)) {
+                    && method.getReturnType() == findClass(boolean.class)) {
                 if (hasExplicitPropertyDeclaration(method)
                         || information.isGetterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(2));
@@ -307,7 +300,7 @@ class ClassInformationProvider {
                 continue;
             }
             if (isSetterName(method.getName()) && method.getParameterCount() == 1
-                    && method.getReturnType() == context.findClass(void.class)) {
+                    && method.getReturnType() == findClass(void.class)) {
                 if (hasExplicitPropertyDeclaration(method)
                         || information.setterVisibility.match(method.getModifiers())) {
                     String propertyName = decapitalize(method.getName().substring(3));
@@ -459,7 +452,7 @@ class ClassInformationProvider {
             }
             ClassInformation ancestorInfo = information;
             while (ancestorInfo != null && ancestorInfo.properties.containsKey(property.name)) {
-                ReflectClass<?> ancestor = context.findClass(ancestorInfo.className);
+                ReflectClass<?> ancestor = findClass(ancestorInfo.className);
                 ReflectField field = ancestor.getDeclaredField(property.name);
                 if (field != null) {
                     addField(information, property.name, field);

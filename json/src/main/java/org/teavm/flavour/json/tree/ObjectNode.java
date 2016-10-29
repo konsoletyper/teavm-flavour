@@ -18,10 +18,6 @@ package org.teavm.flavour.json.tree;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.JSIndexer;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class ObjectNode extends Node {
     @JSIndexer
     public abstract Node get(String key);

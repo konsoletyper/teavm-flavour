@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.json.emit;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum IdGeneratorType {
     NONE,
     INTEGER,

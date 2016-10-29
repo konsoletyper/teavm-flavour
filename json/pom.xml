@@ -39,9 +39,8 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.teavm.flavour</groupId>
-      <artifactId>teavm-flavour-mp</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-metaprogramming-api</artifactId>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -68,30 +67,6 @@
         <configuration>
           <configLocation>../checkstyle.xml</configLocation>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.teavm</groupId>
-        <artifactId>teavm-maven-plugin</artifactId>
-        <version>${teavm.version}</version>
-        <dependencies>
-          <dependency>
-            <groupId>org.teavm</groupId>
-            <artifactId>teavm-classlib</artifactId>
-            <version>${teavm.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <id>generate-javascript-tests</id>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-            <phase>process-test-classes</phase>
-            <configuration>
-              <minifying>false</minifying>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

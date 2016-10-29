@@ -15,14 +15,10 @@
  */
 package org.teavm.flavour.json.emit;
 
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 class PropertyInformation implements Cloneable {
     String name;
     String outputName;

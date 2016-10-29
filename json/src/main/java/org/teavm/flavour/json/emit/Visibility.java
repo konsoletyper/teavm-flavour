@@ -17,10 +17,6 @@ package org.teavm.flavour.json.emit;
 
 import java.lang.reflect.Modifier;
 
-/**
- *
- * @author Alexey Andreev
- */
 enum Visibility {
     ANY,
     NON_PRIVATE,

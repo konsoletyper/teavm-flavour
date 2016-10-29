@@ -19,12 +19,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ClassInformation {
     String className;
     String typeName;
