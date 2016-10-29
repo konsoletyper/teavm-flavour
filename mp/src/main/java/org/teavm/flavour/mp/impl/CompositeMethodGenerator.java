@@ -39,7 +39,7 @@ import org.teavm.model.FieldReference;
 import org.teavm.model.Incoming;
 import org.teavm.model.IncomingReader;
 import org.teavm.model.Instruction;
-import org.teavm.model.InstructionLocation;
+import org.teavm.model.TextLocation;
 import org.teavm.model.InvokeDynamicInstruction;
 import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHandle;
@@ -108,8 +108,8 @@ public class CompositeMethodGenerator {
     private EmitterContextImpl context;
     private Diagnostics diagnostics;
     Program program;
-    InstructionLocation location;
-    InstructionLocation forcedLocation;
+    TextLocation location;
+    TextLocation forcedLocation;
     int blockIndex;
     int returnBlockIndex;
     private Variable resultVar;
@@ -180,7 +180,7 @@ public class CompositeMethodGenerator {
             for (TryCatchBlockReader templateTryCatch : templateBlock.readTryCatchBlocks()) {
                 TryCatchBlock tryCatch = new TryCatchBlock();
                 tryCatch.setExceptionType(templateTryCatch.getExceptionType());
-                tryCatch.setExceptionVariable(substitutor.var(templateTryCatch.getExceptionVariable()));
+                //tryCatch.setExceptionVariable(substitutor.var(templateTryCatch.getExceptionVariable()));
                 tryCatch.setHandler(substitutor.block(templateTryCatch.getHandler()));
                 targetBlock.getTryCatchBlocks().add(tryCatch);
             }
@@ -433,7 +433,7 @@ public class CompositeMethodGenerator {
         }
 
         @Override
-        public void location(InstructionLocation location) {
+        public void location(TextLocation location) {
             CompositeMethodGenerator.this.location = location;
         }
 
@@ -734,7 +734,8 @@ public class CompositeMethodGenerator {
         }
 
         @Override
-        public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
+        public void getElement(VariableReader receiver, VariableReader array, VariableReader index,
+                ArrayElementType elementType) {
             int arrayIndex = variableMapping[array.getIndex()];
 
             ArrayElement elem = arrayElements[receiver.getIndex()];
@@ -746,7 +747,7 @@ public class CompositeMethodGenerator {
                 return;
             }
 
-            GetElementInstruction insn = new GetElementInstruction();
+            GetElementInstruction insn = new GetElementInstruction(elementType);
             insn.setArray(var(array));
             insn.setIndex(var(index));
             insn.setReceiver(var(receiver));
@@ -754,8 +755,9 @@ public class CompositeMethodGenerator {
         }
 
         @Override
-        public void putElement(VariableReader array, VariableReader index, VariableReader value) {
-            PutElementInstruction insn = new PutElementInstruction();
+        public void putElement(VariableReader array, VariableReader index, VariableReader value,
+                ArrayElementType elementType) {
+            PutElementInstruction insn = new PutElementInstruction(elementType);
             insn.setArray(var(array));
             insn.setIndex(var(index));
             insn.setValue(var(value));
@@ -975,7 +977,7 @@ public class CompositeMethodGenerator {
                     return true;
                 }
                 case "getArrayElement": {
-                    GetElementInstruction insn = new GetElementInstruction();
+                    GetElementInstruction insn = new GetElementInstruction(ArrayElementType.OBJECT);
                     insn.setArray(unwrapArray(reflectClass.type, var(arguments.get(0))));
                     insn.setIndex(var(arguments.get(1)));
                     insn.setReceiver(program.createVariable());
@@ -1009,7 +1011,7 @@ public class CompositeMethodGenerator {
                 indexInsn.setReceiver(program.createVariable());
                 add(indexInsn);
 
-                GetElementInstruction extractArgInsn = new GetElementInstruction();
+                GetElementInstruction extractArgInsn = new GetElementInstruction(ArrayElementType.OBJECT);
                 extractArgInsn.setArray(argumentsVar);
                 extractArgInsn.setIndex(indexInsn.getReceiver());
                 extractArgInsn.setReceiver(program.createVariable());

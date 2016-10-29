@@ -16,9 +16,10 @@
 package org.teavm.flavour.rest.test;
 
 import java.io.IOException;
-import org.teavm.codegen.SourceWriter;
-import org.teavm.javascript.Renderer;
-import org.teavm.javascript.RenderingContext;
+import org.teavm.backend.javascript.TeaVMJavaScriptHost;
+import org.teavm.backend.javascript.codegen.SourceWriter;
+import org.teavm.backend.javascript.rendering.RenderingManager;
+import org.teavm.backend.javascript.rendering.RenderingUtil;
 import org.teavm.vm.BuildTarget;
 import org.teavm.vm.spi.AbstractRendererListener;
 import org.teavm.vm.spi.TeaVMHost;
@@ -30,17 +31,18 @@ import org.teavm.vm.spi.TeaVMPlugin;
  */
 public class RESTUrlGenerator extends AbstractRendererListener implements TeaVMPlugin {
     @Override
-    public void begin(RenderingContext context, BuildTarget buildTarget) throws IOException {
+    public void begin(RenderingManager context, BuildTarget buildTarget) throws IOException {
         SourceWriter writer = context.getWriter();
         String url = (String) context.getProperties().get("rest.service.url");
         writer.append("var $test_url = \"")
-                .append(Renderer.escapeString(url != null ? url : ""))
+                .append(RenderingUtil.escapeString(url != null ? url : ""))
                 .append("\";")
                 .newLine();
     }
 
     @Override
     public void install(TeaVMHost host) {
-        host.add(this);
+        TeaVMJavaScriptHost jsHost = host.getExtension(TeaVMJavaScriptHost.class);
+        jsHost.add(this);
     }
 }

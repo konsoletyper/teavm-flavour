@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 import org.teavm.common.DisjointSet;
 import org.teavm.model.BasicBlockReader;
 import org.teavm.model.FieldReference;
-import org.teavm.model.InstructionLocation;
+import org.teavm.model.TextLocation;
 import org.teavm.model.MethodDescriptor;
 import org.teavm.model.MethodHandle;
 import org.teavm.model.MethodReference;
@@ -131,7 +131,7 @@ public class AliasFinder {
         }
 
         @Override
-        public void location(InstructionLocation location) {
+        public void location(TextLocation location) {
         }
 
         @Override
@@ -263,7 +263,8 @@ public class AliasFinder {
         }
 
         @Override
-        public void getElement(VariableReader receiver, VariableReader array, VariableReader index) {
+        public void getElement(VariableReader receiver, VariableReader array, VariableReader index,
+                ArrayElementType elementType) {
             ArrayElement elem = new ArrayElement();
             elem.array = array.getIndex();
             elem.index = index.getIndex();
@@ -271,7 +272,9 @@ public class AliasFinder {
         }
 
         @Override
-        public void putElement(VariableReader array, VariableReader index, VariableReader value) {
+        public void putElement(VariableReader array, VariableReader index, VariableReader value,
+                ArrayElementType elementType) {
+
         }
 
         @Override

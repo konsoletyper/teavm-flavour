@@ -35,7 +35,7 @@ import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
 import org.teavm.model.ElementModifier;
-import org.teavm.model.InstructionLocation;
+import org.teavm.model.TextLocation;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
@@ -332,7 +332,7 @@ public abstract class AbstractEmitterImpl<T> implements Emitter<T> {
 
     @Override
     public void location(String fileName, int lineNumber) {
-        generator.forcedLocation = new InstructionLocation(fileName, lineNumber);
+        generator.forcedLocation = new TextLocation(fileName, lineNumber);
     }
 
     @Override

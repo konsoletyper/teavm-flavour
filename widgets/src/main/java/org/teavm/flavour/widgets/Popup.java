@@ -19,7 +19,7 @@ import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
-import org.teavm.javascript.spi.Async;
+import org.teavm.interop.Async;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.platform.async.AsyncCallback;

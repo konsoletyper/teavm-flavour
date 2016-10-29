@@ -30,7 +30,7 @@ import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.model.CallLocation;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassReaderSource;
-import org.teavm.model.InstructionLocation;
+import org.teavm.model.TextLocation;
 import org.teavm.model.MethodReader;
 import org.teavm.model.MethodReference;
 import org.teavm.model.ValueType;
@@ -161,7 +161,7 @@ public class EmitterContextImpl implements EmitterContext {
             MethodReader method = ((ReflectMethodImpl) location.getMethod()).method;
             return location.getFileName() != null
                     ? new CallLocation(method.getReference(),
-                            new InstructionLocation(location.getFileName(), location.getLineNumber()))
+                            new TextLocation(location.getFileName(), location.getLineNumber()))
                     : new CallLocation(method.getReference());
         }
     }

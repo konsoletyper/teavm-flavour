@@ -3,3 +3,17 @@ target/
 .classpath
 .checkstyle
 .settings/
+
+# IntelliJ IDEA
+*.iml
+.idea/uiDesigner.xml
+.idea/workspace.xml
+.idea/dictionaries/
+.idea/compiler.xml
+.idea/encodings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/scala_compiler.xml
+.idea/vcs.xml
+.idea/libraries/*
+.idea/artifacts/*
