@@ -21,10 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 class OffsetToLineMapper {
     int[] lines;
 

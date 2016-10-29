@@ -15,6 +15,9 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.getClassLoader;
+import static org.teavm.metaprogramming.Metaprogramming.getDiagnostics;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -23,36 +26,30 @@ import java.util.List;
 import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TemplatingProxyGenerator {
-    public void generate(Emitter<Fragment> em, ReflectValue<Object> model) {
-        TemplateInfo template = parseForModel(em, model.getReflectClass(), em.getContext().getLocation());
+    public void generate(Value<Object> model, ReflectClass<Object> modelType) {
+        TemplateInfo template = parseForModel(modelType, null);
         if (template != null) {
-            TemplateEmitter emitter = new TemplateEmitter(em, template.locationMapper);
+            TemplateEmitter emitter = new TemplateEmitter(template.locationMapper);
             Value<Fragment> fragment = emitter.emitTemplate(model, template.sourceFileName, template.body);
-            em.returnValue(fragment);
+            exit(() -> fragment.get());
         } else {
-            em.returnValue(() -> null);
+            exit(() -> null);
         }
     }
 
-    private TemplateInfo parseForModel(Emitter<Fragment> em, ReflectClass<Object> cls, SourceLocation location) {
-        EmitterDiagnostics diagnostics = em.getContext().getDiagnostics();
+    private TemplateInfo parseForModel(ReflectClass<Object> cls, SourceLocation location) {
+        Diagnostics diagnostics = getDiagnostics();
         BindTemplate annot = cls.getAnnotation(BindTemplate.class);
         if (annot == null) {
             diagnostics.error(location, "Can't create template for {{c0}}: "
@@ -61,7 +58,7 @@ public class TemplatingProxyGenerator {
         }
 
         String path = annot.value();
-        ClassLoader classLoader = em.getContext().getClassLoader();
+        ClassLoader classLoader = getClassLoader();
         ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository(classLoader);
         ClassPathClassResolver classResolver = new ClassPathClassResolver(classLoader);
         ClassPathResourceProvider resourceProvider = new ClassPathResourceProvider(classLoader);

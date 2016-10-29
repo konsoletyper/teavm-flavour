@@ -15,10 +15,11 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import static org.teavm.metaprogramming.Metaprogramming.emit;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.findClass;
+import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.util.List;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.DomComponentHandler;
@@ -26,11 +27,9 @@ import org.teavm.flavour.templates.DomComponentTemplate;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.tree.DirectiveBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 class FragmentEmitter {
     EmitContext context;
 
@@ -38,52 +37,52 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public Value<Fragment> emitTemplate(Emitter<?> em, DirectiveBinding directive,
-            List<TemplateNode> fragment, List<TemplateVariable> variables) {
+    public Value<Fragment> emitTemplate(DirectiveBinding directive, List<TemplateNode> fragment,
+            List<TemplateVariable> variables) {
         if (directive != null) {
-            context.location(em, directive.getLocation());
+            context.location(directive.getLocation());
         }
 
         ReflectClass<Component> componentType = directive != null
-                ? em.getContext().findClass(directive.getClassName()).asSubclass(Component.class)
+                ? findClass(directive.getClassName()).asSubclass(Component.class)
                 : null;
 
-        Value<Fragment> fragmentResult = em.proxy(Fragment.class, (fem, fProxy, fMethod, fArgs) -> {
+        Value<Fragment> fragmentResult = proxy(Fragment.class, (fProxy, fMethod, fArgs) -> {
             context.pushBoundVars();
 
-            Value<DomComponentHandler> handler = fem.proxy(DomComponentHandler.class, (body, proxy, method, args) -> {
+            Value<DomComponentHandler> handler = proxy(DomComponentHandler.class, (proxy, method, args) -> {
                 switch (method.getName()) {
                     case "update":
                         if (componentType != null) {
-                            emitUpdateMethod(body, variables);
+                            emitUpdateMethod(variables);
                         }
                         break;
                     case "buildDom":
-                        emitBuildDomMethod(body, body.emit(() -> (DomBuilder) args[0]), fragment);
+                        emitBuildDomMethod(emit(() -> (DomBuilder) args[0]), fragment);
                         break;
                 }
             });
 
-            Value<Component> result = fem.emit(() -> new DomComponentTemplate(handler.get()));
-            fem.returnValue(result);
+            Value<Component> result = emit(() -> new DomComponentTemplate(handler.get()));
+            exit(() -> result.get());
         });
 
         return fragmentResult;
     }
 
-    private void emitBuildDomMethod(Emitter<?> em, Value<DomBuilder> builder, List<TemplateNode> fragment) {
-        TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, em, builder);
+    private void emitBuildDomMethod(Value<DomBuilder> builder, List<TemplateNode> fragment) {
+        TemplateNodeEmitter nodeEmitter = new TemplateNodeEmitter(context, builder);
         for (TemplateNode node : fragment) {
-            context.location(em, node.getLocation());
+            context.location(node.getLocation());
             node.acceptVisitor(nodeEmitter);
         }
     }
 
-    private void emitUpdateMethod(Emitter<?> em, List<TemplateVariable> variables) {
+    private void emitUpdateMethod(List<TemplateVariable> variables) {
         for (TemplateVariable var : variables) {
             Value<Object> source = var.source;
             Value<VariableImpl> dest = var.destination;
-            em.emit(() -> dest.get().value = source.get());
+            emit(() -> dest.get().value = source.get());
         }
     }
 }

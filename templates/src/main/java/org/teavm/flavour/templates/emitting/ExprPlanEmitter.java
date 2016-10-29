@@ -15,6 +15,13 @@
  */
 package org.teavm.flavour.templates.emitting;
 
+import static org.teavm.metaprogramming.Metaprogramming.arrayClass;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.findClass;
+import static org.teavm.metaprogramming.Metaprogramming.lazy;
+import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
+import static org.teavm.metaprogramming.Metaprogramming.emit;
+import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
@@ -41,32 +48,22 @@ import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
 import org.teavm.flavour.expr.plan.ThisPlan;
 import org.teavm.flavour.expr.plan.VariablePlan;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Value;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.templates.Templates;
-import org.teavm.model.emit.ValueEmitter;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ExprPlanEmitter implements PlanVisitor {
     private EmitContext context;
-    Emitter<?> em;
     Value<Object> var;
-    ValueEmitter thisVar;
 
-    ExprPlanEmitter(EmitContext context, Emitter<?> em) {
+    ExprPlanEmitter(EmitContext context) {
         this.context = context;
-        this.em = em;
     }
 
     private void location(Plan plan) {
-        context.location(em, plan.getLocation());
+        context.location(plan.getLocation());
     }
 
     @Override
@@ -74,9 +71,9 @@ class ExprPlanEmitter implements PlanVisitor {
         location(plan);
         Object value = plan.getValue();
         if (value == null) {
-            var = em.lazy(() -> null);
+            var = lazy(() -> null);
         } else {
-            var = em.lazy(() -> value);
+            var = lazy(() -> value);
         }
     }
 
@@ -93,7 +90,7 @@ class ExprPlanEmitter implements PlanVisitor {
     }
 
     private void emitVariable(String name) {
-        var = context.getVariable(name).emit(em);
+        var = context.getVariable(name).emit();
     }
 
     @Override
@@ -108,176 +105,176 @@ class ExprPlanEmitter implements PlanVisitor {
             case ADD:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() + (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() + (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() + (Long) second.get());
+                        var = lazy(() -> (Long) first.get() + (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() + (Float) second.get());
+                        var = lazy(() -> (Float) first.get() + (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() + (Double) second.get());
+                        var = lazy(() -> (Double) first.get() + (Double) second.get());
                         break;
                 }
                 break;
             case SUBTRACT:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() - (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() - (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() - (Long) second.get());
+                        var = lazy(() -> (Long) first.get() - (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() - (Float) second.get());
+                        var = lazy(() -> (Float) first.get() - (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() - (Double) second.get());
+                        var = lazy(() -> (Double) first.get() - (Double) second.get());
                         break;
                 }
                 break;
             case MULTIPLY:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() * (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() * (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() * (Long) second.get());
+                        var = lazy(() -> (Long) first.get() * (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() * (Float) second.get());
+                        var = lazy(() -> (Float) first.get() * (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() * (Double) second.get());
+                        var = lazy(() -> (Double) first.get() * (Double) second.get());
                         break;
                 }
                 break;
             case DIVIDE:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() / (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() / (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() / (Long) second.get());
+                        var = lazy(() -> (Long) first.get() / (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() / (Float) second.get());
+                        var = lazy(() -> (Float) first.get() / (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() / (Double) second.get());
+                        var = lazy(() -> (Double) first.get() / (Double) second.get());
                         break;
                 }
                 break;
             case REMAINDER:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() % (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() % (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() % (Long) second.get());
+                        var = lazy(() -> (Long) first.get() % (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() % (Float) second.get());
+                        var = lazy(() -> (Float) first.get() % (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() % (Double) second.get());
+                        var = lazy(() -> (Double) first.get() % (Double) second.get());
                         break;
                 }
                 break;
             case EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> ((Integer) first.get()).intValue() == (Integer) second.get());
+                        var = lazy(() -> ((Integer) first.get()).intValue() == (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> ((Long) first.get()).longValue() == (Long) second.get());
+                        var = lazy(() -> ((Long) first.get()).longValue() == (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> ((Float) first.get()).floatValue() == (Float) second.get());
+                        var = lazy(() -> ((Float) first.get()).floatValue() == (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> ((Double) first.get()).doubleValue() == (Double) second.get());
+                        var = lazy(() -> ((Double) first.get()).doubleValue() == (Double) second.get());
                         break;
                 }
                 break;
             case NOT_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> ((Integer) first.get()).intValue() != (Integer) second.get());
+                        var = lazy(() -> ((Integer) first.get()).intValue() != (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> ((Long) first.get()).longValue() != (Long) second.get());
+                        var = lazy(() -> ((Long) first.get()).longValue() != (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> ((Float) first.get()).floatValue() != (Float) second.get());
+                        var = lazy(() -> ((Float) first.get()).floatValue() != (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> ((Double) first.get()).doubleValue() != (Double) second.get());
+                        var = lazy(() -> ((Double) first.get()).doubleValue() != (Double) second.get());
                         break;
                 }
                 break;
             case GREATER:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() > (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() > (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() > (Long) second.get());
+                        var = lazy(() -> (Long) first.get() > (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() > (Float) second.get());
+                        var = lazy(() -> (Float) first.get() > (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() > (Double) second.get());
+                        var = lazy(() -> (Double) first.get() > (Double) second.get());
                         break;
                 }
                 break;
             case GREATER_OR_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() >= (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() >= (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() >= (Long) second.get());
+                        var = lazy(() -> (Long) first.get() >= (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() >= (Float) second.get());
+                        var = lazy(() -> (Float) first.get() >= (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() >= (Double) second.get());
+                        var = lazy(() -> (Double) first.get() >= (Double) second.get());
                         break;
                 }
                 break;
             case LESS:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() < (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() < (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() < (Long) second.get());
+                        var = lazy(() -> (Long) first.get() < (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() < (Float) second.get());
+                        var = lazy(() -> (Float) first.get() < (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() < (Double) second.get());
+                        var = lazy(() -> (Double) first.get() < (Double) second.get());
                         break;
                 }
                 break;
             case LESS_OR_EQUAL:
                 switch (plan.getValueType()) {
                     case INT:
-                        var = em.lazy(() -> (Integer) first.get() <= (Integer) second.get());
+                        var = lazy(() -> (Integer) first.get() <= (Integer) second.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (Long) first.get() <= (Long) second.get());
+                        var = lazy(() -> (Long) first.get() <= (Long) second.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (Float) first.get() <= (Float) second.get());
+                        var = lazy(() -> (Float) first.get() <= (Float) second.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (Double) first.get() <= (Double) second.get());
+                        var = lazy(() -> (Double) first.get() <= (Double) second.get());
                         break;
                 }
                 break;
@@ -291,16 +288,16 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> operand = var;
         switch (plan.getValueType()) {
             case INT:
-                var = em.lazy(() -> -(Integer) operand.get());
+                var = lazy(() -> -(Integer) operand.get());
                 break;
             case LONG:
-                var = em.lazy(() -> -(Long) operand.get());
+                var = lazy(() -> -(Long) operand.get());
                 break;
             case FLOAT:
-                var = em.lazy(() -> -(Float) operand.get());
+                var = lazy(() -> -(Float) operand.get());
                 break;
             case DOUBLE:
-                var = em.lazy(() -> -(Double) operand.get());
+                var = lazy(() -> -(Double) operand.get());
                 break;
         }
     }
@@ -315,10 +312,10 @@ class ExprPlanEmitter implements PlanVisitor {
         location(plan);
         switch (plan.getType()) {
             case EQUAL:
-                var = em.lazy(() -> first == second);
+                var = lazy(() -> first == second);
                 break;
             case NOT_EQUAL:
-                var = em.lazy(() -> first != second);
+                var = lazy(() -> first != second);
                 break;
         }
     }
@@ -333,10 +330,10 @@ class ExprPlanEmitter implements PlanVisitor {
         location(plan);
         switch (plan.getType()) {
             case AND:
-                var = em.lazy(() -> (Boolean) first.get() && (Boolean) second.get());
+                var = lazy(() -> (Boolean) first.get() && (Boolean) second.get());
                 break;
             case OR:
-                var = em.lazy(() -> (Boolean) first.get() || (Boolean) second.get());
+                var = lazy(() -> (Boolean) first.get() || (Boolean) second.get());
                 break;
         }
     }
@@ -347,7 +344,7 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> operand = var;
 
         location(plan);
-        var = em.lazy(() -> !(Boolean) operand.get());
+        var = lazy(() -> !(Boolean) operand.get());
     }
 
     @Override
@@ -358,7 +355,7 @@ class ExprPlanEmitter implements PlanVisitor {
         ReflectClass<Object> cls = typeParser.parse().asSubclass(Object.class);
 
         location(plan);
-        var = em.lazy(() -> cls.cast(operand.get()));
+        var = lazy(() -> cls.cast(operand.get()));
     }
 
     @Override
@@ -373,56 +370,56 @@ class ExprPlanEmitter implements PlanVisitor {
                     case INT:
                         break;
                     case LONG:
-                        var = em.lazy(() -> (long) (Integer) operand.get());
+                        var = lazy(() -> (long) (Integer) operand.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (float) (Integer) operand.get());
+                        var = lazy(() -> (float) (Integer) operand.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (double) (Integer) operand.get());
+                        var = lazy(() -> (double) (Integer) operand.get());
                         break;
                 }
                 break;
             case LONG:
                 switch (plan.getTargetType()) {
                     case INT:
-                        var = em.lazy(() -> (int) (long) (Long) operand.get());
+                        var = lazy(() -> (int) (long) (Long) operand.get());
                         break;
                     case LONG:
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (float) (Long) operand.get());
+                        var = lazy(() -> (float) (Long) operand.get());
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (double) (Long) operand.get());
+                        var = lazy(() -> (double) (Long) operand.get());
                         break;
                 }
                 break;
             case FLOAT:
                 switch (plan.getTargetType()) {
                     case INT:
-                        var = em.lazy(() -> (int) (float) (Float) operand.get());
+                        var = lazy(() -> (int) (float) (Float) operand.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (long) (float) (Float) operand.get());
+                        var = lazy(() -> (long) (float) (Float) operand.get());
                         break;
                     case FLOAT:
                         break;
                     case DOUBLE:
-                        var = em.lazy(() -> (double) (Float) operand.get());
+                        var = lazy(() -> (double) (Float) operand.get());
                         break;
                 }
                 break;
             case DOUBLE:
                 switch (plan.getTargetType()) {
                     case INT:
-                        var = em.lazy(() -> (int) (double) (Double) operand.get());
+                        var = lazy(() -> (int) (double) (Double) operand.get());
                         break;
                     case LONG:
-                        var = em.lazy(() -> (long) (double) (Double) operand.get());
+                        var = lazy(() -> (long) (double) (Double) operand.get());
                         break;
                     case FLOAT:
-                        var = em.lazy(() -> (float) (double) (Double) operand.get());
+                        var = lazy(() -> (float) (double) (Double) operand.get());
                         break;
                     case DOUBLE:
                         break;
@@ -436,16 +433,16 @@ class ExprPlanEmitter implements PlanVisitor {
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
         location(plan);
-        Value<Integer> intValue = em.lazy(() -> (Integer) value.get());
+        Value<Integer> intValue = lazy(() -> (Integer) value.get());
         switch (plan.getType()) {
             case BYTE:
-                var = em.lazy(() -> (byte) (int) intValue.get());
+                var = lazy(() -> (byte) (int) intValue.get());
                 break;
             case SHORT:
-                var = em.lazy(() -> (short) (int) intValue.get());
+                var = lazy(() -> (short) (int) intValue.get());
                 break;
             case CHAR:
-                var = em.lazy(() -> (char) (int) intValue.get());
+                var = lazy(() -> (char) (int) intValue.get());
                 break;
         }
     }
@@ -458,13 +455,13 @@ class ExprPlanEmitter implements PlanVisitor {
         location(plan);
         switch (plan.getType()) {
             case BYTE:
-                var = em.lazy(() -> (int) (Byte) value.get());
+                var = lazy(() -> (int) (Byte) value.get());
                 break;
             case SHORT:
-                var = em.lazy(() -> (int) (Short) value.get());
+                var = lazy(() -> (int) (Short) value.get());
                 break;
             case CHAR:
-                var = em.lazy(() -> (int) (Character) value.get());
+                var = lazy(() -> (int) (Character) value.get());
                 break;
         }
     }
@@ -477,7 +474,7 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> index = var;
 
         location(plan);
-        var = em.lazy(() -> ((Object[]) array.get())[(Integer) index.get()]);
+        var = lazy(() -> ((Object[]) array.get())[(Integer) index.get()]);
     }
 
     @Override
@@ -486,28 +483,28 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> array = var;
 
         location(plan);
-        var = em.lazy(() -> ((Object[]) array.get()).length);
+        var = lazy(() -> ((Object[]) array.get()).length);
     }
 
     @Override
     public void visit(FieldPlan plan) {
-        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
+        ReflectClass<?> cls = findClass(plan.getClassName());
         ReflectField field = cls.getField(plan.getFieldName());
 
         if (plan.getInstance() != null) {
             plan.getInstance().acceptVisitor(this);
             Value<Object> instance = var;
             location(plan);
-            var = em.lazy(() -> field.get(instance.get()));
+            var = lazy(() -> field.get(instance.get()));
         } else {
             location(plan);
-            var = em.lazy(() -> field.get(null));
+            var = lazy(() -> field.get(null));
         }
     }
 
     @Override
     public void visit(FieldAssignmentPlan plan) {
-        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
+        ReflectClass<?> cls = findClass(plan.getClassName());
         ReflectField field = cls.getField(plan.getFieldName());
 
         plan.getValue().acceptVisitor(this);
@@ -516,13 +513,13 @@ class ExprPlanEmitter implements PlanVisitor {
             plan.getInstance().acceptVisitor(this);
             Value<Object> instance = var;
             location(plan);
-            var = em.lazy(() -> {
+            var = lazy(() -> {
                 field.set(instance.get(), value.get());
                 return null;
             });
         } else {
             location(plan);
-            var = em.lazy(() -> {
+            var = lazy(() -> {
                 field.set(null, value.get());
                 return null;
             });
@@ -531,69 +528,58 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(InstanceOfPlan plan) {
-        ReflectClass<?> cls = em.getContext().findClass(plan.getClassName());
+        ReflectClass<?> cls = findClass(plan.getClassName());
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
 
         location(plan);
-        var = em.lazy(() -> cls.isInstance(value.get()));
+        var = lazy(() -> cls.isInstance(value.get()));
     }
 
     @Override
     public void visit(InvocationPlan plan) {
-        var = em.lazyFragment(Object.class, lem -> {
-            Emitter<?> oldEm = em;
-            em = lem;
-            try {
-                Value<Object> instance;
-                if (plan.getInstance() != null) {
-                    plan.getInstance().acceptVisitor(this);
-                    instance = var;
-                } else {
-                    instance = null;
-                }
-
-                location(plan);
-                ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
-                ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
-                int argCount = method.getParameterCount();
-                Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
-                for (int i = 0; i < plan.getArguments().size(); ++i) {
-                    int index = i;
-                    plan.getArguments().get(i).acceptVisitor(this);
-                    Value<Object> argValue = var;
-                    lem.emit(() -> arguments.get()[index] = argValue.get());
-                }
-
-                lem.returnValue(() -> method.invoke(instance, arguments.get()));
-            } finally {
-                em = oldEm;
+        var = lazyFragment(() -> {
+            Value<Object> instance;
+            if (plan.getInstance() != null) {
+                plan.getInstance().acceptVisitor(this);
+                instance = var;
+            } else {
+                instance = null;
             }
+
+            location(plan);
+            ReflectClass<?> cls = findClass(plan.getClassName());
+            ReflectMethod method = findMethod(cls, plan.getMethodName(), plan.getMethodDesc());
+            int argCount = method.getParameterCount();
+            Value<Object[]> arguments = emit(() -> new Object[argCount]);
+            for (int i = 0; i < plan.getArguments().size(); ++i) {
+                int index = i;
+                plan.getArguments().get(i).acceptVisitor(this);
+                Value<Object> argValue = var;
+                emit(() -> arguments.get()[index] = argValue.get());
+            }
+
+            return emit(() -> method.invoke(instance, arguments.get()));
         });
     }
 
     @Override
     public void visit(ConstructionPlan plan) {
-        var = em.lazyFragment(Object.class, lem -> {
-            Emitter<?> oldEm = em;
-            em = lem;
-            try {
-                location(plan);
-                ReflectClass<?> cls = lem.getContext().findClass(plan.getClassName());
-                ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
-                int argCount = method.getParameterCount();
-                Value<Object[]> arguments = lem.emit(() -> new Object[argCount]);
-                for (int i = 0; i < plan.getArguments().size(); ++i) {
-                    int index = i;
-                    plan.getArguments().get(i).acceptVisitor(this);
-                    Value<Object> argValue = var;
-                    lem.emit(() -> arguments.get()[index] = argValue.get());
-                }
+        var = lazyFragment(() -> {
 
-                lem.returnValue(() -> method.construct(arguments.get()));
-            } finally {
-                em = oldEm;
+            location(plan);
+            ReflectClass<?> cls = findClass(plan.getClassName());
+            ReflectMethod method = findMethod(cls, "<init>", plan.getMethodDesc());
+            int argCount = method.getParameterCount();
+            Value<Object[]> arguments = emit(() -> new Object[argCount]);
+            for (int i = 0; i < plan.getArguments().size(); ++i) {
+                int index = i;
+                plan.getArguments().get(i).acceptVisitor(this);
+                Value<Object> argValue = var;
+                emit(() -> arguments.get()[index] = argValue.get());
             }
+
+            return emit(() -> method.construct(arguments.get()));
         });
     }
 
@@ -605,16 +591,16 @@ class ExprPlanEmitter implements PlanVisitor {
             elements.add(var);
         }
         ReflectClass<Object> cls = new TypeParser(plan.getElementType()).parse().asSubclass(Object.class);
-        var = em.lazyFragment(Object.class, lem -> {
+        var = lazyFragment(() -> {
             location(plan);
             int sz = elements.size();
-            Value<Object[]> array = lem.emit(() -> cls.createArray(sz));
+            Value<Object[]> array = emit(() -> cls.createArray(sz));
             for (int i = 0; i < sz; ++i) {
                 Value<Object> elem = elements.get(i);
                 int index = i;
-                lem.emit(() -> array.get()[index] = elem.get());
+                emit(() -> array.get()[index] = elem.get());
             }
-            lem.returnValue(array);
+            return emit(() -> array.get());
         });
     }
 
@@ -642,37 +628,34 @@ class ExprPlanEmitter implements PlanVisitor {
         Value<Object> alternative = var;
 
         location(plan);
-        var = em.lazy(() -> (Boolean) condition.get() ? consequent.get() : alternative.get());
+        var = lazy(() -> (Boolean) condition.get() ? consequent.get() : alternative.get());
     }
 
     @Override
     public void visit(LambdaPlan plan) {
-        emit(plan, false);
+        emitLambda(plan, false);
     }
 
-    public void emit(LambdaPlan plan, boolean updateTemplates) {
+    public void emitLambda(LambdaPlan plan, boolean updateTemplates) {
         location(plan);
-        ReflectClass<Object> cls = em.getContext().findClass(plan.getClassName()).asSubclass(Object.class);
-        var = em.proxy(cls, (bodyEm, instance, method, args) -> {
+        ReflectClass<Object> cls = findClass(plan.getClassName()).asSubclass(Object.class);
+        var = proxy(cls, (instance, method, args) -> {
             context.pushBoundVars();
             for (int i = 0; i < args.length; ++i) {
                 int argIndex = i;
-                context.addVariable(plan.getBoundVars().get(i), innerEm -> innerEm.emit(args[argIndex]));
+                context.addVariable(plan.getBoundVars().get(i), () -> emit(() -> args[argIndex].get()));
             }
 
-            Emitter<?> oldEm = em;
-            em = bodyEm;
             location(plan);
             plan.getBody().acceptVisitor(this);
             Value<Object> result = var;
-            Value<Object> valueToReturn = em.emit(() -> result.get());
+            Value<Object> valueToReturn = emit(() -> result.get());
             if (updateTemplates) {
-                em.emit(() -> Templates.update());
+                emit(() -> Templates.update());
             }
-            if (method.getReturnType() != bodyEm.getContext().findClass(void.class)) {
-                bodyEm.returnValue(valueToReturn);
+            if (method.getReturnType() != findClass(void.class)) {
+                exit(() -> valueToReturn.get());
             }
-            em = oldEm;
 
             context.popBoundVars();
         });
@@ -681,11 +664,9 @@ class ExprPlanEmitter implements PlanVisitor {
     class TypeParser {
         int index;
         String text;
-        EmitterContext context;
 
         TypeParser(String text) {
             this.text = text;
-            this.context = em.getContext();
         }
 
         ReflectClass<?> parse() {
@@ -696,41 +677,41 @@ class ExprPlanEmitter implements PlanVisitor {
             switch (c) {
                 case 'V':
                     ++index;
-                    return context.findClass(void.class);
+                    return findClass(void.class);
                 case 'Z':
                     ++index;
-                    return context.findClass(boolean.class);
+                    return findClass(boolean.class);
                 case 'B':
                     ++index;
-                    return context.findClass(byte.class);
+                    return findClass(byte.class);
                 case 'S':
                     ++index;
-                    return context.findClass(short.class);
+                    return findClass(short.class);
                 case 'I':
                     ++index;
-                    return context.findClass(int.class);
+                    return findClass(int.class);
                 case 'J':
                     ++index;
-                    return context.findClass(long.class);
+                    return findClass(long.class);
                 case 'F':
                     ++index;
-                    return context.findClass(float.class);
+                    return findClass(float.class);
                 case 'D':
                     ++index;
-                    return context.findClass(double.class);
+                    return findClass(double.class);
                 case 'L': {
                     int next = text.indexOf(';', ++index);
                     if (next < 0) {
                         return null;
                     }
-                    ReflectClass<?> cls = context.findClass(text.substring(index, next).replace('/', '.'));
+                    ReflectClass<?> cls = findClass(text.substring(index, next).replace('/', '.'));
                     index = next + 1;
                     return cls;
                 }
                 case '[': {
                     ++index;
                     ReflectClass<?> component = parse();
-                    return component != null ? context.arrayClass(component) : null;
+                    return component != null ? arrayClass(component) : null;
                 }
                 default:
                     return null;

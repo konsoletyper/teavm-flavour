@@ -15,12 +15,8 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import org.teavm.flavour.mp.Value;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 class TemplateVariable {
     Value<VariableImpl> destination;
     Value<Object> source;

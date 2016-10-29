@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class VariableImpl {
     public Object value;
 }

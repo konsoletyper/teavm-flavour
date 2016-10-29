@@ -22,17 +22,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.expr.Location;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectValue;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 class EmitContext {
     OffsetToLineMapper locationMapper;
     String sourceFileName;
-    ReflectValue<Object> model;
+    Value<Object> model;
     List<Map<String, VariableEmitter>> boundVariableStack = new ArrayList<>();
     Map<String, Deque<VariableEmitter>> variables = new HashMap<>();
 
@@ -58,11 +54,7 @@ class EmitContext {
     }
 
     public void addVariable(String name, VariableEmitter value) {
-        Deque<VariableEmitter> stack = variables.get(name);
-        if (stack == null) {
-            stack = new ArrayDeque<>();
-            variables.put(name, stack);
-        }
+        Deque<VariableEmitter> stack = variables.computeIfAbsent(name, k -> new ArrayDeque<>());
         stack.push(value);
     }
 
@@ -76,19 +68,19 @@ class EmitContext {
         }
     }
 
-    public void location(Emitter<?> em, Location location) {
+    public void location(Location location) {
         if (location == null) {
             return;
         }
         int line = locationMapper.getLine(location.getStart());
-        em.location(sourceFileName, line);
+        Metaprogramming.location(sourceFileName, line);
     }
 
-    public void endLocation(Emitter<?> em, Location location) {
+    public void endLocation(Location location) {
         if (location == null) {
             return;
         }
         int line = locationMapper.getLine(location.getEnd() - 1) + 1;
-        em.location(sourceFileName, line);
+        Metaprogramming.location(sourceFileName, line);
     }
 }

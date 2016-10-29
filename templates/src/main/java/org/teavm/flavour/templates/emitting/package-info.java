@@ -16,4 +16,4 @@
 @CompileTime
 package org.teavm.flavour.templates.emitting;
 
-import org.teavm.flavour.mp.CompileTime;
+import org.teavm.metaprogramming.CompileTime;

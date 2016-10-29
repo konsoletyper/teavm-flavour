@@ -110,7 +110,12 @@
       </dependency>
       <dependency>
         <groupId>org.teavm</groupId>
-        <artifactId>teavm-platform</artifactId>
+        <artifactId>teavm-interop</artifactId>
+        <version>${teavm.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-metaprogramming-api</artifactId>
         <version>${teavm.version}</version>
       </dependency>
       <dependency>
@@ -226,7 +231,6 @@
 
   <modules>
     <module>expr</module>
-    <module>mp</module>
     <module>templates</module>
     <module>widgets</module>
     <module>regex</module>

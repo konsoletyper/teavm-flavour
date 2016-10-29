@@ -15,13 +15,8 @@
  */
 package org.teavm.flavour.templates.emitting;
 
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.Value;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 interface VariableEmitter {
-    Value<Object> emit(Emitter<?> em);
+    Value<Object> emit();
 }
