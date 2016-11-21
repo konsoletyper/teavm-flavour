@@ -15,12 +15,8 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.metaprogramming.ReflectClass;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PropertyValuePath extends ValuePath {
     private ValuePath parent;
     private PropertyModel property;

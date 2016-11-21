@@ -192,11 +192,11 @@ public class JsonSerializerEmitter {
         String idProperty = information.idProperty;
         Value<Boolean> has = emit(() -> context.get().hasId(value.get()));
         Value<NumberNode> id = emit(() -> NumberNode.create(context.get().getId(value.get())));
-        Choice<Object> choice = em.choose(Object.class);
+        /*Choice<Object> choice = em.choose(Object.class);
         choice.option(() -> has.get()).returnValue(() -> id.get());
         choice.defaultOption().emit(() -> target.get().set(idProperty, id.get()));
         em.returnValue(choice.getValue());
-        return choice.defaultOption();
+        return choice.defaultOption();*/
     }
 
     private void emitProperties(ClassInformation information, Value<Object> value,
@@ -287,11 +287,12 @@ public class JsonSerializerEmitter {
 
     private Value<Node> convertNullable(Value<Object> value, Value<JsonSerializerContext> context,
             ReflectClass<?> type, ReflectAnnotatedElement annotations) {
-        Choice<Node> choice = em.choose(Node.class);
+        /*Choice<Node> choice = em.choose(Node.class);
         choice.option(() -> value.get() == null).returnValue(() -> NullNode.instance());
         Value<Node> result = convertObject(choice.defaultOption(), value, context, type, annotations);
         choice.defaultOption().returnValue(() -> result.get());
-        return choice.getValue();
+        return choice.getValue();*/
+        return null;
     }
 
     private Value<Node> convertPrimitive(Value<Object> value, ReflectClass<?> type) {

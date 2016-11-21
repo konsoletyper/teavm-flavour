@@ -15,42 +15,39 @@
  */
 package org.teavm.flavour.routing.emit;
 
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.Reflected;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
 import org.teavm.flavour.routing.Route;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.core.JSArray;
 import org.teavm.jso.core.JSDate;
 import org.teavm.jso.core.JSRegExp;
 import org.teavm.jso.core.JSString;
+import org.teavm.metaprogramming.CompileTime;
+import org.teavm.metaprogramming.Meta;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
+@CompileTime
 public final class RoutingImpl {
     private RoutingImpl() {
     }
 
-    @Reflected
-    public static native PathImplementor getImplementor(Route route);
-    private static void getImplementor(Emitter<PathImplementor> em, ReflectValue<Route> route) {
-        ReflectClass<Route> cls = route.getReflectClass();
-        em.returnValue(() -> getImplementorByClass(cls.asJavaClass()));
+    public static PathImplementor getImplementor(Route route) {
+        return getImplementorByClass(route.getClass());
     }
 
-    @Reflected
+    @Meta
     public static native PathImplementor getImplementorByClass(Class<?> routeType);
-    private static void getImplementorByClass(Emitter<PathImplementor> em, ReflectClass<?> routeType) {
-        em.returnValue(RouteImplementorEmitter.getInstance(em.getContext()).emitParser(em, routeType));
+    private static void getImplementorByClass(ReflectClass<?> routeType) {
+        Value<PathImplementor> result = RouteImplementorEmitter.getInstance().emitParser(routeType);
+        exit(() -> result.get());
     }
 
-    @Reflected
+    @Meta
     public static native PathImplementor getImplementorByClassImpl(Class<?> routeType);
-    private static void getImplementorByClassImpl(Emitter<PathImplementor> em, ReflectClass<?> routeType) {
-        em.returnValue(RouteImplementorEmitter.getInstance(em.getContext()).emitInterfaceParser(em, routeType));
+    private static void getImplementorByClassImpl(ReflectClass<?> routeType) {
+        Value<PathImplementor> result = RouteImplementorEmitter.getInstance().emitInterfaceParser(routeType);
+        exit(() -> result.get());
     }
 
     public static long parseDate(String text) {

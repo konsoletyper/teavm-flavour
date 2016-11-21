@@ -16,4 +16,4 @@
 @CompileTime
 package org.teavm.flavour.routing.parsing;
 
-import org.teavm.flavour.mp.CompileTime;
+import org.teavm.metaprogramming.CompileTime;

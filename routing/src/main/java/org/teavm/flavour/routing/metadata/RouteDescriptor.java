@@ -15,12 +15,8 @@
  */
 package org.teavm.flavour.routing.metadata;
 
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class RouteDescriptor {
     private ReflectMethod method;
     private String[] pathParts;

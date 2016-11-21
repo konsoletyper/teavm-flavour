@@ -18,12 +18,8 @@ package org.teavm.flavour.rest.impl.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.metaprogramming.ReflectClass;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ParameterModel implements Cloneable {
     String name;
     int index;

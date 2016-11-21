@@ -35,9 +35,8 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.teavm.flavour</groupId>
-      <artifactId>teavm-flavour-mp</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-metaprogramming-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>
@@ -85,36 +84,6 @@
             <include>PathParserTest.java</include>
           </includes>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.teavm</groupId>
-        <artifactId>teavm-maven-plugin</artifactId>
-        <version>${teavm.version}</version>
-        <dependencies>
-          <dependency>
-            <groupId>org.teavm</groupId>
-            <artifactId>teavm-classlib</artifactId>
-            <version>${teavm.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <id>generate-javascript-tests</id>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-            <phase>process-test-classes</phase>
-            <configuration>
-              <minifying>false</minifying>
-              <wildcards>
-                <wildcard>org.teavm.flavour.routing.*Test</wildcard>
-              </wildcards>
-              <excludeWildcards>
-                <wildcard>org.teavm.flavour.routing.parsing.*Test</wildcard>
-              </excludeWildcards>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

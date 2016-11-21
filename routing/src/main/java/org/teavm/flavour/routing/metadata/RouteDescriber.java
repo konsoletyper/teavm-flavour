@@ -21,28 +21,21 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.parsing.RegexParseException;
 import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.Pattern;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class RouteDescriber {
-    private EmitterDiagnostics diagnostics;
-
-    public RouteDescriber(EmitterContext context) {
-        this.diagnostics = context.getDiagnostics();
-    }
+    private Diagnostics diagnostics = Metaprogramming.getDiagnostics();
 
     public RouteSetDescriptor describeRouteSet(ReflectClass<?> cls) {
         RouteSetDescriptor descriptor = new RouteSetDescriptor(cls);
@@ -209,9 +202,9 @@ public class RouteDescriber {
     private Node getDefaultPatternForEnum(ParameterDescriptor parameter) {
         ReflectClass<?> cls = parameter.valueType;
         return Node.oneOf(Arrays.stream(cls.getDeclaredFields())
-                .filter(field -> field.isEnumConstant())
+                .filter(ReflectField::isEnumConstant)
                 .map(field -> Node.text(field.getName()))
-                .<Node>toArray(sz -> new Node[sz]));
+                .toArray(Node[]::new));
     }
 
     private ParameterType convertType(ReflectClass<?> paramType) {

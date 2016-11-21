@@ -16,44 +16,24 @@
 package org.teavm.flavour.routing;
 
 import java.util.function.Consumer;
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Reflected;
-import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Window;
 
-/**
- *
- * @author Alexey Andreev
- */
-@CompileTime
 public final class Routing {
     private Routing() {
     }
 
-    @Reflected
-    public static native <T extends Route> T build(Class<T> routeType, Consumer<String> consumer);
     @SuppressWarnings("unchecked")
-    private static <T extends Route> void build(Emitter<T> em, ReflectClass<T> routeType,
-            Value<Consumer<String>> consumer) {
-        em.returnValue(() -> (T) RoutingImpl.getImplementorByClass(routeType.asJavaClass()).write(consumer.get()));
+    public static <T extends Route> T build(Class<T> routeType, Consumer<String> consumer) {
+        return (T) RoutingImpl.getImplementorByClass(routeType).write(consumer);
     }
 
-    @Reflected
-    public static native <T extends Route> T open(Window window, Class<T> routeType);
-    private static <T extends Route> void open(Emitter<T> em, Value<Window> window, ReflectClass<T> routeType) {
-        em.returnValue(() -> {
-            Window w = window.get();
-            return build(routeType.asJavaClass(), hash -> w.getLocation().setHash(hash));
-        });
+    public static <T extends Route> T open(Window window, Class<T> routeType) {
+        return build(routeType, hash -> window.getLocation().setHash(hash));
     }
 
-    @Reflected
-    public static native <T extends Route> T open(Class<T> routeType);
-    private static <T extends Route> void open(Emitter<T> em, ReflectClass<T> routeType) {
-        em.returnValue(() -> open(Window.current(), routeType.asJavaClass()));
+    public static <T extends Route> T open(Class<T> routeType) {
+        return open(Window.current(), routeType);
     }
 
     static <T extends Route> T replace(Window window, Class<T> routeType) {

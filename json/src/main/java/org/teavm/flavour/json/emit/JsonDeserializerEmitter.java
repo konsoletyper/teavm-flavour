@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
@@ -170,14 +171,12 @@ public class JsonDeserializerEmitter {
             Value<JsonDeserializerContext> context = emit(() -> (JsonDeserializerContext) args[0]);
             Value<Node> node = emit(() -> (Node) args[1]);
 
-            Value<Object> result = lazyFragment(() -> {
-                Value<ObjectNode> contentNode = subtype.contentNode;
+            Value<Object> result = emitSubTypes(information, node, context, contentNode -> {
                 Value<Object> target = emitConstructor(information, contentNode, context);
                 emitIdRegistration(information, target, contentNode, context);
                 emitProperties(information, target, contentNode, context);
                 return emit(() -> target.get());
             });
-            result = emitSubTypes(information, node, context, result);
             result = emitNodeTypeCheck(node, result, emitIdCheck(information, node, context));
 
             Value<Object> finalResult = result;
@@ -274,14 +273,14 @@ public class JsonDeserializerEmitter {
     }
 
     private Value<Object> emitSubTypes(ClassInformation information, Value<Node> node,
-            Value<JsonDeserializerContext> context, Value<Object> defaultValue) {
+            Value<JsonDeserializerContext> context, Function<Value<ObjectNode>, Value<Object>> consumer) {
         if (information.inheritance.subTypes.isEmpty() || information.inheritance.value == InheritanceValue.NONE) {
-            return defaultValue;
+            return consumer.apply(lazy(() -> (ObjectNode) node.get()));
         }
 
         ObjectWithTag taggedObject = emitTypeNameExtractor(information, node);
         if (taggedObject == null) {
-            return defaultValue;
+            return consumer.apply(lazy(() -> (ObjectNode) node.get()));
         }
 
         Value<ObjectNode> contentNode = taggedObject.object;
@@ -306,6 +305,7 @@ public class JsonDeserializerEmitter {
 
         Value<Object> finalResult = result;
         String defaultTypeName = getTypeName(information, information);
+        Value<Object> defaultValue = consumer.apply(taggedObject.object);
         return lazy(() -> tag.get().equals(defaultTypeName) ? defaultValue.get() : finalResult);
     }
 
@@ -403,24 +403,31 @@ public class JsonDeserializerEmitter {
 
     private void emitIdRegistration(ClassInformation information, Value<Object> object,
             Value<ObjectNode> node, Value<JsonDeserializerContext> context) {
-        Choice<Void> choice = em.choose(Void.class);
+        Value<Void> register = lazyFragment(() -> {
+            Value<Object> id;
+            switch (information.idGenerator) {
+                case INTEGER:
+                    id = emitIntegerIdRegistration(information, node);
+                    break;
+                case PROPERTY:
+                    id = emitPropertyIdRegistration(information, node, context);
+                    break;
+                default:
+                    id = null;
+                    break;
+            }
+            if (id != null) {
+                emit(() -> context.get().register(id.get(), object.get()));
+            }
+            return null;
+        });
+
         String idProperty = information.idProperty;
-        Emitter<Void> bodyEm = choice.option(() -> node.get().has(idProperty));
-        Value<Object> id;
-        switch (information.idGenerator) {
-            case INTEGER:
-                id = emitIntegerIdRegistration(bodyEm, information, node);
-                break;
-            case PROPERTY:
-                id = emitPropertyIdRegistration(bodyEm, information, node, context);
-                break;
-            default:
-                id = null;
-                break;
-        }
-        if (id != null) {
-            emit(() -> context.get().register(id.get(), object.get()));
-        }
+        emit(() -> {
+            if (node.get().has(idProperty)) {
+                register.get();
+            }
+        });
     }
 
     private Value<Object> emitIntegerIdRegistration(ClassInformation information, Value<ObjectNode> node) {

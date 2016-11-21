@@ -15,14 +15,10 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PropertyModel implements Cloneable {
     BeanModel bean;
     String name;
@@ -64,8 +60,7 @@ public class PropertyModel implements Cloneable {
     @Override
     public PropertyModel clone() {
         try {
-            PropertyModel copy = (PropertyModel) super.clone();
-            return copy;
+            return (PropertyModel) super.clone();
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();
         }

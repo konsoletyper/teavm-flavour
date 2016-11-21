@@ -15,20 +15,9 @@
  */
 package org.teavm.flavour.json;
 
-import java.util.HashMap;
-import java.util.Map;
-import org.teavm.flavour.json.deserializer.BooleanDeserializer;
-import org.teavm.flavour.json.deserializer.ByteDeserializer;
-import org.teavm.flavour.json.deserializer.CharacterDeserializer;
-import org.teavm.flavour.json.deserializer.DoubleDeserializer;
-import org.teavm.flavour.json.deserializer.FloatDeserializer;
-import org.teavm.flavour.json.deserializer.IntegerDeserializer;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
-import org.teavm.flavour.json.deserializer.LongDeserializer;
-import org.teavm.flavour.json.deserializer.NumberDeserializer;
-import org.teavm.flavour.json.deserializer.ShortDeserializer;
-import org.teavm.flavour.json.deserializer.StringDeserializer;
 import org.teavm.flavour.json.emit.JsonDeserializerEmitter;
 import org.teavm.flavour.json.emit.JsonSerializerEmitter;
 import org.teavm.flavour.json.serializer.JsonSerializer;
@@ -38,21 +27,13 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.StringNode;
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.Reflected;
-import org.teavm.flavour.mp.Value;
+import org.teavm.metaprogramming.CompileTime;
+import org.teavm.metaprogramming.Meta;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 @CompileTime
 public final class JSON {
-    private static Map<Class<?>, JsonDeserializer> standardDeserializers;
-
     private JSON() {
     }
 
@@ -72,56 +53,31 @@ public final class JSON {
         }
     }
 
-    @Reflected
-    static native JsonSerializer getObjectSerializer(Object obj);
-    static void getObjectSerializer(Emitter<JsonSerializer> em, ReflectValue<Object> value) {
-        ReflectClass<?> cls = value.getReflectClass();
-        em.returnValue(() -> getClassSerializer(cls.asJavaClass()));
+    static JsonSerializer getObjectSerializer(Object obj) {
+        return getClassSerializer(obj.getClass());
     }
 
-    @Reflected
+    @Meta
     public static native JsonSerializer getClassSerializer(Class<?> cls);
-    public static void getClassSerializer(Emitter<JsonSerializer> em, ReflectClass<?> cls) {
-        new JsonSerializerEmitter(em).returnClassSerializer(cls);
+    public static void getClassSerializer(ReflectClass<?> cls) {
+        new JsonSerializerEmitter().returnClassSerializer(cls);
     }
 
-    @Reflected
-    public static native <T> T deserialize(Node node, Class<T> type);
     @SuppressWarnings("unchecked")
-    private static <T> void deserialize(Emitter<T> em, Value<Node> node, ReflectClass<T> type) {
+    public static <T> T deserialize(Node node, Class<T> type) {
         String typeName = type.getName();
-        em.returnValue(() -> {
-            JsonDeserializer deserializer = getClassDeserializer(type.asJavaClass());
-            if (deserializer == null) {
-                throw new IllegalArgumentException("Don't know how to deserialize " + typeName);
-            }
-            return (T) deserializer.deserialize(new JsonDeserializerContext(), node.get());
-        });
-    }
-
-    private static void ensureStandardDeserializers() {
-        if (standardDeserializers != null) {
-            return;
+        JsonDeserializer deserializer = getClassDeserializer(type);
+        if (deserializer == null) {
+            throw new IllegalArgumentException("Don't know how to deserialize " + typeName);
         }
-
-        standardDeserializers = new HashMap<>();
-        standardDeserializers.put(Object.class, null);
-        standardDeserializers.put(Boolean.class, new BooleanDeserializer());
-        standardDeserializers.put(Character.class, new CharacterDeserializer());
-        standardDeserializers.put(Number.class, new NumberDeserializer());
-        standardDeserializers.put(Byte.class, new ByteDeserializer());
-        standardDeserializers.put(Short.class, new ShortDeserializer());
-        standardDeserializers.put(Integer.class, new IntegerDeserializer());
-        standardDeserializers.put(Long.class, new LongDeserializer());
-        standardDeserializers.put(Float.class, new FloatDeserializer());
-        standardDeserializers.put(Double.class, new DoubleDeserializer());
-        standardDeserializers.put(String.class, new StringDeserializer());
+        return (T) deserializer.deserialize(new JsonDeserializerContext(), node);
     }
 
-    @Reflected
+    @Meta
     public static native JsonDeserializer getClassDeserializer(Class<?> cls);
-    private static void getClassDeserializer(Emitter<JsonDeserializer> em, ReflectClass<?> cls) {
-        em.returnValue(new JsonDeserializerEmitter(em).getClassDeserializer(cls));
+    private static void getClassDeserializer(ReflectClass<?> cls) {
+        Value<? extends JsonDeserializer> deserializerValue = new JsonDeserializerEmitter().getClassDeserializer(cls);
+        exit(() -> deserializerValue.get());
     }
 
     public static boolean deserializeBoolean(Node node) {

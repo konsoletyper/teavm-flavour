@@ -18,12 +18,8 @@ package org.teavm.flavour.rest.impl.model;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.teavm.flavour.mp.ReflectClass;
+import org.teavm.metaprogramming.ReflectClass;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class BeanModel {
     ReflectClass<?> type;
     Map<String, PropertyModel> properties = new HashMap<>();

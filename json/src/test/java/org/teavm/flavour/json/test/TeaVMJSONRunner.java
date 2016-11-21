@@ -24,16 +24,8 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Reflected;
-import org.teavm.flavour.mp.Value;
+import org.teavm.metaprogramming.CompileTime;
 
-/**
- *
- * @author Alexey Andreev
- */
 @CompileTime
 public final class TeaVMJSONRunner {
     private TeaVMJSONRunner() {
@@ -43,13 +35,11 @@ public final class TeaVMJSONRunner {
         return convert(new JsonNodeFactory(false), JSON.serialize(value));
     }
 
-    @Reflected
-    public static native <T> T deserialize(String json, Class<T> type);
-    private static <T> void deserialize(Emitter<T> em, Value<String> json, ReflectClass<T> type) {
-        em.returnValue(() -> JSON.deserialize(Node.parse(json.get()), type.asJavaClass()));
+    public static <T> T deserialize(String json, Class<T> type) {
+        return JSON.deserialize(Node.parse(json), type);
     }
 
-    public static final JsonNode convert(JsonNodeFactory nf, Node node) {
+    public static JsonNode convert(JsonNodeFactory nf, Node node) {
         if (node.isNull()) {
             return nf.nullNode();
         } else if (node.isBoolean()) {

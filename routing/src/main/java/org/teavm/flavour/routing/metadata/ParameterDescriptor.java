@@ -15,8 +15,8 @@
  */
 package org.teavm.flavour.routing.metadata;
 
-import org.teavm.flavour.mp.ReflectClass;
 import org.teavm.flavour.regex.ast.Node;
+import org.teavm.metaprogramming.ReflectClass;
 
 /**
  *

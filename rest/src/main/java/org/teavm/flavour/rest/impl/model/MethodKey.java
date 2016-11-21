@@ -17,13 +17,9 @@ package org.teavm.flavour.rest.impl.model;
 
 import java.util.Arrays;
 import java.util.Objects;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class MethodKey {
     private String name;
     private ReflectClass<?>[] parameterTypes;
