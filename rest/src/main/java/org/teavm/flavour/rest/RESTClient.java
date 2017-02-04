@@ -15,24 +15,22 @@
  */
 package org.teavm.flavour.rest;
 
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.rest.impl.FactoryEmitter;
+import org.teavm.metaprogramming.CompileTime;
+import org.teavm.metaprogramming.Meta;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 @CompileTime
 public final class RESTClient {
     private RESTClient() {
     }
 
-    @Reflected
+    @Meta
     public static native <T> ResourceFactory<T> factory(Class<T> type);
-    private static void factory(Emitter<ResourceFactory<?>> em, ReflectClass<?> type) {
-        em.returnValue(FactoryEmitter.getInstance(em.getContext()).emitFactory(em, type));
+    private static void factory(ReflectClass<?> type) {
+        Value<? extends ResourceFactory<?>> result = FactoryEmitter.getInstance().emitFactory(type);
+        Metaprogramming.exit(() -> result.get());
     }
 }

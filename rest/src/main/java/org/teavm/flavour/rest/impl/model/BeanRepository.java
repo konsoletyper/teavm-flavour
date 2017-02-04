@@ -29,28 +29,22 @@ import javax.ws.rs.BeanParam;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class BeanRepository {
     private static List<Class<? extends Annotation>> meaningfulAnnotations = Arrays.asList(BeanParam.class,
             PathParam.class, HeaderParam.class, QueryParam.class);
-    private EmitterContext context;
-    private EmitterDiagnostics diagnostics;
+    private Diagnostics diagnostics;
     private Map<ReflectClass<?>, BeanModel> cache = new HashMap<>();
 
-    public BeanRepository(EmitterContext context) {
-        this.context = context;
-        this.diagnostics = context.getDiagnostics();
+    public BeanRepository() {
+        this.diagnostics = Metaprogramming.getDiagnostics();
     }
 
     public BeanModel getBean(ReflectClass<?> cls) {
@@ -63,7 +57,7 @@ public class BeanRepository {
         if (cls.getSuperclass() != null && !cls.getSuperclass().getName().equals("java.lang.Object")) {
             BeanModel parentModel = getBean(cls.getSuperclass());
             if (parentModel != null) {
-                model.properties.putAll(model.properties);
+                model.properties.putAll(parentModel.properties);
             }
         }
 
@@ -217,17 +211,17 @@ public class BeanRepository {
     }
 
     private String tryGetter(ReflectMethod method) {
-        if (method.getReturnType() == context.findClass(void.class) || method.getParameterCount() > 0) {
+        if (method.getReturnType() == Metaprogramming.findClass(void.class) || method.getParameterCount() > 0) {
             return null;
         }
         return tryRemovePrefix("get", method.getName())
-                .orElseGet(() -> method.getReturnType() == context.findClass(boolean.class)
+                .orElseGet(() -> method.getReturnType() == Metaprogramming.findClass(boolean.class)
                         ? tryRemovePrefix("is", method.getName()).orElse(null)
                         : null);
     }
 
     private String trySetter(ReflectMethod method) {
-        if (method.getReturnType() != context.findClass(void.class) || method.getParameterCount() != 1) {
+        if (method.getReturnType() != Metaprogramming.findClass(void.class) || method.getParameterCount() != 1) {
             return null;
         }
         return tryRemovePrefix("set", method.getName()).orElse(null);

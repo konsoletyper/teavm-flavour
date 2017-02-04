@@ -167,33 +167,6 @@
             <version>${teavm.version}</version>
           </dependency>
         </dependencies>
-        <executions>
-          <execution>
-            <id>generate-javascript-tests</id>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-            <phase>process-test-classes</phase>
-            <configuration>
-              <minifying>false</minifying>
-              <properties>
-                <rest.service.url>${teavm.flavour.rest.test.url}</rest.service.url>
-              </properties>
-            </configuration>
-          </execution>
-          <execution>
-            <id>run-javascript-tests</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <phase>integration-test</phase>
-            <configuration>
-              <skip>${teavm.flavour.test.skip}</skip>
-              <numThreads>${teavm.flavour.test.threads}</numThreads>
-              <seleniumURL>${teavm.flavour.test.selenium}</seleniumURL>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

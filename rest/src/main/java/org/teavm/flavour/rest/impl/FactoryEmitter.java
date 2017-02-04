@@ -15,6 +15,9 @@
  */
 package org.teavm.flavour.rest.impl;
 
+import static org.teavm.metaprogramming.Metaprogramming.emit;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.lang.reflect.Array;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -25,7 +28,6 @@ import java.lang.reflect.WildcardType;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
@@ -34,14 +36,6 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.Value;
-import org.teavm.flavour.mp.reflect.ReflectField;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.ResourceFactory;
 import org.teavm.flavour.rest.impl.model.BeanRepository;
 import org.teavm.flavour.rest.impl.model.MethodKey;
@@ -55,88 +49,93 @@ import org.teavm.flavour.rest.impl.model.ValuePath;
 import org.teavm.flavour.rest.impl.model.ValuePathVisitor;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.jso.browser.Window;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.Value;
+import org.teavm.metaprogramming.reflect.ReflectField;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class FactoryEmitter {
-    private EmitterDiagnostics diagnostics;
+    private Diagnostics diagnostics;
     private ClassLoader classLoader;
     private ResourceModelRepository resourceRepository;
     private SourceLocation location;
-    private static Map<EmitterContext, FactoryEmitter> instances = new WeakHashMap<>();
+    private static FactoryEmitter instance;
 
-    private FactoryEmitter(EmitterContext context, ResourceModelRepository modelRepository) {
-        this.diagnostics = context.getDiagnostics();
-        this.classLoader = context.getClassLoader();
+    private FactoryEmitter() {
+        BeanRepository beanRepository = new BeanRepository();
+        ResourceModelRepository modelRepository = new ResourceModelRepository(beanRepository);
+        this.diagnostics = Metaprogramming.getDiagnostics();
+        this.classLoader = Metaprogramming.getClassLoader();
         this.resourceRepository = modelRepository;
     }
 
-    public static FactoryEmitter getInstance(EmitterContext context) {
-        return instances.computeIfAbsent(context, ctx -> {
-            BeanRepository beanRepository = new BeanRepository(context);
-            ResourceModelRepository modelRepository = new ResourceModelRepository(context, beanRepository);
-            return new FactoryEmitter(context, modelRepository);
+    public static FactoryEmitter getInstance() {
+        if (instance == null) {
+            instance = new FactoryEmitter();
+        }
+        return instance;
+    }
+
+    public Value<? extends ResourceFactory<?>> emitFactory(ReflectClass<?> cls) {
+        return proxy(FactoryTemplate.class, (instance, methods, args) -> {
+            Value<String> path = emit(() -> (String) args[0].get());
+            Value<Object> result = emitFactoryWorker(() -> instance.get(), path, cls.asSubclass(Object.class));
+            exit(() -> result.get());
         });
     }
 
-    public Value<? extends ResourceFactory<?>> emitFactory(Emitter<?> em, ReflectClass<?> cls) {
-        return em.proxy(FactoryTemplate.class, (body, instance, methods, args) -> {
-            Value<String> path = body.emit(() -> (String) args[0].get());
-            body.returnValue(emitFactoryWorker(body, instance, path, cls.asSubclass(Object.class)));
-        });
-    }
-
-    private Value<Object> emitFactoryWorker(Emitter<?> em, Value<FactoryTemplate> factory, Value<String> path,
+    private Value<Object> emitFactoryWorker(Value<FactoryTemplate> factory, Value<String> path,
             ReflectClass<Object> cls) {
         ResourceModel resource = resourceRepository.getResource(cls);
-        Value<ProxyTemplate> template = em.emit(() -> new ProxyTemplate(factory.get(), path.get()));
-        return em.proxy(cls, (body, instance, method, args) -> {
+        Value<ProxyTemplate> template = emit(() -> new ProxyTemplate(factory.get(), path.get()));
+        return proxy(cls, (instance, method, args) -> {
             MethodModel model = resource.getMethods().get(new MethodKey(method));
             location = new SourceLocation(method);
 
-            Value<HttpMethod> httpMethod = emitHttpMethod(body, model);
-            Value<String> url = emitRequestUrl(body, resource, model, args);
-            Value<RequestImpl> request = body.emit(() -> new RequestImpl(httpMethod.get(), url.get()));
-            request = emitHeaders(body, request, model, args);
-            request = emitContent(body, request, model, args);
+            Value<HttpMethod> httpMethod = emitHttpMethod(model);
+            Value<String> url = emitRequestUrl(resource, model, args);
+            Value<RequestImpl> request = emit(() -> new RequestImpl(httpMethod.get(), url.get()));
+            request = emitHeaders(request, model, args);
+            request = emitContent(request, model, args);
 
             Value<RequestImpl> localRequest = request;
-            Value<ResponseImpl> response = body.emit(() -> template.get().send(localRequest.get()));
-            body.emit(() -> response.get().defaultAction());
+            Value<ResponseImpl> response = emit(() -> template.get().send(localRequest.get()));
+            emit(() -> response.get().defaultAction());
 
-            if (method.getReturnType() != em.getContext().findClass(void.class)) {
+            if (method.getReturnType() != Metaprogramming.findClass(void.class)) {
                 ReflectClass<?> returnType = method.getReturnType();
-                Value<Node> responseContent = body.emit(() -> response.get().getContent());
-                body.returnValue(deserialize(body, model, responseContent, returnType));
+                Value<Node> responseContent = emit(() -> response.get().getContent());
+                Value<Object> result = deserialize(model, responseContent, returnType);
+                exit(() -> result.get());
             }
         });
     }
 
-    private Value<HttpMethod> emitHttpMethod(Emitter<?> em, MethodModel model) {
-        ReflectClass<?> httpMethodClass = em.getContext().findClass(HttpMethod.class);
+    private Value<HttpMethod> emitHttpMethod(MethodModel model) {
+        ReflectClass<?> httpMethodClass = Metaprogramming.findClass(HttpMethod.class);
         ReflectField field = httpMethodClass.getDeclaredField(model.getHttpMethod().name());
-        return em.emit(() -> (HttpMethod) field.get(null));
+        return emit(() -> (HttpMethod) field.get(null));
     }
 
-    private Value<String> emitRequestUrl(Emitter<?> em, ResourceModel resource, MethodModel model,
-            Value<Object>[] args) {
-        Value<StringBuilder> sb = em.emit(() -> new StringBuilder());
+    private Value<String> emitRequestUrl(ResourceModel resource, MethodModel model, Value<Object>[] args) {
+        Value<StringBuilder> sb = emit(() -> new StringBuilder());
         if (!resource.getPath().isEmpty()) {
-            sb = appendUrlPattern(em, resource.getPath(), model, sb, args);
+            sb = appendUrlPattern(resource.getPath(), model, sb, args);
             if (!model.getPath().isEmpty()) {
                 Value<StringBuilder> localSb = sb;
-                sb = em.emit(() -> localSb.get().append("/"));
+                sb = emit(() -> localSb.get().append("/"));
             }
         }
-        sb = appendUrlPattern(em, model.getPath(), model, sb, args);
-        Value<String[]> sep = em.emit(() -> new String[] { "?" });
+        sb = appendUrlPattern(model.getPath(), model, sb, args);
+        Value<String[]> sep = emit(() -> new String[] { "?" });
         for (ValuePath queryParam : model.getQueryParameters().values()) {
             String paramName = queryParam.getName();
-            Value<Object> value = getParameter(em, queryParam, args);
+            Value<Object> value = getParameter(queryParam, args);
             Value<StringBuilder> localSb = sb;
-            em.emit(() -> {
+            emit(() -> {
                 StringBuilder innerSb = localSb.get();
                 if (value.get() != null) {
                     innerSb = innerSb.append(sep.get()[0]).append(paramName).append("=");
@@ -147,21 +146,21 @@ public class FactoryEmitter {
             });
         }
         Value<StringBuilder> localSb = sb;
-        return em.emit(() -> localSb.get().toString());
+        return emit(() -> localSb.get().toString());
     }
 
-    private Value<StringBuilder> appendUrlPattern(Emitter<?> em, String pattern, MethodModel model,
+    private Value<StringBuilder> appendUrlPattern(String pattern, MethodModel model,
             Value<StringBuilder> sb, Value<Object>[] args) {
         int index = 0;
         while (index < pattern.length()) {
             int next = pattern.indexOf('{', index);
             if (next < 0) {
-                sb = appendConstant(em, sb, pattern.substring(index));
+                sb = appendConstant(sb, pattern.substring(index));
                 break;
             }
             int end = findClosingBracket(pattern, next + 1);
             if (end < 0) {
-                sb = appendConstant(em, sb, pattern.substring(index));
+                sb = appendConstant(sb, pattern.substring(index));
                 break;
             }
             int sep = pattern.indexOf(':', next);
@@ -174,7 +173,7 @@ public class FactoryEmitter {
             if (value == null) {
                 diagnostics.error(location, "Unknown parameter referred by path: " + name);
             } else {
-                sb = appendValue(em, sb, getParameter(em, value, args));
+                sb = appendValue(sb, getParameter(value, args));
             }
 
             index = end + 1;
@@ -200,29 +199,27 @@ public class FactoryEmitter {
         return -1;
     }
 
-    private Value<RequestImpl> emitHeaders(Emitter<?> em, Value<RequestImpl> request, MethodModel model,
-            Value<Object>[] args) {
+    private Value<RequestImpl> emitHeaders(Value<RequestImpl> request, MethodModel model, Value<Object>[] args) {
         for (ValuePath header : model.getHeaderParameters().values()) {
             Value<RequestImpl> localRequest = request;
             String name = header.getName();
-            Value<Object> value = getParameter(em, header, args);
-            request = em.emit(() -> localRequest.get().setHeader(name,
+            Value<Object> value = getParameter(header, args);
+            request = emit(() -> localRequest.get().setHeader(name,
                     Window.encodeURIComponent(value.get().toString())));
         }
         return request;
     }
 
-    private Value<RequestImpl> emitContent(Emitter<?> em, Value<RequestImpl> request, MethodModel model,
-            Value<Object>[] args) {
+    private Value<RequestImpl> emitContent(Value<RequestImpl> request, MethodModel model, Value<Object>[] args) {
         if (model.getBody() != null) {
             Value<RequestImpl> localRequest = request;
-            Value<Object> content = getParameter(em, model.getBody(), args);
-            request = em.emit(() -> localRequest.get().setContent(JSON.serialize(content.get())));
+            Value<Object> content = getParameter(model.getBody(), args);
+            request = emit(() -> localRequest.get().setContent(JSON.serialize(content.get())));
         }
         return request;
     }
 
-    private Value<Object> getParameter(Emitter<?> em, ValuePath value, Value<Object>[] args) {
+    private Value<Object> getParameter(ValuePath value, Value<Object>[] args) {
         class EmittingVisitor implements ValuePathVisitor {
             Value<Object> current;
             @Override
@@ -232,10 +229,10 @@ public class FactoryEmitter {
                 PropertyModel property = path.getProperty();
                 if (property.getGetter() != null) {
                     ReflectMethod getter = property.getGetter();
-                    current = em.emit(() -> getter.invoke(localCurrent.get()));
+                    current = emit(() -> getter.invoke(localCurrent.get()));
                 } else {
                     ReflectField field = property.getField();
-                    current = em.emit(() -> field.get(localCurrent.get()));
+                    current = emit(() -> field.get(localCurrent.get()));
                 }
             }
             @Override
@@ -249,64 +246,63 @@ public class FactoryEmitter {
     }
 
 
-    private Value<StringBuilder> appendConstant(Emitter<?> em, Value<StringBuilder> sb, String constant) {
+    private Value<StringBuilder> appendConstant(Value<StringBuilder> sb, String constant) {
         if (!constant.isEmpty()) {
             Value<StringBuilder> localSb = sb;
-            sb = em.emit(() -> localSb.get().append(constant));
+            sb = emit(() -> localSb.get().append(constant));
         }
         return sb;
     }
 
-    private Value<StringBuilder> appendValue(Emitter<?> em, Value<StringBuilder> sb, Value<Object> value) {
-        return em.emit(() -> sb.get().append(Window.encodeURIComponent(String.valueOf(value.get()))));
+    private Value<StringBuilder> appendValue(Value<StringBuilder> sb, Value<Object> value) {
+        return emit(() -> sb.get().append(Window.encodeURIComponent(String.valueOf(value.get()))));
     }
 
-    private Value<Object> deserialize(Emitter<?> em, MethodModel method, Value<Node> value,
-            ReflectClass<?> target) {
+    private Value<Object> deserialize(MethodModel method, Value<Node> value, ReflectClass<?> target) {
         if (target.isPrimitive()) {
             switch (target.getName()) {
                 case "boolean":
-                    return em.emit(() -> JSON.deserializeBoolean(value.get()));
+                    return emit(() -> JSON.deserializeBoolean(value.get()));
                 case "byte":
-                    return em.emit(() -> JSON.deserializeByte(value.get()));
+                    return emit(() -> JSON.deserializeByte(value.get()));
                 case "short":
-                    return em.emit(() -> JSON.deserializeShort(value.get()));
+                    return emit(() -> JSON.deserializeShort(value.get()));
                 case "char":
-                    return em.emit(() -> JSON.deserializeChar(value.get()));
+                    return emit(() -> JSON.deserializeChar(value.get()));
                 case "int":
-                    return em.emit(() -> JSON.deserializeInt(value.get()));
+                    return emit(() -> JSON.deserializeInt(value.get()));
                 case "long":
-                    return em.emit(() -> JSON.deserializeLong(value.get()));
+                    return emit(() -> JSON.deserializeLong(value.get()));
                 case "float":
-                    return em.emit(() -> JSON.deserializeFloat(value.get()));
+                    return emit(() -> JSON.deserializeFloat(value.get()));
                 case "double":
-                    return em.emit(() -> JSON.deserializeDouble(value.get()));
+                    return emit(() -> JSON.deserializeDouble(value.get()));
             }
             throw new AssertionError();
         } else {
             Method javaMethod = findMethod(method.getMethod());
             if (javaMethod == null) {
-                return em.emit(() -> null);
+                return emit(() -> null);
             }
-            Value<JsonDeserializer> deserializer = createDeserializer(em, javaMethod.getGenericReturnType());
-            return em.emit(() -> deserializer.get().deserialize(new JsonDeserializerContext(), value.get()));
+            Value<JsonDeserializer> deserializer = createDeserializer(javaMethod.getGenericReturnType());
+            return emit(() -> deserializer.get().deserialize(new JsonDeserializerContext(), value.get()));
         }
     }
 
-    private Value<JsonDeserializer> createDeserializer(Emitter<?> em, Type type) {
+    private Value<JsonDeserializer> createDeserializer(Type type) {
         if (type instanceof Class<?>) {
-            return createObjectDeserializer(em, (Class<?>) type);
+            return createObjectDeserializer((Class<?>) type);
         } else if (type instanceof ParameterizedType) {
             ParameterizedType paramType = (ParameterizedType) type;
             Type[] typeArgs = paramType.getActualTypeArguments();
             if (paramType.getRawType().equals(Map.class)) {
-                return createMapDeserializer(em, typeArgs[0], typeArgs[1]);
+                return createMapDeserializer(typeArgs[0], typeArgs[1]);
             } else if (paramType.getRawType().equals(List.class)) {
-                return createListDeserializer(em, typeArgs[0]);
+                return createListDeserializer(typeArgs[0]);
             } else if (paramType.getRawType().equals(Set.class)) {
-                return createSetDeserializer(em, typeArgs[0]);
+                return createSetDeserializer(typeArgs[0]);
             } else {
-                return createDeserializer(em, paramType.getRawType());
+                return createDeserializer(paramType.getRawType());
             }
         } else if (type instanceof WildcardType) {
             WildcardType wildcard = (WildcardType) type;
@@ -315,7 +311,7 @@ public class FactoryEmitter {
             if (upperBound instanceof Class<?>) {
                 upperCls = (Class<?>) upperBound;
             }
-            return createObjectDeserializer(em, upperCls);
+            return createObjectDeserializer(upperCls);
         } else if (type instanceof TypeVariable<?>) {
             TypeVariable<?> tyvar = (TypeVariable<?>) type;
             Type upperBound = tyvar.getBounds()[0];
@@ -323,38 +319,38 @@ public class FactoryEmitter {
             if (upperBound instanceof Class<?>) {
                 upperCls = (Class<?>) upperBound;
             }
-            return createObjectDeserializer(em, upperCls);
+            return createObjectDeserializer(upperCls);
         } else if (type instanceof GenericArrayType) {
             GenericArrayType array = (GenericArrayType) type;
-            return createArrayDeserializer(em, array);
+            return createArrayDeserializer(array);
         } else {
-            return createObjectDeserializer(em, Object.class);
+            return createObjectDeserializer(Object.class);
         }
     }
 
-    private Value<JsonDeserializer> createMapDeserializer(Emitter<?> em,  Type keyType, Type valueType) {
-        Value<JsonDeserializer> keyDeserializer = createDeserializer(em, keyType);
-        Value<JsonDeserializer> valueDeserializer = createDeserializer(em, valueType);
-        return em.emit(() -> new MapDeserializer(keyDeserializer.get(), valueDeserializer.get()));
+    private Value<JsonDeserializer> createMapDeserializer(Type keyType, Type valueType) {
+        Value<JsonDeserializer> keyDeserializer = createDeserializer(keyType);
+        Value<JsonDeserializer> valueDeserializer = createDeserializer(valueType);
+        return emit(() -> new MapDeserializer(keyDeserializer.get(), valueDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createListDeserializer(Emitter<?> em, Type itemType) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, itemType);
-        return em.emit(() -> new ListDeserializer(itemDeserializer.get()));
+    private Value<JsonDeserializer> createListDeserializer(Type itemType) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType);
+        return emit(() -> new ListDeserializer(itemDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createSetDeserializer(Emitter<?> em, Type itemType) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, itemType);
-        return em.emit(() -> new SetDeserializer(itemDeserializer.get()));
+    private Value<JsonDeserializer> createSetDeserializer(Type itemType) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType);
+        return emit(() -> new SetDeserializer(itemDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createArrayDeserializer(Emitter<?> em, GenericArrayType type) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(em, type.getGenericComponentType());
-        return em.emit(() -> new ArrayDeserializer(Object.class, itemDeserializer.get()));
+    private Value<JsonDeserializer> createArrayDeserializer(GenericArrayType type) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getGenericComponentType());
+        return emit(() -> new ArrayDeserializer(Object.class, itemDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createObjectDeserializer(Emitter<?> em, Class<?> type) {
-        return em.emit(() -> JSON.getClassDeserializer(type));
+    private Value<JsonDeserializer> createObjectDeserializer(Class<?> type) {
+        return emit(() -> JSON.getClassDeserializer(type));
     }
 
     private Method findMethod(ReflectMethod method) {

@@ -24,10 +24,6 @@ import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.platform.async.AsyncCallback;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/flavour/widgets/popup.html")
 public final class Popup {
     private static HTMLDocument document = HTMLDocument.current();

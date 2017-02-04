@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.json.test;
 
-import java.util.List;
 import org.teavm.diagnostics.Diagnostics;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
@@ -29,10 +28,6 @@ import org.teavm.model.instructions.InvokeInstruction;
 import org.teavm.vm.spi.TeaVMHost;
 import org.teavm.vm.spi.TeaVMPlugin;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TeaVMJSONTestHack implements ClassHolderTransformer, TeaVMPlugin {
     @Override
     public void install(TeaVMHost host) {
@@ -54,9 +49,7 @@ public class TeaVMJSONTestHack implements ClassHolderTransformer, TeaVMPlugin {
     }
 
     private void transformBlock(BasicBlock block) {
-        List<Instruction> instructions = block.getInstructions();
-        for (int i = 0; i < instructions.size(); ++i) {
-            Instruction insn = instructions.get(i);
+        for (Instruction insn : block) {
             if (!(insn instanceof InvokeInstruction)) {
                 continue;
             }

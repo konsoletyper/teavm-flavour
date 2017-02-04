@@ -32,27 +32,21 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import org.teavm.flavour.mp.EmitterContext;
-import org.teavm.flavour.mp.EmitterDiagnostics;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.SourceLocation;
-import org.teavm.flavour.mp.reflect.ReflectAnnotatedElement;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.processor.HttpMethod;
+import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.SourceLocation;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ResourceModelRepository {
-    private EmitterContext context;
-    private EmitterDiagnostics diagnostics;
+    private Diagnostics diagnostics;
     private BeanRepository beanRepository;
     private Map<ReflectClass<?>, ResourceModel> resources = new HashMap<>();
 
-    public ResourceModelRepository(EmitterContext context, BeanRepository beanRepository) {
-        this.context = context;
-        this.diagnostics = context.getDiagnostics();
+    public ResourceModelRepository(BeanRepository beanRepository) {
+        this.diagnostics = Metaprogramming.getDiagnostics();
         this.beanRepository = beanRepository;
     }
 
@@ -234,8 +228,8 @@ public class ResourceModelRepository {
         } else if (type.isArray()) {
             return false;
         } else {
-            return context.findClass(String.class).isAssignableFrom(type)
-                    || context.findClass(Number.class).isAssignableFrom(type);
+            return Metaprogramming.findClass(String.class).isAssignableFrom(type)
+                    || Metaprogramming.findClass(Number.class).isAssignableFrom(type);
         }
     }
 

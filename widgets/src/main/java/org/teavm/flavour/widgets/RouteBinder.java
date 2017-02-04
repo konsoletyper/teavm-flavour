@@ -15,25 +15,21 @@
  */
 package org.teavm.flavour.widgets;
 
+import static org.teavm.metaprogramming.Metaprogramming.exit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectClass;
-import org.teavm.flavour.mp.Reflected;
-import org.teavm.flavour.mp.Value;
 import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.HashChangeEvent;
+import org.teavm.metaprogramming.CompileTime;
+import org.teavm.metaprogramming.Meta;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 @CompileTime
 public class RouteBinder {
     Window window;
@@ -96,13 +92,13 @@ public class RouteBinder {
         }
     }
 
-    @Reflected
+    @Meta
     public static native <T extends Route> RouteBinder withDefault(RouteBinder binder, Class<T> routeType,
             Consumer<T> action);
     @SuppressWarnings("unchecked")
-    private static <T extends Route> void withDefault(Emitter<RouteBinder> em, Value<RouteBinder> binder,
-            ReflectClass<T> routeType, Value<Consumer<T>> action) {
-        em.returnValue(() -> {
+    private static <T extends Route> void withDefault(Value<RouteBinder> binder, ReflectClass<T> routeType,
+            Value<Consumer<T>> action) {
+        exit(() -> {
             binder.get().defaultRoute = Routing.open(routeType.asJavaClass());
             binder.get().defaultAction = (Consumer<Route>) action;
             return binder.get();

@@ -17,18 +17,14 @@ package org.teavm.flavour.templates;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.teavm.flavour.mp.CompileTime;
-import org.teavm.flavour.mp.Emitter;
-import org.teavm.flavour.mp.ReflectValue;
-import org.teavm.flavour.mp.Reflected;
 import org.teavm.flavour.templates.emitting.TemplatingProxyGenerator;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.metaprogramming.CompileTime;
+import org.teavm.metaprogramming.Meta;
+import org.teavm.metaprogramming.ReflectClass;
+import org.teavm.metaprogramming.Value;
 
-/**
- *
- * @author Alexey Andreev
- */
 @CompileTime
 public final class Templates {
     private static boolean updating;
@@ -55,10 +51,14 @@ public final class Templates {
         }
     }
 
-    @Reflected
-    public static native Fragment create(Object model);
-    private static void create(Emitter<Fragment> em, ReflectValue<Object> model) {
-        new TemplatingProxyGenerator().generate(em, model);
+    public static Fragment create(Object model) {
+        return create(model.getClass(), model);
+    }
+
+    @Meta
+    private static native Fragment create(Class<?> type, Object model);
+    private static void create(ReflectClass<Object> type, Value<Object> model) {
+        new TemplatingProxyGenerator().generate(model, type);
     }
 
     public static void update() {

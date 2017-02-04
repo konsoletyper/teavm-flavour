@@ -13,5 +13,5 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-@org.teavm.flavour.mp.CompileTime
+@org.teavm.metaprogramming.CompileTime
 package org.teavm.flavour.rest.impl;

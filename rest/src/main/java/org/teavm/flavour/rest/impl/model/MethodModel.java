@@ -21,13 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.teavm.flavour.mp.reflect.ReflectMethod;
 import org.teavm.flavour.rest.processor.HttpMethod;
+import org.teavm.metaprogramming.reflect.ReflectMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MethodModel implements Cloneable {
     ReflectMethod method;
     boolean inherited;

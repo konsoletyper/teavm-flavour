@@ -21,10 +21,6 @@ import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class ApplicationTemplate implements Route {
     private Fragment content;
     private Object currentView;
