@@ -49,12 +49,9 @@ import org.teavm.metaprogramming.Value;
 import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 class RouteImplementorEmitter {
-    public static final String PATH_IMPLEMENTOR_CLASS = Route.class.getPackage().getName() + ".PathImplementor";
-    public static final String ROUTING_CLASS = Route.class.getPackage().getName() + ".Routing";
     private PathParserEmitter pathParserEmitter;
     private RouteDescriber describer;
     private Diagnostics diagnostics = Metaprogramming.getDiagnostics();
-    int suffixGenerator;
     private static RouteImplementorEmitter instance = new RouteImplementorEmitter();
 
     private RouteImplementorEmitter() {
@@ -69,7 +66,7 @@ class RouteImplementorEmitter {
     public Value<PathImplementor> emitParser(ReflectClass<?> routeType) {
         SourceLocation location = null;
         Set<ReflectClass<?>> pathSets = new HashSet<>();
-        getPathSets(routeType, pathSets, new HashSet<>());
+        getPathSets(routeType, pathSets);
         if (pathSets.isEmpty()) {
             diagnostics.error(location, "Given handler {{t0}} does not implement path set", routeType);
             return emit(() -> null);
@@ -270,17 +267,17 @@ class RouteImplementorEmitter {
         return pathParserBuilder.buildUnprepared();
     }
 
-    private void getPathSets(ReflectClass<?> cls, Set<ReflectClass<?>> pathSets, Set<ReflectClass<?>> visited) {
+    private void getPathSets(ReflectClass<?> cls, Set<ReflectClass<?>> pathSets) {
         if (cls.getAnnotation(PathSet.class) != null) {
             pathSets.add(cls);
             return;
         }
 
         if (cls.getSuperclass() != null) {
-            getPathSets(cls.getSuperclass(), pathSets, visited);
+            getPathSets(cls.getSuperclass(), pathSets);
         }
         for (ReflectClass<?> iface : cls.getInterfaces()) {
-            getPathSets(iface, pathSets, visited);
+            getPathSets(iface, pathSets);
         }
     }
 }
