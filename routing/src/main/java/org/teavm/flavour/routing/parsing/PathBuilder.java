@@ -20,10 +20,6 @@ import java.util.List;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.parsing.RegexParser;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PathBuilder {
     private RegexParser regexParser;
     List<PathElement> elements = new ArrayList<>();

@@ -20,10 +20,6 @@ import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Location;
 import org.teavm.jso.browser.Window;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Route {
     default boolean parse() {
         return parse(Window.current());

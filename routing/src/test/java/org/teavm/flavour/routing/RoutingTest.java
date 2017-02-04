@@ -21,12 +21,13 @@ import static org.junit.Assert.assertTrue;
 import java.util.Date;
 import java.util.function.Consumer;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.teavm.jso.core.JSDate;
+import org.teavm.junit.SkipJVM;
+import org.teavm.junit.TeaVMTestRunner;
 
-/**
- *
- * @author Alexey Andreev
- */
+@RunWith(TeaVMTestRunner.class)
+@SkipJVM
 public class RoutingTest {
     @Test
     public void parses() {
@@ -164,7 +165,7 @@ public class RoutingTest {
     }
 
     @PathSet
-    static interface UsersRoute extends Route {
+    interface UsersRoute extends Route {
         @Path("users")
         void users();
 
@@ -176,13 +177,13 @@ public class RoutingTest {
     }
 
     @PathSet
-    static interface DateRoute extends Route {
+    interface DateRoute extends Route {
         @Path("date/{param}")
         void path(@PathParameter("param") Date date);
     }
 
     @PathSet
-    static interface StringRoute extends Route {
+    interface StringRoute extends Route {
         @Path("foo/{param}/bar")
         void path(@PathParameter("param") String text);
 
@@ -191,12 +192,12 @@ public class RoutingTest {
     }
 
     @PathSet
-    static interface EnumRoute extends Route {
+    interface EnumRoute extends Route {
         @Path("prefix-{param}")
         void path(@PathParameter("param") TestEnum param);
     }
 
-    static enum TestEnum {
+    enum TestEnum {
         FOO,
         BAR
     }

@@ -16,11 +16,11 @@
 package org.teavm.flavour.templates.emitting;
 
 import static org.teavm.metaprogramming.Metaprogramming.arrayClass;
+import static org.teavm.metaprogramming.Metaprogramming.emit;
 import static org.teavm.metaprogramming.Metaprogramming.exit;
 import static org.teavm.metaprogramming.Metaprogramming.findClass;
 import static org.teavm.metaprogramming.Metaprogramming.lazy;
 import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
-import static org.teavm.metaprogramming.Metaprogramming.emit;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.util.ArrayList;
 import java.util.List;

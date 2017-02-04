@@ -17,6 +17,8 @@ package org.teavm.flavour.routing.emit;
 
 import static org.teavm.metaprogramming.Metaprogramming.emit;
 import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.lazy;
+import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -56,7 +58,7 @@ class RouteImplementorEmitter {
     private static RouteImplementorEmitter instance = new RouteImplementorEmitter();
 
     private RouteImplementorEmitter() {
-        describer = new RouteDescriber();
+        describer = new RouteDescriber(diagnostics);
         pathParserEmitter = new PathParserEmitter();
     }
 
@@ -114,47 +116,53 @@ class RouteImplementorEmitter {
             Value<Route> handler, RouteSetDescriptor descriptor) {
         Value<PathParserResult> parseResult = emit(() -> pathParser.get().parse(path.get()));
         Value<Integer> caseIndex = emit(() -> parseResult.get().getCaseIndex());
-        /*Choice<Boolean> choice = choose(Boolean.class);
 
-        for (int i = 0; i < descriptor.getRoutes().size(); ++i) {
+        Value<Boolean> result = emit(() -> false);
+        for (int i = descriptor.getRoutes().size() - 1; i >= 0; --i) {
             int index = i;
             RouteDescriptor routeDescriptor = descriptor.getRoutes().get(i);
             ReflectMethod method = routeDescriptor.getMethod();
-            Emitter<Boolean> body = choice.option(() -> caseIndex.get().intValue() == index);
+            Value<Boolean> test = lazy(() -> caseIndex.get() == index);
 
             int parameterCount = method.getParameterCount();
-            Value<Object[]> values = body.emit(() -> new Object[parameterCount]);
-            boolean[] affectedParams = new boolean[parameterCount];
+            Value<Boolean> previous = result;
+            Value<Boolean> next = lazyFragment(() -> {
+                Value<Object[]> values = emit(() -> new Object[parameterCount]);
+                boolean[] affectedParams = new boolean[parameterCount];
 
-            for (int j = 0; j < routeDescriptor.pathPartCount() - 1; ++j) {
-                int paramIndex = j;
-                ParameterDescriptor param = routeDescriptor.parameter(j);
-                if (param == null) {
-                    continue;
-                }
-                Value<? extends Object> paramValue = parseParam(body, param, body.emit(() -> {
-                    int start = parseResult.get().start(paramIndex);
-                    int end = parseResult.get().end(paramIndex);
-                    return path.get().substring(start, end);
-                }));
-
-                int javaIndex = param.getJavaIndex();
-                body.emit(() -> values.get()[javaIndex] = paramValue.get());
-                affectedParams[javaIndex] = true;
-            }
-            for (int j = 0; j < parameterCount; ++j) {
-                if (!affectedParams[j]) {
+                for (int j = 0; j < routeDescriptor.pathPartCount() - 1; ++j) {
                     int paramIndex = j;
-                    body.emit(() -> values.get()[paramIndex] = null);
+                    ParameterDescriptor param = routeDescriptor.parameter(j);
+                    if (param == null) {
+                        continue;
+                    }
+                    Value<?> paramValue = parseParam(param, emit(() -> {
+                        int start = parseResult.get().start(paramIndex);
+                        int end = parseResult.get().end(paramIndex);
+                        return path.get().substring(start, end);
+                    }));
+
+                    int javaIndex = param.getJavaIndex();
+                    emit(() -> values.get()[javaIndex] = paramValue.get());
+                    affectedParams[javaIndex] = true;
                 }
-            }
-            body.emit(() -> method.invoke(handler, values.get()));
-            body.returnValue(() -> true);
+                for (int j = 0; j < parameterCount; ++j) {
+                    if (!affectedParams[j]) {
+                        int paramIndex = j;
+                        emit(() -> values.get()[paramIndex] = null);
+                    }
+                }
+
+                return emit(() -> {
+                    method.invoke(handler, values.get());
+                    return true;
+                });
+            });
+
+            result = lazy(() -> test.get() ? next.get() : previous.get());
         }
 
-        choice.defaultOption().returnValue(() -> false);
-        return choice.getValue();*/
-        return null;
+        return result;
     }
 
     private Value<Route> emitWriteMethod(Value<Consumer<String>> consumer, RouteSetDescriptor descriptor) {

@@ -18,10 +18,6 @@ package org.teavm.flavour.regex.tests;
 import java.util.Random;
 import org.junit.Test;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MapOfCharsTest {
     @Test
     public void setsRange() {

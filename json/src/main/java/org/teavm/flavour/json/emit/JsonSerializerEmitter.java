@@ -43,7 +43,6 @@ import org.teavm.flavour.json.serializer.StringSerializer;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.json.tree.NullNode;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
@@ -182,6 +181,7 @@ public class JsonSerializerEmitter {
                 break;
             case INTEGER:
                 emitIntegerIdentity(information, value, context, target);
+                break;
             case PROPERTY:
                 break;
         }

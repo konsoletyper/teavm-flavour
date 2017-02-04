@@ -27,7 +27,6 @@ import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.Pattern;
 import org.teavm.metaprogramming.Diagnostics;
-import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.SourceLocation;
 import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
@@ -35,7 +34,11 @@ import org.teavm.metaprogramming.reflect.ReflectField;
 import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 public class RouteDescriber {
-    private Diagnostics diagnostics = Metaprogramming.getDiagnostics();
+    private Diagnostics diagnostics;
+
+    public RouteDescriber(Diagnostics diagnostics) {
+        this.diagnostics = diagnostics;
+    }
 
     public RouteSetDescriptor describeRouteSet(ReflectClass<?> cls) {
         RouteSetDescriptor descriptor = new RouteSetDescriptor(cls);

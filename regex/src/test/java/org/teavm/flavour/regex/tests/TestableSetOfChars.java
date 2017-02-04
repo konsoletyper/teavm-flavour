@@ -18,10 +18,6 @@ package org.teavm.flavour.regex.tests;
 import static org.junit.Assert.assertEquals;
 import org.teavm.flavour.regex.core.SetOfChars;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TestableSetOfChars {
     private boolean[] array;
     private SetOfChars setOfChars;

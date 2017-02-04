@@ -115,12 +115,23 @@
       </dependency>
       <dependency>
         <groupId>org.teavm</groupId>
+        <artifactId>teavm-junit</artifactId>
+        <version>${teavm.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.teavm</groupId>
         <artifactId>teavm-interop</artifactId>
         <version>${teavm.version}</version>
       </dependency>
       <dependency>
         <groupId>org.teavm</groupId>
         <artifactId>teavm-metaprogramming-api</artifactId>
+        <version>${teavm.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-metaprogramming-impl</artifactId>
         <version>${teavm.version}</version>
       </dependency>
       <dependency>

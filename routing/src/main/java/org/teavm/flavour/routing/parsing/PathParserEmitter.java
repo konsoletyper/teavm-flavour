@@ -16,6 +16,7 @@
 package org.teavm.flavour.routing.parsing;
 
 import static org.teavm.metaprogramming.Metaprogramming.emit;
+import static org.teavm.metaprogramming.Metaprogramming.exit;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import org.teavm.flavour.regex.Pattern;
 import org.teavm.flavour.regex.automata.Dfa;
@@ -70,6 +71,8 @@ public class PathParserEmitter {
         byte[] bytecode = classBuilder.build("org.teavm.flavour.routing.internal.Matcher" + dfaIndexGenerator++, dfa);
         ReflectClass<?> matcherClass = Metaprogramming.createClass(bytecode);
         ReflectMethod constructor = matcherClass.getMethod("<init>");
-        return proxy(Pattern.class, (instance, method, args) -> constructor.construct());
+        return proxy(Pattern.class, (instance, method, args) -> {
+            exit(() -> constructor.construct());
+        });
     }
 }

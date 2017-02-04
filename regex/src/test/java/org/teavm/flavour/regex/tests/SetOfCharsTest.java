@@ -17,10 +17,6 @@ package org.teavm.flavour.regex.tests;
 
 import org.junit.Test;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class SetOfCharsTest {
     @Test
     public void setsRange() {

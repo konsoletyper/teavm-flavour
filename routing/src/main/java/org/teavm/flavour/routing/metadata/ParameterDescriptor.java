@@ -18,10 +18,6 @@ package org.teavm.flavour.routing.metadata;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.metaprogramming.ReflectClass;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ParameterDescriptor {
     int index;
     int javaIndex;

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.routing.metadata;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum ParameterType {
     STRING,
     BYTE,

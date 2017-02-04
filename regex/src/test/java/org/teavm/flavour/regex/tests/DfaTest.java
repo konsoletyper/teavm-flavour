@@ -28,10 +28,6 @@ import org.teavm.flavour.regex.automata.AmbiguityFinder;
 import org.teavm.flavour.regex.automata.Dfa;
 import org.teavm.flavour.regex.parsing.RegexParser;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DfaTest {
     @Test
     public void matchesString() {

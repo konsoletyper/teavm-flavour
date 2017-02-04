@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.routing.parsing;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PathParserResult {
     private int caseIndex;
     private int[] startIndexes;

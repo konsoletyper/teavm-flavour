@@ -19,10 +19,6 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PathParserTest {
     @Test
     public void parsesPath() {

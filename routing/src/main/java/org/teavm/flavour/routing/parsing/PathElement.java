@@ -17,10 +17,6 @@ package org.teavm.flavour.routing.parsing;
 
 import org.teavm.flavour.regex.ast.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 class PathElement {
     Node regex;
     String text;

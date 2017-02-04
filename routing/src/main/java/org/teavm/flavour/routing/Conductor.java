@@ -21,10 +21,6 @@ import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.HashChangeEvent;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Conductor {
     Window window;
     private List<Route> routes = new ArrayList<>();

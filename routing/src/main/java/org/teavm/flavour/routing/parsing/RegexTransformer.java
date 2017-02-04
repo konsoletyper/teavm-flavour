@@ -28,10 +28,6 @@ import org.teavm.flavour.regex.ast.TextNode;
 import org.teavm.flavour.regex.core.SetOfChars;
 import org.teavm.flavour.regex.core.SetOfCharsIterator;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class RegexTransformer {
     private static Charset utf8 = Charset.forName("UTF-8");
     private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
@@ -154,8 +150,7 @@ public final class RegexTransformer {
         @Override
         public void visit(RepeatNode node) {
             node.getRepeated().acceptVisitor(this);
-            RepeatNode result = new RepeatNode(replacement, node.getMinimum(), node.getMaximum());
-            replacement = result;
+            replacement = new RepeatNode(replacement, node.getMinimum(), node.getMaximum());
         }
 
         @Override

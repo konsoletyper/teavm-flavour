@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.regex.parsing.RegexParser;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PathParserBuilder {
     RegexParser regexParser = new RegexParser();
     private List<PathBuilder> pathBuilders = new ArrayList<>();
@@ -38,6 +34,6 @@ public class PathParserBuilder {
     }
 
     public PathParser build() {
-        return build().prepare();
+        return buildUnprepared().prepare();
     }
 }

@@ -24,10 +24,6 @@ import org.teavm.flavour.regex.ast.ConcatNode;
 import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.automata.Dfa;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PathParser {
     PathParserCase[] cases;
     Dfa caseSelectorDfa;

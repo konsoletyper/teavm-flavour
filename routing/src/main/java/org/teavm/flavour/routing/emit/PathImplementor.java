@@ -18,11 +18,6 @@ package org.teavm.flavour.routing.emit;
 import java.util.function.Consumer;
 import org.teavm.flavour.routing.Route;
 
-
-/**
- *
- * @author Alexey Andreev
- */
 public interface PathImplementor {
     boolean read(String path, Route handler);
 
