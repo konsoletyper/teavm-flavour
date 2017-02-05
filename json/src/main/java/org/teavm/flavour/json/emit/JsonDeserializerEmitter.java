@@ -221,7 +221,7 @@ public class JsonDeserializerEmitter {
             case PROPERTY:
                 return emitPropertyIdCheck(information, node, context);
             case NONE:
-                return emit(() -> {
+                return lazy(() -> {
                     throw new IllegalArgumentException("Can't deserialize node " + node.get().stringify()
                             + " to an instance of " + className);
                 });
@@ -423,11 +423,13 @@ public class JsonDeserializerEmitter {
         });
 
         String idProperty = information.idProperty;
-        emit(() -> {
-            if (node.get().has(idProperty)) {
-                register.get();
-            }
-        });
+        if (idProperty != null) {
+            emit(() -> {
+                if (node.get().has(idProperty)) {
+                    register.get();
+                }
+            });
+        }
     }
 
     private Value<Object> emitIntegerIdRegistration(ClassInformation information, Value<ObjectNode> node) {
