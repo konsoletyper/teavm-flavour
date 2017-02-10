@@ -18,10 +18,6 @@ package org.teavm.flavour.json.deserializer;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class JsonDeserializerContext {
     private Map<Object, Object> objects = new HashMap<>();
 

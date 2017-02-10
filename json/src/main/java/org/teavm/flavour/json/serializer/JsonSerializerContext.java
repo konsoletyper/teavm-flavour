@@ -20,10 +20,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class JsonSerializerContext {
     private int lastId;
     private Map<Object, Integer> ids = new HashMap<>();

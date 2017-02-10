@@ -171,12 +171,12 @@ public class JsonDeserializerEmitter {
             Value<JsonDeserializerContext> context = emit(() -> (JsonDeserializerContext) args[0]);
             Value<Node> node = emit(() -> (Node) args[1]);
 
-            Value<Object> result = emitSubTypes(information, node, context, contentNode -> {
+            Value<Object> result = lazyFragment(() -> emitSubTypes(information, node, context, contentNode -> {
                 Value<Object> target = emitConstructor(information, contentNode, context);
                 emitIdRegistration(information, target, contentNode, context);
                 emitProperties(information, target, contentNode, context);
                 return emit(() -> target.get());
-            });
+            }));
             result = emitNodeTypeCheck(node, result, emitIdCheck(information, node, context));
 
             Value<Object> finalResult = result;
@@ -306,7 +306,7 @@ public class JsonDeserializerEmitter {
         Value<Object> finalResult = result;
         String defaultTypeName = getTypeName(information, information);
         Value<Object> defaultValue = consumer.apply(taggedObject.object);
-        return lazy(() -> tag.get().equals(defaultTypeName) ? defaultValue.get() : finalResult);
+        return lazy(() -> tag.get().equals(defaultTypeName) ? defaultValue.get() : finalResult.get());
     }
 
     private ObjectWithTag emitTypeNameExtractor(ClassInformation information, Value<Node> node) {
@@ -397,8 +397,8 @@ public class JsonDeserializerEmitter {
 
         ReflectMethod ctor = information.constructor;
         return ctor.getName().equals("<init>")
-                ? emit(() -> ctor.construct(args))
-                : emit(() -> ctor.invoke(null, args));
+                ? emit(() -> ctor.construct(args.get()))
+                : emit(() -> ctor.invoke(null, args.get()));
     }
 
     private void emitIdRegistration(ClassInformation information, Value<Object> object,
