@@ -74,7 +74,7 @@ class ClassInformationProvider {
             return information;
         }
 
-        if (cls.getSuperclass() != null && !cls.getSuperclass().equals("java.lang.Object")) {
+        if (cls.getSuperclass() != null && !cls.getSuperclass().getName().equals("java.lang.Object")) {
             ClassInformation parent = get(cls.getSuperclass().getName());
             information.parent = parent;
             for (PropertyInformation property : parent.properties.values()) {
@@ -123,7 +123,9 @@ class ClassInformationProvider {
 
     private void getInheritance(ClassInformation information, ReflectClass<?> cls) {
         JsonTypeName typeName = cls.getAnnotation(JsonTypeName.class);
-        information.typeName = "";
+        if (information.typeName == null) {
+            information.typeName = "";
+        }
         if (typeName != null) {
             information.typeName = typeName.value();
         }

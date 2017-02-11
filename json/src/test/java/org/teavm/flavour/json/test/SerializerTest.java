@@ -59,7 +59,7 @@ public class SerializerTest {
         obj.setB(23);
         JsonNode node = JSONRunner.serialize(obj);
 
-        assertTrue("Root node shoud be JSON object", node.isObject());
+        assertTrue("Root node should be JSON object", node.isObject());
 
         assertTrue("Property `a' exists", node.has("a"));
         JsonNode aNode = node.get("a");
@@ -210,7 +210,7 @@ public class SerializerTest {
         o.doubleField = 6.0;
         o.bigIntField = BigInteger.valueOf(7);
         o.bigDecimalField = BigDecimal.valueOf(8);
-        o.list = Arrays.<Object>asList("foo", 1);
+        o.list = Arrays.asList("foo", 1);
         o.map = new HashMap<>();
         o.map.put("key1", "value");
         o.map.put("key2", 23);

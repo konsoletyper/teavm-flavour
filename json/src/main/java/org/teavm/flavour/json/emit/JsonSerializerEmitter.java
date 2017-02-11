@@ -18,6 +18,7 @@ package org.teavm.flavour.json.emit;
 import static org.teavm.metaprogramming.Metaprogramming.emit;
 import static org.teavm.metaprogramming.Metaprogramming.exit;
 import static org.teavm.metaprogramming.Metaprogramming.findClass;
+import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -43,10 +44,10 @@ import org.teavm.flavour.json.serializer.StringSerializer;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.BooleanNode;
 import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.NullNode;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
-import org.teavm.metaprogramming.Computation;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.Value;
 import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
@@ -77,7 +78,7 @@ public class JsonSerializerEmitter {
 
     public void returnClassSerializer(ReflectClass<?> cls) {
         Value<JsonSerializer> serializer = getClassSerializer(cls);
-        exit(serializer != null ? serializer::get : () -> null);
+        exit(serializer != null ? () -> serializer.get() : () -> null);
     }
 
     public Value<JsonSerializer> getClassSerializer(ReflectClass<?> cls) {
@@ -95,11 +96,11 @@ public class JsonSerializerEmitter {
             return emit(() -> (JsonSerializer) ctor.construct());
         }
         if (findClass(Enum.class).isAssignableFrom(cls)) {
-            return emit(EnumSerializer::new);
+            return emit(() -> new EnumSerializer());
         } else if (findClass(Map.class).isAssignableFrom(cls)) {
-            return emit(MapSerializer::new);
+            return emit(() -> new MapSerializer());
         } else if (findClass(Collection.class).isAssignableFrom(cls)) {
-            return emit(ListSerializer::new);
+            return emit(() -> new ListSerializer());
         }
         return null;
     }
@@ -142,11 +143,11 @@ public class JsonSerializerEmitter {
             return proxy(JsonSerializer.class, (instance, method, args) -> {
                 Value<JsonSerializerContext> context = emit(() -> (JsonSerializerContext) args[0]);
                 Value<Object> value = args[1];
-                Value<ObjectNode> target = emit(ObjectNode::create);
+                Value<ObjectNode> target = emit(() -> ObjectNode.create());
                 emitIdentity(information, value, context, target);
                 emitProperties(information, value, context, target);
                 Value<? extends Node> result = emitInheritance(information, target);
-                exit(result::get);
+                exit(() -> result.get());
             });
         }
     }
@@ -155,20 +156,20 @@ public class JsonSerializerEmitter {
         if (cls.isPrimitive()) {
             switch (cls.getName()) {
                 case "boolean":
-                    return emit(BooleanSerializer::new);
+                    return emit(() -> new BooleanSerializer());
                 case "char":
-                    return emit(CharacterSerializer::new);
+                    return emit(() -> new CharacterSerializer());
                 case "byte":
                 case "short":
                 case "int":
-                    return emit(IntegerSerializer::new);
+                    return emit(() -> new IntegerSerializer());
                 case "long":
                 case "float":
                 case "double":
-                    return emit(DoubleSerializer::new);
+                    return emit(() -> new DoubleSerializer());
             }
         } else if (cls.getName().equals(String.class.getName())) {
-            return emit(StringSerializer::new);
+            return emit(() -> new StringSerializer());
         }
         return null;
     }
@@ -192,11 +193,19 @@ public class JsonSerializerEmitter {
         String idProperty = information.idProperty;
         Value<Boolean> has = emit(() -> context.get().hasId(value.get()));
         Value<NumberNode> id = emit(() -> NumberNode.create(context.get().getId(value.get())));
-        /*Choice<Object> choice = em.choose(Object.class);
-        choice.option(() -> has.get()).returnValue(() -> id.get());
-        choice.defaultOption().emit(() -> target.get().set(idProperty, id.get()));
-        em.returnValue(choice.getValue());
-        return choice.defaultOption();*/
+
+        Value<Object> returnIntegerId = lazyFragment(() -> {
+            exit(() -> id.get());
+            return null;
+        });
+
+        emit(() -> {
+            if (has.get()) {
+                returnIntegerId.get();
+            } else {
+                target.get().set(idProperty, id.get());
+            }
+        });
     }
 
     private void emitProperties(ClassInformation information, Value<Object> value,
@@ -287,12 +296,8 @@ public class JsonSerializerEmitter {
 
     private Value<Node> convertNullable(Value<Object> value, Value<JsonSerializerContext> context,
             ReflectClass<?> type, ReflectAnnotatedElement annotations) {
-        /*Choice<Node> choice = em.choose(Node.class);
-        choice.option(() -> value.get() == null).returnValue(() -> NullNode.instance());
-        Value<Node> result = convertObject(choice.defaultOption(), value, context, type, annotations);
-        choice.defaultOption().returnValue(() -> result.get());
-        return choice.getValue();*/
-        return null;
+        Value<Node> result = lazyFragment(() -> convertObject(value, context, type, annotations));
+        return emit(() -> value.get() == null ? NullNode.instance() : result.get());
     }
 
     private Value<Node> convertPrimitive(Value<Object> value, ReflectClass<?> type) {
@@ -337,7 +342,7 @@ public class JsonSerializerEmitter {
             String pattern = formatInfo.pattern;
             Value<Locale> locale = formatInfo.locale != null
                     ? emit(() -> new Locale(localeName))
-                    : emit((Computation<Locale>) Locale::getDefault);
+                    : emit(() -> Locale.getDefault());
             return emit(() -> {
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
