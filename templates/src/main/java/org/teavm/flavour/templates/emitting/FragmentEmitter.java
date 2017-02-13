@@ -47,7 +47,7 @@ class FragmentEmitter {
                 ? findClass(directive.getClassName()).asSubclass(Component.class)
                 : null;
 
-        Value<Fragment> fragmentResult = proxy(Fragment.class, (fProxy, fMethod, fArgs) -> {
+        return proxy(Fragment.class, (fProxy, fMethod, fArgs) -> {
             context.pushBoundVars();
 
             Value<DomComponentHandler> handler = proxy(DomComponentHandler.class, (proxy, method, args) -> {
@@ -66,8 +66,6 @@ class FragmentEmitter {
             Value<Component> result = emit(() -> new DomComponentTemplate(handler.get()));
             exit(() -> result.get());
         });
-
-        return fragmentResult;
     }
 
     private void emitBuildDomMethod(Value<DomBuilder> builder, List<TemplateNode> fragment) {

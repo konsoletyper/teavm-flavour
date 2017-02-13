@@ -19,6 +19,7 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Templates;
@@ -26,11 +27,11 @@ import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.xml.NodeList;
+import org.teavm.junit.SkipJVM;
+import org.teavm.junit.TeaVMTestRunner;
 
-/**
- *
- * @author Alexey Andreev
- */
+@RunWith(TeaVMTestRunner.class)
+@SkipJVM
 public class StandardDirectivesTest {
     private HTMLDocument document;
     private HTMLElement root;

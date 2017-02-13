@@ -24,10 +24,6 @@ import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "value-copy")
 public class ValueCopyComponent extends AbstractComponent {
     private Supplier<String> value;
