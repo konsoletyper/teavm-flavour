@@ -25,10 +25,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- *
- * @author Alexey Andreev
- */
 @WebFilter(filterName = "TimeOfDayFilter", urlPatterns = {"/*"})
 public class CORSFilter implements Filter {
     @Override

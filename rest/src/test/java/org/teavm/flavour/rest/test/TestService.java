@@ -20,10 +20,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
-/**
- *
- * @author Alexey Andreev
- */
 @Path("test")
 public interface TestService {
     @GET

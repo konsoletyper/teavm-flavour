@@ -82,7 +82,7 @@ public class FactoryEmitter {
     public Value<? extends ResourceFactory<?>> emitFactory(ReflectClass<?> cls) {
         return proxy(FactoryTemplate.class, (instance, methods, args) -> {
             Value<String> path = emit(() -> (String) args[0].get());
-            Value<Object> result = emitFactoryWorker(() -> instance.get(), path, cls.asSubclass(Object.class));
+            Value<Object> result = emitFactoryWorker(instance, path, cls.asSubclass(Object.class));
             exit(() -> result.get());
         });
     }

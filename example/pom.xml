@@ -40,6 +40,10 @@
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>
+      <artifactId>teavm-metaprogramming-impl</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
       <artifactId>teavm-jso-apis</artifactId>
     </dependency>
     <dependency>

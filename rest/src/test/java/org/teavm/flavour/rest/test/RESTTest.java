@@ -17,21 +17,22 @@ package org.teavm.flavour.rest.test;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.teavm.flavour.rest.RESTClient;
 import org.teavm.jso.JSBody;
+import org.teavm.junit.SkipJVM;
+import org.teavm.junit.TeaVMTestRunner;
 
-/**
- *
- * @author Alexey Andreev
- */
+@RunWith(TeaVMTestRunner.class)
+@SkipJVM
 public class RESTTest {
     private TestService service = RESTClient.factory(TestService.class).createResource(getUrl());
 
     @Test
-    public void passesQueryParams() {
+    public void passesQueryParams() throws Exception {
         assertEquals(5, service.sum(2, 3));
     }
 
-    @JSBody(params = {}, script = "return $test_url;")
+    @JSBody(script = "return $test_url;")
     private static native String getUrl();
 }

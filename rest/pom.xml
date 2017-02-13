@@ -60,16 +60,6 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>javax.ws.rs</groupId>
       <artifactId>javax.ws.rs-api</artifactId>
       <version>2.0.1</version>
@@ -143,6 +133,21 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-classlib</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-metaprogramming-impl</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -223,6 +228,28 @@
                 <goals>
                   <goal>stop</goal>
                 </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <phase>integration-test</phase>
+                <configuration>
+                  <skip>false</skip>
+                  <systemProperties>
+                    <rest.service.url>http://localhost:8080/</rest.service.url>
+                    <teavm.junit.target>${project.build.directory}/js-tests</teavm.junit.target>
+                    <teavm.junit.js.runner>htmlunit</teavm.junit.js.runner>
+                    <teavm.junit.minified>true</teavm.junit.minified>
+                    <teavm.junit.optimized>true</teavm.junit.optimized>
+                  </systemProperties>
+                </configuration>
               </execution>
             </executions>
           </plugin>

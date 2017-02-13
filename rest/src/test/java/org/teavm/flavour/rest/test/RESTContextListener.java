@@ -26,10 +26,6 @@ import javax.servlet.annotation.WebListener;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-/**
- *
- * @author Alexey Andreev
- */
 @WebListener
 public class RESTContextListener implements ServletContextListener {
     @Override

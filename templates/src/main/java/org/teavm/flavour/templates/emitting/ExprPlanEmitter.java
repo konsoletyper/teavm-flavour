@@ -642,8 +642,8 @@ class ExprPlanEmitter implements PlanVisitor {
         var = proxy(cls, (instance, method, args) -> {
             context.pushBoundVars();
             for (int i = 0; i < args.length; ++i) {
-                int argIndex = i;
-                context.addVariable(plan.getBoundVars().get(i), () -> emit(() -> args[argIndex].get()));
+                Value<Object> arg = args[i];
+                context.addVariable(plan.getBoundVars().get(i), () -> emit(() -> arg.get()));
             }
 
             location(plan);

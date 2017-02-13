@@ -25,15 +25,11 @@ import org.teavm.vm.spi.AbstractRendererListener;
 import org.teavm.vm.spi.TeaVMHost;
 import org.teavm.vm.spi.TeaVMPlugin;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class RESTUrlGenerator extends AbstractRendererListener implements TeaVMPlugin {
     @Override
     public void begin(RenderingManager context, BuildTarget buildTarget) throws IOException {
         SourceWriter writer = context.getWriter();
-        String url = (String) context.getProperties().get("rest.service.url");
+        String url = System.getProperty("rest.service.url");
         writer.append("var $test_url = \"")
                 .append(RenderingUtil.escapeString(url != null ? url : ""))
                 .append("\";")
