@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.plan;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ArrayConstructionPlan extends Plan {
     private List<Plan> elements = new ArrayList<>();
     private String elementType;

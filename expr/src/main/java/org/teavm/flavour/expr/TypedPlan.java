@@ -18,10 +18,6 @@ package org.teavm.flavour.expr;
 import org.teavm.flavour.expr.plan.Plan;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypedPlan {
     Plan plan;
     ValueType type;

@@ -25,10 +25,6 @@ import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeEstimator {
     private ClassResolver classResolver;
     private GenericTypeNavigator navigator;
@@ -75,8 +71,7 @@ public class TypeEstimator {
             return null;
         }
 
-        ValueType result = method.getActualReturnType().substitute(inference.getSubstitutions());
-        return result;
+        return method.getActualReturnType().substitute(inference.getSubstitutions());
     }
 
     class BoundVarsScope implements Scope {

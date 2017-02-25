@@ -19,10 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.teavm.flavour.expr.plan.Plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Interpreter {
     private Map<String, Object> variables = new HashMap<>();
     private Plan plan;

@@ -26,10 +26,6 @@ import org.teavm.flavour.expr.EvaluatorBuilder;
 import org.teavm.flavour.expr.InterpretingEvaluatorBuilder;
 import org.teavm.flavour.expr.InvalidExpressionException;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsUndefinedVariable() {

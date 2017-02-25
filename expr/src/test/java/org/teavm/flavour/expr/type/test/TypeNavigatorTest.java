@@ -23,10 +23,6 @@ import org.junit.Test;
 import org.teavm.flavour.expr.type.*;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeNavigatorTest {
     private ClassPathClassDescriberRepository classRepository = new ClassPathClassDescriberRepository();
     private GenericTypeNavigator navigator = new GenericTypeNavigator(classRepository);

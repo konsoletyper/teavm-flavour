@@ -22,10 +22,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class GenericClass extends GenericType {
     private String name;
     private List<GenericType> arguments = new ArrayList<>();

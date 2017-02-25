@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum IntegerSubtype {
     BYTE,
     SHORT,

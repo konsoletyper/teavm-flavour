@@ -86,10 +86,6 @@ import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     GenericTypeNavigator navigator;
     private Scope scope;

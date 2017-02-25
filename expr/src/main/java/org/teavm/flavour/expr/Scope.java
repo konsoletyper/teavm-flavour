@@ -17,10 +17,6 @@ package org.teavm.flavour.expr;
 
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Scope {
     ValueType variableType(String variableName);
 }

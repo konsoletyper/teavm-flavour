@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class GetArrayElementPlan extends Plan {
     private Plan array;
     private Plan index;

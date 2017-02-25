@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ThisExpr<T> extends Expr<T> {
     @Override
     public void acceptVisitor(ExprVisitor<? super T> visitor) {

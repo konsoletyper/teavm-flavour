@@ -24,7 +24,7 @@ public interface ClassResolver {
     /**
      * <p>Finds class by its full or simple name.</p>
      *
-     * @param full or simple name of the class.
+     * @param name full or simple name of the class.
      * @return the full name of found class, or <code>null</code> if class was not found.
      */
     String findClass(String name);

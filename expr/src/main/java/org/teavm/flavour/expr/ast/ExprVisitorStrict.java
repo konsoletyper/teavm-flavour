@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ExprVisitorStrict<T> {
     void visit(BinaryExpr<T> expr);
 

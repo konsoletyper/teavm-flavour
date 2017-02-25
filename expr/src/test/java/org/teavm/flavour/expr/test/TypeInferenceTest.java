@@ -36,10 +36,6 @@ import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeInferenceTest {
     private TypeInference inf;
 

@@ -17,10 +17,6 @@ package org.teavm.flavour.expr.ast;
 
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class BoundVariable {
     private String name;
     private ValueType type;

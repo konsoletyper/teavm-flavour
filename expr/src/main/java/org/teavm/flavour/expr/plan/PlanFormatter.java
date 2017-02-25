@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PlanFormatter implements PlanVisitor {
     private StringBuilder sb;
     private int indentLevel;

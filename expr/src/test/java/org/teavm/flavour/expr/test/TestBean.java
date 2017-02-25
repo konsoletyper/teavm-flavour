@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.test;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TestBean {
     private String foo;
     public int bar;

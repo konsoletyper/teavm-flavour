@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum BinaryOperation {
     ADD,
     SUBTRACT,

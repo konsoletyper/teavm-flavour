@@ -25,10 +25,6 @@ import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
     private ImportingClassResolver classResolver = new ImportingClassResolver(
             new ClassPathClassResolver(ClassLoader.getSystemClassLoader()));

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InstanceOfPlan extends Plan {
     private Plan operand;
     private String className;

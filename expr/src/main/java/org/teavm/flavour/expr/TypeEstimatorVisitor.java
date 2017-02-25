@@ -18,9 +18,7 @@ package org.teavm.flavour.expr;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.CastExpr;
@@ -51,16 +49,11 @@ import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 class TypeEstimatorVisitor implements ExprVisitor<Object> {
     private ClassResolver classResolver;
     private GenericTypeNavigator navigator;
     ValueType result;
     private Scope scope;
-    Map<String, ValueType> boundVars = new HashMap<>();
 
     TypeEstimatorVisitor(ClassResolver classResolver, GenericTypeNavigator navigator, Scope scope) {
         this.classResolver = classResolver;
@@ -69,7 +62,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(BinaryExpr<? extends Object> expr) {
+    public void visit(BinaryExpr<?> expr) {
         expr.getFirstOperand().acceptVisitor(this);
         if (result == null) {
             return;
@@ -141,17 +134,17 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(CastExpr<? extends Object> expr) {
+    public void visit(CastExpr<?> expr) {
         result = resolveType(expr.getTargetType());
     }
 
     @Override
-    public void visit(InstanceOfExpr<? extends Object> expr) {
+    public void visit(InstanceOfExpr<?> expr) {
         result = Primitive.BOOLEAN;
     }
 
     @Override
-    public void visit(InvocationExpr<? extends Object> expr) {
+    public void visit(InvocationExpr<?> expr) {
         if (expr.getInstance() != null) {
             expr.getInstance().acceptVisitor(this);
         } else {
@@ -176,7 +169,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(StaticInvocationExpr<? extends Object> expr) {
+    public void visit(StaticInvocationExpr<?> expr) {
         ValueType[] args = new ValueType[expr.getArguments().size()];
         for (int i = 0; i < args.length; ++i) {
             expr.getArguments().get(i).acceptVisitor(this);
@@ -191,7 +184,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(PropertyExpr<? extends Object> expr) {
+    public void visit(PropertyExpr<?> expr) {
         expr.getInstance().acceptVisitor(this);
         ValueType instance = result;
         if (instance == null) {
@@ -207,7 +200,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(StaticPropertyExpr<? extends Object> expr) {
+    public void visit(StaticPropertyExpr<?> expr) {
         GenericClass cls = navigator.getGenericClass(expr.getClassName());
         result = estimatePropertyAccess(null, Collections.singleton(cls), expr.getPropertyName());
     }
@@ -221,8 +214,6 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             if (field != null) {
                 if (isStatic == field.getDescriber().isStatic()) {
                     return field.getActualType();
-                } else {
-                    continue;
                 }
             } else {
                 GenericMethod method = navigator.getMethod(cls, getGetterName(propertyName));
@@ -235,11 +226,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
                 if (method != null) {
                     if (isStatic == method.getDescriber().isStatic()) {
                         return method.getActualReturnType();
-                    } else {
-                        continue;
                     }
-                } else {
-                    continue;
                 }
             }
         }
@@ -261,7 +248,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(UnaryExpr<? extends Object> expr) {
+    public void visit(UnaryExpr<?> expr) {
         expr.getOperand().acceptVisitor(this);
         if (result == null) {
             return;
@@ -279,20 +266,16 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(VariableExpr<? extends Object> expr) {
-        if (boundVars.containsKey(expr.getName())) {
-            result = boundVars.get(expr);
-        } else {
-            result = scope.variableType(expr.getName());
-            if (result == null) {
-                ValueType thisType = scope.variableType("this");
-                result = estimatePropertyAccess(thisType, CompilerCommons.extractClasses(thisType), expr.getName());
-            }
+    public void visit(VariableExpr<?> expr) {
+        result = scope.variableType(expr.getName());
+        if (result == null) {
+            ValueType thisType = scope.variableType("this");
+            result = estimatePropertyAccess(thisType, CompilerCommons.extractClasses(thisType), expr.getName());
         }
     }
 
     @Override
-    public void visit(ConstantExpr<? extends Object> expr) {
+    public void visit(ConstantExpr<?> expr) {
         if (expr.getValue() == null) {
             result = null;
         } else if (expr.getValue() instanceof Boolean) {
@@ -319,7 +302,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(TernaryConditionExpr<? extends Object> expr) {
+    public void visit(TernaryConditionExpr<?> expr) {
         expr.getCondition().acceptVisitor(this);
         if (result == null) {
             return;
@@ -335,17 +318,17 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(ThisExpr<? extends Object> expr) {
+    public void visit(ThisExpr<?> expr) {
         result = scope.variableType("this");
     }
 
     @Override
-    public void visit(LambdaExpr<? extends Object> expr) {
+    public void visit(LambdaExpr<?> expr) {
         result = null;
     }
 
     @Override
-    public void visit(AssignmentExpr<? extends Object> expr) {
+    public void visit(AssignmentExpr<?> expr) {
         result = null;
     }
 

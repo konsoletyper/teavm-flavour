@@ -20,10 +20,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InvocationExpr<T> extends Expr<T> {
     private Expr<T> instance;
     private String methodName;

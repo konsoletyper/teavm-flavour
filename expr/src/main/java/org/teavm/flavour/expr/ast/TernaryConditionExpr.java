@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TernaryConditionExpr<T> extends Expr<T> {
     private Expr<T> condition;
     private Expr<T> consequent;

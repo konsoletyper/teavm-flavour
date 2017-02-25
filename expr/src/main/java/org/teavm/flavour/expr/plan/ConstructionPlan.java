@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ConstructionPlan extends Plan {
     private String className;
     private String methodDesc;

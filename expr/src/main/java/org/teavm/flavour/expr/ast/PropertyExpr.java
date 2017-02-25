@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PropertyExpr<T> extends Expr<T> {
     private Expr<T> instance;
     private String propertyName;

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class CastToIntegerPlan extends Plan {
     private IntegerSubtype type;
     private Plan operand;

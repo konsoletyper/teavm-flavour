@@ -42,7 +42,7 @@
  *     {@link org.teavm.flavour.expr.Compiler} class.</li>
  *   <li><strong>Evaluation</strong> that computes result of the expression according to evaluation plan.
  *     There are several ways of performing evaluation. The easiest one is to interpret plan using
- *     {@link Interpreter}</li>
+ *     {@link org.teavm.flavour.expr.Interpreter}</li>
  * </ul>
  *
  *

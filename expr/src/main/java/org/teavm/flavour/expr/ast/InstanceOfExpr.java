@@ -17,10 +17,6 @@ package org.teavm.flavour.expr.ast;
 
 import org.teavm.flavour.expr.type.GenericType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InstanceOfExpr<T> extends Expr<T> {
     private Expr<T> value;
     private GenericType checkedType;

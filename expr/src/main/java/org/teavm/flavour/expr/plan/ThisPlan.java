@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ThisPlan extends Plan {
     @Override
     public void acceptVisitor(PlanVisitor visitor) {

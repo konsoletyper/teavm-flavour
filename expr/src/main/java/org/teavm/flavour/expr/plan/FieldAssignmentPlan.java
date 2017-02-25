@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class FieldAssignmentPlan extends Plan {
     private Plan instance;
     private String className;

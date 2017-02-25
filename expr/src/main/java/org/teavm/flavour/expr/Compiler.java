@@ -50,7 +50,7 @@ public class Compiler {
     /**
      * <p>Compiles AST of expression into execution plan. Equivalent to <code>compile(expr, null)</code>.
      *
-     * @param type if not null, compiler will try to cast expression result to this type.
+     * @param expr expression AST to compile.
      * @return evaluation plan and its type.
      */
     public TypedPlan compile(Expr<?> expr) {
@@ -58,8 +58,8 @@ public class Compiler {
     }
 
     /**
-     * <p>Compiles AST of expression into execution plan. If during compilation there were type errors,
-     * {@link #wasSuccessful()} method will return <code>true</code> and {@link #getDiagnostics()} will
+     * <p>Compiles AST of expression to execution plan. If during compilation there were type errors,
+     * {@link #wasSuccessful()} method will return <code>false</code> and {@link #getDiagnostics()} will
      * return the full list of found errors. Tries to implicitly cast expression result to the given type,
      * if specified. If this cast is unsuccessful, compiler reports type error.</p>
      *

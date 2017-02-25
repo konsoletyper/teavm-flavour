@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.plan;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class LambdaPlan extends Plan {
     private List<String> boundVars = new ArrayList<>();
     private Plan body;

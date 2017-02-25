@@ -22,10 +22,6 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.expr.plan.*;
 
-/**
- *
- * @author Alexey Andreev
- */
 class InterpreterVisitor implements PlanVisitor {
     private Map<String, Object> variables;
     Object value;
@@ -400,7 +396,7 @@ class InterpreterVisitor implements PlanVisitor {
                 value = ((Byte) value).intValue();
                 break;
             case CHAR:
-                value = (int) ((Character) value).charValue();
+                value = (int) (Character) value;
                 break;
             case SHORT:
                 value = ((Short) value).intValue();
@@ -487,10 +483,7 @@ class InterpreterVisitor implements PlanVisitor {
         Method method = getMethod(plan.getClassName(), plan.getMethodName(), plan.getMethodDesc());
         try {
             value = method.invoke(instance, arguments);
-        } catch (IllegalAccessException e) {
-            throw new InterpretationException("Can't access method " + plan.getClassName() + "."
-                    + plan.getMethodName() + plan.getMethodDesc(), e);
-        } catch (InvocationTargetException e) {
+        } catch (IllegalAccessException | InvocationTargetException e) {
             throw new InterpretationException("Can't access method " + plan.getClassName() + "."
                     + plan.getMethodName() + plan.getMethodDesc(), e);
         }
@@ -506,13 +499,7 @@ class InterpreterVisitor implements PlanVisitor {
         Constructor<?> ctor = getConstructor(plan.getClassName(), plan.getMethodDesc());
         try {
             value = ctor.newInstance(arguments);
-        } catch (IllegalAccessException e) {
-            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
-                    + plan.getMethodDesc(), e);
-        } catch (InvocationTargetException e) {
-            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
-                    + plan.getMethodDesc(), e);
-        } catch (InstantiationException e) {
+        } catch (IllegalAccessException | InvocationTargetException | InstantiationException e) {
             throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>"
                     + plan.getMethodDesc(), e);
         }
@@ -551,26 +538,23 @@ class InterpreterVisitor implements PlanVisitor {
         Class<?> cls = getClass(plan.getClassName());
         final Method proxyMethod = getMethod(plan.getClassName(), plan.getMethodName(), plan.getMethodDesc());
         value = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] { cls },
-                new InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                Object oldValue = value;
-                value = null;
-                if (method.equals(proxyMethod)) {
-                    Object[] oldVars = new Object[plan.getBoundVars().size()];
-                    for (int i = 0; i < plan.getBoundVars().size(); ++i) {
-                        oldVars[i] = variables.get(plan.getBoundVars().get(i));
-                        variables.put(plan.getBoundVars().get(i), args[i]);
-                    }
-                    plan.getBody().acceptVisitor(InterpreterVisitor.this);
-                    for (int i = 0; i < plan.getBoundVars().size(); ++i) {
-                        variables.put(plan.getBoundVars().get(i), oldVars[i]);
-                    }
+                (proxy, method, args) -> {
+            Object oldValue = value;
+            value = null;
+            if (method.equals(proxyMethod)) {
+                Object[] oldVars = new Object[plan.getBoundVars().size()];
+                for (int i = 0; i < plan.getBoundVars().size(); ++i) {
+                    oldVars[i] = variables.get(plan.getBoundVars().get(i));
+                    variables.put(plan.getBoundVars().get(i), args[i]);
                 }
-                Object result = value;
-                value = oldValue;
-                return result;
+                plan.getBody().acceptVisitor(InterpreterVisitor.this);
+                for (int i = 0; i < plan.getBoundVars().size(); ++i) {
+                    variables.put(plan.getBoundVars().get(i), oldVars[i]);
+                }
             }
+            Object result = value;
+            value = oldValue;
+            return result;
         });
     }
 
@@ -669,7 +653,7 @@ class InterpreterVisitor implements PlanVisitor {
             this.text = text;
         }
 
-        public Class<?> decode() {
+        Class<?> decode() {
             switch (text.charAt(position++)) {
                 case 'Z':
                     return boolean.class;

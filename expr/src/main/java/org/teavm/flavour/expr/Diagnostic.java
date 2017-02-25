@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Diagnostic {
     private final int start;
     private final int end;

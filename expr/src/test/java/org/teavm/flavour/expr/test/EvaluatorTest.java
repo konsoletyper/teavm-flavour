@@ -19,7 +19,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -29,10 +28,6 @@ import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
 import org.teavm.flavour.expr.InterpretingEvaluatorBuilder;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class EvaluatorTest extends BaseEvaluatorTest {
     TestVars vars;
 
@@ -256,7 +251,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
     public void evaluatesArraySubscript() {
         ObjectComputation o = parseExpr(ObjectComputation.class, "intArray[0]");
         vars.intArray(new int[] { 23 });
-        assertThat(o.compute(), is((Object)23));
+        assertThat(o.compute(), is(23));
 
         IntComputation c = parseExpr(IntComputation.class, "integerArray[0]");
         vars.integerArray(new Integer[] { 42 });
@@ -264,7 +259,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
 
         o = parseExpr(ObjectComputation.class, "stringArray[0]");
         vars.stringArray(new String[] { "foo" });
-        assertThat(o.compute(), is((Object)"foo"));
+        assertThat(o.compute(), is("foo"));
     }
 
     @Test
@@ -322,7 +317,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
 
         ObjectComputation o = parseExpr(ObjectComputation.class, "foo.extract(stringIntMap, (String)null)");
         vars.foo(new Foo(0));
-        vars.stringIntMap(new HashMap<String, Integer>());
+        vars.stringIntMap(new HashMap<>());
         assertThat(o.compute(), is((Object)null));
     }
 
@@ -388,7 +383,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
     public void evaluatesLambda() {
         ObjectComputation c = parseExpr(ObjectComputation.class, "EvaluatorTest.map(stringList, s -> '!' + s)");
         vars.stringList(Arrays.asList("foo", "bar"));
-        assertThat(c.compute(), is((Object)Arrays.asList("!foo", "!bar")));
+        assertThat(c.compute(), is(Arrays.asList("!foo", "!bar")));
     }
 
     @Test
@@ -404,7 +399,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         ObjectComputation c = parseExpr(ObjectComputation.class,
                 "EvaluatorTest.sort(integerList, (a, b) -> Integer.compare(a, b))");
         vars.integerList(Arrays.asList(7, 11, 5, 13, 2));
-        assertThat(c.compute(), is((Object)Arrays.asList(2, 5, 7, 11, 13)));
+        assertThat(c.compute(), is(Arrays.asList(2, 5, 7, 11, 13)));
     }
 
     @Test
@@ -475,7 +470,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
 
     public static <T> List<T> sort(List<T> list, Comparator<? super T> comparator) {
         List<T> result = new ArrayList<>(list);
-        Collections.sort(result, comparator);
+        result.sort(comparator);
         return result;
     }
 }

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class AssignmentExpr<T> extends Expr<T> {
     private Expr<T> target;
     private Expr<T> value;

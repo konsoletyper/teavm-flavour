@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class UnaryExpr<T> extends Expr<T> {
     private Expr<T> operand;
     private UnaryOperation operation;

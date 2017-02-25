@@ -15,11 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-
-/**
- *
- * @author Alexey Andreev
- */
 public class StaticPropertyExpr<T> extends Expr<T> {
     private String className;
     private String propertyName;

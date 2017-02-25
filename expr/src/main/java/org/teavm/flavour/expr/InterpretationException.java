@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InterpretationException extends RuntimeException {
     private static final long serialVersionUID = 1035334702418020743L;
 

@@ -20,10 +20,6 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.expr.VariableName;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class BaseEvaluatorTest {
     interface TestVars {
         void intValue(int v);

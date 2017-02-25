@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ArithmeticCastPlan extends Plan {
     private ArithmeticType sourceType;
     private ArithmeticType targetType;

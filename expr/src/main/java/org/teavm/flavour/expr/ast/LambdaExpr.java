@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class LambdaExpr<T> extends Expr<T> {
     private List<BoundVariable> boundVariables = new ArrayList<>();
     private Expr<T> body;

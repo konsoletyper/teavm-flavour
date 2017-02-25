@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum ReferenceEqualityPlanType {
     EQUAL,
     NOT_EQUAL

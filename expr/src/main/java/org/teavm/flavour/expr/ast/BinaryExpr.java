@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class BinaryExpr<T> extends Expr<T> {
     private Expr<T> firstOperand;
     private Expr<T> secondOperand;

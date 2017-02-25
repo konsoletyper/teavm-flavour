@@ -23,10 +23,6 @@ import org.teavm.flavour.expr.ClassPathClassResolver;
 import org.teavm.flavour.expr.Parser;
 import org.teavm.flavour.expr.ast.*;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ParserTest {
     private Parser parser = new Parser(new ClassPathClassResolver(ParserTest.class.getClassLoader()));
 
@@ -35,7 +31,7 @@ public class ParserTest {
         Expr<?> expr = parser.parse("23");
         assertThat(expr, is(instanceOf(ConstantExpr.class)));
         ConstantExpr<?> constant = (ConstantExpr<?>)expr;
-        assertThat(constant.getValue(), is((Object)23));
+        assertThat(constant.getValue(), is(23));
     }
 
     @Test

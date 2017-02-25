@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Evaluator<F, V> {
     private F function;
     private V variables;

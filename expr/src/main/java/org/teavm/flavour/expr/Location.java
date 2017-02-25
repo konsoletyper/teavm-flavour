@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Location {
     private int start;
     private int end;

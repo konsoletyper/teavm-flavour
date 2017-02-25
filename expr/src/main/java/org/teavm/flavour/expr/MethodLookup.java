@@ -36,10 +36,6 @@ import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MethodLookup {
     private GenericTypeNavigator navigator;
     private List<GenericMethod> candidates = new ArrayList<>();
@@ -114,7 +110,7 @@ public class MethodLookup {
             if (expectedReturnType != null) {
                 if (method.getActualReturnType() == null
                         || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
-                    continue lookup;
+                    continue;
                 }
             }
 
@@ -151,7 +147,7 @@ public class MethodLookup {
             if (expectedReturnType != null) {
                 if (method.getActualReturnType() == null
                         || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
-                    continue lookup;
+                    continue;
                 }
             }
 
@@ -191,7 +187,7 @@ public class MethodLookup {
             if (expectedReturnType != null) {
                 if (method.getActualReturnType() == null
                         || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
-                    continue lookup;
+                    continue;
                 }
             }
 
@@ -262,10 +258,7 @@ public class MethodLookup {
                 return false;
             }
         }
-        if (!TypeUtil.subtype(general.getActualReturnType(), specific.getActualReturnType(), inference)) {
-            return false;
-        }
-        return true;
+        return TypeUtil.subtype(general.getActualReturnType(), specific.getActualReturnType(), inference);
     }
 
     private ValueType inferReturnType(GenericMethod method, TypeInference inference) {

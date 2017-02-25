@@ -17,10 +17,6 @@ package org.teavm.flavour.expr.plan;
 
 import org.teavm.flavour.expr.Location;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class Plan {
     private Location location;
 

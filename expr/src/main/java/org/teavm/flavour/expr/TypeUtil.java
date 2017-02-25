@@ -20,10 +20,6 @@ import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class TypeUtil {
     private TypeUtil() {
     }

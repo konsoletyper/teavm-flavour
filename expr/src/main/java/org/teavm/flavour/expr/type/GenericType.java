@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.type;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class GenericType extends ValueType {
     GenericType() {
     }

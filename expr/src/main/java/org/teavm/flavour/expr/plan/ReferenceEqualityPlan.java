@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ReferenceEqualityPlan extends Plan {
     private Plan firstOperand;
     private Plan secondOperand;

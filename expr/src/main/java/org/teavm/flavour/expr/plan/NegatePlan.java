@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.plan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class NegatePlan extends Plan {
     private Plan operand;
     private ArithmeticType valueType;

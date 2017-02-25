@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class InvalidExpressionException extends RuntimeException {
     private static final long serialVersionUID = -1385228947330502798L;
     private final List<Diagnostic> diagnostics;

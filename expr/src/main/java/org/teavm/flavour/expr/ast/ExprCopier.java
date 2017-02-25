@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ExprCopier<T> implements ExprVisitor<Object> {
     private Expr<T> result;
 
@@ -30,7 +26,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(BinaryExpr<? extends Object> expr) {
+    public void visit(BinaryExpr<?> expr) {
         expr.getFirstOperand().acceptVisitor(this);
         Expr<T> firstOperand = result;
         expr.getSecondOperand().acceptVisitor(this);
@@ -40,21 +36,21 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(CastExpr<? extends Object> expr) {
+    public void visit(CastExpr<?> expr) {
         expr.getValue().acceptVisitor(this);
         result = new CastExpr<>(result, expr.getTargetType());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(InstanceOfExpr<? extends Object> expr) {
+    public void visit(InstanceOfExpr<?> expr) {
         expr.getValue().acceptVisitor(this);
         result = new InstanceOfExpr<>(result, expr.getCheckedType());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(InvocationExpr<? extends Object> expr) {
+    public void visit(InvocationExpr<?> expr) {
         Expr<T> instance;
         if (expr.getInstance() != null) {
             expr.getInstance().acceptVisitor(this);
@@ -72,7 +68,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(StaticInvocationExpr<? extends Object> expr) {
+    public void visit(StaticInvocationExpr<?> expr) {
         List<Expr<T>> arguments = new ArrayList<>();
         for (Expr<?> arg : expr.getArguments()) {
             arg.acceptVisitor(this);
@@ -83,7 +79,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(PropertyExpr<? extends Object> expr) {
+    public void visit(PropertyExpr<?> expr) {
         expr.getInstance().acceptVisitor(this);
         Expr<T> instance = result;
         result = new PropertyExpr<>(instance, expr.getPropertyName());
@@ -91,32 +87,32 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(StaticPropertyExpr<? extends Object> expr) {
+    public void visit(StaticPropertyExpr<?> expr) {
         result = new StaticPropertyExpr<>(expr.getClassName(), expr.getPropertyName());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(UnaryExpr<? extends Object> expr) {
+    public void visit(UnaryExpr<?> expr) {
         expr.getOperand().acceptVisitor(this);
         result = new UnaryExpr<>(result, expr.getOperation());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(VariableExpr<? extends Object> expr) {
+    public void visit(VariableExpr<?> expr) {
         result = new VariableExpr<>(expr.getName());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(ConstantExpr<? extends Object> expr) {
+    public void visit(ConstantExpr<?> expr) {
         result = new ConstantExpr<>(expr.getValue());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(TernaryConditionExpr<? extends Object> expr) {
+    public void visit(TernaryConditionExpr<?> expr) {
         expr.getCondition().acceptVisitor(this);
         Expr<T> condition = result;
         expr.getConsequent().acceptVisitor(this);
@@ -128,20 +124,20 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(ThisExpr<? extends Object> expr) {
+    public void visit(ThisExpr<?> expr) {
         result = new ThisExpr<>();
         copyLocation(expr);
     }
 
     @Override
-    public void visit(LambdaExpr<? extends Object> expr) {
+    public void visit(LambdaExpr<?> expr) {
         expr.getBody().acceptVisitor(this);
         result = new LambdaExpr<>(result, expr.getBoundVariables());
         copyLocation(expr);
     }
 
     @Override
-    public void visit(AssignmentExpr<? extends Object> expr) {
+    public void visit(AssignmentExpr<?> expr) {
         expr.getTarget().acceptVisitor(this);
         Expr<T> target = result;
         expr.getValue().acceptVisitor(this);
@@ -150,7 +146,7 @@ public class ExprCopier<T> implements ExprVisitor<Object> {
         copyLocation(expr);
     }
 
-    private void copyLocation(Expr<? extends Object> expr) {
+    private void copyLocation(Expr<?> expr) {
         result.setStart(expr.getStart());
         result.setEnd(expr.getEnd());
     }

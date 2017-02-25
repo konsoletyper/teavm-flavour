@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface EvaluatorBuilder {
     <F, V> Evaluator<F, V> build(Class<F> functionType, Class<V> variablesType, String expr);
 }

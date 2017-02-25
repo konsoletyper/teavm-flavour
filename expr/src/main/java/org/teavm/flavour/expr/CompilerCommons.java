@@ -38,10 +38,6 @@ import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 final class CompilerCommons {
     static final GenericClass booleanClass = new GenericClass("java.lang.Boolean");
     static final GenericClass characterClass = new GenericClass("java.lang.Character");
