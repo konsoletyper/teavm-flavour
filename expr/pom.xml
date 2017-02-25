@@ -30,8 +30,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.parboiled</groupId>
-      <artifactId>parboiled-java</artifactId>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -48,11 +48,22 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>antlr</id>
+          </execution>
+        </executions>
+        <configuration>
+          <visitor>true</visitor>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>../checkstyle.xml</configLocation>
-          <excludes>org/teavm/flavour/expr/ExprParser.java</excludes>
         </configuration>
       </plugin>
       <plugin>

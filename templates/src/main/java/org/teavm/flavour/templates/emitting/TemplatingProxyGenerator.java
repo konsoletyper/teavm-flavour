@@ -32,13 +32,14 @@ import org.teavm.flavour.templates.parsing.ClassPathResourceProvider;
 import org.teavm.flavour.templates.parsing.Parser;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.metaprogramming.Diagnostics;
+import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.SourceLocation;
 import org.teavm.metaprogramming.Value;
 
 public class TemplatingProxyGenerator {
     public void generate(Value<Object> model, ReflectClass<Object> modelType) {
-        TemplateInfo template = parseForModel(modelType, null);
+        TemplateInfo template = parseForModel(modelType, Metaprogramming.getLocation());
         if (template != null) {
             TemplateEmitter emitter = new TemplateEmitter(template.locationMapper);
             Value<Fragment> fragment = emitter.emitTemplate(model, template.sourceFileName, template.body);
@@ -88,8 +89,8 @@ public class TemplatingProxyGenerator {
 
         if (!parser.getDiagnostics().isEmpty()) {
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
-                SourceLocation diagnosticLocation = new SourceLocation(location.getMethod(), path,
-                        mapper.getLine(diagnostic.getStart()) + 1);
+                SourceLocation diagnosticLocation = location != null ? new SourceLocation(location.getMethod(), path,
+                        mapper.getLine(diagnostic.getStart()) + 1) : null;
                 diagnostics.error(diagnosticLocation, diagnostic.getMessage());
             }
         }

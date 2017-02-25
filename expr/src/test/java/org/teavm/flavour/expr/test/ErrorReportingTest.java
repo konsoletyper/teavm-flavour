@@ -44,7 +44,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
         List<Diagnostic> list = parseExpr(IntComputation.class, "object + foo");
         assertThat(list.get(0).getMessage(), is("Invalid operand type: java.lang.Object"));
         assertThat(list.get(0).getStart(), is(0));
-        assertThat(list.get(0).getEnd(), is(7));
+        assertThat(list.get(0).getEnd(), is(6));
         assertThat(list.get(1).getMessage(), is("Invalid operand type: " +
                 "org.teavm.flavour.expr.test.BaseEvaluatorTest$Foo"));
         assertThat(list.get(1).getStart(), is(9));
@@ -211,8 +211,8 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsUnknownClass() {
         Diagnostic d = parseExpr(StringComputation.class, "intValue instanceof java.lang.FancyClass").get(0);
-        assertThat(d.getMessage(), is("Class not found: java.lang.FancyClass"));
-        assertThat(d.getStart(), is(0));
+        assertThat(d.getMessage(), is("Unknown class java.lang.FancyClass"));
+        assertThat(d.getStart(), is(20));
         assertThat(d.getEnd(), is(40));
     }
 

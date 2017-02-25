@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.ast;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class Expr<T> {
     private T attribute;
     private int start;
