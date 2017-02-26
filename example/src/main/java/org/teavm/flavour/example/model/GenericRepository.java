@@ -17,10 +17,6 @@ package org.teavm.flavour.example.model;
 
 import org.jinq.orm.stream.JinqStream;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface GenericRepository<T> {
     void add(T entity);
 

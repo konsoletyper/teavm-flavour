@@ -17,10 +17,6 @@ package org.teavm.flavour.example.api;
 
 import javax.ws.rs.QueryParam;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class QueryPageDTO {
     @QueryParam("offset")
     public Integer offset;

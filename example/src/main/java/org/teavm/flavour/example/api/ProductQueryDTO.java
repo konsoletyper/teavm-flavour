@@ -17,10 +17,6 @@ package org.teavm.flavour.example.api;
 
 import javax.ws.rs.QueryParam;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ProductQueryDTO {
     @QueryParam("name")
     public String namePart;

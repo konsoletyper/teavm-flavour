@@ -21,10 +21,6 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 import org.teavm.flavour.example.api.ProductFacade;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class JerseyInitializer extends ResourceConfig {
     static ServletContext servletContext;
 

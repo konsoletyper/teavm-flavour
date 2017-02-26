@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.example.api;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class OrderItemDTO {
     public ProductDTO product;
     public int amount;

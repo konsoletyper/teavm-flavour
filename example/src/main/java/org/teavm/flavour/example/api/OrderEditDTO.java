@@ -15,14 +15,15 @@
  */
 package org.teavm.flavour.example.api;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import org.teavm.flavour.example.model.OrderStatus;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class OrderEditDTO {
+    public OrderStatus status;
     public String receiverName;
     public String address;
     public Date date;
+    public List<OrderEditItemDTO> items = new ArrayList<>();
 }

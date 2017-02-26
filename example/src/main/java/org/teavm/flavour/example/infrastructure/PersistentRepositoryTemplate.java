@@ -20,10 +20,6 @@ import org.jinq.jpa.JinqJPAStreamProvider;
 import org.jinq.orm.stream.JinqStream;
 import org.teavm.flavour.example.model.GenericRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class PersistentRepositoryTemplate<T> implements GenericRepository<T> {
     private EntityManager em;
     private Class<T> type;

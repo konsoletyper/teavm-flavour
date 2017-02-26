@@ -21,10 +21,6 @@ import org.springframework.stereotype.Component;
 import org.teavm.flavour.example.model.Product;
 import org.teavm.flavour.example.model.ProductRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 @Component
 public class PersistentProductRepository extends PersistentRepositoryTemplate<Product> implements ProductRepository {
     @Autowired

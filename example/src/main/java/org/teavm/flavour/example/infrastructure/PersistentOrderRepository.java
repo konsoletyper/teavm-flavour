@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,7 +13,17 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.model;
+package org.teavm.flavour.example.infrastructure;
 
-public interface ProductRepository extends GenericRepository<Product> {
+import javax.persistence.EntityManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.teavm.flavour.example.model.Product;
+
+@Component
+public class PersistentOrderRepository extends PersistentRepositoryTemplate<Product> {
+    @Autowired
+    public PersistentOrderRepository(EntityManager em) {
+        super(em, Product.class);
+    }
 }

@@ -30,10 +30,6 @@ import org.teavm.flavour.example.api.QueryPageDTO;
 import org.teavm.flavour.example.model.Product;
 import org.teavm.flavour.example.model.ProductRepository;
 
-/**
- *
- * @author Alexey Andreev
- */
 @Component
 @Transactional
 public class ServerSideProductFacade implements ProductFacade {

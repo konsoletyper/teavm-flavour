@@ -24,10 +24,6 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
 
-/**
- *
- * @author Alexey Andreev
- */
 @Entity
 @SequenceGenerator(name = "ProductIdGen", sequenceName = "ProductIdGen", allocationSize = 1)
 public class Product {
@@ -71,7 +67,7 @@ public class Product {
         if (sku.isEmpty()) {
             throw new IllegalArgumentException("SKU must be non-empty");
         } else if (sku.length() > 40) {
-            throw new IllegalArgumentException("SKU lenght must not exceed 40 character");
+            throw new IllegalArgumentException("SKU length must not exceed 40 character");
         }
     }
 

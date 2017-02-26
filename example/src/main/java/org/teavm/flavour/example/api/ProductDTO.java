@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.example.api;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ProductDTO {
     public int id;
     public String sku;

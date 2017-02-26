@@ -37,10 +37,6 @@ import org.springframework.orm.jpa.support.SharedEntityManagerBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @Configuration
 @PropertySource(value = { "classpath:default-config.properties", "WEB-INF/config.properties" })
 @ComponentScan("org.teavm.flavour.example")
