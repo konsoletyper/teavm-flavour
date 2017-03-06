@@ -558,6 +558,30 @@ class InterpreterVisitor implements PlanVisitor {
         });
     }
 
+    @Override
+    public void visit(ObjectPlan plan) {
+        Class<?> cls = getClass(plan.getClassName());
+        Object instance;
+        try {
+            instance = cls.newInstance();
+        } catch (IllegalAccessException | InstantiationException e) {
+            throw new InterpretationException("Can't access constructor " + plan.getClassName() + ".<init>()", e);
+        }
+
+        for (ObjectPlanEntry entry : plan.getEntries()) {
+            Method method = getMethod(cls.getName(), entry.getSetterName(), entry.getSetterDesc());
+            entry.getValue().acceptVisitor(this);
+            try {
+                method.invoke(instance, value);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new InterpretationException("Can't access method " + plan.getClassName() + "."
+                        + entry.getSetterName() + entry.getSetterDesc(), e);
+            }
+        }
+
+        value = instance;
+    }
+
     private Class<?> decodeType(String type) {
         return new TypeDecoder(type).decode();
     }

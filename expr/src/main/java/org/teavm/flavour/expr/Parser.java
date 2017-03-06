@@ -43,6 +43,8 @@ import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.InstanceOfExpr;
 import org.teavm.flavour.expr.ast.InvocationExpr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
+import org.teavm.flavour.expr.ast.ObjectEntry;
+import org.teavm.flavour.expr.ast.ObjectExpr;
 import org.teavm.flavour.expr.ast.PropertyExpr;
 import org.teavm.flavour.expr.ast.StaticInvocationExpr;
 import org.teavm.flavour.expr.ast.StaticPropertyExpr;
@@ -64,6 +66,21 @@ public class Parser {
 
     public Parser(ClassResolver classes) {
         this.classes = classes;
+    }
+
+    public ObjectExpr<Void> parseObject(String text) {
+        diagnostics.clear();
+        try (Reader reader = new StringReader(text)) {
+            ExprLexer lexer = new ExprLexer(new ANTLRInputStream(reader));
+            lexer.removeErrorListener(ConsoleErrorListener.INSTANCE);
+            lexer.addErrorListener(errorListener);
+            ExprParser exprParser = new ExprParser(new CommonTokenStream(lexer));
+            exprParser.removeErrorListener(ConsoleErrorListener.INSTANCE);
+            exprParser.addErrorListener(errorListener);
+            return exprParser.object().accept(objectVisitor);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Expr<Void> parse(String text) {
@@ -110,6 +127,20 @@ public class Parser {
         expr.setEnd(endCtx.getStop().getStopIndex() + 1);
         return expr;
     }
+
+    private final ExprBaseVisitor<ObjectExpr<Void>> objectVisitor = new ExprBaseVisitor<ObjectExpr<Void>>() {
+        @Override
+        public ObjectExpr<Void> visitObject(ExprParser.ObjectContext ctx) {
+            ObjectExpr<Void> object = new ObjectExpr<>();
+            for (ExprParser.ObjectEntryContext entryContext : ctx.entires) {
+                ObjectEntry<Void> entry = new ObjectEntry<>();
+                entry.setKey(entryContext.key.getText());
+                entry.setValue(entryContext.value.accept(exprVisitor));
+                object.getEntries().add(entry);
+            }
+            return object;
+        }
+    };
 
     private final ExprBaseVisitor<Expr<Void>> exprVisitor = new ExprBaseVisitor<Expr<Void>>() {
         @Override

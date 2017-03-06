@@ -55,10 +55,6 @@ import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 class DirectiveParser {
     private ClassDescriberRepository classRepository;
     private List<Diagnostic> diagnostics;
@@ -157,7 +153,7 @@ class DirectiveParser {
         metadata.constructor = cls.getMethod("<init>", new GenericClass(HTMLElement.class.getName()));
         if (metadata.constructor == null) {
             error("Class " + cls.getName() + " declared by directive package does not have constructor "
-                    + "that takes " + Slot.class.getName());
+                    + "that takes " + HTMLElement.class.getName());
         }
     }
 
@@ -169,7 +165,7 @@ class DirectiveParser {
 
     private List<GenericMethod> collectMethods(GenericClass genericCls) {
         List<GenericMethod> methods = new ArrayList<>();
-        collectMethodsRec(genericCls, new HashSet<GenericClass>(), new HashSet<MethodWithParams>(), methods);
+        collectMethodsRec(genericCls, new HashSet<>(), new HashSet<>(), methods);
         return methods;
     }
 
@@ -372,11 +368,11 @@ class DirectiveParser {
         }
     }
 
-    private boolean isGetterLike(GenericMethod sam) {
+    private static boolean isGetterLike(GenericMethod sam) {
         return sam.getActualArgumentTypes().length == 0 && sam.getActualReturnType() != null;
     }
 
-    private boolean isSetterLike(GenericMethod sam) {
+    private static boolean isSetterLike(GenericMethod sam) {
         return sam.getActualArgumentTypes().length == 1 && sam.getActualReturnType() == null;
     }
 

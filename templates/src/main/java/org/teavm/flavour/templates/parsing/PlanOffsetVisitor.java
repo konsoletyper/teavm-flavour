@@ -18,10 +18,6 @@ package org.teavm.flavour.templates.parsing;
 import org.teavm.flavour.expr.Location;
 import org.teavm.flavour.expr.plan.*;
 
-/**
- *
- * @author Alexey Andreev
- */
 class PlanOffsetVisitor implements PlanVisitor {
     private int offset;
 
@@ -176,6 +172,14 @@ class PlanOffsetVisitor implements PlanVisitor {
     public void visit(LambdaPlan plan) {
         apply(plan);
         plan.getBody().acceptVisitor(this);
+    }
+
+    @Override
+    public void visit(ObjectPlan plan) {
+        apply(plan);
+        for (ObjectPlanEntry entry : plan.getEntries()) {
+            entry.getValue().acceptVisitor(this);
+        }
     }
 
     private void apply(Plan plan) {

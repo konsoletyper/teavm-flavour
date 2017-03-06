@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.teavm.flavour.expr.plan.ArithmeticType;
 import org.teavm.flavour.expr.plan.IntegerSubtype;
+import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
@@ -37,8 +38,9 @@ import org.teavm.flavour.expr.type.PrimitiveKind;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-final class CompilerCommons {
+public final class CompilerCommons {
     static final GenericClass booleanClass = new GenericClass("java.lang.Boolean");
     static final GenericClass characterClass = new GenericClass("java.lang.Character");
     static final GenericClass byteClass = new GenericClass("java.lang.Byte");
@@ -307,5 +309,76 @@ final class CompilerCommons {
             classes.add(new GenericClass("java.lang.Object"));
         }
         return classes;
+    }
+
+
+    public static String typeToString(ValueType type) {
+        StringBuilder sb = new StringBuilder();
+        typeToString(type, sb);
+        return sb.toString();
+    }
+
+    public static void typeToString(ValueType type, StringBuilder sb) {
+        if (type instanceof Primitive) {
+            switch (((Primitive) type).getKind()) {
+                case BOOLEAN:
+                    sb.append('Z');
+                    break;
+                case CHAR:
+                    sb.append('C');
+                    break;
+                case BYTE:
+                    sb.append('B');
+                    break;
+                case SHORT:
+                    sb.append('S');
+                    break;
+                case INT:
+                    sb.append('I');
+                    break;
+                case LONG:
+                    sb.append('J');
+                    break;
+                case FLOAT:
+                    sb.append('F');
+                    break;
+                case DOUBLE:
+                    sb.append('D');
+                    break;
+            }
+        } else if (type instanceof GenericArray) {
+            sb.append('[');
+            typeToString(((GenericArray) type).getElementType(), sb);
+        } else if (type instanceof GenericClass) {
+            sb.append('L').append(((GenericClass) type).getName().replace('.', '/')).append(';');
+        } else if (type instanceof GenericReference) {
+            TypeVar var = ((GenericReference) type).getVar();
+            if (var.getLowerBound().size() == 1) {
+                typeToString(var.getLowerBound().get(0), sb);
+            } else {
+                sb.append("Ljava/lang/Object;");
+            }
+        } else if (type instanceof GenericWildcard) {
+            GenericWildcard wildcard = (GenericWildcard) type;
+            if (wildcard.getLowerBound().size() == 1) {
+                typeToString(wildcard.getLowerBound().get(0), sb);
+            } else {
+                sb.append("Ljava/lang/Object;");
+            }
+        }
+    }
+
+    public static String methodToDesc(MethodDescriber method) {
+        StringBuilder desc = new StringBuilder().append('(');
+        for (ValueType argType : method.getRawArgumentTypes()) {
+            desc.append(typeToString(argType));
+        }
+        desc.append(')');
+        if (method.getRawReturnType() != null) {
+            desc.append(typeToString(method.getRawReturnType()));
+        } else {
+            desc.append('V');
+        }
+        return desc.toString();
     }
 }

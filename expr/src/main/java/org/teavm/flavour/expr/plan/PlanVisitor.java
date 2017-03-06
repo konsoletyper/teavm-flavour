@@ -59,4 +59,6 @@ public interface PlanVisitor {
     void visit(ThisPlan plan);
 
     void visit(LambdaPlan plan);
+
+    void visit(ObjectPlan plan);
 }

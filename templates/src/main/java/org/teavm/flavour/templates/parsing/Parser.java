@@ -23,9 +23,11 @@ import java.io.Reader;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +44,7 @@ import net.htmlparser.jericho.Tag;
 import org.apache.commons.lang3.StringUtils;
 import org.teavm.flavour.expr.ClassResolver;
 import org.teavm.flavour.expr.Compiler;
+import org.teavm.flavour.expr.CompilerCommons;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.ImportingClassResolver;
 import org.teavm.flavour.expr.Location;
@@ -51,7 +54,11 @@ import org.teavm.flavour.expr.TypeUtil;
 import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
+import org.teavm.flavour.expr.ast.ObjectEntry;
+import org.teavm.flavour.expr.ast.ObjectExpr;
 import org.teavm.flavour.expr.plan.LambdaPlan;
+import org.teavm.flavour.expr.plan.ObjectPlan;
+import org.teavm.flavour.expr.plan.ObjectPlanEntry;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
@@ -65,6 +72,8 @@ import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
+import org.teavm.flavour.templates.OptionalBinding;
+import org.teavm.flavour.templates.SettingsObject;
 import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
 import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.DOMText;
@@ -74,10 +83,6 @@ import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
 import org.teavm.flavour.templates.tree.NestedDirectiveBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class Parser {
     private ClassDescriberRepository classRepository;
     private ImportingClassResolver classResolver;
@@ -265,7 +270,12 @@ public class Parser {
             attrParse.node = attr;
             if (attrMeta.type == DirectiveAttributeType.FUNCTION
                     || attrMeta.type == DirectiveAttributeType.BIDIRECTIONAL) {
-                attrParse.expr = parseExpr(attr.getValueSegment());
+                if (attrMeta.type == DirectiveAttributeType.FUNCTION && isSettingsObject(attrMeta.valueType)) {
+                    attrParse.objectExpr = parseObject(attr.getValueSegment());
+                    attrParse.type = attrMeta.valueType;
+                } else {
+                    attrParse.expr = parseExpr(attr.getValueSegment());
+                }
             }
 
             if (attrParse.meta.valueType != null) {
@@ -324,6 +334,25 @@ public class Parser {
         return directive;
     }
 
+    private boolean isSettingsObject(ValueType type) {
+        if (!(type instanceof GenericClass)) {
+            return false;
+        }
+        GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass) type);
+        if (sam == null) {
+            return false;
+        }
+
+        type = sam.getActualReturnType();
+        if (type instanceof GenericClass) {
+            String className = ((GenericClass) type).getName();
+            ClassDescriber cls = classRepository.describe(className);
+            return cls.getAnnotation(SettingsObject.class.getName()) != null;
+        } else {
+            return false;
+        }
+    }
+
     private void newVariables(Set<TypeVar> fixedVars, Set<TypeVar> result, ValueType type) {
         if (type instanceof GenericClass) {
             for (GenericType arg : ((GenericClass) type).getArguments()) {
@@ -368,12 +397,15 @@ public class Parser {
         TypeInference varInference = new TypeInference(typeNavigator);
         for (PostponedDirectiveParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
-                if (attrParse.expr == null) {
+                if (attrParse.expr == null && attrParse.objectExpr == null) {
                     continue;
                 }
                 MethodDescriber setter = attrParse.meta.setter;
                 GenericType type = attrParse.sam.getActualOwner().substitute(inference.getSubstitutions());
-                TypedPlan plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
+                TypedPlan plan = attrParse.expr != null
+                        ? compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type)
+                        : compileSettingsObject(attrParse.node.getValueSegment(), attrParse.objectExpr,
+                                (GenericClass) type);
                 if (plan == null) {
                     continue;
                 }
@@ -462,6 +494,7 @@ public class Parser {
         DirectiveAttributeMetadata meta;
         Attribute node;
         Expr<Void> expr;
+        ObjectExpr<Void> objectExpr;
         ValueType type;
         ValueType typeEstimate;
         GenericMethod sam;
@@ -564,13 +597,25 @@ public class Parser {
                 break;
             }
             case FUNCTION: {
-                Expr<Void> expr = parseExpr(attr.getValueSegment());
-                if (expr == null) {
-                    break;
-                }
-                TypedPlan plan = compileExpr(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
-                if (plan == null) {
-                    break;
+                TypedPlan plan;
+                if (isSettingsObject(directiveMeta.valueType)) {
+                    ObjectExpr<Void> expr = parseObject(attr.getValueSegment());
+                    if (expr == null) {
+                        break;
+                    }
+                    plan = compileSettingsObject(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
+                    if (plan == null) {
+                        break;
+                    }
+                } else {
+                    Expr<Void> expr = parseExpr(attr.getValueSegment());
+                    if (expr == null) {
+                        break;
+                    }
+                    plan = compileExpr(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
+                    if (plan == null) {
+                        break;
+                    }
                 }
                 DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
@@ -605,6 +650,23 @@ public class Parser {
         return expr;
     }
 
+    private ObjectExpr<Void> parseObject(Segment segment) {
+        boolean hasErrors = false;
+        org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
+        ObjectExpr<Void> expr = exprParser.parseObject(segment.toString());
+        int offset = segment.getBegin();
+        for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
+            diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
+                    diagnostic.getMessage());
+            diagnostics.add(diagnostic);
+            hasErrors = true;
+        }
+        if (hasErrors) {
+            return null;
+        }
+        return expr;
+    }
+
     private TypedPlan compileExpr(Segment segment, Expr<?> expr, GenericClass type) {
         boolean hasErrors = false;
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
@@ -625,12 +687,89 @@ public class Parser {
         return result;
     }
 
-    private void pushVar(String name, ValueType type) {
-        Deque<ValueType> stack = variables.get(name);
-        if (stack == null) {
-            stack = new ArrayDeque<>();
-            variables.put(name, stack);
+    private TypedPlan compileSettingsObject(Segment segment, ObjectExpr<?> expr, GenericClass type) {
+        boolean hasErrors = false;
+        Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
+
+        GenericMethod sam = typeNavigator.findSingleAbstractMethod(type);
+        if (sam.getActualArgumentTypes().length != 0 || !(sam.getActualReturnType() instanceof GenericClass)) {
+            diagnostics.add(new Diagnostic(segment.getBegin(), segment.getEnd(), "Wrong target lambda type"));
+            return null;
         }
+
+        GenericClass objectType = (GenericClass) sam.getActualReturnType();
+        ObjectPlan objectPlan = new ObjectPlan(objectType.getName());
+        Set<String> requiredFields = collectRequiredFields(objectType.getName());
+        for (ObjectEntry<?> entry : expr.getEntries()) {
+            GenericMethod setter = findSetter(segment, objectType, entry.getKey());
+            if (setter != null) {
+                requiredFields.remove(entry.getKey());
+                TypedPlan valuePlan = compiler.compile(entry.getValue(), setter.getActualArgumentTypes()[0]);
+                ObjectPlanEntry planEntry = new ObjectPlanEntry(setter.getDescriber().getName(),
+                        CompilerCommons.methodToDesc(setter.getDescriber()), valuePlan.getPlan());
+                objectPlan.getEntries().add(planEntry);
+            }
+        }
+
+        LambdaPlan plan = new LambdaPlan(objectPlan, type.getName(), sam.getDescriber().getName(),
+                CompilerCommons.methodToDesc(sam.getDescriber()), Collections.emptyList());
+
+        TypedPlan result = new TypedPlan(plan, type);
+
+        if (!requiredFields.isEmpty()) {
+            diagnostics.add(new Diagnostic(segment.getBegin(), segment.getEnd(), "Required field not set: "
+                    + requiredFields.iterator().next()));
+        }
+
+        PlanOffsetVisitor offsetVisitor = new PlanOffsetVisitor(segment.getBegin());
+        plan.acceptVisitor(offsetVisitor);
+        int offset = segment.getBegin();
+        for (Diagnostic diagnostic : compiler.getDiagnostics()) {
+            diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
+                    diagnostic.getMessage());
+            diagnostics.add(diagnostic);
+            hasErrors = true;
+        }
+
+        if (hasErrors) {
+            return null;
+        }
+        return result;
+    }
+
+    private Set<String> collectRequiredFields(String className) {
+        ClassDescriber cls = classRepository.describe(className);
+        Set<String> fields = new LinkedHashSet<>();
+        for (MethodDescriber method : cls.getMethods()) {
+            if (method.getName().startsWith("set") && method.getName().length() > 3
+                    && Character.isUpperCase(method.getName().charAt(3))
+                    && method.getArgumentTypes().length == 1) {
+                if (method.getAnnotation(OptionalBinding.class.getName()) == null) {
+                    char firstChar = Character.toLowerCase(method.getName().charAt(3));
+                    fields.add(firstChar + method.getName().substring(4));
+                }
+            }
+        }
+        return fields;
+    }
+
+    private GenericMethod findSetter(Segment segment, GenericClass cls, String name) {
+        String methodName = "set" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        GenericMethod[] candidates = typeNavigator.findMethods(cls, methodName, 1);
+        if (candidates.length == 0) {
+            diagnostics.add(new Diagnostic(segment.getBegin(), segment.getEnd(), "Setter not found for key: "
+                    + name));
+            return null;
+        } else if (candidates.length > 1) {
+            diagnostics.add(new Diagnostic(segment.getBegin(), segment.getEnd(), "Ambiguous key: "  + name));
+            return null;
+        } else {
+            return candidates[0];
+        }
+    }
+
+    private void pushVar(String name, ValueType type) {
+        Deque<ValueType> stack = variables.computeIfAbsent(name, k -> new ArrayDeque<>());
         stack.push(type);
     }
 
@@ -639,7 +778,7 @@ public class Parser {
         if (stack != null) {
             stack.pop();
             if (stack.isEmpty()) {
-                variables.remove(stack);
+                variables.remove(name);
             }
         }
     }

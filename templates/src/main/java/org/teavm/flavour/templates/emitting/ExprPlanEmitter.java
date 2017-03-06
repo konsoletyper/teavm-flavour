@@ -43,6 +43,8 @@ import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.plan.LogicalBinaryPlan;
 import org.teavm.flavour.expr.plan.NegatePlan;
 import org.teavm.flavour.expr.plan.NotPlan;
+import org.teavm.flavour.expr.plan.ObjectPlan;
+import org.teavm.flavour.expr.plan.ObjectPlanEntry;
 import org.teavm.flavour.expr.plan.Plan;
 import org.teavm.flavour.expr.plan.PlanVisitor;
 import org.teavm.flavour.expr.plan.ReferenceEqualityPlan;
@@ -634,6 +636,22 @@ class ExprPlanEmitter implements PlanVisitor {
     @Override
     public void visit(LambdaPlan plan) {
         emitLambda(plan, false);
+    }
+
+    @Override
+    public void visit(ObjectPlan plan) {
+        ReflectClass<?> cls = findClass(plan.getClassName());
+        ReflectMethod constructor = cls.getMethod("<init>");
+        Value<?> instance = emit(() -> constructor.construct());
+
+        for (ObjectPlanEntry entry : plan.getEntries()) {
+            ReflectMethod setter = findMethod(cls, entry.getSetterName(), entry.getSetterDesc());
+            entry.getValue().acceptVisitor(this);
+            Value<?> value = var;
+            emit(() -> setter.invoke(instance, value));
+        }
+
+        var = emit(() -> instance);
     }
 
     public void emitLambda(LambdaPlan plan, boolean updateTemplates) {

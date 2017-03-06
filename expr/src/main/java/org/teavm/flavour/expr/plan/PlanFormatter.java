@@ -282,6 +282,25 @@ public class PlanFormatter implements PlanVisitor {
         --indentLevel;
     }
 
+    @Override
+    public void visit(ObjectPlan plan) {
+        sb.append("[object ").append(plan.getClassName());
+        ++indentLevel;
+        boolean first = true;
+        for (ObjectPlanEntry entry : plan.getEntries()) {
+            if (!first) {
+                sb.append(",");
+            }
+            first = false;
+            newLine();
+            sb.append("[entry ").append(entry.getSetterName()).append(entry.getSetterDesc());
+            entry.getValue().acceptVisitor(this);
+            sb.append("]");
+        }
+        sb.append("]");
+        --indentLevel;
+    }
+
     private void printIndent() {
         for (int i = 0; i < indentLevel; ++i) {
             sb.append("  ");

@@ -187,7 +187,7 @@ public class GenericTypeNavigator {
 
     public GenericMethod[] findMethods(GenericClass cls, String name, int paramCount) {
         Map<MethodSignature, GenericMethod> methods = new HashMap<>();
-        findMethodsImpl(cls, name, paramCount, new HashSet<String>(), methods);
+        findMethodsImpl(cls, name, paramCount, new HashSet<>(), methods);
         return methods.values().toArray(new GenericMethod[0]);
     }
 

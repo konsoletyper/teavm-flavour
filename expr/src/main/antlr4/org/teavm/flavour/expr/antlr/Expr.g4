@@ -18,6 +18,13 @@ fragment HEX_DIGIT : [0-9a-fA-F] ;
 
 WHITESPACE : (' ' | '\r' | '\n' | '\t') -> channel(HIDDEN) ;
 
+object
+    : '{' (entires+=objectEntry (',' entries+=objectEntry)*)? '}'
+    ;
+
+objectEntry
+    : key=IDENTIFIER ':' value=lambda
+    ;
 
 lambda
     : (boundVars=lambdaBoundVars '->')? body=assignment

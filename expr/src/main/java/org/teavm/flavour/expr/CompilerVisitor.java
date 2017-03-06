@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.expr;
 
+import static org.teavm.flavour.expr.CompilerCommons.methodToDesc;
+import static org.teavm.flavour.expr.CompilerCommons.typeToString;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -84,7 +86,6 @@ import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
-import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     GenericTypeNavigator navigator;
@@ -1133,62 +1134,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         return null;
     }
 
-    private String typeToString(ValueType type) {
-        StringBuilder sb = new StringBuilder();
-        typeToString(type, sb);
-        return sb.toString();
-    }
-
-    private void typeToString(ValueType type, StringBuilder sb) {
-        if (type instanceof Primitive) {
-            switch (((Primitive) type).getKind()) {
-                case BOOLEAN:
-                    sb.append('Z');
-                    break;
-                case CHAR:
-                    sb.append('C');
-                    break;
-                case BYTE:
-                    sb.append('B');
-                    break;
-                case SHORT:
-                    sb.append('S');
-                    break;
-                case INT:
-                    sb.append('I');
-                    break;
-                case LONG:
-                    sb.append('J');
-                    break;
-                case FLOAT:
-                    sb.append('F');
-                    break;
-                case DOUBLE:
-                    sb.append('D');
-                    break;
-            }
-        } else if (type instanceof GenericArray) {
-            sb.append('[');
-            typeToString(((GenericArray) type).getElementType(), sb);
-        } else if (type instanceof GenericClass) {
-            sb.append('L').append(((GenericClass) type).getName().replace('.', '/')).append(';');
-        } else if (type instanceof GenericReference) {
-            TypeVar var = ((GenericReference) type).getVar();
-            if (var.getLowerBound().size() == 1) {
-                typeToString(var.getLowerBound().get(0), sb);
-            } else {
-                sb.append("Ljava/lang/Object;");
-            }
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            if (wildcard.getLowerBound().size() == 1) {
-                typeToString(wildcard.getLowerBound().get(0), sb);
-            } else {
-                sb.append("Ljava/lang/Object;");
-            }
-        }
-    }
-
     private ValueType resolveType(ValueType type, Expr<TypedPlan> expr) {
         if (type instanceof GenericClass) {
             GenericClass cls = (GenericClass) type;
@@ -1213,20 +1158,6 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else {
             return type;
         }
-    }
-
-    String methodToDesc(MethodDescriber method) {
-        StringBuilder desc = new StringBuilder().append('(');
-        for (ValueType argType : method.getRawArgumentTypes()) {
-            desc.append(typeToString(argType));
-        }
-        desc.append(')');
-        if (method.getRawReturnType() != null) {
-            desc.append(typeToString(method.getRawReturnType()));
-        } else {
-            desc.append('V');
-        }
-        return desc.toString();
     }
 
     private void error(Expr<TypedPlan> expr, String message) {
