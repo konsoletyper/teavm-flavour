@@ -25,10 +25,6 @@ import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = "bind", elements = { "textarea", "input" })
 public class BindValidation<T> implements Renderable {
     private HTMLElement element;
@@ -55,6 +51,7 @@ public class BindValidation<T> implements Renderable {
         }
         Validation<T> v = validation.get();
         if (currentValidation != v) {
+            currentValidation = v;
             if (currentValidation != null) {
                 currentValidation.bindings.remove(this);
             }

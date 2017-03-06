@@ -15,32 +15,14 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.math.BigDecimal;
-import org.teavm.flavour.example.api.ProductDTO;
+import org.teavm.flavour.example.api.OrderItemDTO;
 
 public class OrderItem {
-    private ProductDTO product;
-    private int amount;
+    public OrderItemDTO data;
     private boolean invalidAmountString;
 
-    public OrderItem(ProductDTO product) {
-        this.product = product;
-        amount = 1;
-    }
-
-    public ProductDTO getProduct() {
-        return product;
-    }
-
-    public int getAmount() {
-        return amount;
-    }
-
-    public void setAmount(int amount) {
-        if (this.amount != amount) {
-            this.amount = amount;
-            invalidAmountString = false;
-        }
+    public OrderItem(OrderItemDTO data) {
+        this.data = data;
     }
 
     public void parseAmount(String amount) {
@@ -50,7 +32,7 @@ public class OrderItem {
                 invalidAmountString = true;
                 return;
             }
-            setAmount(Integer.parseInt(amount));
+            data.amount = Integer.parseInt(amount);
         } catch (NumberFormatException e) {
             invalidAmountString = true;
         }
@@ -60,18 +42,14 @@ public class OrderItem {
         return invalidAmountString;
     }
 
-    public BigDecimal getPrice() {
-        return new BigDecimal(product.unitPrice).multiply(new BigDecimal(amount));
-    }
-
     public void more() {
-        ++amount;
+        ++data.amount;
         invalidAmountString = false;
     }
 
     public void less() {
-        if (amount > 1) {
-            --amount;
+        if (data.amount > 1) {
+            --data.amount;
             invalidAmountString = false;
         }
     }

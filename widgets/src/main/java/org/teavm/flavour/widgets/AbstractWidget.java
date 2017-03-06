@@ -20,10 +20,6 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.Templates;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class AbstractWidget extends AbstractComponent {
     private Component body;
 

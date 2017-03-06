@@ -25,6 +25,9 @@ public interface ApplicationRoute extends Route {
     @Path("orders")
     void orderList();
 
+    @Path("orders/page-{pageNum}")
+    void orderPage(@PathParameter("pageNum") int page);
+
     @Path("orders/new")
     void newOrder();
 

@@ -15,9 +15,58 @@
  */
 package org.teavm.flavour.example.client;
 
+import java.text.DateFormat;
+import java.util.function.Consumer;
+import org.teavm.flavour.example.api.OrderDTO;
+import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.widgets.PagedCursor;
 
 @BindTemplate("templates/order-list.html")
 public class OrderListView {
+    private OrderDataSource dataSource;
+    private PagedCursor<OrderDTO> cursor;
 
+    public OrderListView(OrderDataSource dataSource) {
+        this(dataSource, 0);
+    }
+
+    public OrderListView(OrderDataSource dataSource, int pageNumber) {
+        this.dataSource = dataSource;
+        cursor = new PagedCursor<>(dataSource);
+        cursor.setCurrentPage(pageNumber);
+    }
+
+    public OrderDataSource getDataSource() {
+        return dataSource;
+    }
+
+    public PagedCursor<OrderDTO> getCursor() {
+        return cursor;
+    }
+
+    public void edit(int id, Consumer<String> consumer) {
+        Routing.build(ApplicationRoute.class, consumer).order(id);
+    }
+
+    public void add() {
+        Routing.open(ApplicationRoute.class).newOrder();
+    }
+
+    public void selectPage(int page) {
+        cursor.setCurrentPage(page);
+    }
+
+    public void pageLink(int page, Consumer<String> consumer) {
+        Routing.build(ApplicationRoute.class, consumer).orderPage(page);
+    }
+
+    public void setFilter(String filter) {
+        dataSource.setSearchString(filter);
+        cursor.refresh();
+    }
+
+    public DateFormat getDateFormat() {
+        return DateFormat.getDateInstance(DateFormat.MEDIUM);
+    }
 }

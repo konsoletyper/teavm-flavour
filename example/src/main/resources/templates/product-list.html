@@ -1,15 +1,21 @@
 <?use w:org.teavm.flavour.widgets?>
-<div class="btn-toolbar">
-  <div class="btn-group">
-    <button type="button" class="btn" event:click="add()">Add</button>
+<nav class="navbar navbar-default navbar-static-top">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse">
+      <button type="button" class="btn btn-default navbar-btn" event:click="add()">Add</button>
+      <form class="navbar-form navbar-right">
+        <div class="form-group">
+          <input placeholder="Search..." type="text" class="form-control" html:change="t -> setFilter(t)"/>
+        </div>
+        <button class="btn btn-default" type="button">Refresh</button>
+      </form>
+    </div>
   </div>
-</div>
-<div>
-  <input type="text" html:change="t -> setFilter(t)"/>
-</div>
+</nav>
 <nav>
   <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
 </nav>
+
 <div>
   <table class="table table-striped">
     <thead>

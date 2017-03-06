@@ -1,1 +1,51 @@
-<h3>Order list</h3>
+<?use w:org.teavm.flavour.widgets?>
+<nav class="navbar navbar-default navbar-static-top">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse">
+      <button type="button" class="btn btn-default navbar-btn" event:click="add()">Add</button>
+      <form class="navbar-form navbar-right">
+        <div class="form-group">
+          <w:date value="dataSource.startDateFilter" class="'form-control'"/>
+          <w:date value="dataSource.endDateFilter" class="'form-control'"/>
+          <input placeholder="Search..." type="text" class="form-control" html:change="t -> setFilter(t)"/>
+        </div>
+        <button class="btn btn-default" type="button">Refresh</button>
+      </form>
+    </div>
+  </div>
+</nav>
+<nav>
+  <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
+</nav>
+
+<div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Id</th>
+        <th>Status</th>
+        <th>Address</th>
+        <th>Shipping date</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <std:foreach var="order" index="i" in="cursor.fetch()">
+        <tr>
+          <td><a html:link="c -> edit(order.id, c)">Edit</a></td>
+          <td><html:text value="order.id"/></td>
+          <td><html:text value="order.status"/></td>
+          <td><html:text value="order.address"/></td>
+          <td><html:text value="dateFormat.format(order.date)"/></td>
+          <td align="right"><html:text value="'$' + order.total"/></td>
+        </tr>
+      </std:foreach>
+      <std:if condition="cursor.fetch().empty">
+        <tr>
+          <td colspan="6"><i>There are no orders satisfying given criteria</i></td>
+        </tr>
+      </std:if>
+    </tbody>
+  </table>
+</div>

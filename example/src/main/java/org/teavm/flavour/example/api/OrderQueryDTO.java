@@ -22,7 +22,7 @@ public class OrderQueryDTO {
     @QueryParam("text")
     public String text;
 
-    @QueryParam("text")
+    @QueryParam("item-id")
     public Integer itemId;
 
     @QueryParam("start-date")

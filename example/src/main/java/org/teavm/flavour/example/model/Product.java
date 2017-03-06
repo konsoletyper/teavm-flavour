@@ -23,9 +23,11 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
+import javax.persistence.Table;
 
 @Entity
 @SequenceGenerator(name = "ProductIdGen", sequenceName = "ProductIdGen", allocationSize = 1)
+@Table(name = "products")
 public class Product {
     @Id
     @Column(nullable = false)

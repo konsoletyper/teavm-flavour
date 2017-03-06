@@ -15,13 +15,12 @@
  */
 package org.teavm.flavour.validation;
 
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Converter<T> {
     String makeString(T value);
 
@@ -80,6 +79,42 @@ public interface Converter<T> {
                     throw new ConversionException();
                 }
                 return result.doubleValue();
+            }
+        };
+    }
+
+    static Converter<Date> dateFormat(String format) {
+        return dateFormat(new SimpleDateFormat(format));
+    }
+
+    static Converter<Date> dateFormat() {
+        return dateFormat(DateFormat.getDateInstance());
+    }
+
+    static Converter<Date> mediumDateFormat() {
+        return dateFormat(DateFormat.getDateInstance(DateFormat.MEDIUM));
+    }
+
+    static Converter<Date> shortDateFormat() {
+        return dateFormat(DateFormat.getDateInstance(DateFormat.SHORT));
+    }
+
+    static Converter<Date> dateFormat(DateFormat dateFormat) {
+        return new Converter<Date>() {
+            @Override
+            public String makeString(Date value) {
+                return dateFormat.format(value);
+            }
+
+            @Override
+            public Date parse(String value) throws ConversionException {
+                value = value.trim();
+                ParsePosition position = new ParsePosition(0);
+                Date result = dateFormat.parse(value, position);
+                if (result == null || position.getIndex() != value.length()) {
+                    throw new ConversionException();
+                }
+                return result;
             }
         };
     }

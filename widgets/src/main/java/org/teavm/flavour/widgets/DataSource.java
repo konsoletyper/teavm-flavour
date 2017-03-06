@@ -17,10 +17,6 @@ package org.teavm.flavour.widgets;
 
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface DataSource<T> {
     List<T> fetch(int offset, int limit);
 

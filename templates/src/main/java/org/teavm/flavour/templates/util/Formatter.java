@@ -18,10 +18,6 @@ package org.teavm.flavour.templates.util;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class Formatter {
     private Formatter() {
     }

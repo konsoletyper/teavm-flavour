@@ -15,7 +15,17 @@
  */
 package org.teavm.flavour.example.api;
 
+import java.math.BigDecimal;
+
 public class OrderItemDTO {
     public ProductDTO product;
     public int amount;
+
+    public BigDecimal getUnitPrice() {
+        return BigDecimal.valueOf(product.unitPrice);
+    }
+
+    public BigDecimal getPrice() {
+        return getUnitPrice().multiply(BigDecimal.valueOf(amount));
+    }
 }

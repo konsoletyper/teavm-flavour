@@ -17,10 +17,6 @@ package org.teavm.flavour.validation;
 
 import org.teavm.flavour.templates.Templates;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ValidatorState {
     Validator validator;
 

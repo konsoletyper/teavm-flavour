@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class PagedCursor<T> implements Pageable, DataCursor<T> {
     private DataSource<T> dataSource;
     private List<T> list = new ArrayList<>();

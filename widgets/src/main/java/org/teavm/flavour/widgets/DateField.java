@@ -37,10 +37,6 @@ import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 import org.teavm.jso.dom.html.TextRectangle;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "date")
 @BindTemplate("templates/flavour/widgets/date-field.html")
 public class DateField extends AbstractWidget {
@@ -48,6 +44,7 @@ public class DateField extends AbstractWidget {
     private Supplier<Date> value;
     private Supplier<String> locale;
     private Supplier<String> format;
+    private Supplier<String> cssClass = () -> "";
     private ValueChangeListener<Date> changeListener;
     private String cachedFormat;
     private String cachedLocale;
@@ -97,10 +94,20 @@ public class DateField extends AbstractWidget {
         this.format = format;
     }
 
-    @BindAttribute(name = "onchange")
+    @BindAttribute(name = "value")
     @OptionalBinding
     public void setChangeListener(ValueChangeListener<Date> changeListener) {
         this.changeListener = changeListener;
+    }
+
+    @BindAttribute(name = "class")
+    @OptionalBinding
+    public void setCssClass(Supplier<String> cssClass) {
+        this.cssClass = cssClass;
+    }
+
+    public String getCssClass() {
+        return cssClass.get();
     }
 
     @Override
@@ -154,7 +161,9 @@ public class DateField extends AbstractWidget {
 
         CalendarDropDown dropDown = new CalendarDropDown(value, newValue -> {
             closeDropDown();
-            changeListener.changed(newValue);
+            if (changeListener != null) {
+                changeListener.changed(newValue);
+            }
         });
         dropDownComponent = Templates.bind(dropDown, dropDownElement);
 

@@ -30,10 +30,6 @@ import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.ValueChangeListener;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "calendar")
 @BindTemplate("templates/flavour/widgets/calendar.html")
 public class CalendarWidget extends AbstractWidget {
@@ -143,7 +139,7 @@ public class CalendarWidget extends AbstractWidget {
 
     private void rebuildCurrentDate() {
         Calendar c = Calendar.getInstance();
-        c.setTime(cachedDate);
+        c.setTime(cachedDate != null ? cachedDate : new Date());
         selectedYear = c.get(Calendar.YEAR);
         selectedMonth = c.get(Calendar.MONTH);
         selectedDay = c.get(Calendar.DATE);

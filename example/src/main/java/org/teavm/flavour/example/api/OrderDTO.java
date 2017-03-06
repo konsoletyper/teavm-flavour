@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.example.api;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -28,4 +29,12 @@ public class OrderDTO {
     public String address;
     public Date date;
     public List<OrderItemDTO> items = new ArrayList<>();
+
+    public BigDecimal getTotal() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (OrderItemDTO item : items) {
+            total = total.add(item.getPrice());
+        }
+        return total;
+    }
 }

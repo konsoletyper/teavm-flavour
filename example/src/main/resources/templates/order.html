@@ -1,71 +1,102 @@
 <?import org.teavm.flavour.templates.util.Formatter?>
+<?import org.teavm.flavour.validation.Converter?>
 <?use w:org.teavm.flavour.widgets?>
-<div>
-  <table class="form">
-    <tbody>
-      <tr>
-        <td><b>Receiver</b>:</td>
-        <td><html:text value="receiverName"/></td>
-      </tr>
-      <tr>
-        <td><b>Address</b>:</td>
-        <td><html:text value="address"/></td>
-      </tr>
-      <tr>
-        <td><b>Date</b>:</td>
-        <td><w:date value="date" onchange="value -> setDate(value)"/></td>
-      </tr>
-    </tbody>
-  </table>
+<?use v:org.teavm.flavour.validation?>
+<v:validator as="validator">
+  <v:validation of="order.address" as="addressField" convert="Converter.stringFormat()">
+    <v:check rule="not it.empty" as="addressNotEmpty"/>
+    <v:check rule="it.length() < 200" as="addressNotTooLong"/>
+  </v:validation>
+  <v:validation of="order.receiverName" as="receiverNameField" convert="Converter.stringFormat()">
+    <v:check rule="not it.empty" as="receiverNameNotEmpty"/>
+    <v:check rule="it.length() < 100" as="receiverNameNotTooLong"/>
+  </v:validation>
+  <v:validation of="order.date" as="dateField" convert="Converter.shortDateFormat()">
+    <v:check rule="it != null" as="dateNotNull"/>
+  </v:validation>
+  <div>
+    <form>
+      <div class="form-group" attr:class="addressField.valid ? 'form-group' : 'form-group has-error'">
+        <label>Delivery address</label>
+        <input type="text" class="form-control" v:bind="addressField"/>
+        <std:if condition="not addressNotEmpty">
+          <span class="help-block">Address is required</span>
+        </std:if>
+        <std:if condition="not addressNotTooLong">
+          <span class="help-block">Address must be at most 200 characters long</span>
+        </std:if>
+      </div>
+      <div class="form-group" attr:class="receiverNameField.valid ? 'form-group' : 'form-group has-error'">
+        <label>Name of receiver</label>
+        <input type="text" class="form-control" v:bind="receiverNameField"/>
+        <std:if condition="not receiverNameNotEmpty">
+          <span class="help-block">Name is required</span>
+        </std:if>
+        <std:if condition="not receiverNameNotTooLong">
+          <span class="help-block">Name must at most 100 characters long</span>
+        </std:if>
+      </div>
 
-  <table class="data">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>SKU</th>
-        <th>Product</th>
-        <th>Unit price</th>
-        <th colspan="2">Amount</th>
-        <th>Price</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <std:foreach var="item" index="index" in="items">
-        <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
-          <td align="right"><html:text value="index + 1"/></td>
-          <td><html:text value="item.product.sku"/></td>
-          <td><html:text value="item.product.name"/></td>
-          <td align="right"><html:text value="'$' + item.product.unitPrice"/></td>
-          <td>
-            <w:action-link onclick="item.more()">more</w:action-link>
-            <w:action-link visible="item.amount > 1" onclick="item.less()">less</w:action-link>
-          </td>
-          <td align="right">
-            <input type="text" html:value="item.amount" size="3"
-                attr:class="item.invalidAmountString ? 'error' : ''"
-                html:change="val -> item.parseAmount(val)">
-          </td>
-          <td align="right"><html:text value="'$' + item.price"/></td>
-          <td><w:action-link onclick="items.remove((int)index)">delete</w:action-link></td>
-        </tr>
-      </std:foreach>
-      <tr>
-        <td></td>
-        <td colspan="5">
-          <std:if condition="items.empty">
-            <i>There are no items yet</i>
-          </std:if>
-          <button event:async-click="addProduct()">Add item</button>
-        </td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="6">Total:</td>
-        <td align="right"><html:text value="'$' + totalPrice"/></td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+      <div class="form-group" class="form-group">
+        <label>Items</label>
+        <div>
+          <table class="data">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Unit price</th>
+                <th colspan="2">Amount</th>
+                <th>Price</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <std:foreach var="item" index="index" in="items">
+                <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
+                  <td align="right"><html:text value="index + 1"/></td>
+                  <td><html:text value="item.data.product.sku"/></td>
+                  <td><html:text value="item.data.product.name"/></td>
+                  <td align="right"><html:text value="'$' + item.data.unitPrice"/></td>
+                  <td>
+                    <w:action-link onclick="item.more()">more</w:action-link>
+                    <w:action-link visible="item.data.amount > 1" onclick="item.less()">less</w:action-link>
+                  </td>
+                  <td align="right">
+                    <input type="text" html:value="item.data.amount" size="3"
+                           attr:class="item.invalidAmountString ? 'error' : ''"
+                           html:change="item.parseAmount(it)">
+                  </td>
+                  <td align="right"><html:text value="'$' + item.data.price"/></td>
+                  <td><w:action-link onclick="items.remove((int) index)">delete</w:action-link></td>
+                </tr>
+              </std:foreach>
+              <!--
+              <tr>
+                <td></td>
+                <td colspan="5">
+                  <std:if condition="items.empty">
+                    <i>There are no items yet</i>
+                  </std:if>
+                  <button event:async-click="addProduct()">Add item</button>
+                </td>
+              </tr>
+              -->
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="6">Total:</td>
+                <td align="right"><html:text value="'$' + order.total"/></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-default" event:click="validator.submit(() -> save())"
+              html:enabled="validator.valid">Save</button>
+    </form>
+  </div>
+</v:validator>

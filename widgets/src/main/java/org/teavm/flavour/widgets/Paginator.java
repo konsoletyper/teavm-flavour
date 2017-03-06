@@ -28,10 +28,6 @@ import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.MouseEvent;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "paginator")
 @BindTemplate("templates/flavour/widgets/paginator.html")
 public class Paginator extends AbstractWidget {
@@ -39,7 +35,7 @@ public class Paginator extends AbstractWidget {
     private Supplier<Pageable> data;
     private BiConsumer<Integer, Consumer<String>> linkGenerator;
     private List<Item> items = new ArrayList<>();
-    private Pageable cachedData;
+    private Pageable pageable;
     private int cachedMaxPages;
     private int cachedPage;
     private int cachedPageCount;
@@ -71,8 +67,8 @@ public class Paginator extends AbstractWidget {
         int maxPages = this.maxPages.get();
         int page = data.getCurrentPage();
         int pageCount = data.getPageCount();
-        if (maxPages != cachedMaxPages || data != cachedData || cachedPage != page || cachedPageCount != pageCount) {
-            cachedData = data;
+        if (maxPages != cachedMaxPages || data != pageable || cachedPage != page || cachedPageCount != pageCount) {
+            pageable = data;
             cachedPage = page;
             cachedPageCount = pageCount;
             cachedMaxPages = maxPages;
@@ -98,22 +94,22 @@ public class Paginator extends AbstractWidget {
     }
 
     public void selectPage(MouseEvent event, int pageNum) {
-        cachedData.setCurrentPage(pageNum);
+        pageable.setCurrentPage(pageNum);
         replaceHash();
         event.preventDefault();
     }
 
     public void nextPage(MouseEvent event) {
-        if (cachedData.getCurrentPage() < cachedData.getPageCount() - 1) {
-            cachedData.setCurrentPage(cachedData.getCurrentPage() + 1);
+        if (pageable.getCurrentPage() < pageable.getPageCount() - 1) {
+            pageable.setCurrentPage(pageable.getCurrentPage() + 1);
         }
         replaceHash();
         event.preventDefault();
     }
 
     public void previousPage(MouseEvent event) {
-        if (cachedData.getCurrentPage() > 0) {
-            cachedData.setCurrentPage(cachedData.getCurrentPage() - 1);
+        if (pageable.getCurrentPage() > 0) {
+            pageable.setCurrentPage(pageable.getCurrentPage() - 1);
         }
         replaceHash();
         event.preventDefault();
@@ -128,7 +124,7 @@ public class Paginator extends AbstractWidget {
     }
 
     private void replaceHash() {
-        linkGenerator.accept(cachedData.getCurrentPage(), hash -> {
+        linkGenerator.accept(pageable.getCurrentPage(), hash -> {
             if (hash != null) {
                 Window.current().getHistory().replaceState(null, "", "#" + Window.encodeURI(hash));
             }
@@ -192,7 +188,7 @@ public class Paginator extends AbstractWidget {
     }
 
     public void refresh() {
-        cachedData.refresh();
+        pageable.refresh();
     }
 
     public List<Item> getItems() {

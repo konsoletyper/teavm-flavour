@@ -29,12 +29,14 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
+import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.persistence.Transient;
 
 @Entity
 @SequenceGenerator(name = "OrderIdGen", sequenceName = "OrderIdGen", allocationSize = 1)
+@Table(name = "orders")
 public class Order {
     @Id
     @Column(nullable = false)

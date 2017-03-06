@@ -15,64 +15,58 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import org.teavm.flavour.example.api.OrderDTO;
+import org.teavm.flavour.example.api.OrderFacade;
+import org.teavm.flavour.example.api.OrderItemDTO;
 import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.widgets.BackgroundWorker;
 
 @BindTemplate("templates/order.html")
 public class OrderView {
-    private String receiverName = "";
-    private String address = "";
-    private Date date;
+    private Integer id;
+    private OrderDTO order;
+    private OrderFacade facade;
     private List<OrderItem> items = new ArrayList<>();
+    private BackgroundWorker background = new BackgroundWorker();
 
-    public OrderView() {
+    public OrderView(OrderFacade facade) {
+        this.facade = facade;
+        order = new OrderDTO();
+        order.address = "";
+        order.receiverName = "";
     }
 
-    public String getReceiverName() {
-        return receiverName;
+    OrderView(OrderFacade facade, Integer id) {
+        this.facade = facade;
+        this.id = id;
+        load();
     }
 
-    public void setReceiverName(String receiverName) {
-        this.receiverName = receiverName;
+    public void load() {
+        background.run(() -> {
+            order = facade.get(id);
+            items.clear();
+            for (OrderItemDTO itemData : order.items) {
+                items.add(new OrderItem(itemData));
+            }
+        });
     }
 
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public Date getDate() {
-        return date;
-    }
-
-    public void setDate(Date date) {
-        this.date = date;
+    public OrderDTO getOrder() {
+        return order;
     }
 
     public List<OrderItem> getItems() {
         return items;
     }
 
-    public BigDecimal getTotalPrice() {
-        BigDecimal total = BigDecimal.ZERO;
-        for (OrderItem item : items) {
-            total = total.add(item.getPrice());
-        }
-        return total;
+    public boolean isLoading() {
+        return background.isBusy();
     }
 
-    public void addProduct() {
-        /*ProductSelectionView products = productViewFactory.get();
-        Popup.showModal(products);
-        if (products.getChosenProduct() != null) {
-            OrderItem item = new OrderItem(products.getChosenProduct());
-            items.add(item);
-        }*/
+    public void save() {
+
     }
 }

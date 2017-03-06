@@ -19,10 +19,6 @@ import java.util.function.Predicate;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.OptionalBinding;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ValidationRule<T> {
     Predicate<T> predicate;
     boolean valid = true;

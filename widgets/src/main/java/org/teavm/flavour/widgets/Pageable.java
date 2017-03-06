@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.widgets;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Pageable {
     int getPageCount();
 

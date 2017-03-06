@@ -26,10 +26,6 @@ import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "validator")
 public class Validator extends AbstractComponent {
     private ValidatorState state;

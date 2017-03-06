@@ -18,12 +18,13 @@ package org.teavm.flavour.example.infrastructure;
 import javax.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.teavm.flavour.example.model.Product;
+import org.teavm.flavour.example.model.Order;
+import org.teavm.flavour.example.model.OrderRepository;
 
 @Component
-public class PersistentOrderRepository extends PersistentRepositoryTemplate<Product> {
+public class PersistentOrderRepository extends PersistentRepositoryTemplate<Order> implements OrderRepository {
     @Autowired
     public PersistentOrderRepository(EntityManager em) {
-        super(em, Product.class);
+        super(em, Order.class);
     }
 }

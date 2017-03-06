@@ -26,10 +26,6 @@ import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.MouseEvent;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "action-link")
 @BindTemplate("templates/flavour/widgets/action-link.html")
 public class ActionLink extends AbstractWidget {

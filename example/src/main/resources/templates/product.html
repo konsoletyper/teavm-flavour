@@ -2,14 +2,14 @@
 <?import org.teavm.flavour.validation.Converter?>
 <v:validator as="validator">
   <v:validation of="product.sku" as="skuField" convert="Converter.stringFormat()">
-    <v:check rule="not it.empty" as="skuNotEmpty">
+    <v:check rule="not it.empty" as="skuNotEmpty"/>
   </v:validation>
   <v:validation of="product.name" as="nameField" convert="Converter.stringFormat()">
-    <v:check rule="not it.empty" as="nameNotEmpty">
+    <v:check rule="not it.empty" as="nameNotEmpty"/>
   </v:validation>
   <v:validation of="product.unitPrice" as="priceField" convert="Converter.doubleFormat('#,##0.00')">
-    <v:check rule="it != null" as="priceNotEmpty">
-    <v:check rule="it > 0" as="pricePositive">
+    <v:check rule="it != null" as="priceNotEmpty"/>
+    <v:check rule="it > 0" as="pricePositive"/>
   </v:validation>
   <form>
     <div class="form-group" attr:class="skuField.valid ? 'form-group' : 'form-group has-error'">

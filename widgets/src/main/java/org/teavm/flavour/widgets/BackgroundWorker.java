@@ -17,10 +17,6 @@ package org.teavm.flavour.widgets;
 
 import org.teavm.flavour.templates.Templates;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class BackgroundWorker {
     private int tasksRunning;
 

@@ -15,15 +15,20 @@
  */
 package org.teavm.flavour.example.client;
 
+import java.util.function.Consumer;
+import org.teavm.flavour.example.api.OrderFacade;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.rest.RESTClient;
+import org.teavm.flavour.routing.PathParameter;
+import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.ApplicationTemplate;
 import org.teavm.flavour.widgets.RouteBinder;
 
 @BindTemplate("templates/main.html")
 public final class Client extends ApplicationTemplate implements ApplicationRoute {
-    private ProductFacade facade = RESTClient.factory(ProductFacade.class).createResource("api");
+    private ProductFacade productFacade = RESTClient.factory(ProductFacade.class).createResource("api");
+    private OrderFacade orderFacade = RESTClient.factory(OrderFacade.class).createResource("api");
 
     private Client() {
     }
@@ -36,23 +41,36 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
         client.bind("application-content");
     }
 
+    public OrderDataSource orderDataSet() {
+        return new OrderDataSource(orderFacade);
+    }
+
     @Override
     public void orderList() {
-        setView(new OrderListView());
+        setView(new OrderListView(orderDataSet()));
+    }
+
+    @Override
+    public void orderPage(@PathParameter("pageNum") int page) {
+        if (getCurrentView() instanceof OrderListView) {
+            ((OrderListView) getCurrentView()).selectPage(page);
+        } else {
+            setView(new OrderListView(orderDataSet(), page));
+        }
     }
 
     @Override
     public void order(int id) {
-        setView(new OrderView());
+        setView(new OrderView(orderFacade, id));
     }
 
     @Override
     public void newOrder() {
-        setView(new OrderView());
+        setView(new OrderView(orderFacade));
     }
 
     public ProductDataSource productDataSet() {
-        return new ProductDataSource(facade);
+        return new ProductDataSource(productFacade);
     }
 
     @Override
@@ -71,11 +89,15 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
 
     @Override
     public void product(int id) {
-        setView(new ProductEditView(facade, id));
+        setView(new ProductEditView(productFacade, id));
     }
 
     @Override
     public void newProduct() {
-        setView(new ProductEditView(facade));
+        setView(new ProductEditView(productFacade));
+    }
+
+    public ApplicationRoute route(Consumer<String> c) {
+        return Routing.build(ApplicationRoute.class, c);
     }
 }

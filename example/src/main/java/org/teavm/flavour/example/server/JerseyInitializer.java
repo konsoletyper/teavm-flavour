@@ -19,6 +19,7 @@ import javax.servlet.ServletContext;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
+import org.teavm.flavour.example.api.OrderFacade;
 import org.teavm.flavour.example.api.ProductFacade;
 
 public class JerseyInitializer extends ResourceConfig {
@@ -27,5 +28,6 @@ public class JerseyInitializer extends ResourceConfig {
     public JerseyInitializer() {
         WebApplicationContext context = WebApplicationContextUtils.getWebApplicationContext(servletContext);
         register(context.getBean(ProductFacade.class));
+        register(context.getBean(OrderFacade.class));
     }
 }

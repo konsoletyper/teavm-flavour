@@ -20,10 +20,6 @@ import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.ValueChangeListener;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/flavour/widgets/calendar-drop-down.html")
 public class CalendarDropDown {
     private Supplier<Date> value;
