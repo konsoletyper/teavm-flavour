@@ -18,10 +18,6 @@ package org.teavm.flavour.example.client;
 import java.math.BigDecimal;
 import org.teavm.flavour.example.api.ProductDTO;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class OrderItem {
     private ProductDTO product;
     private int amount;

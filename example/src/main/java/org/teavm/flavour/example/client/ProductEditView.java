@@ -21,10 +21,6 @@ import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.BackgroundWorker;
 import org.teavm.jso.browser.Window;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/product.html")
 public class ProductEditView {
     private Integer id;

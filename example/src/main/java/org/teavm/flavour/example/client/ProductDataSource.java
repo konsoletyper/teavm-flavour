@@ -22,10 +22,6 @@ import org.teavm.flavour.example.api.ProductQueryDTO;
 import org.teavm.flavour.example.api.QueryPageDTO;
 import org.teavm.flavour.widgets.DataSource;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ProductDataSource implements DataSource<ProductDTO> {
     private ProductFacade facade;
     private String namePart;

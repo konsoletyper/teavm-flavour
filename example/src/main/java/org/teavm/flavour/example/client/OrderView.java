@@ -21,10 +21,6 @@ import java.util.Date;
 import java.util.List;
 import org.teavm.flavour.templates.BindTemplate;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/order.html")
 public class OrderView {
     private String receiverName = "";

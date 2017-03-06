@@ -21,10 +21,6 @@ import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.PagedCursor;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/product-list.html")
 public class ProductListView {
     private ProductDataSource dataSource;

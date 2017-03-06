@@ -17,10 +17,6 @@ package org.teavm.flavour.example.client;
 
 import org.teavm.flavour.templates.BindTemplate;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/order-list.html")
 public class OrderListView {
 

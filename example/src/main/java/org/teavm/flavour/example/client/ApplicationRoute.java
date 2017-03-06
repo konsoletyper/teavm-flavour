@@ -20,10 +20,6 @@ import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.PathSet;
 import org.teavm.flavour.routing.Route;
 
-/**
- *
- * @author Alexey Andreev
- */
 @PathSet
 public interface ApplicationRoute extends Route {
     @Path("orders")

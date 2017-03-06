@@ -21,10 +21,6 @@ import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.ApplicationTemplate;
 import org.teavm.flavour.widgets.RouteBinder;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindTemplate("templates/main.html")
 public final class Client extends ApplicationTemplate implements ApplicationRoute {
     private ProductFacade facade = RESTClient.factory(ProductFacade.class).createResource("api");
