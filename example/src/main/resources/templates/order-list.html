@@ -35,7 +35,7 @@
     <tbody>
       <std:foreach var="order" index="i" in="cursor.fetch()">
         <tr>
-          <td><a html:link="c -> edit(order.id, c)">Edit</a></td>
+          <td><a html:link="edit(order.id, it)">Edit</a></td>
           <td><html:text value="order.id"/></td>
           <td><html:text value="order.status"/></td>
           <td><html:text value="order.address"/></td>

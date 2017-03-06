@@ -15,16 +15,19 @@
  */
 package org.teavm.flavour.example.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 
 public class OrderItemDTO {
     public ProductDTO product;
     public int amount;
 
+    @JsonIgnore
     public BigDecimal getUnitPrice() {
         return BigDecimal.valueOf(product.unitPrice);
     }
 
+    @JsonIgnore
     public BigDecimal getPrice() {
         return getUnitPrice().multiply(BigDecimal.valueOf(amount));
     }

@@ -31,12 +31,18 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import org.teavm.flavour.json.JSON;
@@ -74,6 +80,7 @@ import org.teavm.metaprogramming.Diagnostics;
 import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.Value;
+import org.teavm.metaprogramming.reflect.ReflectAnnotatedElement;
 import org.teavm.metaprogramming.reflect.ReflectField;
 import org.teavm.metaprogramming.reflect.ReflectMethod;
 
@@ -258,7 +265,7 @@ public class JsonDeserializerEmitter {
         Type type = getPropertyGenericType(property);
 
         if (type != null) {
-            Value<Object> converted = convert(node, context, type);
+            Value<Object> converted = convert(node, context, type, property.setter);
             return lazy(() -> context.get().get(converted.get()));
         } else {
             return lazy(() -> {
@@ -387,7 +394,7 @@ public class JsonDeserializerEmitter {
                 String propertyName = property.outputName;
                 Type type = genericTypes[i];
                 Value<Node> valueNode = emit(() -> node.get().get(propertyName));
-                paramValue = convert(valueNode, context, type);
+                paramValue = convert(valueNode, context, type, information.constructor.getParameterAnnotations(i));
             } else {
                 paramValue = defaultValue(information.constructor.getParameterType(i));
             }
@@ -451,7 +458,7 @@ public class JsonDeserializerEmitter {
         if (type == null) {
             return null;
         }
-        return convert(id, context, type);
+        return convert(id, context, type, property.setter);
     }
 
     private void emitProperties(ClassInformation information, Value<Object> target,
@@ -476,7 +483,7 @@ public class JsonDeserializerEmitter {
 
         String propertyName = property.outputName;
         Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
-        Value<Object> value = convert(jsonValue, context, type);
+        Value<Object> value = convert(jsonValue, context, type, method);
         emit(() -> method.invoke(target.get(), value.get()));
     }
 
@@ -488,7 +495,7 @@ public class JsonDeserializerEmitter {
 
         String propertyName = property.outputName;
         Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
-        Value<Object> value = convert(jsonValue, context, type);
+        Value<Object> value = convert(jsonValue, context, type, field);
         emit(() -> field.set(target.get(), value.get()));
     }
 
@@ -509,36 +516,41 @@ public class JsonDeserializerEmitter {
         return type;
     }
 
-    private Value<Object> convert(Value<Node> node, Value<JsonDeserializerContext> context, Type type) {
+    private Value<Object> convert(Value<Node> node, Value<JsonDeserializerContext> context, Type type,
+            ReflectAnnotatedElement annotations) {
         if (type instanceof Class<?>) {
             Class<?> cls = (Class<?>) type;
             if (cls.isPrimitive()) {
                 return convertPrimitive(node, cls);
             }
         }
-        return convertNullable(node, context, type);
+        return convertNullable(node, context, type, annotations);
     }
 
-    private Value<Object> convertNullable(Value<Node> node, Value<JsonDeserializerContext> context, Type type) {
-        Value<JsonDeserializer> deserializer = createDeserializer(type);
+    private Value<Object> convertNullable(Value<Node> node, Value<JsonDeserializerContext> context, Type type,
+            ReflectAnnotatedElement annotations) {
+        if (type instanceof Class<?> && Date.class.isAssignableFrom((Class<?>) type)) {
+            return convertDate(node, annotations);
+        }
+        Value<JsonDeserializer> deserializer = createDeserializer(type, annotations);
         return emit(() -> deserializer.get().deserialize(context.get(), node.get()));
     }
 
-    private Value<JsonDeserializer> createDeserializer(Type type) {
+    private Value<JsonDeserializer> createDeserializer(Type type, ReflectAnnotatedElement annotations) {
         if (type instanceof Class<?>) {
             Class<?> cls = (Class<?>) type;
-            return cls.isArray() ? createArrayDeserializer(cls) : createObjectDeserializer(cls);
+            return cls.isArray() ? createArrayDeserializer(cls, annotations) : createObjectDeserializer(cls);
         } else if (type instanceof ParameterizedType) {
             ParameterizedType paramType = (ParameterizedType) type;
             Type[] typeArgs = paramType.getActualTypeArguments();
             if (paramType.getRawType().equals(Map.class)) {
-                return createMapDeserializer(typeArgs[0], typeArgs[1]);
+                return createMapDeserializer(typeArgs[0], typeArgs[1], annotations);
             } else if (paramType.getRawType().equals(List.class)) {
-                return createListDeserializer(typeArgs[0]);
+                return createListDeserializer(typeArgs[0], annotations);
             } else if (paramType.getRawType().equals(Set.class)) {
-                return createSetDeserializer(typeArgs[0]);
+                return createSetDeserializer(typeArgs[0], annotations);
             } else {
-                return createDeserializer(paramType.getRawType());
+                return createDeserializer(paramType.getRawType(), annotations);
             }
         } else if (type instanceof WildcardType) {
             WildcardType wildcard = (WildcardType) type;
@@ -558,7 +570,7 @@ public class JsonDeserializerEmitter {
             return createObjectDeserializer(upperCls);
         } else if (type instanceof GenericArrayType) {
             GenericArrayType array = (GenericArrayType) type;
-            return createArrayDeserializer(array);
+            return createArrayDeserializer(array, annotations);
         } else {
             return createObjectDeserializer(Object.class);
         }
@@ -586,13 +598,14 @@ public class JsonDeserializerEmitter {
         throw new AssertionError("Unknown primitive type: " + type);
     }
 
-    private Value<JsonDeserializer> createArrayDeserializer(GenericArrayType type) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getGenericComponentType());
+    private Value<JsonDeserializer> createArrayDeserializer(GenericArrayType type,
+            ReflectAnnotatedElement annotations) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getGenericComponentType(), annotations);
         Class<?> cls = rawType(type);
         return emit(() -> new ArrayDeserializer(cls, itemDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createArrayDeserializer(Class<?> type) {
+    private Value<JsonDeserializer> createArrayDeserializer(Class<?> type, ReflectAnnotatedElement annotations) {
         if (type.getComponentType().isPrimitive()) {
             String name = type.getComponentType().getName();
             switch (name) {
@@ -614,7 +627,7 @@ public class JsonDeserializerEmitter {
                     return emit(() -> new DoubleArrayDeserializer());
             }
         }
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getComponentType());
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getComponentType(), annotations);
         return emit(() -> new ArrayDeserializer(type, itemDeserializer.get()));
     }
 
@@ -622,20 +635,46 @@ public class JsonDeserializerEmitter {
         return emit(() -> JSON.getClassDeserializer(type));
     }
 
-    private Value<JsonDeserializer> createMapDeserializer(Type keyType, Type valueType) {
-        Value<JsonDeserializer> keyDeserializer = createDeserializer(keyType);
-        Value<JsonDeserializer> valueDeserializer = createDeserializer(valueType);
+    private Value<JsonDeserializer> createMapDeserializer(Type keyType, Type valueType,
+            ReflectAnnotatedElement annotations) {
+        Value<JsonDeserializer> keyDeserializer = createDeserializer(keyType, annotations);
+        Value<JsonDeserializer> valueDeserializer = createDeserializer(valueType, annotations);
         return emit(() -> new MapDeserializer(keyDeserializer.get(), valueDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createListDeserializer(Type itemType) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType);
+    private Value<JsonDeserializer> createListDeserializer(Type itemType, ReflectAnnotatedElement annotations) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType, annotations);
         return emit(() -> new ListDeserializer(itemDeserializer.get()));
     }
 
-    private Value<JsonDeserializer> createSetDeserializer(Type itemType) {
-        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType);
+    private Value<JsonDeserializer> createSetDeserializer(Type itemType, ReflectAnnotatedElement annotations) {
+        Value<JsonDeserializer> itemDeserializer = createDeserializer(itemType, annotations);
         return emit(() -> new SetDeserializer(itemDeserializer.get()));
+    }
+
+    private Value<Object> convertDate(Value<Node> value, ReflectAnnotatedElement annotations) {
+        DateFormatInformation formatInfo = DateFormatInformation.get(annotations);
+        if (formatInfo.asString) {
+            String localeName = formatInfo.locale;
+            String pattern = formatInfo.pattern;
+            Value<Locale> locale = formatInfo.locale != null
+                    ? emit(() -> new Locale(localeName))
+                    : emit(() -> Locale.getDefault());
+            return emit(() -> {
+                DateFormat format = new SimpleDateFormat(pattern, locale.get());
+                format.setTimeZone(TimeZone.getTimeZone("GMT"));
+                try {
+                    return value != null ? format.parse(((StringNode) value.get()).getValue()) : null;
+                } catch (ParseException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } else {
+            return emit(() -> {
+                NumberNode node = (NumberNode) value.get();
+                return node != null ? new Date(node.getIntValue()) : null;
+            });
+        }
     }
 
     private Method findMethod(ReflectMethod reference) {

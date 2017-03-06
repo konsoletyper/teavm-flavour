@@ -205,7 +205,7 @@ public class GenericTypeNavigator {
     }
 
     public GenericField getField(GenericClass cls, String name) {
-        return getFieldRec(cls, name, new HashSet<GenericClass>());
+        return getFieldRec(cls, name, new HashSet<>());
     }
 
     private GenericField getFieldRec(GenericClass cls, String name, Set<GenericClass> visited) {
@@ -365,7 +365,7 @@ public class GenericTypeNavigator {
 
     public GenericMethod findSingleAbstractMethod(GenericClass cls) {
         Map<MethodSignature, GenericMethod> methods = new HashMap<>();
-        int count = findSingleAbstractMethodImpl(cls, new HashSet<String>(), methods);
+        int count = findSingleAbstractMethodImpl(cls, new HashSet<>(), methods);
         if (count != 1) {
             return null;
         }

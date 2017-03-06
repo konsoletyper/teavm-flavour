@@ -15,6 +15,8 @@
  */
 package org.teavm.flavour.example.api;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,13 +25,20 @@ import org.teavm.flavour.example.model.OrderStatus;
 
 public class OrderDTO {
     public int id;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss XX")
     public Date dateCreated;
+
     public OrderStatus status;
     public String receiverName;
     public String address;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "YYYY-MM-dd")
     public Date date;
+
     public List<OrderItemDTO> items = new ArrayList<>();
 
+    @JsonIgnore
     public BigDecimal getTotal() {
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItemDTO item : items) {

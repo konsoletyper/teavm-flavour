@@ -15,14 +15,19 @@
  */
 package org.teavm.flavour.example.client;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.example.api.OrderDTO;
+import org.teavm.flavour.example.api.OrderEditDTO;
+import org.teavm.flavour.example.api.OrderEditItemDTO;
 import org.teavm.flavour.example.api.OrderFacade;
 import org.teavm.flavour.example.api.OrderItemDTO;
 import org.teavm.flavour.example.api.ProductDTO;
+import org.teavm.flavour.example.model.OrderStatus;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.BackgroundWorker;
+import org.teavm.jso.browser.Window;
 
 @BindTemplate("templates/order.html")
 public class OrderView {
@@ -36,15 +41,25 @@ public class OrderView {
     public OrderView(OrderFacade facade, ProductSelectionViewFactory productSelectionViewFactory) {
         this.facade = facade;
         this.productSelectionViewFactory = productSelectionViewFactory;
-        order = new OrderDTO();
-        order.address = "";
-        order.receiverName = "";
+        initOrder();
     }
 
     OrderView(OrderFacade facade, Integer id) {
         this.facade = facade;
         this.id = id;
+        initOrder();
         load();
+    }
+
+    private void initOrder() {
+        order = new OrderDTO();
+        order.address = "";
+        order.receiverName = "";
+        order.status = OrderStatus.PLANNED;
+    }
+
+    public boolean isFresh() {
+        return id == null;
     }
 
     public void load() {
@@ -76,11 +91,38 @@ public class OrderView {
         }
     }
 
+    public BigDecimal getTotal() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (OrderItem item : items) {
+            total = total.add(item.data.getPrice());
+        }
+        return total;
+    }
+
     public boolean isLoading() {
         return background.isBusy();
     }
 
     public void save() {
-
+        OrderEditDTO saveData = new OrderEditDTO();
+        saveData.date = order.date;
+        saveData.address = order.address;
+        saveData.receiverName = order.receiverName;
+        saveData.status = order.status;
+        saveData.items.clear();
+        for (OrderItem item : items) {
+            OrderEditItemDTO saveItemData = new OrderEditItemDTO();
+            saveItemData.productId = item.data.product.id;
+            saveItemData.amount = item.data.amount;
+            saveData.items.add(saveItemData);
+        }
+        background.run(() -> {
+            if (id == null) {
+                facade.create(saveData);
+            } else {
+                facade.update(id, saveData);
+            }
+            Window.current().getHistory().back();
+        });
     }
 }

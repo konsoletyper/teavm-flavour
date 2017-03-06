@@ -43,11 +43,14 @@ import org.teavm.flavour.example.model.ProductRepository;
 public class ServerSideOrderFacade implements OrderFacade {
     private OrderRepository orderRepository;
     private ProductRepository productRepository;
+    private ProductMapper productMapper;
 
     @Autowired
-    public ServerSideOrderFacade(OrderRepository orderRepository, ProductRepository productRepository) {
+    public ServerSideOrderFacade(OrderRepository orderRepository, ProductRepository productRepository,
+            ProductMapper productMapper) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
+        this.productMapper = productMapper;
     }
 
     @Override
@@ -83,17 +86,27 @@ public class ServerSideOrderFacade implements OrderFacade {
 
     @Override
     public void update(int id, OrderEditDTO data) {
-
+        Order order = orderRepository.findById(id);
+        order.setAddress(data.address);
+        order.setReceiverName(data.receiverName);
+        order.setStatus(data.status);
+        order.setShippingDate(data.date);
+        order.getItems().clear();
+        mapItems(data, order);
     }
 
     private Order fromDTO(OrderEditDTO dto) {
         Order order = new Order(dto.receiverName, dto.address, dto.date);
+        mapItems(dto, order);
+        return order;
+    }
+
+    private void mapItems(OrderEditDTO dto, Order order) {
         for (OrderEditItemDTO itemDto : dto.items) {
             Product product = productRepository.findById(itemDto.productId);
             OrderItem item = new OrderItem(product, itemDto.amount);
             order.addItem(item);
         }
-        return order;
     }
 
     private OrderDTO toDto(Order order) {
@@ -109,6 +122,7 @@ public class ServerSideOrderFacade implements OrderFacade {
                 .collect(Collectors.toList());
         for (OrderItem item : items) {
             OrderItemDTO itemDto = new OrderItemDTO();
+            itemDto.product = productMapper.toDTO(item.getProduct());
             itemDto.amount = item.getAmount();
             dto.items.add(itemDto);
         }

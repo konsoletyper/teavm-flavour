@@ -34,10 +34,12 @@ import org.teavm.flavour.example.model.ProductRepository;
 @Transactional
 public class ServerSideProductFacade implements ProductFacade {
     private ProductRepository repository;
+    private ProductMapper mapper;
 
     @Autowired
-    public ServerSideProductFacade(ProductRepository repository) {
+    public ServerSideProductFacade(ProductRepository repository, ProductMapper mapper) {
         this.repository = repository;
+        this.mapper = mapper;
     }
 
     @Override
@@ -57,7 +59,7 @@ public class ServerSideProductFacade implements ProductFacade {
             all = all.limit(page.limit);
         }
         return all
-                .map(this::toDTO)
+                .map(mapper::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -77,7 +79,7 @@ public class ServerSideProductFacade implements ProductFacade {
 
     @Override
     public ProductDTO get(int id) {
-        return toDTO(requireProduct(id));
+        return mapper.toDTO(requireProduct(id));
     }
 
     @Override
@@ -98,15 +100,6 @@ public class ServerSideProductFacade implements ProductFacade {
             throw new IllegalArgumentException("Product with id " + id + " was not found");
         }
         return product;
-    }
-
-    private ProductDTO toDTO(Product product) {
-        ProductDTO dto = new ProductDTO();
-        dto.id = repository.getId(product);
-        dto.name = product.getName();
-        dto.sku = product.getSku();
-        dto.unitPrice = product.getPrice().doubleValue();
-        return dto;
     }
 
     private Product fromDTO(ProductDTO data) {

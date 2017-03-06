@@ -29,7 +29,7 @@
     <tbody>
       <std:foreach var="product" index="i" in="cursor.fetch()">
         <tr>
-          <td><a html:link="c -> edit(product.id, c)">Edit</a></td>
+          <td><a html:link="edit(product.id, it)">Edit</a></td>
           <td><html:text value="product.sku"/></td>
           <td><html:text value="product.name"/></td>
           <td align="right"><html:text value="'$' + product.unitPrice"/></td>

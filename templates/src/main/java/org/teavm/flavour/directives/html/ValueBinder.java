@@ -25,7 +25,7 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 
 @BindAttributeDirective(name = "value")
 public class ValueBinder<T> implements Renderable {
-    private HTMLInputElement element;
+    HTMLInputElement element;
     private Supplier<T> value;
     private Object cachedValue;
 

@@ -1,5 +1,6 @@
 <?import org.teavm.flavour.templates.util.Formatter?>
 <?import org.teavm.flavour.validation.Converter?>
+<?import org.teavm.flavour.example.model.OrderStatus?>
 <?use w:org.teavm.flavour.widgets?>
 <?use v:org.teavm.flavour.validation?>
 <v:validator as="validator">
@@ -16,6 +17,15 @@
   </v:validation>
   <div>
     <form>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-control" html:value="order.status" html:change="order.status" html:enabled="not fresh">
+          <option value="PLANNED">Planned</option>
+          <option value="DELIVERED">Delivered</option>
+          <option value="INVALID">Invalid</option>
+        </select>
+      </div>
+
       <div class="form-group" attr:class="addressField.valid ? 'form-group' : 'form-group has-error'">
         <label>Delivery address</label>
         <input type="text" class="form-control" v:bind="addressField"/>
@@ -40,7 +50,7 @@
 
       <div class="form-group" attr:class="dateField.valid ? 'form-group' : 'form-group has-error'">
         <label>Shipping date</label>
-        <input type="text" class="form-control" v:bind="receiverNameField" w:date="{ format: 'short' }"/>
+        <input type="text" class="form-control" v:bind="dateField" w:date="{ format: 'short' }"/>
         <std:if condition="not dateNotNull">
           <span class="help-block">Date is required</span>
         </std:if>
@@ -93,7 +103,7 @@
             <tfoot>
               <tr>
                 <td colspan="6">Total:</td>
-                <td align="right"><html:text value="'$' + order.total"/></td>
+                <td align="right"><html:text value="'$' + total"/></td>
                 <td></td>
               </tr>
             </tfoot>

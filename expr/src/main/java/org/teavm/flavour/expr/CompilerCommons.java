@@ -50,7 +50,7 @@ public final class CompilerCommons {
     static final GenericClass floatClass = new GenericClass("java.lang.Float");
     static final GenericClass doubleClass = new GenericClass("java.lang.Double");
     static final GenericClass stringClass = new GenericClass("java.lang.String");
-    static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.<ValueType>asList(
+    static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.asList(
             characterClass, byteClass, shortClass, integerClass, longClass,
             floatClass, doubleClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
             Primitive.INT, Primitive.LONG, Primitive.FLOAT, Primitive.DOUBLE));
