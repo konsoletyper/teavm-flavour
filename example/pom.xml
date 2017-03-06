@@ -162,10 +162,11 @@
               <targetDirectory>${project.build.directory}/generated/js/teavm</targetDirectory>
               <mainClass>org.teavm.flavour.example.client.Client</mainClass>
               <runtime>SEPARATE</runtime>
-              <minifying>false</minifying>
+              <minifying>true</minifying>
               <debugInformationGenerated>true</debugInformationGenerated>
               <sourceMapsGenerated>true</sourceMapsGenerated>
               <sourceFilesCopied>true</sourceFilesCopied>
+              <optimizationLevel>ADVANCED</optimizationLevel>
             </configuration>
           </execution>
         </executions>
