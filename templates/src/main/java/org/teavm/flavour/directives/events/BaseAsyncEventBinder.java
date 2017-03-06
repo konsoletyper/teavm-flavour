@@ -23,10 +23,6 @@ import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class BaseAsyncEventBinder<T extends Event> implements Renderable {
     private HTMLElement element;
     private String eventName;

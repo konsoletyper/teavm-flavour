@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates.parsing;
 
-/**
- *
- * @author Alexey Andreev
- */
 enum DirectiveAttributeType {
     VARIABLE,
     FUNCTION,

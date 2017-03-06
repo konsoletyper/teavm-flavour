@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.parsing;
 
 import org.teavm.flavour.expr.type.GenericMethod;
 
-/**
- *
- * @author Alexey Andreev
- */
 class NestedDirective {
     boolean multiple;
     GenericMethod setter;

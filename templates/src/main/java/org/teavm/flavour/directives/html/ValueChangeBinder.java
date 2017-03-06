@@ -24,10 +24,6 @@ import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = "change")
 public class ValueChangeBinder implements Renderable {
     private HTMLInputElement element;

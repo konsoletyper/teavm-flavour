@@ -18,10 +18,6 @@ package org.teavm.flavour.templates.tree;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DirectiveBinding extends TemplateNode {
     private String className;
     private String name;

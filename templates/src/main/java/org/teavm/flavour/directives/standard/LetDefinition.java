@@ -18,10 +18,6 @@ package org.teavm.flavour.directives.standard;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class LetDefinition<T> {
     T value;
     Supplier<T> computation;

@@ -22,10 +22,6 @@ import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = "link")
 public class LinkComponent implements Renderable {
     private HTMLElement element;

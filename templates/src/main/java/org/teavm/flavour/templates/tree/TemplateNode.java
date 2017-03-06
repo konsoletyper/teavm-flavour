@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.tree;
 
 import org.teavm.flavour.expr.Location;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class TemplateNode {
     private Location location;
 

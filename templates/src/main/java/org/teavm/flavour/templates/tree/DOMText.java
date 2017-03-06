@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates.tree;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DOMText extends TemplateNode {
     private String value;
 

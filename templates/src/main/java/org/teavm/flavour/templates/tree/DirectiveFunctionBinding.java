@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.tree;
 
 import org.teavm.flavour.expr.plan.LambdaPlan;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DirectiveFunctionBinding extends DirectivePropertyBinding {
     private LambdaPlan plan;
     private String lambdaType;

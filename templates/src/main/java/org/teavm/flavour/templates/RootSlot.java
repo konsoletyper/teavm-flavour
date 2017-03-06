@@ -17,10 +17,6 @@ package org.teavm.flavour.templates;
 
 import org.teavm.jso.dom.xml.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 class RootSlot extends Slot {
     Node domNode;
 

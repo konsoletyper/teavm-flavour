@@ -21,10 +21,6 @@ import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "let")
 public class LetComponent extends AbstractComponent {
     private List<LetDefinition<?>> definitions;

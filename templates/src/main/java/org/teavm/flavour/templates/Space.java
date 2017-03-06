@@ -19,10 +19,6 @@ import java.util.List;
 import org.teavm.jso.dom.xml.Node;
 import org.teavm.jso.dom.xml.NodeList;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class Space {
     Slot parent;
     int index;

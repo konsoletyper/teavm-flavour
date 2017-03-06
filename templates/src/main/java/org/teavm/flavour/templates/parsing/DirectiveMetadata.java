@@ -21,10 +21,6 @@ import java.util.List;
 import java.util.Map;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 class DirectiveMetadata extends BaseDirectiveMetadata {
     MethodDescriber constructor;
     MethodDescriber contentSetter;

@@ -20,10 +20,6 @@ import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Fragment;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ChooseClause {
     BooleanSupplier predicate;
     Fragment content;

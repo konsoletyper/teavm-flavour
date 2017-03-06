@@ -25,10 +25,6 @@ import org.teavm.flavour.templates.NodeHolder;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "text")
 @IgnoreContent
 public class TextComponent<T> extends AbstractComponent {

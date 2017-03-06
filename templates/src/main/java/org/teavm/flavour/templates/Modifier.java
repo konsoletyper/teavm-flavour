@@ -17,10 +17,6 @@ package org.teavm.flavour.templates;
 
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Modifier {
     Renderable apply(HTMLElement element);
 }

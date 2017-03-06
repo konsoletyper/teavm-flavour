@@ -17,10 +17,6 @@ package org.teavm.flavour.templates;
 
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DomComponentTemplate extends AbstractComponent {
     private DomComponentHandler handler;
     private List<Renderable> renderables;

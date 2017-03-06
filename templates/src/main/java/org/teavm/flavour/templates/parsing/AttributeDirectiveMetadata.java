@@ -19,10 +19,6 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 class AttributeDirectiveMetadata extends BaseDirectiveMetadata {
     MethodDescriber constructor;
     DirectiveAttributeType type;

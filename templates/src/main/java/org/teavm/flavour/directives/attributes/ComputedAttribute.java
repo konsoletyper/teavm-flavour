@@ -23,10 +23,6 @@ import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = "*")
 public class ComputedAttribute<T> implements Renderable {
     private HTMLElement element;

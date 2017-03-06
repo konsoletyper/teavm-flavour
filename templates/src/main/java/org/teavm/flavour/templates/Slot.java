@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.teavm.jso.dom.xml.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class Slot extends Space {
     List<Space> childList = new ArrayList<>();
 

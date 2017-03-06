@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates.tree;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface TemplateNodeVisitor {
     void visit(DirectiveBinding node);
 

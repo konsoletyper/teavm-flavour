@@ -26,10 +26,6 @@ import org.teavm.jso.dom.xml.Element;
 import org.teavm.jso.dom.xml.Node;
 import org.teavm.jso.dom.xml.Text;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DomBuilder {
     private static final Document document = Window.current().getDocument();
     private Slot slot;

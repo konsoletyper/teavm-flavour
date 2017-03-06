@@ -22,10 +22,6 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "choose")
 public class ChooseComponent extends AbstractComponent {
     private List<ChooseClause> clauses;

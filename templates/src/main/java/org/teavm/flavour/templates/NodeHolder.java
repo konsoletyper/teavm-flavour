@@ -18,10 +18,6 @@ package org.teavm.flavour.templates;
 import java.util.List;
 import org.teavm.jso.dom.xml.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class NodeHolder extends Space {
     Node node;
 

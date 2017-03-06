@@ -19,10 +19,6 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 class DirectiveAttributeMetadata {
     String name;
     DirectiveAttributeType type;

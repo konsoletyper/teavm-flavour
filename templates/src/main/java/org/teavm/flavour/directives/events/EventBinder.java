@@ -19,10 +19,6 @@ import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = { "change" })
 public class EventBinder extends BaseEventBinder<Event> {
     public EventBinder(HTMLElement element) {

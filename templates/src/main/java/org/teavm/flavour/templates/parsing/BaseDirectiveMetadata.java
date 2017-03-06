@@ -18,10 +18,6 @@ package org.teavm.flavour.templates.parsing;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 class BaseDirectiveMetadata {
     ClassDescriber cls;
     String[] nameRules;

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class AbstractComponent implements Component {
     private Slot slot;
 

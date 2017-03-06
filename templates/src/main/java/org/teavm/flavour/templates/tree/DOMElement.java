@@ -20,10 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import org.teavm.flavour.expr.Location;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DOMElement extends TemplateNode {
     private String name;
     private List<TemplateNode> childNodes = new ArrayList<>();

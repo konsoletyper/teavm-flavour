@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.parsing;
 
 import java.io.InputStream;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ClassPathResourceProvider implements ResourceProvider {
     private ClassLoader classLoader;
 

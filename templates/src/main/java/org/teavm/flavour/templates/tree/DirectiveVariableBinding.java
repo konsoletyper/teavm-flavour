@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.tree;
 
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class DirectiveVariableBinding extends DirectivePropertyBinding {
     private ValueType rawValueType;
     private ValueType valueType;

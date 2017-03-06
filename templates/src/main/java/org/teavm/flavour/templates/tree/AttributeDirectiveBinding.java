@@ -19,10 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.teavm.flavour.expr.Location;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class AttributeDirectiveBinding {
     private Location location;
     private String className;

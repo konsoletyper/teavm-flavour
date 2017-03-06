@@ -18,10 +18,6 @@ package org.teavm.flavour.directives.standard;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Fragment;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class OtherwiseClause {
     Fragment content;
 

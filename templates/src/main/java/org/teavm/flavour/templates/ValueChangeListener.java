@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ValueChangeListener<T> {
     void changed(T newValue);
 }

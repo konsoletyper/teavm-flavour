@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.templates.tree;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class DirectivePropertyBinding {
     private String methodOwner;
     private String methodName;

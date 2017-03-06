@@ -21,10 +21,6 @@ import org.teavm.flavour.templates.ElementConsumer;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = "expose-element")
 public class ExposeElementComponent implements Renderable {
     private HTMLElement element;

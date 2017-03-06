@@ -19,10 +19,6 @@ import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.jso.dom.events.MouseEvent;
 import org.teavm.jso.dom.html.HTMLElement;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindAttributeDirective(name = { "async-click", "async-dblclick", "async-mouseup", "async-mousedown" })
 public class AsyncMouseBinder extends BaseAsyncEventBinder<MouseEvent> {
     public AsyncMouseBinder(HTMLElement element) {

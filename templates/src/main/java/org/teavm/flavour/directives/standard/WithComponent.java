@@ -24,10 +24,6 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "with")
 public class WithComponent<T> extends AbstractComponent {
     private Fragment content;

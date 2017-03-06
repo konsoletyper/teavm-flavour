@@ -28,10 +28,6 @@ import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "foreach")
 public class ForEachComponent<T> extends AbstractComponent {
     private Supplier<Iterable<T>> collection;

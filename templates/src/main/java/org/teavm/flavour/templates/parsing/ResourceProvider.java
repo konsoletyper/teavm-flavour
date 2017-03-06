@@ -17,10 +17,6 @@ package org.teavm.flavour.templates.parsing;
 
 import java.io.InputStream;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ResourceProvider {
     InputStream openResource(String path);
 }

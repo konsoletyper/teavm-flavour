@@ -23,10 +23,6 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
 @BindDirective(name = "insert")
 public class InsertComponent extends AbstractComponent {
     private Supplier<Fragment> fragment;
