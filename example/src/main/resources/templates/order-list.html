@@ -5,9 +5,11 @@
       <button type="button" class="btn btn-default navbar-btn" event:click="add()">Add</button>
       <form class="navbar-form navbar-right">
         <div class="form-group">
-          <w:date value="dataSource.startDateFilter" class="'form-control'"/>
-          <w:date value="dataSource.endDateFilter" class="'form-control'"/>
-          <input placeholder="Search..." type="text" class="form-control" html:change="t -> setFilter(t)"/>
+          <input type="text" class="form-control" html:change="dataSource.startDateFilter"
+                 w:date="{ format: 'short' }" />
+          <input type="text" class="form-control" html:change="dataSource.endDateFilter"
+                 w:date="{ format: 'short' }" />
+          <input placeholder="Search..." type="text" class="form-control" html:change="filter = it"/>
         </div>
         <button class="btn btn-default" type="button">Refresh</button>
       </form>

@@ -1,38 +1,44 @@
 <?use w:org.teavm.flavour.widgets?>
-<h3>Please, select a product</h3>
+<nav class="navbar navbar-default navbar-static-top">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse">
+      <form class="navbar-form navbar-right">
+        <div class="form-group">
+          <input placeholder="Search..." type="text" class="form-control" html:change="filter"/>
+        </div>
+        <button class="btn btn-default" type="button">Refresh</button>
+      </form>
+    </div>
+  </div>
+</nav>
+<nav>
+  <w:paginator data="cursor" page-link="(num, c) -> pageLink(num, c)"/>
+</nav>
+
 <div>
-  <table class="table-striped">
+  <table class="table table-striped">
     <thead>
       <tr>
-        <th>#</th>
+        <th></th>
         <th>SKU</th>
         <th>Name</th>
         <th>Price</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
-      <std:foreach var="product" index="i" in="cursor.fetch()">
+      <std:foreach var="product" in="cursor.fetch()">
         <tr>
-          <td><html:text value="i + offset + 1"/></td>
+          <td><button event:click="choose(product)">Choose</button></td>
           <td><html:text value="product.sku"/></td>
           <td><html:text value="product.name"/></td>
           <td align="right"><html:text value="'$' + product.unitPrice"/></td>
-          <td><button event:click="choose(i)">Choose</button></td>
         </tr>
       </std:foreach>
-      <std:if condition="products.empty">
+      <std:if condition="cursor.fetch().empty">
         <tr>
-          <td colspan="5"><i>There are no products satisfying given criteria</i></td>
+          <td colspan="4"><i>There are no products satisfying given criteria</i></td>
         </tr>
       </std:if>
     </tbody>
   </table>
 </div>
-<nav>
-  <button event:click="previousPage()" html:enabled="currentPage > 0">Previous</button>
-  Page
-  <input type="text" size="3" html:value="currentPage + 1" html:change="str -> parseCurrentPage(str)">
-  of <html:text value="pageCount"/>
-  <button event:click="nextPage()" html:enabled="currentPage < pageCount - 1">Next</button>
-</nav>

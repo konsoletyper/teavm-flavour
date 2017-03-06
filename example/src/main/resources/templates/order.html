@@ -26,6 +26,7 @@
           <span class="help-block">Address must be at most 200 characters long</span>
         </std:if>
       </div>
+
       <div class="form-group" attr:class="receiverNameField.valid ? 'form-group' : 'form-group has-error'">
         <label>Name of receiver</label>
         <input type="text" class="form-control" v:bind="receiverNameField"/>
@@ -37,10 +38,18 @@
         </std:if>
       </div>
 
+      <div class="form-group" attr:class="dateField.valid ? 'form-group' : 'form-group has-error'">
+        <label>Shipping date</label>
+        <input type="text" class="form-control" v:bind="receiverNameField" w:date="{ format: 'short' }"/>
+        <std:if condition="not dateNotNull">
+          <span class="help-block">Date is required</span>
+        </std:if>
+      </div>
+
       <div class="form-group" class="form-group">
         <label>Items</label>
         <div>
-          <table class="data">
+          <table class="table table-striped">
             <thead>
               <tr>
                 <th>#</th>
@@ -72,17 +81,14 @@
                   <td><w:action-link onclick="items.remove((int) index)">delete</w:action-link></td>
                 </tr>
               </std:foreach>
-              <!--
               <tr>
-                <td></td>
-                <td colspan="5">
+                <td colspan="8">
                   <std:if condition="items.empty">
                     <i>There are no items yet</i>
                   </std:if>
                   <button event:async-click="addProduct()">Add item</button>
                 </td>
               </tr>
-              -->
             </tbody>
             <tfoot>
               <tr>

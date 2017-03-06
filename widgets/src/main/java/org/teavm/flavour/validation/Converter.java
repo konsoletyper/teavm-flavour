@@ -103,12 +103,18 @@ public interface Converter<T> {
         return new Converter<Date>() {
             @Override
             public String makeString(Date value) {
+                if (value == null) {
+                    return "";
+                }
                 return dateFormat.format(value);
             }
 
             @Override
             public Date parse(String value) throws ConversionException {
                 value = value.trim();
+                if (value.isEmpty()) {
+                    return null;
+                }
                 ParsePosition position = new ParsePosition(0);
                 Date result = dateFormat.parse(value, position);
                 if (result == null || position.getIndex() != value.length()) {

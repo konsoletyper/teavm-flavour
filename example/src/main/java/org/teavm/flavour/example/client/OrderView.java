@@ -20,6 +20,7 @@ import java.util.List;
 import org.teavm.flavour.example.api.OrderDTO;
 import org.teavm.flavour.example.api.OrderFacade;
 import org.teavm.flavour.example.api.OrderItemDTO;
+import org.teavm.flavour.example.api.ProductDTO;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.BackgroundWorker;
 
@@ -28,11 +29,13 @@ public class OrderView {
     private Integer id;
     private OrderDTO order;
     private OrderFacade facade;
+    private ProductSelectionViewFactory productSelectionViewFactory;
     private List<OrderItem> items = new ArrayList<>();
     private BackgroundWorker background = new BackgroundWorker();
 
-    public OrderView(OrderFacade facade) {
+    public OrderView(OrderFacade facade, ProductSelectionViewFactory productSelectionViewFactory) {
         this.facade = facade;
+        this.productSelectionViewFactory = productSelectionViewFactory;
         order = new OrderDTO();
         order.address = "";
         order.receiverName = "";
@@ -60,6 +63,17 @@ public class OrderView {
 
     public List<OrderItem> getItems() {
         return items;
+    }
+
+    public void addProduct() {
+        ProductDTO product = ProductSelectionViewFactory.chooseProduct(productSelectionViewFactory);
+        if (product != null) {
+            OrderItemDTO itemData = new OrderItemDTO();
+            itemData.product = product;
+            itemData.amount = 1;
+            OrderItem item = new OrderItem(itemData);
+            items.add(item);
+        }
     }
 
     public boolean isLoading() {

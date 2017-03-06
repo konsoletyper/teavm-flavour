@@ -16,19 +16,17 @@
 package org.teavm.flavour.widgets;
 
 import java.text.DateFormat;
+import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
-import org.teavm.flavour.templates.BindAttribute;
-import org.teavm.flavour.templates.BindDirective;
-import org.teavm.flavour.templates.BindTemplate;
+import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Component;
-import org.teavm.flavour.templates.OptionalBinding;
-import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Templates;
-import org.teavm.flavour.templates.ValueChangeListener;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.MouseEvent;
@@ -37,90 +35,38 @@ import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 import org.teavm.jso.dom.html.TextRectangle;
 
-@BindDirective(name = "date")
-@BindTemplate("templates/flavour/widgets/date-field.html")
-public class DateField extends AbstractWidget {
-    private Supplier<Integer> size;
-    private Supplier<Date> value;
-    private Supplier<String> locale;
-    private Supplier<String> format;
-    private Supplier<String> cssClass = () -> "";
-    private ValueChangeListener<Date> changeListener;
+@BindAttributeDirective(name = "date", elements = "input")
+public class DateField implements Renderable {
+    private HTMLInputElement element;
+    private Supplier<DateFieldSettings> settings;
     private String cachedFormat;
     private String cachedLocale;
     private DateFormat cachedFormatObject;
     private HTMLElement dropDownElement;
     private Component dropDownComponent;
-    private HTMLInputElement inputElement;
 
-    public DateField(Slot slot) {
-        super(slot);
+    public DateField(HTMLElement element) {
+        this.element = (HTMLInputElement) element;
+        element.addEventListener("click", evt -> dropDown());
     }
 
-    public int getSize() {
-        Integer result = size != null ? size.get() : null;
-        return result != null ? result : 20;
-    }
-
-    @BindAttribute(name = "size")
-    @OptionalBinding
-    public void setSize(Supplier<Integer> size) {
-        this.size = size;
-    }
-
-    public Date getValue() {
-        return value.get();
-    }
-
-    public String getDateString() {
-        Date value = getValue();
-        return value != null ? cachedFormatObject.format(getValue()) : "";
-    }
-
-    @BindAttribute(name = "value")
-    public void setValue(Supplier<Date> value) {
-        this.value = value;
-    }
-
-    @BindAttribute(name = "locale")
-    @OptionalBinding
-    public void setLocale(Supplier<String> locale) {
-        this.locale = locale;
-    }
-
-    @BindAttribute(name = "format")
-    @OptionalBinding
-    public void setFormat(Supplier<String> format) {
-        this.format = format;
-    }
-
-    @BindAttribute(name = "value")
-    @OptionalBinding
-    public void setChangeListener(ValueChangeListener<Date> changeListener) {
-        this.changeListener = changeListener;
-    }
-
-    @BindAttribute(name = "class")
-    @OptionalBinding
-    public void setCssClass(Supplier<String> cssClass) {
-        this.cssClass = cssClass;
-    }
-
-    public String getCssClass() {
-        return cssClass.get();
+    @BindContent
+    public void setSettings(Supplier<DateFieldSettings> settings) {
+        this.settings = settings;
     }
 
     @Override
     public void render() {
         boolean formatChanged = false;
-        String newFormat = format != null ? format.get() : null;
+        DateFieldSettings settings = this.settings.get();
+        String newFormat = settings.getFormat();
         if (!Objects.equals(cachedFormat, newFormat)) {
             cachedFormat = newFormat;
             formatChanged = true;
         }
 
         boolean localeChanged = false;
-        String newLocale = locale != null ? locale.get() : null;
+        String newLocale = settings.getLocale();
         if (!Objects.equals(cachedLocale, newLocale)) {
             cachedLocale = newLocale;
             localeChanged = true;
@@ -140,11 +86,13 @@ public class DateField extends AbstractWidget {
                 cachedFormatObject = new SimpleDateFormat(cachedFormat, locale);
             }
         }
-        super.render();
     }
 
-    public void setInputElement(HTMLInputElement inputElement) {
-        this.inputElement = inputElement;
+    @Override
+    public void destroy() {
+        if (dropDownElement != null) {
+            closeDropDown();
+        }
     }
 
     public void dropDown() {
@@ -155,20 +103,27 @@ public class DateField extends AbstractWidget {
         dropDownElement.setAttribute("class", "flavour-dropdown flavour-dropdown-calendar");
 
         TextRectangle windowRect = HTMLDocument.current().getBody().getBoundingClientRect();
-        TextRectangle inputRect = inputElement.getBoundingClientRect();
+        TextRectangle inputRect = element.getBoundingClientRect();
         dropDownElement.getStyle().setProperty("right", windowRect.getWidth() - inputRect.getRight() + "px");
         dropDownElement.getStyle().setProperty("top", inputRect.getBottom() + "px");
 
-        CalendarDropDown dropDown = new CalendarDropDown(value, newValue -> {
+        CalendarDropDown dropDown = new CalendarDropDown(this::parseValue, newValue -> {
             closeDropDown();
-            if (changeListener != null) {
-                changeListener.changed(newValue);
-            }
+            element.setValue(cachedFormatObject.format(newValue));
         });
         dropDownComponent = Templates.bind(dropDown, dropDownElement);
 
         HTMLDocument.current().getBody().appendChild(dropDownElement);
         Window.setTimeout(() -> HTMLDocument.current().addEventListener("click", bodyListener), 0);
+    }
+
+    private Date parseValue() {
+        ParsePosition position = new ParsePosition(0);
+        Date result = cachedFormatObject.parse(element.getValue(), position);
+        if (result == null || position.getIndex() < element.getValue().length()) {
+            return null;
+        }
+        return result;
     }
 
     private void closeDropDown() {

@@ -45,6 +45,10 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
         return new OrderDataSource(orderFacade);
     }
 
+    public ProductSelectionViewFactory productSelectionViewFactory() {
+        return () -> new ProductSelectionView(productDataSet());
+    }
+
     @Override
     public void orderList() {
         setView(new OrderListView(orderDataSet()));
@@ -66,7 +70,7 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
 
     @Override
     public void newOrder() {
-        setView(new OrderView(orderFacade));
+        setView(new OrderView(orderFacade, productSelectionViewFactory()));
     }
 
     public ProductDataSource productDataSet() {
