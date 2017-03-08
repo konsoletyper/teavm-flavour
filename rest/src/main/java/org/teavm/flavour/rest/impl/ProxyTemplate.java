@@ -20,10 +20,6 @@ import java.util.List;
 import org.teavm.flavour.rest.processor.RequestProcessor;
 import org.teavm.flavour.rest.processor.ResponseProcessor;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ProxyTemplate {
     private List<RequestProcessor> requestProcessors;
     private List<ResponseProcessor> responseProcessors;

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ValuePathVisitor {
     void visit(RootValuePath path);
 

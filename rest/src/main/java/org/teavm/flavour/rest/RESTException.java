@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class RESTException extends RuntimeException {
     private static final long serialVersionUID = 347142891467254L;
 

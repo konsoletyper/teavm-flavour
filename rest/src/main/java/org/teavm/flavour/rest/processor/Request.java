@@ -18,10 +18,6 @@ package org.teavm.flavour.rest.processor;
 import java.util.Collection;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Request {
     HttpMethod getMethod();
 

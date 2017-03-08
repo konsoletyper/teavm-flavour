@@ -17,10 +17,6 @@ package org.teavm.flavour.rest.processor;
 
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Response {
     int getStatus();
 

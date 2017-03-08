@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class HttpStatusException extends RESTException {
     private static final long serialVersionUID = -6056726443529225254L;
     private final int status;

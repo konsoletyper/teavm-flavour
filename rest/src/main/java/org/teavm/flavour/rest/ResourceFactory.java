@@ -18,10 +18,6 @@ package org.teavm.flavour.rest;
 import org.teavm.flavour.rest.processor.RequestProcessor;
 import org.teavm.flavour.rest.processor.ResponseProcessor;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ResourceFactory<T> {
     T createResource(String baseUrl);
 

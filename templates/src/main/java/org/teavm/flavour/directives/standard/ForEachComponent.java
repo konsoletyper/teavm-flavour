@@ -68,7 +68,7 @@ public class ForEachComponent<T> extends AbstractComponent {
         Iterable<T> items = collection.get();
         if (items instanceof Collection<?>) {
             @SuppressWarnings("unchecked")
-            Collection<T> safeItems = (Collection<T>) (Collection<?>) items;
+            Collection<T> safeItems = (Collection<T>) items;
             newComputedCollection = new ArrayList<>(safeItems);
         } else {
             newComputedCollection = new ArrayList<>();
@@ -78,8 +78,7 @@ public class ForEachComponent<T> extends AbstractComponent {
         }
 
         for (int i = 0; i < newComputedCollection.size(); ++i) {
-            T item = newComputedCollection.get(i);
-            elementVariable = item;
+            elementVariable = newComputedCollection.get(i);
             indexVariable = i;
             if (i >= computedCollection.size()) {
                 Component childComponent = body.create();

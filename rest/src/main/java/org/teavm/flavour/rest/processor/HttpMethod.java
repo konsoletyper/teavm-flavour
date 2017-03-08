@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest.processor;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum HttpMethod {
     GET,
     PUT,

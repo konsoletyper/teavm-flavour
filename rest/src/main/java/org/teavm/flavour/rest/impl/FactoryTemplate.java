@@ -21,10 +21,6 @@ import org.teavm.flavour.rest.ResourceFactory;
 import org.teavm.flavour.rest.processor.RequestProcessor;
 import org.teavm.flavour.rest.processor.ResponseProcessor;
 
-/**
- *
- * @author Alexey Andreev
- */
 abstract class FactoryTemplate implements ResourceFactory<Object> {
     List<RequestProcessor> requestProcessors = new ArrayList<>();
     List<ResponseProcessor> responseProcessors = new ArrayList<>();

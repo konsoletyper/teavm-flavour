@@ -20,10 +20,6 @@ import java.util.Map;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.rest.processor.Response;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ResponseImpl implements Response {
     int status;
     Node content;

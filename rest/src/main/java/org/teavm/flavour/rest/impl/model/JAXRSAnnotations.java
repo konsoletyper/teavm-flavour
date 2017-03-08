@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-/**
- *
- * @author Alexey Andreev
- */
 final class JAXRSAnnotations {
     private static final String PREFIX = "javax.ws.rs.";
     public static final String PATH = PREFIX + "Path";

@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.rest.impl.model;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum Usage {
     PATH,
     HEADER,

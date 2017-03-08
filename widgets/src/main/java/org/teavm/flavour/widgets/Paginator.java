@@ -124,6 +124,9 @@ public class Paginator extends AbstractWidget {
     }
 
     private void replaceHash() {
+        if (linkGenerator == null) {
+            return;
+        }
         linkGenerator.accept(pageable.getCurrentPage(), hash -> {
             if (hash != null) {
                 Window.current().getHistory().replaceState(null, "", "#" + Window.encodeURI(hash));

@@ -15,9 +15,7 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.util.function.Consumer;
 import org.teavm.flavour.example.api.ProductDTO;
-import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.PagedCursor;
 import org.teavm.flavour.widgets.PopupContent;
@@ -42,10 +40,6 @@ public class ProductSelectionView implements PopupContent {
 
     public PagedCursor<ProductDTO> getCursor() {
         return cursor;
-    }
-
-    public void pageLink(int page, Consumer<String> consumer) {
-        Routing.build(ApplicationRoute.class, consumer).productPage(page);
     }
 
     public void setFilter(String filter) {
