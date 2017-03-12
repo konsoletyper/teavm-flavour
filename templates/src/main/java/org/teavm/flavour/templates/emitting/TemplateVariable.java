@@ -18,11 +18,12 @@ package org.teavm.flavour.templates.emitting;
 import org.teavm.metaprogramming.Value;
 
 class TemplateVariable {
+    String name;
     Value<VariableImpl> destination;
     Value<Object> source;
 
-    TemplateVariable(Value<VariableImpl> destination, Value<Object> source) {
-        this.destination = destination;
+    TemplateVariable(String name, Value<Object> source) {
+        this.name = name;
         this.source = source;
     }
 }

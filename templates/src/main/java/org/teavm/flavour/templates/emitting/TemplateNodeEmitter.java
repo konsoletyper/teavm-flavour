@@ -149,7 +149,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         return nestedInstances;
     }
 
-    private void emitDirectiveContent(DirectiveBinding rootNode, DirectiveBinding node,  Value<?> component,
+    private void emitDirectiveContent(DirectiveBinding rootNode, DirectiveBinding node, Value<?> component,
             List<TemplateVariable> variables) {
         context.location(node.getLocation());
         if (node.getContentMethodName() != null) {
@@ -167,14 +167,9 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         Value<?> instance = instances.get(directive);
         ReflectClass<?> componentType = findClass(directive.getClassName());
         for (DirectiveVariableBinding varBinding : directive.getVariables()) {
-            Value<VariableImpl> variableImpl = emit(() -> new VariableImpl());
             ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());
             Value<Object> source = lazy(() -> getter.invoke(instance.get()));
-            variables.add(new TemplateVariable(variableImpl, source));
-            context.addVariable(varBinding.getName(), () -> {
-                Value<VariableImpl> tmp = variableImpl;
-                return emit(() -> tmp.get().value);
-            });
+            variables.add(new TemplateVariable(varBinding.getName(), source));
         }
         for (NestedDirectiveBinding nestedBinding : directive.getNestedDirectives()) {
             for (DirectiveBinding nestedDirective : nestedBinding.getDirectives()) {

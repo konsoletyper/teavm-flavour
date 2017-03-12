@@ -50,6 +50,12 @@ class FragmentEmitter {
         return proxy(Fragment.class, (fProxy, fMethod, fArgs) -> {
             context.pushBoundVars();
 
+            for (TemplateVariable variable : variables) {
+                Value<VariableImpl> dest = emit(() -> new VariableImpl());
+                context.addVariable(variable.name, () -> emit(() -> dest.get().value));
+                variable.destination = dest;
+            }
+
             Value<DomComponentHandler> handler = proxy(DomComponentHandler.class, (proxy, method, args) -> {
                 switch (method.getName()) {
                     case "update":
