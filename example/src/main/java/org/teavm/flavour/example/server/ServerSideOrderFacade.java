@@ -91,7 +91,7 @@ public class ServerSideOrderFacade implements OrderFacade {
         order.setReceiverName(data.receiverName);
         order.setStatus(data.status);
         order.setShippingDate(data.date);
-        order.getItems().clear();
+        order.deleteAllItems();
         mapItems(data, order);
     }
 

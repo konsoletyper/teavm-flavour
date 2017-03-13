@@ -171,4 +171,11 @@ public class Order {
         item.setOrder(null);
         items.remove(item);
     }
+
+    public void deleteAllItems() {
+        for (OrderItem item : items) {
+            item.setOrder(null);
+        }
+        items.clear();
+    }
 }

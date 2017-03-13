@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.example.api;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -24,6 +25,9 @@ public class OrderEditDTO {
     public OrderStatus status;
     public String receiverName;
     public String address;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "YYYY-MM-dd")
     public Date date;
+
     public List<OrderEditItemDTO> items = new ArrayList<>();
 }
