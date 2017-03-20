@@ -18,5 +18,5 @@ package org.teavm.flavour.templates;
 import org.teavm.jso.dom.html.HTMLElement;
 
 public interface Modifier {
-    Renderable apply(HTMLElement element);
+    Renderable apply(ModifierTarget target);
 }

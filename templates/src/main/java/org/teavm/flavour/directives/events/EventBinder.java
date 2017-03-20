@@ -16,12 +16,13 @@
 package org.teavm.flavour.directives.events;
 
 import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeDirective(name = { "change" })
 public class EventBinder extends BaseEventBinder<Event> {
-    public EventBinder(HTMLElement element) {
-        super(element);
+    public EventBinder(ModifierTarget target) {
+        super(target);
     }
 }

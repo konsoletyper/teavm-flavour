@@ -18,6 +18,7 @@ package org.teavm.flavour.directives.html;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ElementConsumer;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
@@ -26,8 +27,8 @@ public class ExposeElementComponent implements Renderable {
     private HTMLElement element;
     private ElementConsumer elementConsumer;
 
-    public ExposeElementComponent(HTMLElement element) {
-        this.element = element;
+    public ExposeElementComponent(ModifierTarget target) {
+        this.element = target.getElement();
     }
 
     @BindContent

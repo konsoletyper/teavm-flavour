@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirectiveName;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
@@ -30,8 +31,8 @@ public class ComputedAttribute<T> implements Renderable {
     private Object cachedValue;
     private String name;
 
-    public ComputedAttribute(HTMLElement element) {
-        this.element = element;
+    public ComputedAttribute(ModifierTarget target) {
+        this.element = target.getElement();
     }
 
     @BindContent

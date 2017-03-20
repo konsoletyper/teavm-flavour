@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Component;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
@@ -32,12 +33,11 @@ import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.MouseEvent;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
-import org.teavm.jso.dom.html.HTMLInputElement;
 import org.teavm.jso.dom.html.TextRectangle;
 
 @BindAttributeDirective(name = "date", elements = "input")
 public class DateField implements Renderable {
-    private HTMLInputElement element;
+    private ModifierTarget target;
     private Supplier<DateFieldSettings> settings;
     private String cachedFormat;
     private String cachedLocale;
@@ -45,9 +45,9 @@ public class DateField implements Renderable {
     private HTMLElement dropDownElement;
     private Component dropDownComponent;
 
-    public DateField(HTMLElement element) {
-        this.element = (HTMLInputElement) element;
-        element.addEventListener("click", evt -> dropDown());
+    public DateField(ModifierTarget target) {
+        this.target = target;
+        target.getElement().addEventListener("click", evt -> dropDown());
     }
 
     @BindContent
@@ -103,13 +103,13 @@ public class DateField implements Renderable {
         dropDownElement.setAttribute("class", "flavour-dropdown flavour-dropdown-calendar");
 
         TextRectangle windowRect = HTMLDocument.current().getBody().getBoundingClientRect();
-        TextRectangle inputRect = element.getBoundingClientRect();
+        TextRectangle inputRect = target.getElement().getBoundingClientRect();
         dropDownElement.getStyle().setProperty("right", windowRect.getWidth() - inputRect.getRight() + "px");
         dropDownElement.getStyle().setProperty("top", inputRect.getBottom() + "px");
 
         CalendarDropDown dropDown = new CalendarDropDown(this::parseValue, newValue -> {
             closeDropDown();
-            element.setValue(cachedFormatObject.format(newValue));
+            target.updateValue(cachedFormatObject.format(newValue));
         });
         dropDownComponent = Templates.bind(dropDown, dropDownElement);
 
@@ -119,8 +119,8 @@ public class DateField implements Renderable {
 
     private Date parseValue() {
         ParsePosition position = new ParsePosition(0);
-        Date result = cachedFormatObject.parse(element.getValue(), position);
-        if (result == null || position.getIndex() < element.getValue().length()) {
+        Date result = cachedFormatObject.parse(target.getValue(), position);
+        if (result == null || position.getIndex() < target.getValue().length()) {
             return null;
         }
         return result;

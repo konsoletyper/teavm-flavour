@@ -18,8 +18,10 @@ package org.teavm.flavour.validation;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Templates;
+import org.teavm.flavour.templates.ValueChangeListener;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
@@ -27,13 +29,13 @@ import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeDirective(name = "bind", elements = { "textarea", "input" })
 public class BindValidation<T> implements Renderable {
-    private HTMLElement element;
+    private ModifierTarget target;
     private boolean bound;
     private Supplier<Validation<T>> validation;
     private Validation<T> currentValidation;
 
-    public BindValidation(HTMLElement element) {
-        this.element = element;
+    public BindValidation(ModifierTarget target) {
+        this.target = target;
     }
 
     @BindContent
@@ -44,9 +46,9 @@ public class BindValidation<T> implements Renderable {
     @Override
     public void render() {
         if (!bound) {
-            element.addEventListener("change", listener);
-            element.listenFocus(focusListener);
-            element.listenBlur(blurListener);
+            target.addValueChangeListener(listener);
+            target.getElement().listenFocus(focusListener);
+            target.getElement().listenBlur(blurListener);
             bound = true;
         }
         Validation<T> v = validation.get();
@@ -57,8 +59,8 @@ public class BindValidation<T> implements Renderable {
             }
             v.bindings.add(this);
         }
-        if (!hasFocus(element) && v.validFormat) {
-            setValue(element, v.converter.get().makeString(v.supplier.get()));
+        if (!hasFocus(target.getElement()) && v.validFormat) {
+            setValue(target.getElement(), v.converter.get().makeString(v.supplier.get()));
         }
     }
 
@@ -68,16 +70,16 @@ public class BindValidation<T> implements Renderable {
             currentValidation.bindings.remove(this);
         }
         if (bound) {
-            element.removeEventListener("change", listener);
-            element.neglectFocus(focusListener);
-            element.neglectBlur(blurListener);
+            target.removeValueChangeListener(listener);
+            target.getElement().neglectFocus(focusListener);
+            target.getElement().neglectBlur(blurListener);
             bound = false;
         }
     }
 
     void check() {
         Validation<T> v = validation.get();
-        String text = getValue(element);
+        String text = target.getValue();
         T value;
         try {
             value = v.converter.get().parse(text);
@@ -98,21 +100,14 @@ public class BindValidation<T> implements Renderable {
         v.consumer.accept(value);
     }
 
-    private EventListener<Event> listener = event -> {
+    private ValueChangeListener<String> listener = value -> {
         check();
         Templates.update();
     };
 
-    private EventListener<Event> focusListener = event -> {
-        Templates.update();
-    };
+    private EventListener<Event> focusListener = event -> Templates.update();
 
-    private EventListener<Event> blurListener = event -> {
-        Templates.update();
-    };
-
-    @JSBody(params = "elem", script = "return elem.value;")
-    private static native String getValue(HTMLElement elem);
+    private EventListener<Event> blurListener = event -> Templates.update();
 
     @JSBody(params = { "elem", "value" }, script = "elem.value = value;")
     private static native void setValue(HTMLElement elem, String value);

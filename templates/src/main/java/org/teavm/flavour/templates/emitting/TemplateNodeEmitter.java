@@ -29,6 +29,7 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Modifier;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
@@ -181,10 +182,10 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     private Value<Modifier> emitAttributeDirective(AttributeDirectiveBinding binding) {
         context.location(binding.getLocation());
         ReflectClass<Renderable> directiveClass = findClass(binding.getClassName()).asSubclass(Renderable.class);
-        ReflectMethod ctor = directiveClass.getJMethod("<init>", HTMLElement.class);
+        ReflectMethod ctor = directiveClass.getJMethod("<init>", ModifierTarget.class);
 
         return proxy(Modifier.class, (instance, method, args) -> {
-            Value<HTMLElement> elem = emit(() -> (HTMLElement) args[0]);
+            Value<ModifierTarget> elem = emit(() -> (ModifierTarget) args[0]);
             Value<Renderable> result = emit(() -> (Renderable) ctor.construct(elem.get()));
 
             for (DirectiveFunctionBinding function : binding.getFunctions()) {

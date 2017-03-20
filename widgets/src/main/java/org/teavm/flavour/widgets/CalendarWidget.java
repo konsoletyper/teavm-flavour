@@ -119,7 +119,7 @@ public class CalendarWidget extends AbstractWidget {
     @Override
     public void render() {
         Date newDate = currentDate.get();
-        if (!newDate.equals(cachedDate)) {
+        if (!Objects.equals(newDate, cachedDate)) {
             cachedDate = newDate;
             rebuildCurrentDate();
         }

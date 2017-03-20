@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 konsoletyper.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,16 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.directives.events;
+package org.teavm.flavour.templates;
 
-import org.teavm.flavour.templates.BindAttributeDirective;
-import org.teavm.flavour.templates.ModifierTarget;
-import org.teavm.jso.dom.events.MouseEvent;
 import org.teavm.jso.dom.html.HTMLElement;
 
-@BindAttributeDirective(name = { "async-click", "async-dblclick", "async-mouseup", "async-mousedown" })
-public class AsyncMouseBinder extends BaseAsyncEventBinder<MouseEvent> {
-    public AsyncMouseBinder(ModifierTarget target) {
-        super(target);
-    }
+public interface ModifierTarget {
+    HTMLElement getElement();
+
+    String getValue();
+
+    void updateValue(String value);
+
+    void addValueChangeListener(ValueChangeListener<String> listener);
+
+    void removeValueChangeListener(ValueChangeListener<String> listener);
 }

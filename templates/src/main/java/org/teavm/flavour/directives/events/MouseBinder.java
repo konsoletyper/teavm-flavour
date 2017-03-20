@@ -16,12 +16,13 @@
 package org.teavm.flavour.directives.events;
 
 import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.jso.dom.events.MouseEvent;
 import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeDirective(name = { "click", "dblclick", "mouseup", "mousedown" })
 public class MouseBinder extends BaseEventBinder<MouseEvent> {
-    public MouseBinder(HTMLElement element) {
+    public MouseBinder(ModifierTarget element) {
         super(element);
     }
 }

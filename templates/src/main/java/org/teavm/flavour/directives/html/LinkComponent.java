@@ -18,18 +18,19 @@ package org.teavm.flavour.directives.html;
 import java.util.function.Consumer;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.dom.html.HTMLElement;
 
-@BindAttributeDirective(name = "link")
+@BindAttributeDirective(name = "link", elements = "a")
 public class LinkComponent implements Renderable {
     private HTMLElement element;
     private String value;
     private Consumer<Consumer<String>> path;
 
-    public LinkComponent(HTMLElement element) {
-        this.element = element;
+    public LinkComponent(ModifierTarget target) {
+        this.element = target.getElement();
     }
 
     private Consumer<String> linkConsumer = str -> {

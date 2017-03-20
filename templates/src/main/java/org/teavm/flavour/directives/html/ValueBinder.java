@@ -19,8 +19,8 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
-import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 
 @BindAttributeDirective(name = "value")
@@ -29,8 +29,8 @@ public class ValueBinder<T> implements Renderable {
     private Supplier<T> value;
     private Object cachedValue;
 
-    public ValueBinder(HTMLElement element) {
-        this.element = (HTMLInputElement) element;
+    public ValueBinder(ModifierTarget target) {
+        this.element = (HTMLInputElement) target.getElement();
     }
 
     @BindContent

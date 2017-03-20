@@ -18,6 +18,7 @@ package org.teavm.flavour.directives.events;
 import java.util.function.Consumer;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindDirectiveName;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
@@ -29,8 +30,8 @@ public abstract class BaseEventBinder<T extends Event> implements Renderable {
     private EventListener<T> action;
     private boolean bound;
 
-    public BaseEventBinder(HTMLElement element) {
-        this.element = element;
+    public BaseEventBinder(ModifierTarget target) {
+        this.element = target.getElement();
     }
 
     @BindDirectiveName

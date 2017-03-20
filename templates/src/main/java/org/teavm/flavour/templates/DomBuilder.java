@@ -19,7 +19,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import org.teavm.jso.JSBody;
 import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.xml.Document;
 import org.teavm.jso.dom.xml.Element;
@@ -99,7 +102,7 @@ public class DomBuilder {
         if (stack.isEmpty()) {
             throw new IllegalStateException("Can't apply modifier to root node");
         }
-        Renderable renderable = modifier.apply((HTMLElement) stack.peek().element);
+        Renderable renderable = modifier.apply(stack.peek());
         renderables.add(renderable);
         return this;
     }
@@ -121,8 +124,94 @@ public class DomBuilder {
         return renderables;
     }
 
-    static class Item {
+    static class Item implements ModifierTarget {
         Element element;
         Slot slot;
+        Object valueChangeListeners;
+        private EventListener<Event> changeListener;
+
+        @Override
+        public HTMLElement getElement() {
+            return (HTMLElement) element;
+        }
+
+        @Override
+        public void updateValue(String value) {
+            updateValueNative(element, value);
+            triggerValueChanged(value);
+        }
+
+        private void triggerValueChanged(String value) {
+            if (valueChangeListeners == null) {
+                return;
+            }
+            if (valueChangeListeners instanceof List<?>) {
+                @SuppressWarnings("unchecked")
+                List<ValueChangeListener<String>> listeners =
+                        (List<ValueChangeListener<String>>) valueChangeListeners;
+                for (ValueChangeListener<String> listener : listeners) {
+                    listener.changed(value);
+                }
+            } else {
+                @SuppressWarnings("unchecked")
+                ValueChangeListener<String> listener = (ValueChangeListener<String>) valueChangeListeners;
+                listener.changed(value);
+            }
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void addValueChangeListener(ValueChangeListener<String> listener) {
+            if (valueChangeListeners == null) {
+                valueChangeListeners = listener;
+                HTMLElement htmlElement = (HTMLElement) element;
+                createChangeListener();
+                htmlElement.addEventListener("change", changeListener);
+            } else if (valueChangeListeners instanceof List<?>) {
+                List<ValueChangeListener<String>> listeners =
+                        (List<ValueChangeListener<String>>) valueChangeListeners;
+                listeners.add(listener);
+            } else {
+                List<ValueChangeListener<String>> listeners = new ArrayList<>(2);
+                listeners.add((ValueChangeListener<String>) valueChangeListeners);
+                listeners.add(listener);
+                valueChangeListeners = listeners;
+            }
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void removeValueChangeListener(ValueChangeListener<String> listener) {
+            if (valueChangeListeners != null) {
+                if (valueChangeListeners == listener) {
+                    HTMLElement htmlElement = (HTMLElement) element;
+                    htmlElement.removeEventListener("change", changeListener);
+                    changeListener = null;
+                    valueChangeListeners = null;
+                } else if (valueChangeListeners instanceof List<?>) {
+                    List<ValueChangeListener<String>> listeners =
+                            (List<ValueChangeListener<String>>) valueChangeListeners;
+                    listeners.remove(listener);
+                    if (listeners.size() == 1) {
+                        valueChangeListeners = listeners.get(0);
+                    }
+                }
+            }
+        }
+
+        private void createChangeListener() {
+            changeListener = event -> triggerValueChanged(getValue());
+        }
+
+        @Override
+        public String getValue() {
+            return getValueNative(element);
+        }
+
+        @JSBody(params = { "element", "value" }, script = "element.value = value;")
+        private static native void updateValueNative(Element element, String value);
+
+        @JSBody(params = "element", script = "return element.value;")
+        private static native String getValueNative(Element element);
     }
 }

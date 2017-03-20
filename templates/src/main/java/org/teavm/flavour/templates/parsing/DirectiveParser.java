@@ -51,6 +51,7 @@ import org.teavm.flavour.templates.BindDirective;
 import org.teavm.flavour.templates.BindDirectiveName;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.IgnoreContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.dom.html.HTMLElement;
@@ -150,10 +151,10 @@ class DirectiveParser {
 
     private void parseAttributeConstructor(AttributeDirectiveMetadata metadata) {
         ClassDescriber cls = metadata.cls;
-        metadata.constructor = cls.getMethod("<init>", new GenericClass(HTMLElement.class.getName()));
+        metadata.constructor = cls.getMethod("<init>", new GenericClass(ModifierTarget.class.getName()));
         if (metadata.constructor == null) {
             error("Class " + cls.getName() + " declared by directive package does not have constructor "
-                    + "that takes " + HTMLElement.class.getName());
+                    + "that takes " + ModifierTarget.class.getName());
         }
     }
 

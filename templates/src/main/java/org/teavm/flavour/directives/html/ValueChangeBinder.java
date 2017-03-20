@@ -17,6 +17,7 @@ package org.teavm.flavour.directives.html;
 
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.ValueChangeListener;
 import org.teavm.jso.dom.events.Event;
@@ -26,12 +27,12 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 
 @BindAttributeDirective(name = "change")
 public class ValueChangeBinder implements Renderable {
-    private HTMLInputElement element;
+    private ModifierTarget target;
     private ValueChangeListener<String> listener;
     private boolean bound;
 
-    public ValueChangeBinder(HTMLElement element) {
-        this.element = (HTMLInputElement) element;
+    public ValueChangeBinder(ModifierTarget target) {
+        this.target = target;
     }
 
     @BindContent
@@ -43,7 +44,7 @@ public class ValueChangeBinder implements Renderable {
     public void render() {
         if (!bound) {
             bound = true;
-            element.addEventListener("change", eventListener);
+            target.addValueChangeListener(listener);
         }
     }
 
@@ -51,9 +52,7 @@ public class ValueChangeBinder implements Renderable {
     public void destroy() {
         if (bound) {
             bound = false;
-            element.removeEventListener("change", eventListener);
+            target.removeValueChangeListener(listener);
         }
     }
-
-    private EventListener<Event> eventListener = evt -> listener.changed(element.getValue());
 }

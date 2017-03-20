@@ -18,6 +18,7 @@ package org.teavm.flavour.directives.html;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
+import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
@@ -28,8 +29,8 @@ public class EnabledBinder implements Renderable {
     private Supplier<Boolean> value;
     private boolean cachedValue = true;
 
-    public EnabledBinder(HTMLElement element) {
-        this.element = (HTMLInputElement) element;
+    public EnabledBinder(ModifierTarget target) {
+        this.element = (HTMLInputElement) target.getElement();
     }
 
     @BindContent
