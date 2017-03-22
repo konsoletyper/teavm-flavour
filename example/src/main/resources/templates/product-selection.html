@@ -1,12 +1,15 @@
 <?use w:org.teavm.flavour.widgets?>
-<nav class="navbar navbar-default navbar-static-top">
+<nav class="navbar navbar-static-top">
   <div class="container-fluid">
     <div class="collapse navbar-collapse">
+      <button type="button" class="btn btn-default navbar-btn" event:click="cursor.refresh()"
+              html:enabled="not cursor.loading">
+        <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+      </button>
       <form class="navbar-form navbar-right">
         <div class="form-group">
           <input placeholder="Search..." type="text" class="form-control" html:change="filter"/>
         </div>
-        <button class="btn btn-default" type="button">Refresh</button>
       </form>
     </div>
   </div>
@@ -28,7 +31,7 @@
     <tbody>
       <std:foreach var="product" in="cursor.fetch()">
         <tr>
-          <td><button event:click="choose(product)">Choose</button></td>
+          <td><button event:click="choose(product)" class="btn btn-default btn-sm">Choose</button></td>
           <td><html:text value="product.sku"/></td>
           <td><html:text value="product.name"/></td>
           <td align="right"><html:text value="'$' + product.unitPrice"/></td>

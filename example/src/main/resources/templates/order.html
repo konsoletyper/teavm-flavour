@@ -1,4 +1,3 @@
-<?import org.teavm.flavour.templates.util.Formatter?>
 <?import org.teavm.flavour.validation.Converter?>
 <?import org.teavm.flavour.example.model.OrderStatus?>
 <?use w:org.teavm.flavour.widgets?>
@@ -15,104 +14,121 @@
   <v:validation of="order.date" as="dateField" convert="Converter.shortDateFormat()">
     <v:check rule="it != null" as="dateNotNull"/>
   </v:validation>
-  <div>
-    <form>
-      <div class="form-group">
-        <label>Status</label>
-        <select class="form-control" html:value="order.status" html:change="order.status" html:enabled="not fresh">
-          <option value="PLANNED">Planned</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="INVALID">Invalid</option>
-        </select>
-      </div>
-
-      <div class="form-group" attr:class="addressField.valid ? 'form-group' : 'form-group has-error'">
-        <label>Delivery address</label>
-        <input type="text" class="form-control" v:bind="addressField"/>
-        <std:if condition="not addressNotEmpty">
-          <span class="help-block">Address is required</span>
-        </std:if>
-        <std:if condition="not addressNotTooLong">
-          <span class="help-block">Address must be at most 200 characters long</span>
-        </std:if>
-      </div>
-
-      <div class="form-group" attr:class="receiverNameField.valid ? 'form-group' : 'form-group has-error'">
-        <label>Name of receiver</label>
-        <input type="text" class="form-control" v:bind="receiverNameField"/>
-        <std:if condition="not receiverNameNotEmpty">
-          <span class="help-block">Name is required</span>
-        </std:if>
-        <std:if condition="not receiverNameNotTooLong">
-          <span class="help-block">Name must at most 100 characters long</span>
-        </std:if>
-      </div>
-
-      <div class="form-group" attr:class="dateField.valid ? 'form-group' : 'form-group has-error'">
-        <label>Shipping date</label>
-        <input type="text" class="form-control" v:bind="dateField" w:date="{ format: 'short' }"/>
-        <std:if condition="not dateNotNull">
-          <span class="help-block">Date is required</span>
-        </std:if>
-      </div>
-
-      <div class="form-group" class="form-group">
-        <label>Items</label>
-        <div>
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>SKU</th>
-                <th>Product</th>
-                <th>Unit price</th>
-                <th colspan="2">Amount</th>
-                <th>Price</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <std:foreach var="item" index="index" in="items">
-                <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
-                  <td align="right"><html:text value="index + 1"/></td>
-                  <td><html:text value="item.data.product.sku"/></td>
-                  <td><html:text value="item.data.product.name"/></td>
-                  <td align="right"><html:text value="'$' + item.data.unitPrice"/></td>
-                  <td>
-                    <w:action-link onclick="item.more()">more</w:action-link>
-                    <w:action-link visible="item.data.amount > 1" onclick="item.less()">less</w:action-link>
-                  </td>
-                  <td align="right">
-                    <input type="text" html:value="item.data.amount" size="3"
-                           attr:class="item.invalidAmountString ? 'error' : ''"
-                           html:change="item.parseAmount(it)">
-                  </td>
-                  <td align="right"><html:text value="'$' + item.data.price"/></td>
-                  <td><w:action-link onclick="items.remove((int) index)">delete</w:action-link></td>
-                </tr>
-              </std:foreach>
-              <tr>
-                <td colspan="8">
-                  <std:if condition="items.empty">
-                    <i>There are no items yet</i>
-                  </std:if>
-                  <button event:async-click="addProduct()" type="button" class="btn btn-default">Add item</button>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="6">Total:</td>
-                <td align="right"><html:text value="'$' + total"/></td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
+  <div class="container-fluid">
+    <div>
+      <form>
+        <div class="form-group">
+          <label>Status</label>
+          <select class="form-control" html:value="order.status" html:change="order.status" html:enabled="not fresh">
+            <option value="PLANNED">Planned</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="INVALID">Invalid</option>
+          </select>
         </div>
-      </div>
 
-      <button type="button" class="btn btn-default" event:click="validator.submit(() -> save())"
-              html:enabled="validator.valid">Save</button>
-    </form>
+        <div class="form-group" attr:class="addressField.valid ? 'form-group' : 'form-group has-error'">
+          <label>Delivery address</label>
+          <input type="text" class="form-control" v:bind="addressField"/>
+          <std:if condition="not addressNotEmpty">
+            <span class="help-block">Address is required</span>
+          </std:if>
+          <std:if condition="not addressNotTooLong">
+            <span class="help-block">Address must be at most 200 characters long</span>
+          </std:if>
+        </div>
+
+        <div class="form-group" attr:class="receiverNameField.valid ? 'form-group' : 'form-group has-error'">
+          <label>Name of receiver</label>
+          <input type="text" class="form-control" v:bind="receiverNameField"/>
+          <std:if condition="not receiverNameNotEmpty">
+            <span class="help-block">Name is required</span>
+          </std:if>
+          <std:if condition="not receiverNameNotTooLong">
+            <span class="help-block">Name must at most 100 characters long</span>
+          </std:if>
+        </div>
+
+        <div class="form-group" attr:class="dateField.valid ? 'form-group' : 'form-group has-error'">
+          <label>Shipping date</label>
+          <input type="text" class="form-control" v:bind="dateField" w:date="{ format: 'short' }"/>
+          <std:if condition="not dateNotNull">
+            <span class="help-block">Date is required</span>
+          </std:if>
+        </div>
+
+        <div class="form-group" class="form-group">
+          <label>Items</label>
+          <div>
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>SKU</th>
+                  <th>Product</th>
+                  <th>Unit price</th>
+                  <th>Amount</th>
+                  <th>Price</th>
+                  <th></th>
+
+                </tr>
+              </thead>
+              <tbody>
+                <std:foreach var="item" index="index" in="items">
+                  <tr attr:class="index % 2 == 0 ? 'even' : 'odd'">
+                    <td align="right"><html:text value="index + 1"/></td>
+                    <td><html:text value="item.data.product.sku"/></td>
+                    <td><html:text value="item.data.product.name"/></td>
+                    <td align="right"><html:text value="'$' + item.data.unitPrice"/></td>
+                    <td align="right" width="120">
+                      <div class="input-group input-group-sm">
+                        <input type="text" html:value="item.data.amount" size="3"
+                               attr:class="'form-control ' + (item.invalidAmountString ? 'error' : '')"
+                               html:change="item.parseAmount(it)">
+                        <div class="input-group-btn">
+                          <button type="button" class="btn btn-default" event:click="item.more()" aria-label="more">
+                            <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
+                          </button>
+                          <button type="button" class="btn btn-default" event:click="item.less()"
+                                  html:enabled="item.data.amount > 1" aria-label="less">
+                            <span class="glyphicon glyphicon-minus" aria-hidden="true"></span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                    <td align="right"><html:text value="'$' + item.data.price"/></td>
+                    <td>
+                      <div class="btn-group btn-group-xs">
+                        <button type="button" class="btn btn-default"event:click="items.remove((int) index)"
+                                aria-label="delete">
+                          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </std:foreach>
+                <tr>
+                  <td colspan="7">
+                    <std:if condition="items.empty">
+                      <i>There are no items yet</i>
+                    </std:if>
+                    <button event:async-click="addProduct()" type="button" class="btn btn-default">Add item</button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="5">Total:</td>
+                  <td align="right"><html:text value="'$' + total"/></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" event:click="validator.submit(() -> save())"
+                html:enabled="validator.valid">Save</button>
+      </form>
+    </div>
   </div>
 </v:validator>

@@ -36,7 +36,7 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
     public static void main(String[] args) {
         Client client = new Client();
         RouteBinder binder = new RouteBinder();
-        RouteBinder.withDefault(binder, ApplicationRoute.class, route -> route.productList());
+        RouteBinder.withDefault(binder, ApplicationRoute.class, route -> route.orderList());
         binder.add(client).update();
         client.bind("application-content");
     }
@@ -65,7 +65,7 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
 
     @Override
     public void order(int id) {
-        setView(new OrderView(orderFacade, id));
+        setView(new OrderView(orderFacade, productSelectionViewFactory(), id));
     }
 
     @Override

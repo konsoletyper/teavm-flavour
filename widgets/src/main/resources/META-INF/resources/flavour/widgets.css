@@ -1,28 +1,3 @@
-a, span.flavour-action-link {
-    color: blue;
-    cursor: pointer;
-}
-a:hover, span.flavour-action-link:hover {
-    color: red;
-}
-a {
-    text-decoration: underline;
-}
-span.flavour-action-link, span.flavour-disabled-action-link {
-    border-bottom-color: blue;
-    border-bottom-width: 1px;
-    border-bottom-style: dashed;
-}
-span.flavour-disabled-action-link {
-    cursor: default;
-}
-span.flavour-action-link:hover {
-    border-bottom-color: red;
-}
-span.flavour-hidden-action-link {
-    display: none;
-}
-
 .flavour-calendar {
     width: 220px;
     height: 150px;
@@ -173,44 +148,4 @@ span.flavour-hidden-action-link {
 .flavour-dropdown-calendar {
     width: 222px;
     height: 152px;
-}
-
-
-.flavour-popup-wrapper {
-    position: fixed;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url(popup-background.png);
-    background-repeat: repeat;
-}
-.flavour-popup-layout {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    margin-left: -400px;
-    margin-top: -400px;
-    width: 800px;
-    height: 800px;
-    background-color: white;
-    border-width: 1px;
-    border-color: rgb(160,160,160);
-    border-style: solid;
-    border-radius: 5px;
-    padding: 10px;
-    overflow: auto;
-}
-.flavour-popup-close-button-container {
-    position: absolute;
-    height: 22px;
-    right: 10px;
-    top: 10px;
-}
-.flavour-popup {
-    position: absolute;
-    top: 32px;
-    bottom: 10px;
-    right: 10px;
-    left: 10px;
 }

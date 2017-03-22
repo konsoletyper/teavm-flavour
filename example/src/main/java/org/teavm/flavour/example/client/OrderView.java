@@ -44,8 +44,9 @@ public class OrderView {
         initOrder();
     }
 
-    OrderView(OrderFacade facade, Integer id) {
+    OrderView(OrderFacade facade, ProductSelectionViewFactory productSelectionViewFactory, Integer id) {
         this.facade = facade;
+        this.productSelectionViewFactory = productSelectionViewFactory;
         this.id = id;
         initOrder();
         load();

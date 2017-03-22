@@ -54,7 +54,6 @@ public final class Popup {
     private static void showModal(PopupContent content, final AsyncCallback<Void> callback) {
         final Popup popup = new Popup(Templates.create(content));
         popup.wrapper = document.createElement("div");
-        popup.wrapper.setAttribute("class", "flavour-popup-wrapper");
         document.getBody().appendChild(popup.wrapper);
         popup.component = Templates.bind(popup, popup.wrapper);
         popup.callback = callback;
