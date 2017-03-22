@@ -26,12 +26,14 @@ abstract class FactoryTemplate implements ResourceFactory<Object> {
     List<ResponseProcessor> responseProcessors = new ArrayList<>();
 
     @Override
-    public void add(RequestProcessor processor) {
+    public ResourceFactory<Object> add(RequestProcessor processor) {
         requestProcessors.add(processor);
+        return this;
     }
 
     @Override
-    public void add(ResponseProcessor processor) {
+    public ResourceFactory<Object> add(ResponseProcessor processor) {
         responseProcessors.add(processor);
+        return this;
     }
 }

@@ -19,16 +19,27 @@ import java.util.function.Consumer;
 import org.teavm.flavour.example.api.OrderFacade;
 import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.rest.RESTClient;
+import org.teavm.flavour.rest.processor.Response;
+import org.teavm.flavour.rest.processor.ResponseProcessor;
 import org.teavm.flavour.routing.PathParameter;
 import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.ApplicationTemplate;
 import org.teavm.flavour.widgets.RouteBinder;
+import org.teavm.jso.JSBody;
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.html.HTMLElement;
 
 @BindTemplate("templates/main.html")
 public final class Client extends ApplicationTemplate implements ApplicationRoute {
-    private ProductFacade productFacade = RESTClient.factory(ProductFacade.class).createResource("api");
-    private OrderFacade orderFacade = RESTClient.factory(OrderFacade.class).createResource("api");
+    private ResponseProcessor responseProcessor = response -> processResponse(response);
+
+    private ProductFacade productFacade = RESTClient.factory(ProductFacade.class)
+            .add(responseProcessor)
+            .createResource("api");
+    private OrderFacade orderFacade = RESTClient.factory(OrderFacade.class)
+            .add(responseProcessor)
+            .createResource("api");
 
     private Client() {
     }
@@ -104,4 +115,14 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
     public ApplicationRoute route(Consumer<String> c) {
         return Routing.build(ApplicationRoute.class, c);
     }
+
+    private void processResponse(Response response) {
+        int statusMajor = response.getStatus() / 100;
+        if (statusMajor != 2 && statusMajor != 3) {
+            setClassName(Window.current().getDocument().getBody(), "connection-failure");
+        }
+    }
+
+    @JSBody(params = { "element", "className" }, script = "element.className = className;")
+    private static native void setClassName(HTMLElement element, String className);
 }

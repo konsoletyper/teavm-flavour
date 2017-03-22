@@ -1,4 +1,34 @@
-body { padding-top: 70px; }
+body {
+    padding-top: 70px;
+}
+
+body.connection-failure {
+    padding-top: 110px;
+}
+
+body.connection-failure .navbar-fixed-top {
+    top: 40px;
+}
+
+body.connection-failure div.connection-failure-indicator {
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    display: block;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 20px;
+    padding-right: 20px;
+    background-color: rgb(255,220,220);
+    font-weight: bold;
+}
+
+div.connection-failure-indicator {
+    display: none;
+}
 
 .filter-applied {
     color: blue;

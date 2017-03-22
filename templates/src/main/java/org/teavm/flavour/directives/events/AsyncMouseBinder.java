@@ -18,7 +18,6 @@ package org.teavm.flavour.directives.events;
 import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.jso.dom.events.MouseEvent;
-import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeDirective(name = { "async-click", "async-dblclick", "async-mouseup", "async-mousedown" })
 public class AsyncMouseBinder extends BaseAsyncEventBinder<MouseEvent> {

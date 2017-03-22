@@ -25,7 +25,7 @@ import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
 @SkipJVM
-public class RESTTest {
+public class RestIT {
     private TestService service = RESTClient.factory(TestService.class).createResource(getUrl());
 
     @Test

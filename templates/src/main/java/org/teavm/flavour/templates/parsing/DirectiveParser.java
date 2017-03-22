@@ -54,7 +54,6 @@ import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.jso.dom.html.HTMLElement;
 
 class DirectiveParser {
     private ClassDescriberRepository classRepository;

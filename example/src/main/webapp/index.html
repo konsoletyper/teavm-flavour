@@ -11,6 +11,12 @@
     <link rel="stylesheet" type="text/css" href="css/app.css">
   </head>
   <body onload="main()">
+    <div class="connection-failure-indicator">
+      Error sending request to the server
+      <button type="button" class="close" onclick="body.className = '';">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
     <div id="application-content"></div>
   </body>
 </html>

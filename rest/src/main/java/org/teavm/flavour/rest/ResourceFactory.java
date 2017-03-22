@@ -21,7 +21,7 @@ import org.teavm.flavour.rest.processor.ResponseProcessor;
 public interface ResourceFactory<T> {
     T createResource(String baseUrl);
 
-    void add(RequestProcessor processor);
+    ResourceFactory<T> add(RequestProcessor processor);
 
-    void add(ResponseProcessor processor);
+    ResourceFactory<T> add(ResponseProcessor processor);
 }

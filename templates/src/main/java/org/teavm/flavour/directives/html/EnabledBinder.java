@@ -20,7 +20,6 @@ import org.teavm.flavour.templates.BindAttributeDirective;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
-import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 
 @BindAttributeDirective(name = "enabled")
