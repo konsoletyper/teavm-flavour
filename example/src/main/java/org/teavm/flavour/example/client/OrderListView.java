@@ -18,21 +18,29 @@ package org.teavm.flavour.example.client;
 import java.text.DateFormat;
 import java.util.function.Consumer;
 import org.teavm.flavour.example.api.OrderDTO;
+import org.teavm.flavour.example.api.ProductFacade;
 import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.widgets.PagedCursor;
+import org.teavm.flavour.widgets.Popup;
 
 @BindTemplate("templates/order-list.html")
 public class OrderListView {
     private OrderDataSource dataSource;
+    private ProductFacade productFacade;
+    private ProductSelectionViewFactory productSelectionViewFactory;
     private PagedCursor<OrderDTO> cursor;
 
-    public OrderListView(OrderDataSource dataSource) {
-        this(dataSource, 0);
+    public OrderListView(OrderDataSource dataSource, ProductFacade productFacade,
+            ProductSelectionViewFactory productSelectionViewFactory) {
+        this(dataSource, productFacade, productSelectionViewFactory, 0);
     }
 
-    public OrderListView(OrderDataSource dataSource, int pageNumber) {
+    public OrderListView(OrderDataSource dataSource, ProductFacade productFacade,
+            ProductSelectionViewFactory productSelectionViewFactory, int pageNumber) {
         this.dataSource = dataSource;
+        this.productFacade = productFacade;
+        this.productSelectionViewFactory = productSelectionViewFactory;
         cursor = new PagedCursor<>(dataSource);
         cursor.setCurrentPage(pageNumber);
     }
@@ -68,5 +76,16 @@ public class OrderListView {
 
     public DateFormat getDateFormat() {
         return DateFormat.getDateInstance(DateFormat.MEDIUM);
+    }
+
+    public boolean isAdvancedFilterApplied() {
+        return dataSource.getStartDateFilter() != null || dataSource.getEndDateFilter() != null
+                || dataSource.getSearchProductId() != null;
+    }
+
+    public void filter() {
+        OrderFilterView filterView = new OrderFilterView(dataSource, productFacade, productSelectionViewFactory);
+        Popup.showModal(filterView);
+        cursor.refresh();
     }
 }

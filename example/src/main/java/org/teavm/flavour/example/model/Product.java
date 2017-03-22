@@ -55,6 +55,10 @@ public class Product {
         this.price = price;
     }
 
+    public Integer getId() {
+        return id;
+    }
+
     public String getSku() {
         return sku;
     }

@@ -15,7 +15,9 @@
  */
 package org.teavm.flavour.example.api;
 
-import java.util.Date;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 import javax.ws.rs.QueryParam;
 
 public class OrderQueryDTO {
@@ -26,8 +28,12 @@ public class OrderQueryDTO {
     public Integer itemId;
 
     @QueryParam("start-date")
-    public Date startDate;
+    public String startDate;
 
     @QueryParam("end-date")
-    public Date endDate;
+    public String endDate;
+
+    public static DateFormat getDateFormat() {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+    }
 }

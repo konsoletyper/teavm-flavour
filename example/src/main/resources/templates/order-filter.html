@@ -1,0 +1,57 @@
+<!--
+  ~  Copyright 2017 Alexey Andreev.
+  ~
+  ~  Licensed under the Apache License, Version 2.0 (the "License");
+  ~  you may not use this file except in compliance with the License.
+  ~  You may obtain a copy of the License at
+  ~
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~  Unless required by applicable law or agreed to in writing, software
+  ~  distributed under the License is distributed on an "AS IS" BASIS,
+  ~  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~  See the License for the specific language governing permissions and
+  ~  limitations under the License.
+  -->
+<?use w:org.teavm.flavour.widgets?>
+<?use v:org.teavm.flavour.validation?>
+<?import org.teavm.flavour.validation.Converter?>
+<v:validator as="validator">
+  <v:validation of="dataSource.startDateFilter" as="startDateField" convert="Converter.shortDateFormat()"/>
+  <v:validation of="dataSource.endDateFilter" as="endDateField" convert="Converter.shortDateFormat()"/>
+
+  <div class="container-fluid">
+    <div>
+      <form>
+        <div class="form-group" attr:class="'form-group' + (startDateField.valid ? '' : ' has-error')">
+          <label>From date</label>
+          <input type="text" class="form-control" v:bind="startDateField" w:date="{ format: 'short' }"/>
+        </div>
+
+        <div class="form-group" attr:class="'form-group' + (startDateField.valid ? '' : ' has-error')">
+          <label>To date</label>
+          <input type="text" class="form-control" v:bind="endDateField" w:date="{ format: 'short' }"/>
+        </div>
+
+        <div class="form-group" class="form-group">
+          <label>Containing product</label>
+          <div class="input-group">
+            <input type="text" disabled="disabled" class="form-control"
+                   html:value="product != null ? product.name : ''"/>
+            <div class="input-group-btn">
+              <button type="button" event:async-click="chooseProduct()" class="btn btn-default">
+                <span class="glyphicon glyphicon-option-vertical" aria-hidden="true"></span>
+              </button>
+              <button type="button" event:click="clearProduct()" class="btn btn-default" html:enabled="product != null">
+                <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" event:click="validator.submit(() -> save())"
+                html:enabled="validator.valid">Save</button>
+      </form>
+    </div>
+  </div>
+</v:validator>

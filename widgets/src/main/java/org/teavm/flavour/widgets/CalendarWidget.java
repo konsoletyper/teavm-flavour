@@ -122,6 +122,8 @@ public class CalendarWidget extends AbstractWidget {
         if (!Objects.equals(newDate, cachedDate)) {
             cachedDate = newDate;
             rebuildCurrentDate();
+        } else if (newDate == null) {
+            rebuildCurrentDate();
         }
         String newLocale = currentLocale != null ? currentLocale.get() : null;
         boolean localeChanged = false;
@@ -210,7 +212,7 @@ public class CalendarWidget extends AbstractWidget {
         }
 
         public boolean isCurrent() {
-            return year == selectedYear && month == selectedMonth && date == selectedDay;
+            return cachedDate != null && year == selectedYear && month == selectedMonth && date == selectedDay;
         }
 
         public boolean isAvailable() {

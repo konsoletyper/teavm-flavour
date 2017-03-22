@@ -51,7 +51,7 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
 
     @Override
     public void orderList() {
-        setView(new OrderListView(orderDataSet()));
+        setView(new OrderListView(orderDataSet(), productFacade, productSelectionViewFactory()));
     }
 
     @Override
@@ -59,7 +59,7 @@ public final class Client extends ApplicationTemplate implements ApplicationRout
         if (getCurrentView() instanceof OrderListView) {
             ((OrderListView) getCurrentView()).selectPage(page);
         } else {
-            setView(new OrderListView(orderDataSet(), page));
+            setView(new OrderListView(orderDataSet(), productFacade, productSelectionViewFactory(), page));
         }
     }
 

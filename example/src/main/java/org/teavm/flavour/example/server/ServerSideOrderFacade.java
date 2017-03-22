@@ -15,6 +15,7 @@
  */
 package org.teavm.flavour.example.server;
 
+import java.text.ParseException;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -138,20 +139,24 @@ public class ServerSideOrderFacade implements OrderFacade {
                     || JinqStream.from(order.getItems())
                             .anyMatch(item -> JPQL.like(item.getProduct().getName().toLowerCase(), text)));
         }
-        if (query.startDate != null) {
-            Date startDate = query.startDate;
-            all = all.where(order -> !order.getShippingDate().before(startDate));
-        }
-        if (query.endDate != null) {
-            Date endDate = query.endDate;
-            all = all.where(order -> order.getShippingDate().before(endDate));
+        try {
+            if (query.startDate != null) {
+                Date startDate = query.startDate != null ? OrderQueryDTO.getDateFormat().parse(query.startDate) : null;
+                all = all.where(order -> !order.getShippingDate().before(startDate));
+            }
+            if (query.endDate != null) {
+                Date endDate = query.endDate != null ? OrderQueryDTO.getDateFormat().parse(query.endDate) : null;
+                all = all.where(order -> order.getShippingDate().before(endDate));
+            }
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
         }
         if (query.itemId != null) {
-            Product product = productRepository.findById(query.itemId);
-            if (product != null) {
-                all = all.where(order -> JinqStream.from(order.getItems())
-                        .anyMatch(item -> item.getProduct() == product));
-            }
+            int productId = query.itemId;
+            all = all.where(order ->
+                    JinqStream.from(order.getItems())
+                    .where(item -> item.getProduct().getId() == productId)
+                    .count() > 0);
         }
         return all;
     }

@@ -11,12 +11,21 @@
       </button>
       <form class="navbar-form navbar-right">
         <div class="form-group">
-          <input placeholder="Search..." type="text" class="form-control" html:change="filter = it"/>
+          <div class="input-group">
+            <input placeholder="Search..." type="text" class="form-control" html:change="filter = it"/>
+            <span class="input-group-btn">
+              <button type="button" aria-label="more options" event:async-click="filter()"
+                  attr:class="'btn btn-default' + (advancedFilterApplied ? ' filter-applied' : '')">
+                <span class="glyphicon glyphicon-option-vertical" aria-hidden="true"></span>
+              </button>
+            </span>
+          </div>
         </div>
       </form>
     </div>
   </div>
 </nav>
+
 
 <div class="container-fluid">
   <nav>

@@ -143,7 +143,7 @@
     display: block;
     position: absolute;
     background: white;
-    z-index: 1000;
+    z-index: 1100;
 }
 .flavour-dropdown-calendar {
     width: 222px;

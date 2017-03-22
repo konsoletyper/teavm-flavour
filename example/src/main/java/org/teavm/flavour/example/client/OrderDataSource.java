@@ -15,8 +15,6 @@
  */
 package org.teavm.flavour.example.client;
 
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import org.teavm.flavour.example.api.OrderDTO;
@@ -60,24 +58,8 @@ public class OrderDataSource implements DataSource<OrderDTO> {
         this.startDateFilter = startDateFilter;
     }
 
-    public void setStartDateFilter(String text) {
-        try {
-            setStartDateFilter(DateFormat.getDateInstance(DateFormat.SHORT).parse(text));
-        } catch (ParseException e) {
-            // Do nothing
-        }
-    }
-
     public Date getEndDateFilter() {
         return endDateFilter;
-    }
-
-    public void setEndDateFilter(String text) {
-        try {
-            setEndDateFilter(DateFormat.getDateInstance(DateFormat.SHORT).parse(text));
-        } catch (ParseException e) {
-            // Do nothing
-        }
     }
 
     public void setEndDateFilter(Date endDateFilter) {
@@ -101,8 +83,8 @@ public class OrderDataSource implements DataSource<OrderDTO> {
         OrderQueryDTO query = new OrderQueryDTO();
         query.text = searchString;
         query.itemId = searchProductId;
-        query.startDate = startDateFilter;
-        query.endDate = endDateFilter;
+        query.startDate = startDateFilter != null ? OrderQueryDTO.getDateFormat().format(startDateFilter) : null;
+        query.endDate = endDateFilter != null ? OrderQueryDTO.getDateFormat().format(endDateFilter) : null;
         return query;
     }
 }
