@@ -310,6 +310,7 @@
     <module>routing</module>
     <module>json</module>
     <module>rest</module>
+    <module>archetype</module>
   </modules>
 
   <profiles>
