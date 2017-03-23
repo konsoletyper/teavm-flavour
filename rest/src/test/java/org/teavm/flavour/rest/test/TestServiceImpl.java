@@ -18,7 +18,6 @@ package org.teavm.flavour.rest.test;
 public class TestServiceImpl implements TestService {
     @Override
     public int sum(int a, int b) {
-        System.out.print("a" + a);
         return a + b;
     }
 

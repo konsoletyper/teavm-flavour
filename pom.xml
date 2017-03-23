@@ -64,6 +64,7 @@
     <teavm.version>0.5.0-dev-236</teavm.version>
     <jackson.version>2.5.4</jackson.version>
     <antlr.version>4.6</antlr.version>
+    <selenium.version>2.51.0</selenium.version>
   </properties>
 
   <dependencyManagement>
@@ -168,6 +169,18 @@
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-runtime</artifactId>
         <version>${antlr.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.seleniumhq.selenium</groupId>
+        <artifactId>selenium-java</artifactId>
+        <version>${selenium.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.seleniumhq.selenium</groupId>
+        <artifactId>selenium-htmlunit-driver</artifactId>
+        <version>${selenium.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -297,6 +310,17 @@
     <module>routing</module>
     <module>json</module>
     <module>rest</module>
-    <module>example</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <id>with-example</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>example</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

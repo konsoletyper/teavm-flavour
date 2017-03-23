@@ -33,6 +33,7 @@ public class OrderItem {
                 return;
             }
             data.amount = Integer.parseInt(amount);
+            invalidAmountString = false;
         } catch (NumberFormatException e) {
             invalidAmountString = true;
         }

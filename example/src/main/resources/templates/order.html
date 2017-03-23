@@ -80,9 +80,8 @@
                     <td><html:text value="item.data.product.name"/></td>
                     <td align="right"><html:text value="'$' + item.data.unitPrice"/></td>
                     <td align="right" width="120">
-                      <div class="input-group input-group-sm">
-                        <input type="text" html:value="item.data.amount" size="3"
-                               attr:class="'form-control ' + (item.invalidAmountString ? 'error' : '')"
+                      <div attr:class="'input-group input-group-sm' + (item.invalidAmountString ? ' has-error' : '')">
+                        <input type="text" html:value="item.data.amount" size="3" class="form-control"
                                html:change="item.parseAmount(it)">
                         <div class="input-group-btn">
                           <button type="button" class="btn btn-default" event:click="item.more()" aria-label="more">

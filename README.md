@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/konsoletyper/teavm-flavour.svg?branch=master)](https://travis-ci.org/konsoletyper/teavm-flavour)
+
 TeaVM Flavour is subproject of TeaVM.
 Its purpose is to provide developer with high-level services for writing web applications with [TeaVM](http://teavm.org/).
 This includes the following features:
