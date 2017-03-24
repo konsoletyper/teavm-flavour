@@ -13,7 +13,7 @@ before_install:
   - OLD_VERSION=`mvn help:evaluate -Dexpression=project.version 2>/dev/null | grep -Ev "(^\[|Download\w+:)"`
   - NEW_VERSION=${OLD_VERSION%-SNAPSHOT}-dev-`printf %d $TRAVIS_BUILD_NUMBER`
   - echo "Building version $NEW_VERSION"
-  - mvn versions:set -DnewVersion=$NEW_VERSION
+  - mvn versions:set -DnewVersion="$NEW_VERSION"
 install:
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 script: >
