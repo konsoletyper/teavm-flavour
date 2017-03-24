@@ -23,5 +23,10 @@ script: >
    -Dteavm.junit.js.threads=1 \
    -Dteavm.junit.optimized=true \
    -Dteavm.junit.minified=true
+after_success: >
+  if [[ "${TRAVIS_PULL_REQUEST:-unknown}" == "false" && $TRAVIS_BRANCH == dev-* ]] ; then
+    export NEW_VERSION
+    mvn deploy -P with-example -P deploy-to-bintray -DskipTests --settings travis-settings.xml
+  fi
 after_script:
   - rm -rf $HOME/.m2/repository/org/teavm

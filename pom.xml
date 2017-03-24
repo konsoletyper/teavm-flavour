@@ -323,5 +323,15 @@
         <module>example</module>
       </modules>
     </profile>
+    <profile>
+      <id>deploy-to-bintray</id>
+      <distributionManagement>
+        <repository>
+          <id>bintray-teavm</id>
+          <name>Bintray Preview Repository</name>
+          <url>https://api.bintray.com/maven/konsoletyper/teavm-flavour/teavm-flavour-dev/;publish=1</url>
+        </repository>
+      </distributionManagement>
+    </profile>
   </profiles>
 </project>
