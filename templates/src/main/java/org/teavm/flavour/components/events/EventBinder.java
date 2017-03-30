@@ -19,7 +19,7 @@ import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.jso.dom.events.Event;
 
-@BindAttributeComponent(name = { "change" })
+@BindAttributeComponent(name = { "change", "blur", "focus", "submit" })
 public class EventBinder extends BaseEventBinder<Event> {
     public EventBinder(ModifierTarget target) {
         super(target);

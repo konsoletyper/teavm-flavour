@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,42 +13,37 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.components.events;
+package org.teavm.flavour.components.html;
 
-import java.util.function.Consumer;
+import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.BindElementName;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
+import org.teavm.flavour.templates.ValueChangeListener;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
-import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
 
-public abstract class BaseEventBinder<T extends Event> implements Renderable {
-    private HTMLElement element;
-    private String eventName;
-    private EventListener<T> action;
+@BindAttributeComponent(name = "checked-change")
+public class CheckedChangeBinder implements Renderable {
+    private HTMLInputElement element;
+    private ValueChangeListener<Boolean> listener;
     private boolean bound;
 
-    public BaseEventBinder(ModifierTarget target) {
-        this.element = target.getElement();
-    }
-
-    @BindElementName
-    public void setEventName(String eventName) {
-        this.eventName = eventName;
+    public CheckedChangeBinder(ModifierTarget target) {
+        element = (HTMLInputElement) target.getElement();
     }
 
     @BindContent
-    public void setHandler(final Consumer<T> handler) {
-        this.action = handler::accept;
+    public void setListener(ValueChangeListener<Boolean> listener) {
+        this.listener = listener;
     }
 
     @Override
     public void render() {
         if (!bound) {
             bound = true;
-            element.addEventListener(eventName, wrapperListener);
+            element.addEventListener("change", nativeListener);
         }
     }
 
@@ -56,14 +51,14 @@ public abstract class BaseEventBinder<T extends Event> implements Renderable {
     public void destroy() {
         if (bound) {
             bound = false;
-            element.removeEventListener(eventName, wrapperListener);
+            element.removeEventListener("change", nativeListener);
         }
     }
 
-    private EventListener<T> wrapperListener = evt -> {
-        action.handleEvent(evt);
-        if (eventName.equals("submit")) {
-            evt.preventDefault();
+    private EventListener nativeListener = new EventListener() {
+        @Override
+        public void handleEvent(Event evt) {
+            listener.changed(element.isChecked());
         }
     };
 }
