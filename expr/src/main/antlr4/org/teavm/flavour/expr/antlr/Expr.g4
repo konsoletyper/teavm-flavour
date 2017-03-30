@@ -54,13 +54,13 @@ ternaryCondition
     ;
 
 or
-    : arguments+=and ('or' arguments+=and)*
+    : arguments+=and (('or' | '||') arguments+=and)*
     ;
 and
-    : arguments+=not ('and' arguments+=not)*
+    : arguments+=not (('and' | '&&') arguments+=not)*
     ;
 not
-    : (notKeyword='not')? operand=comparison
+    : (notKeyword=('not' | '!'))? operand=comparison
     ;
 
 comparison
