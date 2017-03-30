@@ -28,10 +28,6 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.FieldDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class GenericTypeNavigator {
     private ClassDescriberRepository classRepository;
 

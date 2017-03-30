@@ -75,8 +75,13 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     @Override
     public GenericClass getSupertype() {
         if (supertype == null) {
-            supertype = cls.getGenericSuperclass() != null
-                    ? (GenericClass) repository.convertGenericType(cls.getGenericSuperclass()) : null;
+            Type nativeSuperclass = cls.getGenericSuperclass();
+            if (nativeSuperclass == null && cls.isInterface()) {
+                nativeSuperclass = Object.class;
+            }
+
+            supertype = nativeSuperclass != null
+                    ? (GenericClass) repository.convertGenericType(nativeSuperclass) : null;
         }
         return supertype;
     }

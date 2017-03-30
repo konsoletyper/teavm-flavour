@@ -212,44 +212,60 @@ public class MethodLookup {
     private List<GenericMethod> findAllMethods(Collection<GenericClass> classes, String name, boolean isStatic) {
         List<GenericMethod> methods = new ArrayList<>();
         Set<String> visited = new HashSet<>();
-        outer: for (GenericClass cls : classes) {
-            while (cls != null) {
-                if (!visited.add(cls.getName())) {
-                    continue;
-                }
-                ClassDescriber desc = navigator.getClassRepository().describe(cls.getName());
-                if (desc == null) {
-                    continue outer;
-                }
 
-                Map<TypeVar, GenericType> substitutionMap = new HashMap<>();
-                TypeVar[] typeVars = desc.getTypeVariables();
-                for (int i = 0; i < typeVars.length; ++i) {
-                    substitutionMap.put(typeVars[i], cls.getArguments().get(i));
-                }
-                MapSubstitutions substitutions = new MapSubstitutions(substitutionMap);
-                for (MethodDescriber methodDesc : desc.getMethods()) {
-                    if (!methodDesc.getName().equals(name) || methodDesc.isStatic() != isStatic) {
-                        continue;
-                    }
-                    ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
-                            .map(arg -> arg.substitute(substitutions))
-                            .toArray(sz -> new ValueType[sz]);
-                    ValueType returnType = methodDesc.getReturnType();
-                    if (returnType != null) {
-                        returnType = returnType.substitute(substitutions);
-                    }
-                    GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
-                    methods.add(method);
-                }
-
-                cls = navigator.getParent(cls);
-            }
+        for (GenericClass cls : classes) {
+            findAllMethodsRec(cls, name, isStatic, visited, methods);
         }
         return methods;
     }
 
+    private void findAllMethodsRec(GenericClass cls, String name, boolean isStatic, Set<String> visited,
+            List<GenericMethod> methods) {
+        if (!visited.add(cls.getName())) {
+            return;
+        }
+        ClassDescriber desc = navigator.getClassRepository().describe(cls.getName());
+        if (desc == null) {
+            return;
+        }
+
+        Map<TypeVar, GenericType> substitutionMap = new HashMap<>();
+        TypeVar[] typeVars = desc.getTypeVariables();
+        for (int i = 0; i < typeVars.length; ++i) {
+            substitutionMap.put(typeVars[i], cls.getArguments().get(i));
+        }
+        MapSubstitutions substitutions = new MapSubstitutions(substitutionMap);
+        for (MethodDescriber methodDesc : desc.getMethods()) {
+            if (!methodDesc.getName().equals(name) || methodDesc.isStatic() != isStatic) {
+                continue;
+            }
+            ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
+                    .map(arg -> arg.substitute(substitutions))
+                    .toArray(sz -> new ValueType[sz]);
+            ValueType returnType = methodDesc.getReturnType();
+            if (returnType != null) {
+                returnType = returnType.substitute(substitutions);
+            }
+            GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
+            methods.add(method);
+        }
+
+        GenericClass parentClass = navigator.getParent(cls);
+        if (parentClass != null) {
+            findAllMethodsRec(parentClass, name, isStatic, visited, methods);
+        }
+        for (GenericClass iface : navigator.getInterfaces(cls)) {
+            findAllMethodsRec(iface, name, isStatic, visited, methods);
+        }
+    }
+
     private boolean isMoreSpecific(GenericMethod specific, GenericMethod general) {
+        if (!specific.getDescriber().isStatic() && general.getDescriber().isStatic()) {
+            if (navigator.sublassPath(specific.getActualOwner(), general.getActualOwner().getName()) == null) {
+                return false;
+            }
+        }
+
         ValueType[] specificArgs = specific.getActualArgumentTypes();
         ValueType[] generalArgs = general.getActualArgumentTypes();
         TypeInference inference = new TypeInference(navigator);

@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.Test;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
@@ -426,6 +427,16 @@ public class EvaluatorTest extends BaseEvaluatorTest {
     }
 
     @Test
+    public void java8StreamsWork() {
+        StringComputation c = parseExpr(StringComputation.class, "Arrays.asList(2, 3, 4).stream()"
+                + ".filter(num -> num % 2 == 0)"
+                + ".map(num -> num.toString())"
+                + ".collect(Collectors.joining(','))");
+        String result = c.compute();
+        assertThat(result, is("2,4"));
+    }
+
+    @Test
     public void setsProperty() {
         TestBean bean = new TestBean();
         ObjectComputation c = parseExpr(ObjectComputation.class, "bean.foo = 'qwe'");
@@ -447,7 +458,8 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         EvaluatorBuilder builder = new InterpretingEvaluatorBuilder()
                 .importPackage("java.lang")
                 .importPackage("java.util")
-                .importClass(EvaluatorTest.class.getName());
+                .importClass(EvaluatorTest.class.getName())
+                .importClass(Collectors.class.getName());
         Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
         vars = e.getVariables();
         return e.getFunction();

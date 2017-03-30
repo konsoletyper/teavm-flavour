@@ -30,10 +30,6 @@ import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ClassPathClassDescriberRepository implements ClassDescriberRepository {
     private static final Map<String, Primitive> primitiveMap = new HashMap<>();
     ClassLoader classLoader;

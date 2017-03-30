@@ -475,6 +475,7 @@ public class Parser {
                 }
                 if (className != null) {
                     expr = new StaticInvocationExpr<>(className, propertyName, arguments);
+                    className = null;
                 } else {
                     expr = new InvocationExpr<>(expr, propertyName, arguments);
                 }
