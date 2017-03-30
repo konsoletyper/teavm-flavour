@@ -80,7 +80,7 @@
       <plugin>
         <groupId>org.teavm</groupId>
         <artifactId>teavm-maven-plugin</artifactId>
-        <version>${teavm.version}</version>
+        <version>\${teavm.version}</version>
         <executions>
           <execution>
             <id>web-client</id>
