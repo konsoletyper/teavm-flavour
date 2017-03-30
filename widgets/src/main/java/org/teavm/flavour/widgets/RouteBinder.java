@@ -15,7 +15,6 @@
  */
 package org.teavm.flavour.widgets;
 
-import static org.teavm.metaprogramming.Metaprogramming.exit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -25,12 +24,7 @@ import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.HashChangeEvent;
-import org.teavm.metaprogramming.CompileTime;
-import org.teavm.metaprogramming.Meta;
-import org.teavm.metaprogramming.ReflectClass;
-import org.teavm.metaprogramming.Value;
 
-@CompileTime
 public class RouteBinder {
     Window window;
     private List<Route> routes = new ArrayList<>();
@@ -92,17 +86,11 @@ public class RouteBinder {
         }
     }
 
-    @Meta
-    public static native <T extends Route> RouteBinder withDefault(RouteBinder binder, Class<T> routeType,
-            Consumer<T> action);
     @SuppressWarnings("unchecked")
-    private static <T extends Route> void withDefault(Value<RouteBinder> binder, ReflectClass<T> routeType,
-            Value<Consumer<T>> action) {
-        exit(() -> {
-            binder.get().defaultRoute = Routing.open(routeType.asJavaClass());
-            binder.get().defaultAction = (Consumer<Route>) action;
-            return binder.get();
-        });
+    public <T extends Route> RouteBinder withDefault(Class<T> routeType, Consumer<T> action) {
+        defaultRoute = Routing.open(routeType);
+        defaultAction = (Consumer<Route>) action;
+        return this;
     }
 
     EventListener<HashChangeEvent> listener = evt -> update();
