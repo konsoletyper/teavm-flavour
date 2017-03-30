@@ -15,10 +15,28 @@
  */
 package org.teavm.flavour.templates.tree;
 
-public interface TemplateNodeVisitor {
-    void visit(ComponentBinding node);
+public abstract class ComponentPropertyBinding {
+    private String methodOwner;
+    private String methodName;
 
-    void visit(DOMElement node);
+    public ComponentPropertyBinding(String methodOwner, String methodName) {
+        this.methodOwner = methodOwner;
+        this.methodName = methodName;
+    }
 
-    void visit(DOMText node);
+    public String getMethodOwner() {
+        return methodOwner;
+    }
+
+    public void setMethodOwner(String methodOwner) {
+        this.methodOwner = methodOwner;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
 }

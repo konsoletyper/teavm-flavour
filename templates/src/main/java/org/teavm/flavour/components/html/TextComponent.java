@@ -13,39 +13,48 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.test;
+package org.teavm.flavour.components.html;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindElement;
+import org.teavm.flavour.templates.IgnoreContent;
 import org.teavm.flavour.templates.NodeHolder;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
-import org.teavm.jso.dom.html.HTMLElement;
 
-@BindElement(name = "value-copy")
-public class ValueCopyComponent extends AbstractComponent {
-    private Supplier<String> value;
-    private HTMLElement elem;
+@BindElement(name = "text")
+@IgnoreContent
+public class TextComponent<T> extends AbstractComponent {
+    private Supplier<T> value;
+    private NodeHolder textSlot;
+    private T cachedValue;
+    private boolean cacheInitialized;
 
-    public ValueCopyComponent(Slot slot) {
+    public TextComponent(Slot slot) {
         super(slot);
     }
 
     @BindAttribute(name = "value")
-    public void setValue(Supplier<String> value) {
+    public void setValue(Supplier<T> value) {
         this.value = value;
     }
 
     @Override
     public void render() {
-        if (elem == null) {
-            elem = Window.current().getDocument().createElement("div");
-            elem.setAttribute("id", "value-copy");
-            getSlot().append(new NodeHolder(elem));
+        T computedValue = value.get();
+        if (cacheInitialized && Objects.equals(cachedValue, computedValue)) {
+            return;
         }
-        String text = value.get();
-        elem.setAttribute("class", text != null ? text : "");
+        cacheInitialized = true;
+        cachedValue = computedValue;
+        if (textSlot != null) {
+            textSlot.delete();
+            textSlot = null;
+        }
+        textSlot = new NodeHolder(Window.current().getDocument().createTextNode(String.valueOf(computedValue)));
+        getSlot().append(textSlot);
     }
 }

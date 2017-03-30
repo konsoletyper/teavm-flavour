@@ -13,8 +13,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.test;
+package org.teavm.flavour.components.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
@@ -23,36 +24,48 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
-@BindElement(name = "expose")
-public class ExposeValueComponent extends AbstractComponent {
-    private Fragment body;
-    private Component bodyComponent;
-    public static String value = "";
+@BindElement(name = "with")
+public class WithComponent<T> extends AbstractComponent {
+    private Fragment content;
+    private T variable;
+    private Supplier<T> value;
+    private Component contentRenderer;
 
-    public ExposeValueComponent(Slot slot) {
+    public WithComponent(Slot slot) {
         super(slot);
     }
 
-    @BindAttribute(name = "var")
-    public String getValue() {
-        return value;
+    @BindContent
+    public void setContent(Fragment content) {
+        this.content = content;
     }
 
-    @BindContent
-    public void setBody(Fragment body) {
-        this.body = body;
+    @BindAttribute(name = "var")
+    public T getVariable() {
+        return variable;
+    }
+
+    @BindAttribute(name = "value")
+    public void setValue(Supplier<T> value) {
+        this.value = value;
     }
 
     @Override
     public void render() {
-        if (bodyComponent == null) {
-            bodyComponent = body.create();
-            getSlot().append(bodyComponent.getSlot());
+        if (contentRenderer == null) {
+            contentRenderer = content.create();
+            getSlot().append(contentRenderer.getSlot());
         }
-        bodyComponent.render();
+        variable = value.get();
+        contentRenderer.render();
+    }
+
+    @Override
+    public void destroy() {
+        if (contentRenderer != null) {
+            contentRenderer.destroy();
+            contentRenderer = null;
+        }
+        super.destroy();
     }
 }

@@ -13,17 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.templates.parsing;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD, ElementType.TYPE })
-@Documented
-public @interface BindAttribute {
-    String name();
+class ElementComponentMetadata extends BaseComponentMetadata {
+    MethodDescriber constructor;
+    MethodDescriber contentSetter;
+    boolean ignoreContent;
+    final Map<String, ComponentAttributeMetadata> attributes = new HashMap<>();
+    final List<NestedComponent> nestedComponents = new ArrayList<>();
 }

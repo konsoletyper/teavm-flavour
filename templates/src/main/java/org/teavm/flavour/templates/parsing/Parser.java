@@ -74,13 +74,13 @@ import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.SettingsObject;
-import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
+import org.teavm.flavour.templates.tree.AttributeComponentBinding;
+import org.teavm.flavour.templates.tree.ComponentBinding;
+import org.teavm.flavour.templates.tree.ComponentFunctionBinding;
+import org.teavm.flavour.templates.tree.ComponentVariableBinding;
 import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.DOMText;
-import org.teavm.flavour.templates.tree.DirectiveBinding;
-import org.teavm.flavour.templates.tree.DirectiveFunctionBinding;
-import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
-import org.teavm.flavour.templates.tree.NestedDirectiveBinding;
+import org.teavm.flavour.templates.tree.NestedComponentBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 
 public class Parser {
@@ -88,10 +88,10 @@ public class Parser {
     private ImportingClassResolver classResolver;
     private ResourceProvider resourceProvider;
     private GenericTypeNavigator typeNavigator;
-    private Map<String, List<DirectiveMetadata>> avaliableDirectives = new HashMap<>();
-    private Map<String, List<AttributeDirectiveMetadata>> avaliableAttrDirectives = new HashMap<>();
-    private Map<String, DirectiveMetadata> directives = new HashMap<>();
-    private Map<String, AttributeDirectiveMetadata> attrDirectives = new HashMap<>();
+    private Map<String, List<ElementComponentMetadata>> avaliableComponents = new HashMap<>();
+    private Map<String, List<AttributeComponentMetadata>> avaliableAttrComponents = new HashMap<>();
+    private Map<String, ElementComponentMetadata> components = new HashMap<>();
+    private Map<String, AttributeComponentMetadata> attrComponents = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private Map<String, Deque<ValueType>> variables = new HashMap<>();
     private Source source;
@@ -116,10 +116,10 @@ public class Parser {
 
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         source = new Source(reader);
-        use(source, "std", "org.teavm.flavour.directives.standard");
-        use(source, "event", "org.teavm.flavour.directives.events");
-        use(source, "attr", "org.teavm.flavour.directives.attributes");
-        use(source, "html", "org.teavm.flavour.directives.html");
+        use(source, "std", "org.teavm.flavour.components.standard");
+        use(source, "event", "org.teavm.flavour.components.events");
+        use(source, "attr", "org.teavm.flavour.components.attributes");
+        use(source, "html", "org.teavm.flavour.components.html");
         pushVar("this", new GenericClass(className));
         position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();
@@ -187,7 +187,7 @@ public class Parser {
 
     private TemplateNode parseElement(Element elem) {
         if (elem.getName().indexOf(':') > 0) {
-            return parseDirective(elem);
+            return parseComponent(elem);
         } else {
             return parseDomElement(elem);
         }
@@ -199,9 +199,9 @@ public class Parser {
         for (int i = 0; i < elem.getAttributes().size(); ++i) {
             Attribute attr = elem.getAttributes().get(i);
             if (attr.getName().indexOf(':') > 0) {
-                AttributeDirectiveBinding directive = parseAttributeDirective(attr);
-                if (directive != null) {
-                    templateElem.getAttributeDirectives().add(directive);
+                AttributeComponentBinding component = parseAttributeComponent(attr);
+                if (component != null) {
+                    templateElem.getAttributeComponents().add(component);
                 }
             } else {
                 templateElem.setAttribute(attr.getName(), attr.getValue(),
@@ -210,8 +210,8 @@ public class Parser {
         }
 
         Set<String> vars = new HashSet<>();
-        for (AttributeDirectiveBinding attrDirective : templateElem.getAttributeDirectives()) {
-            for (DirectiveVariableBinding var : attrDirective.getVariables()) {
+        for (AttributeComponentBinding attrComponent : templateElem.getAttributeComponents()) {
+            for (ComponentVariableBinding var : attrComponent.getVariables()) {
                 vars.add(var.getName());
                 pushVar(var.getName(), var.getValueType());
             }
@@ -226,35 +226,35 @@ public class Parser {
         return templateElem;
     }
 
-    private TemplateNode parseDirective(Element elem) {
+    private TemplateNode parseComponent(Element elem) {
         int prefixLength = elem.getName().indexOf(':');
         String prefix = elem.getName().substring(0, prefixLength);
         String name = elem.getName().substring(prefixLength + 1);
         String fullName = prefix + ":" + name;
-        DirectiveMetadata directiveMeta = resolveDirective(prefix, name);
-        if (directiveMeta == null) {
-            error(elem.getStartTag().getNameSegment(), "Undefined directive " + fullName);
+        ElementComponentMetadata componentMeta = resolveComponent(prefix, name);
+        if (componentMeta == null) {
+            error(elem.getStartTag().getNameSegment(), "Undefined component " + fullName);
             return null;
         }
 
-        List<PostponedDirectiveParse> postponedList = new ArrayList<>();
-        TemplateNode node = parseDirective(directiveMeta, prefix, name, elem, postponedList,
+        List<PostponedComponentParse> postponedList = new ArrayList<>();
+        TemplateNode node = parseComponent(componentMeta, prefix, name, elem, postponedList,
                 new MapSubstitutions(new HashMap<>()));
-        completeDirectiveParsing(postponedList);
+        completeComponentParsing(postponedList);
         position = elem.getEnd();
         return node;
     }
 
-    private DirectiveBinding parseDirective(DirectiveMetadata directiveMeta, String prefix, String name,
-            Element elem, List<PostponedDirectiveParse> postponed, MapSubstitutions typeVars) {
-        DirectiveBinding directive = new DirectiveBinding(directiveMeta.cls.getName(), name);
-        directive.setLocation(new Location(elem.getBegin(), elem.getEnd()));
-        if (directiveMeta.nameSetter != null) {
-            directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
+    private ComponentBinding parseComponent(ElementComponentMetadata componentMeta, String prefix, String name,
+            Element elem, List<PostponedComponentParse> postponed, MapSubstitutions typeVars) {
+        ComponentBinding component = new ComponentBinding(componentMeta.cls.getName(), name);
+        component.setLocation(new Location(elem.getBegin(), elem.getEnd()));
+        if (componentMeta.nameSetter != null) {
+            component.setElementNameMethodName(componentMeta.nameSetter.getName());
         }
 
         List<PostponedAttributeParse> attributesParse = new ArrayList<>();
-        for (DirectiveAttributeMetadata attrMeta : directiveMeta.attributes.values()) {
+        for (ComponentAttributeMetadata attrMeta : componentMeta.attributes.values()) {
             Attribute attr = elem.getAttributes().get(attrMeta.name);
             if (attr == null) {
                 if (attrMeta.required) {
@@ -268,9 +268,9 @@ public class Parser {
             PostponedAttributeParse attrParse = new PostponedAttributeParse();
             attrParse.meta = attrMeta;
             attrParse.node = attr;
-            if (attrMeta.type == DirectiveAttributeType.FUNCTION
-                    || attrMeta.type == DirectiveAttributeType.BIDIRECTIONAL) {
-                if (attrMeta.type == DirectiveAttributeType.FUNCTION && isSettingsObject(attrMeta.valueType)) {
+            if (attrMeta.type == ComponentAttributeType.FUNCTION
+                    || attrMeta.type == ComponentAttributeType.BIDIRECTIONAL) {
+                if (attrMeta.type == ComponentAttributeType.FUNCTION && isSettingsObject(attrMeta.valueType)) {
                     attrParse.objectExpr = parseObject(attr.getValueSegment());
                     attrParse.type = attrMeta.valueType;
                 } else {
@@ -291,20 +291,20 @@ public class Parser {
         }
 
         for (Attribute attr : elem.getAttributes()) {
-            if (!directiveMeta.attributes.containsKey(attr.getName())) {
-                error(attr, "Unknown attribute " + attr.getName() + " for directive " + prefix + ":" + name);
+            if (!componentMeta.attributes.containsKey(attr.getName())) {
+                error(attr, "Unknown attribute " + attr.getName() + " for component " + prefix + ":" + name);
             }
         }
 
-        PostponedDirectiveParse directiveParse = new PostponedDirectiveParse(position, directiveMeta, directive, elem);
-        directiveParse.attributes.addAll(attributesParse);
-        postponed.add(directiveParse);
+        PostponedComponentParse componentParse = new PostponedComponentParse(position, componentMeta, component, elem);
+        componentParse.attributes.addAll(attributesParse);
+        postponed.add(componentParse);
 
-        Map<NestedDirective, Set<TypeVar>> nestedNewVars = new HashMap<>();
-        for (NestedDirective nestedDirective : directiveMeta.nestedDirectives) {
+        Map<NestedComponent, Set<TypeVar>> nestedNewVars = new HashMap<>();
+        for (NestedComponent nestedComponent : componentMeta.nestedComponents) {
             Set<TypeVar> newVars = new HashSet<>();
-            newVariables(typeVars.getMap().keySet(), newVars, nestedDirective.setter.getActualArgumentTypes()[0]);
-            nestedNewVars.put(nestedDirective, newVars);
+            newVariables(typeVars.getMap().keySet(), newVars, nestedComponent.setter.getActualArgumentTypes()[0]);
+            nestedNewVars.put(nestedComponent, newVars);
         }
 
         parseSegment(elem.getEnd(), new ArrayList<>(), child -> {
@@ -313,25 +313,25 @@ public class Parser {
                 String nestedPrefix = child.getName().substring(0, nestedPrefixLength);
                 String nestedName = child.getName().substring(nestedPrefixLength + 1);
                 if (nestedPrefix.equals(prefix)) {
-                    NestedDirective nested = resolveNestedDirective(directiveMeta, nestedName);
+                    NestedComponent nested = resolveNestedComponent(componentMeta, nestedName);
                     if (nested != null) {
                         Set<TypeVar> newVars = nestedNewVars.get(nested);
                         for (TypeVar var : newVars) {
                             typeVars.getMap().put(var, new GenericReference(new TypeVar()));
                         }
-                        DirectiveBinding nestedNode = parseDirective(nested.metadata, prefix, nestedName, child,
+                        ComponentBinding nestedNode = parseComponent(nested.metadata, prefix, nestedName, child,
                                 postponed, typeVars);
                         typeVars.getMap().keySet().removeAll(newVars);
-                        NestedDirectiveBinding binding = getNestedDirectiveBinding(directive, nested);
-                        binding.getDirectives().add(nestedNode);
+                        NestedComponentBinding binding = getNestedComponentBinding(component, nested);
+                        binding.getComponents().add(nestedNode);
                     }
                 }
             }
             return false;
         });
-        validateNestedDirectives(directive, directiveMeta, elem, prefix);
+        validateNestedComponents(component, componentMeta, elem, prefix);
 
-        return directive;
+        return component;
     }
 
     private boolean isSettingsObject(ValueType type) {
@@ -368,14 +368,14 @@ public class Parser {
         }
     }
 
-    private void completeDirectiveParsing(List<PostponedDirectiveParse> postponed) {
-        // Attempting to infer values for directive's type parameters
+    private void completeComponentParsing(List<PostponedComponentParse> postponed) {
+        // Attempting to infer values for component's type parameters
         TypeEstimator estimator = new TypeEstimator(classResolver, typeNavigator, new TemplateScope());
         TypeInference inference = new TypeInference(typeNavigator);
         boolean inferenceFailed = false;
-        for (PostponedDirectiveParse parse : postponed) {
+        for (PostponedComponentParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
-                if (attrParse.expr != null && attrParse.meta.type == DirectiveAttributeType.FUNCTION) {
+                if (attrParse.expr != null && attrParse.meta.type == ComponentAttributeType.FUNCTION) {
                     if (attrParse.expr instanceof LambdaExpr) {
                         attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
                                 attrParse.sam);
@@ -395,7 +395,7 @@ public class Parser {
 
         // Process functions
         TypeInference varInference = new TypeInference(typeNavigator);
-        for (PostponedDirectiveParse parse : postponed) {
+        for (PostponedComponentParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
                 if (attrParse.expr == null && attrParse.objectExpr == null) {
                     continue;
@@ -409,29 +409,29 @@ public class Parser {
                 if (plan == null) {
                     continue;
                 }
-                DirectiveFunctionBinding computationBinding = new DirectiveFunctionBinding(
+                ComponentFunctionBinding computationBinding = new ComponentFunctionBinding(
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                         attrParse.sam.getActualOwner().getName());
-                parse.directive.getComputations().add(computationBinding);
+                parse.component.getComputations().add(computationBinding);
                 varInference.equalConstraint((GenericType) plan.getType(), attrParse.sam.getActualOwner());
 
-                if (attrParse.meta.type == DirectiveAttributeType.BIDIRECTIONAL) {
+                if (attrParse.meta.type == ComponentAttributeType.BIDIRECTIONAL) {
                     setter = attrParse.meta.altSetter;
                     type = attrParse.altSam.getActualOwner().substitute(inference.getSubstitutions());
                     plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
-                    computationBinding = new DirectiveFunctionBinding(
+                    computationBinding = new ComponentFunctionBinding(
                             setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                             attrParse.altSam.getActualOwner().getName());
-                    parse.directive.getComputations().add(computationBinding);
+                    parse.component.getComputations().add(computationBinding);
                 }
             }
         }
 
         // Process variables
         Map<String, ValueType> declaredVars = new HashMap<>();
-        for (PostponedDirectiveParse parse : postponed) {
+        for (PostponedComponentParse parse : postponed) {
             for (PostponedAttributeParse attrParse : parse.attributes) {
-                if (attrParse.meta.type != DirectiveAttributeType.VARIABLE) {
+                if (attrParse.meta.type != ComponentAttributeType.VARIABLE) {
                     continue;
                 }
                 MethodDescriber getter = attrParse.meta.getter;
@@ -442,31 +442,31 @@ public class Parser {
                 }
                 if (declaredVars.containsKey(varName)) {
                     error(attrParse.node.getValueSegment(), "Variable " + varName + " is already used by "
-                            + "the same directive");
+                            + "the same component");
                 } else {
                     declaredVars.put(varName, type);
                     pushVar(varName, type);
                 }
-                DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
+                ComponentVariableBinding varBinding = new ComponentVariableBinding(
                         getter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(), type);
-                parse.directive.getVariables().add(varBinding);
+                parse.component.getVariables().add(varBinding);
             }
         }
 
         // Process bodies
         Set<Element> elementsToSkip = postponed.stream().map(parse -> parse.elem).collect(Collectors.toSet());
-        for (PostponedDirectiveParse parse : postponed) {
+        for (PostponedComponentParse parse : postponed) {
             position = parse.position;
-            parseSegment(parse.elem.getEnd(), parse.directive.getContentNodes(),
+            parseSegment(parse.elem.getEnd(), parse.component.getContentNodes(),
                     child -> !elementsToSkip.contains(child));
 
             if (parse.metadata.contentSetter != null) {
-                parse.directive.setContentMethodName(parse.metadata.contentSetter.getName());
+                parse.component.setContentMethodName(parse.metadata.contentSetter.getName());
             } else {
-                if (!parse.metadata.ignoreContent && !isEmptyContent(parse.directive.getContentNodes())) {
-                    error(parse.elem, "Directive " + parse.metadata.cls.getName() + " should not have any content");
+                if (!parse.metadata.ignoreContent && !isEmptyContent(parse.component.getContentNodes())) {
+                    error(parse.elem, "Component " + parse.metadata.cls.getName() + " should not have any content");
                 }
-                parse.directive.getContentNodes().clear();
+                parse.component.getContentNodes().clear();
             }
         }
 
@@ -475,23 +475,24 @@ public class Parser {
         }
     }
 
-    static class PostponedDirectiveParse {
+    static class PostponedComponentParse {
         int position;
-        DirectiveMetadata metadata;
-        DirectiveBinding directive;
+        ElementComponentMetadata metadata;
+        ComponentBinding component;
         Element elem;
         List<PostponedAttributeParse> attributes = new ArrayList<>();
 
-        PostponedDirectiveParse(int position, DirectiveMetadata metadata, DirectiveBinding directive, Element elem) {
+        PostponedComponentParse(int position, ElementComponentMetadata metadata, ComponentBinding component,
+                Element elem) {
             this.position = position;
             this.metadata = metadata;
-            this.directive = directive;
+            this.component = component;
             this.elem = elem;
         }
     }
 
     static class PostponedAttributeParse {
-        DirectiveAttributeMetadata meta;
+        ComponentAttributeMetadata meta;
         Attribute node;
         Expr<Void> expr;
         ObjectExpr<Void> objectExpr;
@@ -501,10 +502,10 @@ public class Parser {
         GenericMethod altSam;
     }
 
-    private void validateNestedDirectives(DirectiveBinding directive, DirectiveMetadata metadata,
+    private void validateNestedComponents(ComponentBinding component, ElementComponentMetadata metadata,
             Element elem, String prefix) {
-        for (NestedDirective nestedMetadata : metadata.nestedDirectives) {
-            NestedDirectiveBinding nestedDirective = findNestedDirectiveBinding(directive, nestedMetadata);
+        for (NestedComponent nestedMetadata : metadata.nestedComponents) {
+            NestedComponentBinding nestedComponent = findNestedComponentBinding(component, nestedMetadata);
 
             String[] nameRules = nestedMetadata.metadata.nameRules;
             String name = nameRules.length == 1
@@ -512,30 +513,30 @@ public class Parser {
                     : "{" + Arrays.stream(nameRules).collect(Collectors.joining("|")) + "}";
 
             if (nestedMetadata.required) {
-                if (nestedDirective == null) {
-                    error(elem, "Nested directive " + prefix + ":" + name + " required but none encountered");
+                if (nestedComponent == null) {
+                    error(elem, "Nested component " + prefix + ":" + name + " required but none encountered");
                 }
             } else if (!nestedMetadata.multiple) {
-                if (nestedDirective.getDirectives().size() > 1) {
-                    error(elem, "Nested directive " + prefix + ":" + name + " should encounter only once");
+                if (nestedComponent.getComponents().size() > 1) {
+                    error(elem, "Nested component " + prefix + ":" + name + " should encounter only once");
                 }
             }
         }
     }
 
-    private NestedDirectiveBinding getNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
-        NestedDirectiveBinding binding = findNestedDirectiveBinding(directive, metadata);
+    private NestedComponentBinding getNestedComponentBinding(ComponentBinding component, NestedComponent metadata) {
+        NestedComponentBinding binding = findNestedComponentBinding(component, metadata);
         if (binding == null) {
-            binding = new NestedDirectiveBinding(metadata.setter.getDescriber().getOwner().getName(),
+            binding = new NestedComponentBinding(metadata.setter.getDescriber().getOwner().getName(),
                     metadata.setter.getDescriber().getName(),
                     metadata.metadata.cls.getName(), metadata.multiple);
-            directive.getNestedDirectives().add(binding);
+            component.getNestedComponents().add(binding);
         }
         return binding;
     }
 
-    private NestedDirectiveBinding findNestedDirectiveBinding(DirectiveBinding directive, NestedDirective metadata) {
-        for (NestedDirectiveBinding binding : directive.getNestedDirectives()) {
+    private NestedComponentBinding findNestedComponentBinding(ComponentBinding component, NestedComponent metadata) {
+        for (NestedComponentBinding binding : component.getNestedComponents()) {
             if (binding.getMethodName().equals(metadata.setter.getDescriber().getName())
                     && binding.getMethodOwner().equals(metadata.setter.getDescriber().getOwner().getName())) {
                 return binding;
@@ -568,42 +569,42 @@ public class Parser {
         return true;
     }
 
-    private AttributeDirectiveBinding parseAttributeDirective(Attribute attr) {
+    private AttributeComponentBinding parseAttributeComponent(Attribute attr) {
         int prefixLength = attr.getName().indexOf(':');
         String prefix = attr.getName().substring(0, prefixLength);
         String name = attr.getName().substring(prefixLength + 1);
         String fullName = prefix + ":" + name;
-        AttributeDirectiveMetadata directiveMeta = resolveAttrDirective(prefix, name);
-        if (directiveMeta == null) {
-            error(attr.getNameSegment(), "Undefined directive " + fullName);
+        AttributeComponentMetadata componentMeta = resolveAttrComponent(prefix, name);
+        if (componentMeta == null) {
+            error(attr.getNameSegment(), "Undefined component " + fullName);
             return null;
         }
 
-        AttributeDirectiveBinding directive = new AttributeDirectiveBinding(directiveMeta.cls.getName(), name);
-        directive.setLocation(new Location(attr.getBegin(), attr.getEnd()));
-        if (directiveMeta.nameSetter != null) {
-            directive.setDirectiveNameMethodName(directiveMeta.nameSetter.getName());
+        AttributeComponentBinding component = new AttributeComponentBinding(componentMeta.cls.getName(), name);
+        component.setLocation(new Location(attr.getBegin(), attr.getEnd()));
+        if (componentMeta.nameSetter != null) {
+            component.setElementNameMethodName(componentMeta.nameSetter.getName());
         }
 
-        MethodDescriber getter = directiveMeta.getter;
-        MethodDescriber setter = directiveMeta.setter;
-        switch (directiveMeta.type) {
+        MethodDescriber getter = componentMeta.getter;
+        MethodDescriber setter = componentMeta.setter;
+        switch (componentMeta.type) {
             case VARIABLE: {
                 String varName = attr.getValue();
-                DirectiveVariableBinding varBinding = new DirectiveVariableBinding(
+                ComponentVariableBinding varBinding = new ComponentVariableBinding(
                         setter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(),
-                        directiveMeta.valueType);
-                directive.getVariables().add(varBinding);
+                        componentMeta.valueType);
+                component.getVariables().add(varBinding);
                 break;
             }
             case FUNCTION: {
                 TypedPlan plan;
-                if (isSettingsObject(directiveMeta.valueType)) {
+                if (isSettingsObject(componentMeta.valueType)) {
                     ObjectExpr<Void> expr = parseObject(attr.getValueSegment());
                     if (expr == null) {
                         break;
                     }
-                    plan = compileSettingsObject(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
+                    plan = compileSettingsObject(attr.getValueSegment(), expr, componentMeta.sam.getActualOwner());
                     if (plan == null) {
                         break;
                     }
@@ -612,15 +613,15 @@ public class Parser {
                     if (expr == null) {
                         break;
                     }
-                    plan = compileExpr(attr.getValueSegment(), expr, directiveMeta.sam.getActualOwner());
+                    plan = compileExpr(attr.getValueSegment(), expr, componentMeta.sam.getActualOwner());
                     if (plan == null) {
                         break;
                     }
                 }
-                DirectiveFunctionBinding functionBinding = new DirectiveFunctionBinding(
+                ComponentFunctionBinding functionBinding = new ComponentFunctionBinding(
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
-                        directiveMeta.sam.getDescriber().getOwner().getName());
-                directive.getFunctions().add(functionBinding);
+                        componentMeta.sam.getDescriber().getOwner().getName());
+                component.getFunctions().add(functionBinding);
                 break;
             }
             case BIDIRECTIONAL: {
@@ -630,7 +631,7 @@ public class Parser {
             }
         }
 
-        return directive;
+        return component;
     }
 
     private Expr<Void> parseExpr(Segment segment) {
@@ -791,28 +792,28 @@ public class Parser {
         }
     }
 
-    private DirectiveMetadata resolveDirective(String prefix, String name) {
+    private ElementComponentMetadata resolveComponent(String prefix, String name) {
         String fullName = prefix + ":" + name;
-        DirectiveMetadata directive = directives.get(fullName);
-        if (directive == null) {
-            List<DirectiveMetadata> byPrefix = avaliableDirectives.get(prefix);
+        ElementComponentMetadata component = components.get(fullName);
+        if (component == null) {
+            List<ElementComponentMetadata> byPrefix = avaliableComponents.get(prefix);
             if (byPrefix != null) {
-                directive: for (DirectiveMetadata testDirective : byPrefix) {
-                    for (String rule : testDirective.nameRules) {
+                component: for (ElementComponentMetadata testComponent : byPrefix) {
+                    for (String rule : testComponent.nameRules) {
                         if (matchRule(rule, name)) {
-                            directive = testDirective;
-                            break directive;
+                            component = testComponent;
+                            break component;
                         }
                     }
                 }
             }
-            directives.put(fullName, directive);
+            components.put(fullName, component);
         }
-        return directive;
+        return component;
     }
 
-    private NestedDirective resolveNestedDirective(DirectiveMetadata outer, String name) {
-        for (NestedDirective nested : outer.nestedDirectives) {
+    private NestedComponent resolveNestedComponent(ElementComponentMetadata outer, String name) {
+        for (NestedComponent nested : outer.nestedComponents) {
             if (Arrays.stream(nested.metadata.nameRules).anyMatch(rule -> matchRule(rule, name))) {
                 return nested;
             }
@@ -820,24 +821,24 @@ public class Parser {
         return null;
     }
 
-    private AttributeDirectiveMetadata resolveAttrDirective(String prefix, String name) {
+    private AttributeComponentMetadata resolveAttrComponent(String prefix, String name) {
         String fullName = prefix + ":" + name;
-        AttributeDirectiveMetadata directive = attrDirectives.get(fullName);
-        if (directive == null) {
-            List<AttributeDirectiveMetadata> byPrefix = avaliableAttrDirectives.get(prefix);
+        AttributeComponentMetadata component = attrComponents.get(fullName);
+        if (component == null) {
+            List<AttributeComponentMetadata> byPrefix = avaliableAttrComponents.get(prefix);
             if (byPrefix != null) {
-                directive: for (AttributeDirectiveMetadata testDirective : byPrefix) {
-                    for (String rule : testDirective.nameRules) {
+                component: for (AttributeComponentMetadata testComponent : byPrefix) {
+                    for (String rule : testComponent.nameRules) {
                         if (matchRule(rule, name)) {
-                            directive = testDirective;
-                            break directive;
+                            component = testComponent;
+                            break component;
                         }
                     }
                 }
             }
-            attrDirectives.put(fullName, directive);
+            attrComponents.put(fullName, component);
         }
-        return directive;
+        return component;
     }
 
     private boolean matchRule(String rule, String name) {
@@ -885,15 +886,15 @@ public class Parser {
     }
 
     private void use(Segment segment, String prefix, String packageName) {
-        String resourceName = "META-INF/flavour/directive-packages/" + packageName;
+        String resourceName = "META-INF/flavour/component-packages/" + packageName;
         try (InputStream input = resourceProvider.openResource(resourceName)) {
             if (input == null) {
-                error(segment, "Directive package was not found: " + packageName);
+                error(segment, "Component package was not found: " + packageName);
                 return;
             }
             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-            List<DirectiveMetadata> directiveList = new ArrayList<>();
-            List<AttributeDirectiveMetadata> attributeDirectiveList = new ArrayList<>();
+            List<ElementComponentMetadata> componentList = new ArrayList<>();
+            List<AttributeComponentMetadata> attributeComponentList = new ArrayList<>();
             while (true) {
                 String line = reader.readLine();
                 if (line == null) {
@@ -907,24 +908,24 @@ public class Parser {
 
                 ClassDescriber cls = classRepository.describe(className);
                 if (cls == null) {
-                    error(segment, "Class " + className + " declared by directive package was not found");
+                    error(segment, "Class " + className + " declared by component package was not found");
                     continue;
                 }
 
-                DirectiveParser directiveParser = new DirectiveParser(classRepository, diagnostics, segment);
-                Object directiveMetadata = directiveParser.parse(cls);
-                if (directiveMetadata instanceof DirectiveMetadata) {
-                    DirectiveMetadata elemDirectiveMeta = (DirectiveMetadata) directiveMetadata;
-                    directiveList.add(elemDirectiveMeta);
-                } else if (directiveMetadata instanceof AttributeDirectiveMetadata) {
-                    AttributeDirectiveMetadata attrDirectiveMeta = (AttributeDirectiveMetadata) directiveMetadata;
-                    attributeDirectiveList.add(attrDirectiveMeta);
+                ComponentParser componentParser = new ComponentParser(classRepository, diagnostics, segment);
+                Object componentMetadata = componentParser.parse(cls);
+                if (componentMetadata instanceof ElementComponentMetadata) {
+                    ElementComponentMetadata elemComponentMeta = (ElementComponentMetadata) componentMetadata;
+                    componentList.add(elemComponentMeta);
+                } else if (componentMetadata instanceof AttributeComponentMetadata) {
+                    AttributeComponentMetadata attrComponentMeta = (AttributeComponentMetadata) componentMetadata;
+                    attributeComponentList.add(attrComponentMeta);
                 }
             }
-            avaliableDirectives.put(prefix, directiveList);
-            avaliableAttrDirectives.put(prefix, attributeDirectiveList);
+            avaliableComponents.put(prefix, componentList);
+            avaliableAttrComponents.put(prefix, attributeComponentList);
         } catch (IOException e) {
-            throw new RuntimeException("IO exception occured parsing HTML input", e);
+            throw new RuntimeException("IO exception occurred parsing HTML input", e);
         }
     }
 

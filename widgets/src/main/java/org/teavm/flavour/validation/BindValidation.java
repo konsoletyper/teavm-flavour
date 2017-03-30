@@ -16,7 +16,7 @@
 package org.teavm.flavour.validation;
 
 import java.util.function.Supplier;
-import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
@@ -27,7 +27,7 @@ import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 
-@BindAttributeDirective(name = "bind", elements = { "textarea", "input" })
+@BindAttributeComponent(name = "bind", elements = { "textarea", "input" })
 public class BindValidation<T> implements Renderable {
     private ModifierTarget target;
     private boolean bound;

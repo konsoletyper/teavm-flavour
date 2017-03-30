@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
-import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.BindElement;
 import org.teavm.flavour.templates.OptionalBinding;
 
 public class ValidationEntry<T> {
@@ -45,7 +45,7 @@ public class ValidationEntry<T> {
         validation.supplier = supplier;
     }
 
-    @BindDirective(name = "check")
+    @BindElement(name = "check")
     @OptionalBinding
     public void setRules(List<ValidationRule<T>> rules) {
         this.validation.rules.addAll(rules);

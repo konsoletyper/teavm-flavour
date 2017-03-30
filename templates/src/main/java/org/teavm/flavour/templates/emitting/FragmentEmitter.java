@@ -25,7 +25,7 @@ import org.teavm.flavour.templates.DomBuilder;
 import org.teavm.flavour.templates.DomComponentHandler;
 import org.teavm.flavour.templates.DomComponentTemplate;
 import org.teavm.flavour.templates.Fragment;
-import org.teavm.flavour.templates.tree.DirectiveBinding;
+import org.teavm.flavour.templates.tree.ComponentBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.Value;
@@ -37,14 +37,14 @@ class FragmentEmitter {
         this.context = context;
     }
 
-    public Value<Fragment> emitTemplate(DirectiveBinding directive, List<TemplateNode> fragment,
+    public Value<Fragment> emitTemplate(ComponentBinding component, List<TemplateNode> fragment,
             List<TemplateVariable> variables) {
-        if (directive != null) {
-            context.location(directive.getLocation());
+        if (component != null) {
+            context.location(component.getLocation());
         }
 
-        ReflectClass<Component> componentType = directive != null
-                ? findClass(directive.getClassName()).asSubclass(Component.class)
+        ReflectClass<Component> componentType = component != null
+                ? findClass(component.getClassName()).asSubclass(Component.class)
                 : null;
 
         return proxy(Fragment.class, (fProxy, fMethod, fArgs) -> {

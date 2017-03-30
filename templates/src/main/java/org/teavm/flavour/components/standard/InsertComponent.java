@@ -13,46 +13,48 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.test;
+package org.teavm.flavour.components.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
-import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.BindElement;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
-@BindElement(name = "expose")
-public class ExposeValueComponent extends AbstractComponent {
-    private Fragment body;
-    private Component bodyComponent;
-    public static String value = "";
+@BindElement(name = "insert")
+public class InsertComponent extends AbstractComponent {
+    private Supplier<Fragment> fragment;
+    private Fragment renderedFragment;
+    private Component body;
 
-    public ExposeValueComponent(Slot slot) {
+    public InsertComponent(Slot slot) {
         super(slot);
     }
 
-    @BindAttribute(name = "var")
-    public String getValue() {
-        return value;
-    }
-
-    @BindContent
-    public void setBody(Fragment body) {
-        this.body = body;
+    @BindAttribute(name = "fragment")
+    public void setFragment(Supplier<Fragment> fragment) {
+        this.fragment = fragment;
     }
 
     @Override
     public void render() {
-        if (bodyComponent == null) {
-            bodyComponent = body.create();
-            getSlot().append(bodyComponent.getSlot());
+        Fragment newFragment = fragment.get();
+        if (newFragment != renderedFragment) {
+            if (body != null) {
+                body.destroy();
+            }
+            renderedFragment = newFragment;
+            if (newFragment != null) {
+                body = newFragment.create();
+                getSlot().append(body.getSlot());
+            } else {
+                body = null;
+            }
         }
-        bodyComponent.render();
+        if (body != null) {
+            body.render();
+        }
     }
 }

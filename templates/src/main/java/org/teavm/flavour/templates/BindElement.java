@@ -22,8 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD, ElementType.TYPE })
+@Target({ ElementType.TYPE, ElementType.METHOD })
 @Documented
-public @interface BindAttribute {
-    String name();
+public @interface BindElement {
+    String[] name();
 }

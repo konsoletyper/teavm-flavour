@@ -13,8 +13,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates.test;
+package org.teavm.flavour.components.standard;
 
+import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
@@ -23,23 +24,20 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Slot;
 
-/**
- *
- * @author Alexey Andreev
- */
-@BindElement(name = "expose")
-public class ExposeValueComponent extends AbstractComponent {
+@BindElement(name = "if")
+public class IfComponent extends AbstractComponent {
+    private Supplier<Boolean> condition;
     private Fragment body;
-    private Component bodyComponent;
-    public static String value = "";
+    private Component childComponent;
+    private boolean showing;
 
-    public ExposeValueComponent(Slot slot) {
+    public IfComponent(Slot slot) {
         super(slot);
     }
 
-    @BindAttribute(name = "var")
-    public String getValue() {
-        return value;
+    @BindAttribute(name = "condition")
+    public void setCondition(Supplier<Boolean> condition) {
+        this.condition = condition;
     }
 
     @BindContent
@@ -49,10 +47,29 @@ public class ExposeValueComponent extends AbstractComponent {
 
     @Override
     public void render() {
-        if (bodyComponent == null) {
-            bodyComponent = body.create();
-            getSlot().append(bodyComponent.getSlot());
+        boolean newShowing = condition.get();
+        if (showing != newShowing) {
+            if (newShowing) {
+                if (childComponent == null) {
+                    childComponent = body.create();
+                }
+                getSlot().append(childComponent.getSlot());
+            } else {
+                childComponent.getSlot().delete();
+            }
         }
-        bodyComponent.render();
+        showing = newShowing;
+
+        if (showing) {
+            childComponent.render();
+        }
+    }
+
+    @Override
+    public void destroy() {
+        if (childComponent != null) {
+            childComponent.destroy();
+        }
+        super.destroy();
     }
 }

@@ -13,17 +13,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.templates;
+package org.teavm.flavour.components.events;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import org.teavm.flavour.templates.BindAttributeComponent;
+import org.teavm.flavour.templates.ModifierTarget;
+import org.teavm.jso.dom.events.MouseEvent;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD, ElementType.TYPE })
-@Documented
-public @interface BindAttribute {
-    String name();
+@BindAttributeComponent(name = { "click", "dblclick", "mouseup", "mousedown" })
+public class MouseBinder extends BaseEventBinder<MouseEvent> {
+    public MouseBinder(ModifierTarget element) {
+        super(element);
+    }
 }

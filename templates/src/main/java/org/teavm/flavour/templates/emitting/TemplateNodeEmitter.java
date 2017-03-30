@@ -32,14 +32,14 @@ import org.teavm.flavour.templates.Modifier;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.flavour.templates.Slot;
-import org.teavm.flavour.templates.tree.AttributeDirectiveBinding;
+import org.teavm.flavour.templates.tree.AttributeComponentBinding;
+import org.teavm.flavour.templates.tree.ComponentBinding;
+import org.teavm.flavour.templates.tree.ComponentFunctionBinding;
+import org.teavm.flavour.templates.tree.ComponentVariableBinding;
 import org.teavm.flavour.templates.tree.DOMAttribute;
 import org.teavm.flavour.templates.tree.DOMElement;
 import org.teavm.flavour.templates.tree.DOMText;
-import org.teavm.flavour.templates.tree.DirectiveBinding;
-import org.teavm.flavour.templates.tree.DirectiveFunctionBinding;
-import org.teavm.flavour.templates.tree.DirectiveVariableBinding;
-import org.teavm.flavour.templates.tree.NestedDirectiveBinding;
+import org.teavm.flavour.templates.tree.NestedComponentBinding;
 import org.teavm.flavour.templates.tree.TemplateNode;
 import org.teavm.flavour.templates.tree.TemplateNodeVisitor;
 import org.teavm.metaprogramming.ReflectClass;
@@ -61,12 +61,12 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     public void visit(DOMElement node) {
         context.location(node.getLocation());
 
-        boolean hasInnerDirectives = node.getChildNodes().stream()
-                .anyMatch(child -> child instanceof DirectiveBinding);
+        boolean hasInnerComponents = node.getChildNodes().stream()
+                .anyMatch(child -> child instanceof ComponentBinding);
         String tagName = node.getName();
         {
             Value<DomBuilder> tmpBuilder = builder;
-            if (hasInnerDirectives) {
+            if (hasInnerComponents) {
                 builder = emit(() -> tmpBuilder.get().openSlot(tagName));
             } else {
                 builder = emit(() -> tmpBuilder.get().open(tagName));
@@ -81,9 +81,9 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             builder = emit(() -> tmpBuilder.get().attribute(attrName, attrValue));
         }
 
-        for (AttributeDirectiveBinding binding : node.getAttributeDirectives()) {
+        for (AttributeComponentBinding binding : node.getAttributeComponents()) {
             Value<DomBuilder> tmpBuilder = builder;
-            Value<Modifier> modifier = emitAttributeDirective(binding);
+            Value<Modifier> modifier = emitAttributeComponent(binding);
             builder = emit(() -> tmpBuilder.get().add(modifier.get()));
         }
 
@@ -107,22 +107,22 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
     }
 
     @Override
-    public void visit(DirectiveBinding node) {
+    public void visit(ComponentBinding node) {
         context.location(node.getLocation());
         ReflectClass<?> componentType = findClass(node.getClassName());
         ReflectMethod ctor = componentType.getJMethod("<init>", Slot.class);
         Value<Component> component = emit(() -> (Component) ctor.construct(Slot.create()));
-        List<NestedComponentInstance> nestedInstances = emitDirective(node, component, component);
+        List<NestedComponentInstance> nestedInstances = emitElementComponent(node, component, component);
 
         context.pushBoundVars();
         List<TemplateVariable> variables = new ArrayList<>();
-        Map<DirectiveBinding, Value<?>> instances = nestedInstances.stream()
+        Map<ComponentBinding, Value<?>> instances = nestedInstances.stream()
                 .collect(Collectors.toMap(nested -> nested.node, nested -> nested.instance));
         instances.put(node, component);
         emitVariables(node, variables, instances);
-        emitDirectiveContent(node, node, component, variables);
+        emitComponentContent(node, node, component, variables);
         for (NestedComponentInstance nestedInstance : nestedInstances) {
-            emitDirectiveContent(node, nestedInstance.node, nestedInstance.instance, variables);
+            emitComponentContent(node, nestedInstance.node, nestedInstance.instance, variables);
         }
         context.popBoundVars();
 
@@ -130,26 +130,27 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         builder = emit(() -> tmpBuilder.get().add(component.get()));
     }
 
-    private List<NestedComponentInstance> emitDirective(DirectiveBinding node, Value<?> component, Value<?> root) {
+    private List<NestedComponentInstance> emitElementComponent(ComponentBinding node, Value<?> component,
+            Value<?> root) {
         ReflectClass<?> componentType = findClass(node.getClassName());
 
-        for (DirectiveFunctionBinding computation : node.getComputations()) {
+        for (ComponentFunctionBinding computation : node.getComputations()) {
             emitFunction(computation, component);
         }
 
-        if (node.getDirectiveNameMethodName() != null) {
+        if (node.getElementNameMethodName() != null) {
             context.location(node.getLocation());
-            emitDirectiveName(node.getDirectiveNameMethodName(), node.getName(), component, componentType);
+            emitElementName(node.getElementNameMethodName(), node.getName(), component, componentType);
         }
 
         List<NestedComponentInstance> nestedInstances = new ArrayList<>();
-        for (NestedDirectiveBinding nestedDirective : node.getNestedDirectives()) {
-            nestedInstances.addAll(emitNestedDirective(nestedDirective, component, root));
+        for (NestedComponentBinding nestedComponent : node.getNestedComponents()) {
+            nestedInstances.addAll(emitNestedComponent(nestedComponent, component, root));
         }
         return nestedInstances;
     }
 
-    private void emitDirectiveContent(DirectiveBinding rootNode, DirectiveBinding node, Value<?> component,
+    private void emitComponentContent(ComponentBinding rootNode, ComponentBinding node, Value<?> component,
             List<TemplateVariable> variables) {
         context.location(node.getLocation());
         if (node.getContentMethodName() != null) {
@@ -162,37 +163,37 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
     }
 
-    private void emitVariables(DirectiveBinding directive, List<TemplateVariable> variables,
-            Map<DirectiveBinding, Value<?>> instances) {
-        Value<?> instance = instances.get(directive);
-        ReflectClass<?> componentType = findClass(directive.getClassName());
-        for (DirectiveVariableBinding varBinding : directive.getVariables()) {
+    private void emitVariables(ComponentBinding component, List<TemplateVariable> variables,
+            Map<ComponentBinding, Value<?>> instances) {
+        Value<?> instance = instances.get(component);
+        ReflectClass<?> componentType = findClass(component.getClassName());
+        for (ComponentVariableBinding varBinding : component.getVariables()) {
             ReflectMethod getter = componentType.getMethod(varBinding.getMethodName());
             Value<Object> source = lazy(() -> getter.invoke(instance.get()));
             variables.add(new TemplateVariable(varBinding.getName(), source));
         }
-        for (NestedDirectiveBinding nestedBinding : directive.getNestedDirectives()) {
-            for (DirectiveBinding nestedDirective : nestedBinding.getDirectives()) {
-                emitVariables(nestedDirective, variables, instances);
+        for (NestedComponentBinding nestedBinding : component.getNestedComponents()) {
+            for (ComponentBinding nestedComponent : nestedBinding.getComponents()) {
+                emitVariables(nestedComponent, variables, instances);
             }
         }
     }
 
-    private Value<Modifier> emitAttributeDirective(AttributeDirectiveBinding binding) {
+    private Value<Modifier> emitAttributeComponent(AttributeComponentBinding binding) {
         context.location(binding.getLocation());
-        ReflectClass<Renderable> directiveClass = findClass(binding.getClassName()).asSubclass(Renderable.class);
-        ReflectMethod ctor = directiveClass.getJMethod("<init>", ModifierTarget.class);
+        ReflectClass<Renderable> componentClass = findClass(binding.getClassName()).asSubclass(Renderable.class);
+        ReflectMethod ctor = componentClass.getJMethod("<init>", ModifierTarget.class);
 
         return proxy(Modifier.class, (instance, method, args) -> {
             Value<ModifierTarget> elem = emit(() -> (ModifierTarget) args[0]);
             Value<Renderable> result = emit(() -> (Renderable) ctor.construct(elem.get()));
 
-            for (DirectiveFunctionBinding function : binding.getFunctions()) {
+            for (ComponentFunctionBinding function : binding.getFunctions()) {
                 emitFunction(function, result);
             }
-            if (binding.getDirectiveNameMethodName() != null) {
+            if (binding.getElementNameMethodName() != null) {
                 context.location(binding.getLocation());
-                emitDirectiveName(binding.getDirectiveNameMethodName(), binding.getName(), result, directiveClass);
+                emitElementName(binding.getElementNameMethodName(), binding.getName(), result, componentClass);
             }
 
             context.location(binding.getLocation());
@@ -200,7 +201,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         });
     }
 
-    private void emitFunction(DirectiveFunctionBinding function, Value<?> component) {
+    private void emitFunction(ComponentFunctionBinding function, Value<?> component) {
         ExprPlanEmitter exprEmitter = new ExprPlanEmitter(context);
         LambdaPlan plan = function.getPlan();
         ValueType[] signature = MethodDescriptor.parseSignature(function.getPlan().getMethodDesc());
@@ -213,52 +214,52 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         emit(() -> setter.invoke(component, functionInstance));
     }
 
-    private List<NestedComponentInstance> emitNestedDirective(NestedDirectiveBinding nested, Value<?> component,
+    private List<NestedComponentInstance> emitNestedComponent(NestedComponentBinding nested, Value<?> component,
             Value<?> root) {
         List<NestedComponentInstance> instancesToFill = new ArrayList<>();
         ReflectClass<?> cls = findClass(nested.getMethodOwner());
         if (nested.isMultiple()) {
             ReflectMethod setter = cls.getJMethod(nested.getMethodName(), List.class);
-            int capacity = nested.getDirectives().size();
+            int capacity = nested.getComponents().size();
             Value<List<Object>> list = emit(() -> new ArrayList<>(capacity));
-            for (DirectiveBinding nestedDirective : nested.getDirectives()) {
-                Value<Object> nestedComponent = emitNestedComponent(nestedDirective, root, instancesToFill);
+            for (ComponentBinding nestedComponentBinding : nested.getComponents()) {
+                Value<Object> nestedComponent = emitNestedComponent(nestedComponentBinding, root, instancesToFill);
                 emit(() -> list.get().add(nestedComponent));
-                instancesToFill.add(new NestedComponentInstance(nestedDirective, nestedComponent, root));
+                instancesToFill.add(new NestedComponentInstance(nestedComponentBinding, nestedComponent, root));
             }
             emit(() -> setter.invoke(component, list));
         } else {
-            ReflectClass<?> directiveType = findClass(nested.getDirectiveType());
-            ReflectMethod setter = cls.getMethod(nested.getMethodName(), directiveType);
-            Value<Object> nestedComponent = emitNestedComponent(nested.getDirectives().get(0), root, instancesToFill);
+            ReflectClass<?> componentType = findClass(nested.getComponentType());
+            ReflectMethod setter = cls.getMethod(nested.getMethodName(), componentType);
+            Value<Object> nestedComponent = emitNestedComponent(nested.getComponents().get(0), root, instancesToFill);
             emit(() -> setter.invoke(component, nestedComponent));
-            instancesToFill.add(new NestedComponentInstance(nested.getDirectives().get(0), nestedComponent, root));
+            instancesToFill.add(new NestedComponentInstance(nested.getComponents().get(0), nestedComponent, root));
         }
         return instancesToFill;
     }
 
-    private Value<Object> emitNestedComponent(DirectiveBinding node, Value<?> root,
+    private Value<Object> emitNestedComponent(ComponentBinding node, Value<?> root,
             List<NestedComponentInstance> instances) {
         context.location(node.getLocation());
         ReflectClass<?> componentType = findClass(node.getClassName());
         ReflectMethod ctor = componentType.getMethod("<init>");
         Value<Object> component = emit(() -> ctor.construct());
-        instances.addAll(emitDirective(node, component, root));
+        instances.addAll(emitElementComponent(node, component, root));
         return component;
     }
 
-    private void emitDirectiveName(String methodName, String directiveName, Value<?> component,
+    private void emitElementName(String methodName, String elementName, Value<?> component,
             ReflectClass<?> componentType) {
         ReflectMethod setter = componentType.getJMethod(methodName, String.class);
-        emit(() -> setter.invoke(component.get(), directiveName));
+        emit(() -> setter.invoke(component.get(), elementName));
     }
 
     static class NestedComponentInstance {
-        DirectiveBinding node;
+        ComponentBinding node;
         Value<?> instance;
         Value<?> root;
 
-        NestedComponentInstance(DirectiveBinding node, Value<?> instance, Value<?> root) {
+        NestedComponentInstance(ComponentBinding node, Value<?> instance, Value<?> root) {
             this.node = node;
             this.instance = instance;
             this.root = root;

@@ -20,13 +20,13 @@ import java.util.List;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.BindElement;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 
-@BindDirective(name = "validator")
+@BindElement(name = "validator")
 public class Validator extends AbstractComponent {
     private ValidatorState state;
     boolean valid;
@@ -49,7 +49,7 @@ public class Validator extends AbstractComponent {
         return valid;
     }
 
-    @BindDirective(name = "validation")
+    @BindElement(name = "validation")
     public void setEntries(List<ValidationEntry<?>> entries) {
         this.entries = entries;
     }

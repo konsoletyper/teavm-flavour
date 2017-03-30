@@ -24,13 +24,13 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
-import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.BindElement;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.flavour.templates.ValueChangeListener;
 
-@BindDirective(name = "calendar")
+@BindElement(name = "calendar")
 @BindTemplate("templates/flavour/widgets/calendar.html")
 public class CalendarWidget extends AbstractWidget {
     private List<Day> days = new ArrayList<>();

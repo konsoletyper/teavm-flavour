@@ -25,7 +25,7 @@ public class DOMElement extends TemplateNode {
     private List<TemplateNode> childNodes = new ArrayList<>();
     private List<DOMAttribute> attributes = new ArrayList<>();
     private List<DOMAttribute> readonlyAttributes = Collections.unmodifiableList(attributes);
-    private List<AttributeDirectiveBinding> attributeDirectives = new ArrayList<>();
+    private List<AttributeComponentBinding> attributeComponents = new ArrayList<>();
 
     public DOMElement(String name) {
         this.name = name;
@@ -87,8 +87,8 @@ public class DOMElement extends TemplateNode {
         return readonlyAttributes;
     }
 
-    public List<AttributeDirectiveBinding> getAttributeDirectives() {
-        return attributeDirectives;
+    public List<AttributeComponentBinding> getAttributeComponents() {
+        return attributeComponents;
     }
 
 

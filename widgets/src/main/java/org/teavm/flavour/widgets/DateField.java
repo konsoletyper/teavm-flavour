@@ -22,7 +22,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
-import org.teavm.flavour.templates.BindAttributeDirective;
+import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.ModifierTarget;
@@ -35,7 +35,7 @@ import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.TextRectangle;
 
-@BindAttributeDirective(name = "date", elements = "input")
+@BindAttributeComponent(name = "date", elements = "input")
 public class DateField implements Renderable {
     private ModifierTarget target;
     private Supplier<DateFieldSettings> settings;

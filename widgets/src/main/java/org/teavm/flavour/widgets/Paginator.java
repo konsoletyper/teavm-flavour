@@ -21,14 +21,14 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttribute;
-import org.teavm.flavour.templates.BindDirective;
+import org.teavm.flavour.templates.BindElement;
 import org.teavm.flavour.templates.BindTemplate;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.MouseEvent;
 
-@BindDirective(name = "paginator")
+@BindElement(name = "paginator")
 @BindTemplate("templates/flavour/widgets/paginator.html")
 public class Paginator extends AbstractWidget {
     private Supplier<Integer> maxPages = () -> 11;
