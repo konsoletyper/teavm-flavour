@@ -10,8 +10,4 @@ This includes the following features:
 * serialization to JSON;
 * REST (JAX-RS) client.
 
-TeaVM Flavour is for developers, who like concepts of Knockout, Angular, Backbone, etc, but would like to write their web applications on Java, both backend and frontend.
-The framework won't include much for backend developers.
-Instead, it will be tightly integrated with existing Java infrastructure, including Java EE, Spring, JAX-RS, etc.
-
-Currently, project lacks documentation.
+See project's wiki to get help.

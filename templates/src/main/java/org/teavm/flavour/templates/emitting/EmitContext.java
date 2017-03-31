@@ -73,7 +73,7 @@ class EmitContext {
             return;
         }
         int line = locationMapper.getLine(location.getStart());
-        Metaprogramming.location(sourceFileName, line);
+        Metaprogramming.location(sourceFileName, line + 1);
     }
 
     public void endLocation(Location location) {

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@ package org.teavm.flavour.components.events;
 
 import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.ModifierTarget;
-import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.events.KeyboardEvent;
 
-@BindAttributeComponent(name = { "change", "blur", "focus", "submit", "reset" })
-public class EventBinder extends BaseEventBinder<Event> {
-    public EventBinder(ModifierTarget target) {
+@BindAttributeComponent(name = { "async-keyup", "async-keydown", "async-keypress" })
+public class AsyncKeyboardBinder extends BaseAsyncEventBinder<KeyboardEvent> {
+    public AsyncKeyboardBinder(ModifierTarget target) {
         super(target);
     }
 }

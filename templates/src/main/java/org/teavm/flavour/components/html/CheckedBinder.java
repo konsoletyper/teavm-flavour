@@ -26,7 +26,7 @@ import org.teavm.jso.dom.html.HTMLInputElement;
 public class CheckedBinder implements Renderable {
     private HTMLInputElement element;
     private Supplier<Boolean> value;
-    private boolean cachedValue = true;
+    private boolean cachedValue;
 
     public CheckedBinder(ModifierTarget target) {
         this.element = (HTMLInputElement) target.getElement();
