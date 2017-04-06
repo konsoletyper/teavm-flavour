@@ -14,6 +14,7 @@
     <java.version>1.8</java.version>
     <flavour.version>${project.version}</flavour.version>
     <teavm.version>${teavm.version}</teavm.version>
+    <jackson.version>${jackson.version}</jackson.version>
   </properties>
 
   <repositories>
@@ -51,6 +52,12 @@
       <groupId>org.teavm.flavour</groupId>
       <artifactId>teavm-flavour-rest</artifactId>
       <version>\${flavour.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>\${jackson.version}</version>
     </dependency>
   </dependencies>
 
