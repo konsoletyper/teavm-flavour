@@ -62,7 +62,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.7</slf4j.version>
     <teavm.version>0.5.0-dev-244</teavm.version>
-    <jackson.version>2.8.7</jackson.version>
+    <jackson.version>2.5.4</jackson.version>
     <antlr.version>4.6</antlr.version>
     <selenium.version>2.51.0</selenium.version>
   </properties>
