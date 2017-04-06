@@ -45,7 +45,7 @@
         </tr>
       </thead>
       <tbody>
-        <std:foreach var="order" index="i" in="cursor.fetch()">
+        <std:foreach var="order" index="i" in="cursor">
           <tr>
             <td><a html:link="edit(order.id, it)">Edit</a></td>
             <td><html:text value="order.id"/></td>
@@ -55,7 +55,7 @@
             <td align="right"><html:text value="'$' + order.total"/></td>
           </tr>
         </std:foreach>
-        <std:if condition="cursor.fetch().empty">
+        <std:if condition="cursor.empty">
           <tr>
             <td colspan="6"><i>There are no orders satisfying given criteria</i></td>
           </tr>

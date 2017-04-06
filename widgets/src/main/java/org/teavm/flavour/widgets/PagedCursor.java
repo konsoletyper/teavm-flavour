@@ -17,12 +17,12 @@ package org.teavm.flavour.widgets;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 public class PagedCursor<T> implements Pageable, DataCursor<T> {
     private DataSource<T> dataSource;
     private List<T> list = new ArrayList<>();
-    private List<T> readonlyList = Collections.unmodifiableList(list);
     private int currentPage;
     private int pageCount;
     private int pageSize = 20;
@@ -94,8 +94,13 @@ public class PagedCursor<T> implements Pageable, DataCursor<T> {
     }
 
     @Override
-    public List<T> fetch() {
-        return readonlyList;
+    public Iterator<T> iterator() {
+        return list.iterator();
+    }
+
+    @Override
+    public int size() {
+        return list.size();
     }
 
     @Override

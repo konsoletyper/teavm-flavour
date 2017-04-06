@@ -15,10 +15,12 @@
  */
 package org.teavm.flavour.widgets;
 
-import java.util.List;
-
-public interface DataCursor<T> {
-    List<T> fetch();
-
+public interface DataCursor<T> extends Iterable<T> {
     boolean isLoading();
+
+    default boolean isEmpty() {
+        return size() == 0;
+    }
+
+    int size();
 }

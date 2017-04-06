@@ -29,7 +29,7 @@
       </tr>
     </thead>
     <tbody>
-      <std:foreach var="product" in="cursor.fetch()">
+      <std:foreach var="product" in="cursor">
         <tr>
           <td><button event:click="choose(product)" class="btn btn-default btn-sm">Choose</button></td>
           <td><html:text value="product.sku"/></td>
@@ -37,7 +37,7 @@
           <td align="right"><html:text value="'$' + product.unitPrice"/></td>
         </tr>
       </std:foreach>
-      <std:if condition="cursor.fetch().empty">
+      <std:if condition="cursor.empty">
         <tr>
           <td colspan="4"><i>There are no products satisfying given criteria</i></td>
         </tr>
