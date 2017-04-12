@@ -28,7 +28,7 @@ public class ChooseComponent extends AbstractComponent {
     private OtherwiseClause otherwiseClause;
     private Component child;
     private ChooseClause currentClause;
-    private boolean dirty;
+    private boolean dirty = true;
 
     public ChooseComponent(Slot slot) {
         super(slot);
