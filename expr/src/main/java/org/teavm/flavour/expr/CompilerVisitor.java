@@ -494,7 +494,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else if (lookup.getCandidates().size() == 1) {
             error(expr, "Method " + lookup.getCandidates().get(0) + " is not applicable to (" + sb + ")");
         } else {
-            error(expr, "Ambigous method invocation " + methodName + "(" + sb + ")");
+            error(expr, "Ambiguous method invocation " + methodName + "(" + sb + ")");
         }
     }
 
