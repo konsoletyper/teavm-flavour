@@ -120,6 +120,24 @@ public class StandardComponentsTest {
         public String b;
     }
 
+    @Test
+    public void withWorks() {
+        WithWorksModel model = new WithWorksModel();
+        model.a = "-foo-";
+        Component component = Templates.bind(model, root);
+        component.render();
+        assertEquals("foo", document.getElementById("value").getAttribute("class"));
+    }
+
+    @BindTemplate("templates/with-works.html")
+    static class WithWorksModel {
+        public String a;
+
+        public String f() {
+            return a;
+        }
+    }
+
     private static List<HTMLElement> toList(NodeList<? extends HTMLElement> nodeList) {
         List<HTMLElement> list = new ArrayList<>();
         for (int i = 0; i < nodeList.getLength(); ++i) {
