@@ -161,7 +161,7 @@ public class MethodLookup {
                 }
             } else {
                 result = method;
-                inferReturnType(result, inference);
+                returnType = inferReturnType(result, inference);
             }
         }
         return result;
