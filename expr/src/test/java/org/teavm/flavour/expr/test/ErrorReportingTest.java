@@ -125,7 +125,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsAmbigousMethod() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.bar(null)").get(0);
-        assertThat(d.getMessage(), startsWith("Ambigous method invocation bar(?)"));
+        assertThat(d.getMessage(), startsWith("Ambiguous method invocation bar(?)"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(13));
     }
