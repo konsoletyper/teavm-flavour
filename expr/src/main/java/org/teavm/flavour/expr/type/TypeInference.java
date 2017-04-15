@@ -24,10 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeInference {
     private GenericTypeNavigator typeNavigator;
     private Map<TypeVar, InferenceVar> inferenceVars = new WeakHashMap<>();
@@ -100,6 +96,8 @@ public class TypeInference {
         } else if (remaining.boundType == null) {
             return true;
         } else if (common.boundType == BoundType.EXACT && remaining.boundType == BoundType.EXACT) {
+            return equalConstraint(common.bounds.iterator().next(), remaining.bounds.iterator().next());
+        } else if (common.boundType == BoundType.LOWER && remaining.boundType == BoundType.LOWER) {
             return equalConstraint(common.bounds.iterator().next(), remaining.bounds.iterator().next());
         } else {
             return false;
