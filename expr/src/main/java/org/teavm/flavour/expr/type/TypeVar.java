@@ -19,10 +19,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeVar {
     private List<GenericType> lowerBound = Collections.emptyList();
     private List<GenericType> upperBound = Collections.emptyList();
