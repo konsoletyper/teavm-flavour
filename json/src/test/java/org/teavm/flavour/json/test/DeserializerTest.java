@@ -110,6 +110,11 @@ public class DeserializerTest {
         WithConstructor obj = JSONRunner.deserialize("{ \"foo\" : 23, \"bar\" : \"q\" }", WithConstructor.class);
         assertEquals(23, obj.getFoo());
         assertEquals("q", obj.getBar());
+
+        WithConstructorAsCreator obj2 = JSONRunner.deserialize("{ \"foo\" : 42, \"bar\" : \"w\" }",
+                WithConstructorAsCreator.class);
+        assertEquals(42, obj2.getFoo());
+        assertEquals("w", obj2.getBar());
     }
 
     @Test
@@ -314,10 +319,33 @@ public class DeserializerTest {
         private int foo;
         private String bar;
 
-        @JsonCreator
         public WithConstructor(@JsonProperty("foo") int foo, @JsonProperty("bar") String bar) {
             this.foo = foo;
             this.bar = bar;
+        }
+
+        public int getFoo() {
+            return foo;
+        }
+
+        public String getBar() {
+            return bar;
+        }
+    }
+
+    public static class WithConstructorAsCreator {
+        private int foo;
+        private String bar;
+
+        @JsonCreator
+        public WithConstructorAsCreator(@JsonProperty("foo") int foo, @JsonProperty("bar") String bar) {
+            this.foo = foo;
+            this.bar = bar;
+        }
+
+        public WithConstructorAsCreator() {
+            this.foo = 2323;
+            this.bar = "fail";
         }
 
         public int getFoo() {

@@ -376,14 +376,30 @@ class ClassInformationProvider {
 
     private void scanCreators(ClassInformation information, ReflectClass<?> cls) {
         ReflectMethod foundCreator = null;
+        ReflectMethod duplicateCreator = null;
+        boolean isFoundCreatorGuessed = false;
         for (ReflectMethod method : cls.getDeclaredMethods()) {
-            if (method.getAnnotation(JsonCreator.class) != null) {
+            boolean isExplicitCreator = method.getAnnotation(JsonCreator.class) != null;
+            boolean isCreator = (foundCreator == null || isFoundCreatorGuessed) && isGuessedCreator(method);
+
+            if (isExplicitCreator || isCreator) {
                 if (foundCreator != null) {
-                    diagnostics.error(new SourceLocation(foundCreator), "Duplicate creators declared: "
-                            + "{{m0}} and {{m1}}", foundCreator, method);
-                    break;
+                    if (!isExplicitCreator || !isFoundCreatorGuessed) {
+                        if (duplicateCreator == null) {
+                            duplicateCreator = method;
+                        }
+                        continue;
+                    }
+                }
+
+                if (isCreator) {
+                    isFoundCreatorGuessed = true;
                 }
                 foundCreator = method;
+                if (duplicateCreator != null) {
+                    duplicateCreator = null;
+                }
+
                 if (!method.getName().equals("<init>") && Modifier.isStatic(method.getModifiers())) {
                     diagnostics.error(new SourceLocation(method), "Creator should be either constructor "
                             + " or static: {{m0}}", method);
@@ -397,12 +413,34 @@ class ClassInformationProvider {
                 }
             }
         }
+
+        if (duplicateCreator != null) {
+            diagnostics.error(new SourceLocation(foundCreator), "Duplicate creators declared: "
+                    + "{{m0}} and {{m1}}", foundCreator, duplicateCreator);
+            return;
+        }
+
+
         if (information.constructor == null) {
             ReflectMethod defaultCtor = cls.getDeclaredMethod("<init>");
             if (defaultCtor != null) {
                 information.constructor = defaultCtor;
             }
         }
+    }
+
+    private boolean isGuessedCreator(ReflectMethod method) {
+        if (!method.isConstructor()) {
+            return false;
+        }
+
+        for (int i = 0; i < method.getParameterCount(); ++i) {
+            if (method.getParameterAnnotations(i).getAnnotation(JsonProperty.class) != null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private PropertyInformation addParameter(ClassInformation information, ReflectMethod creator, int index,
