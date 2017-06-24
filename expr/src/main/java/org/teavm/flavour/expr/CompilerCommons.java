@@ -32,8 +32,8 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
 import org.teavm.flavour.expr.type.PrimitiveKind;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
@@ -192,12 +192,7 @@ public final class CompilerCommons {
         if (type instanceof GenericReference) {
             TypeVar var = ((GenericReference) type).getVar();
             if (var.getLowerBound().size() == 1) {
-                type = var.getLowerBound().get(0);
-            }
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            if (wildcard.getLowerBound().size() == 1) {
-                type = wildcard.getLowerBound().get(0);
+                type = var.getLowerBound().iterator().next();
             }
         }
         return type;
@@ -236,13 +231,6 @@ public final class CompilerCommons {
         if (type instanceof GenericReference) {
             TypeVar v = ((GenericReference) type).getVar();
             return v.getLowerBound().stream()
-                    .map(CompilerCommons.wrappersToPrimitives::get)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            return wildcard.getLowerBound().stream()
                     .map(CompilerCommons.wrappersToPrimitives::get)
                     .filter(Objects::nonNull)
                     .findFirst()
@@ -295,12 +283,6 @@ public final class CompilerCommons {
                     .filter(bound -> bound instanceof GenericClass)
                     .map(bound -> (GenericClass) bound)
                     .collect(Collectors.toList()));
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            classes.addAll(wildcard.getLowerBound().stream()
-                    .filter(bound -> bound instanceof GenericClass)
-                    .map(bound -> (GenericClass) bound)
-                    .collect(Collectors.toList()));
         } else if (type instanceof GenericClass) {
             classes.add((GenericClass) type);
         }
@@ -349,19 +331,15 @@ public final class CompilerCommons {
         } else if (type instanceof GenericArray) {
             sb.append('[');
             typeToString(((GenericArray) type).getElementType(), sb);
+        } else if (type instanceof PrimitiveArray) {
+            sb.append('[');
+            typeToString(((PrimitiveArray) type).getElementType(), sb);
         } else if (type instanceof GenericClass) {
             sb.append('L').append(((GenericClass) type).getName().replace('.', '/')).append(';');
         } else if (type instanceof GenericReference) {
             TypeVar var = ((GenericReference) type).getVar();
             if (var.getLowerBound().size() == 1) {
-                typeToString(var.getLowerBound().get(0), sb);
-            } else {
-                sb.append("Ljava/lang/Object;");
-            }
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            if (wildcard.getLowerBound().size() == 1) {
-                typeToString(wildcard.getLowerBound().get(0), sb);
+                typeToString(var.getLowerBound().iterator().next(), sb);
             } else {
                 sb.append("Ljava/lang/Object;");
             }

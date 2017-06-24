@@ -65,7 +65,9 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.IntersectionType;
 import org.teavm.flavour.expr.type.MapSubstitutions;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -279,7 +281,10 @@ public class Parser {
             }
 
             if (attrParse.meta.valueType != null) {
-                attrParse.type = attrParse.meta.valueType.substitute(typeVars);
+                attrParse.type = attrParse.meta.valueType;
+                if (attrParse.type instanceof GenericType) {
+                    attrParse.type = ((GenericType) attrParse.type).substitute(typeVars);
+                }
             }
             if (attrParse.meta.sam != null) {
                 attrParse.sam = attrParse.meta.sam.substitute(typeVars);
@@ -353,10 +358,10 @@ public class Parser {
         }
     }
 
-    private void newVariables(Set<TypeVar> fixedVars, Set<TypeVar> result, ValueType type) {
+    private void newVariables(Set<? extends TypeVar> fixedVars, Set<TypeVar> result, ValueType type) {
         if (type instanceof GenericClass) {
-            for (GenericType arg : ((GenericClass) type).getArguments()) {
-                newVariables(fixedVars, result, arg);
+            for (TypeArgument arg : ((GenericClass) type).getArguments()) {
+                newVariables(fixedVars, result, arg.getBound());
             }
         } else if (type instanceof GenericArray) {
             newVariables(fixedVars, result, ((GenericArray) type).getElementType());
@@ -364,6 +369,10 @@ public class Parser {
             TypeVar var = ((GenericReference) type).getVar();
             if (!fixedVars.contains(var)) {
                 result.add(var);
+            }
+        } else if (type instanceof IntersectionType) {
+            for (GenericType componentType : ((IntersectionType) type).getTypes()) {
+                newVariables(fixedVars, result, componentType);
             }
         }
     }
@@ -413,7 +422,7 @@ public class Parser {
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                         attrParse.sam.getActualOwner().getName());
                 parse.component.getComputations().add(computationBinding);
-                varInference.equalConstraint((GenericType) plan.getType(), attrParse.sam.getActualOwner());
+                varInference.equalConstraint(plan.getType(), attrParse.sam.getActualOwner());
 
                 if (attrParse.meta.type == ComponentAttributeType.BIDIRECTIONAL) {
                     setter = attrParse.meta.altSetter;

@@ -17,11 +17,8 @@ package org.teavm.flavour.expr.type;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class GenericReference extends GenericType {
     private TypeVar var;
 
@@ -51,6 +48,16 @@ public final class GenericReference extends GenericType {
     }
 
     @Override
+    public GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions) {
+        return this;
+    }
+
+    @Override
+    GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions, Set<TypeVar> visited) {
+        return this;
+    }
+
+    @Override
     public int hashCode() {
         return 31 * var.hashCode() + 13;
     }
@@ -70,9 +77,9 @@ public final class GenericReference extends GenericType {
     @Override
     public GenericType erasure() {
         if (var.getUpperBound().size() != 1) {
-            return new GenericClass("java.lang.Object");
+            return GenericType.OBJECT;
         } else {
-            return var.getUpperBound().get(0);
+            return var.getUpperBound().iterator().next();
         }
     }
 }

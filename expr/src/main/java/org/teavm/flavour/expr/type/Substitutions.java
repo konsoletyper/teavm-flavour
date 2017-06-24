@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface Substitutions {
     GenericType get(TypeVar var);
 }

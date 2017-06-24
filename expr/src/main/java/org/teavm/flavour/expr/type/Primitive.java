@@ -15,12 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.Set;
-
-/**
- *
- * @author Alexey Andreev
- */
 public final class Primitive extends ValueType {
     public static final Primitive BOOLEAN = new Primitive(PrimitiveKind.BOOLEAN);
     public static final Primitive CHAR = new Primitive(PrimitiveKind.CHAR);
@@ -38,15 +32,5 @@ public final class Primitive extends ValueType {
 
     public PrimitiveKind getKind() {
         return kind;
-    }
-
-    @Override
-    public Primitive substitute(Substitutions substitutions) {
-        return this;
-    }
-
-    @Override
-    ValueType substitute(Substitutions substitutions, Set<TypeVar> visited) {
-        return this;
     }
 }

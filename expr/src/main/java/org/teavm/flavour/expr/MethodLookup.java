@@ -29,7 +29,8 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.MapSubstitutions;
+import org.teavm.flavour.expr.type.PrimitiveArray;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -191,7 +192,13 @@ public class MethodLookup {
                 }
             }
 
-            ValueType lastParam = ((GenericArray) paramTypes[paramTypes.length - 1]).getElementType();
+            ValueType lastParam;
+            ValueType lastParamType = paramTypes[paramTypes.length - 1];
+            if (lastParamType instanceof PrimitiveArray) {
+                lastParam = ((PrimitiveArray) lastParamType).getElementType();
+            } else {
+                lastParam = ((GenericArray) lastParamType).getElementType();
+            }
             for (int i = paramTypes.length - 1; i < args.length; ++i) {
                 if (!TypeUtil.subtype(args[i], lastParam, inference)) {
                     continue lookup;
@@ -229,22 +236,26 @@ public class MethodLookup {
             return;
         }
 
-        Map<TypeVar, GenericType> substitutionMap = new HashMap<>();
+        Map<TypeVar, TypeArgument> substitutionMap = new HashMap<>();
         TypeVar[] typeVars = desc.getTypeVariables();
         for (int i = 0; i < typeVars.length; ++i) {
             substitutionMap.put(typeVars[i], cls.getArguments().get(i));
         }
-        MapSubstitutions substitutions = new MapSubstitutions(substitutionMap);
         for (MethodDescriber methodDesc : desc.getMethods()) {
             if (!methodDesc.getName().equals(name) || methodDesc.isStatic() != isStatic) {
                 continue;
             }
             ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
-                    .map(arg -> arg.substitute(substitutions))
+                    .map(arg -> {
+                        if (arg instanceof GenericType) {
+                            arg = ((GenericType) arg).substituteArgs(substitutionMap::get);
+                        }
+                        return arg;
+                    })
                     .toArray(sz -> new ValueType[sz]);
             ValueType returnType = methodDesc.getReturnType();
-            if (returnType != null) {
-                returnType = returnType.substitute(substitutions);
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType) returnType).substituteArgs(substitutionMap::get);
             }
             GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
             methods.add(method);
@@ -282,7 +293,7 @@ public class MethodLookup {
             return null;
         }
         if (method.getActualReturnType() instanceof GenericType) {
-            return method.getActualReturnType().substitute(inference.getSubstitutions());
+            return ((GenericType) method.getActualReturnType()).substitute(inference.getSubstitutions());
         } else {
             return method.getActualReturnType();
         }

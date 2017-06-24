@@ -22,16 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
-import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
-import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.MapSubstitutions;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
@@ -193,18 +189,20 @@ class ComponentParser {
         Map<TypeVar, GenericType> vars = new HashMap<>();
         TypeVar[] typeVars = clsDesc.getTypeVariables();
         for (int i = 0; i < typeVars.length; ++i) {
-            vars.put(typeVars[i], genericCls.getArguments().get(i));
+            vars.put(typeVars[i], genericCls.getArguments().get(i).getBound());
         }
 
         MapSubstitutions subst = new MapSubstitutions(vars);
         for (MethodDescriber methodDesc : clsDesc.getMethods()) {
             ValueType[] argumentTypes = methodDesc.getArgumentTypes();
             for (int i = 0; i < argumentTypes.length; ++i) {
-                argumentTypes[i] = argumentTypes[i].substitute(subst);
+                if (argumentTypes[i] instanceof GenericType) {
+                    argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(subst);
+                }
             }
             ValueType returnType = methodDesc.getReturnType();
-            if (returnType != null) {
-                returnType = returnType.substitute(subst);
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType) returnType).substitute(subst);
             }
             GenericMethod method = new GenericMethod(methodDesc, genericCls, argumentTypes, returnType);
             if (visitedMethods.add(new MethodWithParams(methodDesc.getName(), argumentTypes))) {
@@ -385,7 +383,6 @@ class ComponentParser {
 
         bindings.add(binding);
 
-        method = replaceWildcards(method);
         ValueType[] arguments = method.getActualArgumentTypes();
         if (method.getActualReturnType() != null || arguments.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindElement.class.getName()
@@ -402,7 +399,7 @@ class ComponentParser {
         GenericType type = (GenericType) arguments[0];
         TypeInference inference = new TypeInference(typeNavigator);
         TypeVar var = new TypeVar();
-        if (inference.subtypeConstraint(type, new GenericClass("java.util.List", new GenericReference(var)))) {
+        if (inference.subtypeConstraint(type, new GenericClass("java.util.List", var))) {
              type = inference.getSubstitutions().get(var);
              multiple = true;
         }
@@ -419,50 +416,6 @@ class ComponentParser {
         nestedComponent.setter = method;
         nestedComponent.required = method.getDescriber().getAnnotation(OptionalBinding.class.getName()) == null;
         metadata.nestedComponents.add(nestedComponent);
-    }
-
-    private GenericMethod replaceWildcards(GenericMethod method) {
-        ValueType[] args = Arrays.stream(method.getActualArgumentTypes())
-                .map(this::replaceWildcards)
-                .toArray(sz -> new ValueType[sz]);
-        ValueType returnType = method.getActualReturnType();
-        if (returnType != null) {
-            returnType = replaceWildcards(returnType);
-        }
-        return new GenericMethod(method.getDescriber(), method.getActualOwner(), args, returnType);
-    }
-
-    private ValueType replaceWildcards(ValueType type) {
-        if (type instanceof GenericClass) {
-            GenericClass cls = (GenericClass) type;
-            List<GenericType> args = cls.getArguments().stream()
-                    .map(this::replaceWildcards)
-                    .map(arg -> (GenericType) arg)
-                    .collect(Collectors.toList());
-            return new GenericClass(cls.getName(), args);
-        } else if (type instanceof GenericArray) {
-            GenericArray array = (GenericArray) type;
-            return new GenericArray(replaceWildcards(array.getElementType()));
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            TypeVar var = new TypeVar();
-            if (!wildcard.getLowerBound().isEmpty()) {
-                GenericType[] bounds = var.getLowerBound().stream()
-                        .map(this::replaceWildcards)
-                        .map(arg -> (GenericType) arg)
-                        .toArray(sz -> new GenericType[sz]);
-                var.withLowerBound(bounds);
-            } else if (!wildcard.getUpperBound().isEmpty()) {
-                GenericType[] bounds = var.getUpperBound().stream()
-                        .map(this::replaceWildcards)
-                        .map(arg -> (GenericType) arg)
-                        .toArray(sz -> new GenericType[sz]);
-                var.withUpperBound(bounds);
-            }
-            return new GenericReference(var);
-        } else {
-            return type;
-        }
     }
 
     private boolean parseAttributeType(ComponentAttributeMetadata attrMetadata, ValueType valueType,

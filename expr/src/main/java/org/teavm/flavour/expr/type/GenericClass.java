@@ -21,35 +21,47 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class GenericClass extends GenericType {
     private String name;
-    private List<GenericType> arguments = new ArrayList<>();
-    private List<GenericType> safeArguments = Collections.unmodifiableList(arguments);
+    private List<? extends TypeArgument> arguments;
 
-    public GenericClass(String name, GenericType... arguments) {
+    public GenericClass(String name) {
+        this.name = name;
+        this.arguments = Collections.emptyList();
+    }
+
+    public GenericClass(String name, TypeArgument... arguments) {
         this(name, Arrays.asList(arguments));
     }
 
-    public GenericClass(String name, List<GenericType> arguments) {
+    public GenericClass(String name, TypeVar... arguments) {
+        this(name, Arrays.stream(arguments)
+                .map(typeVar -> TypeArgument.invariant(new GenericReference(typeVar)))
+                .collect(Collectors.toList()));
+    }
+
+    public GenericClass(String name, List<? extends TypeArgument> arguments) {
         if (name == null || arguments == null) {
             throw new IllegalArgumentException();
         }
-        for (GenericType argument : arguments) {
+        for (TypeArgument argument : arguments) {
             if (argument == null) {
                 throw new IllegalArgumentException();
             }
         }
         this.name = name;
-        this.arguments.addAll(arguments);
+        this.arguments = Collections.unmodifiableList(new ArrayList<>(arguments));
     }
 
     public String getName() {
         return name;
     }
 
-    public List<GenericType> getArguments() {
-        return safeArguments;
+    public List<? extends TypeArgument> getArguments() {
+        return arguments;
     }
 
     @Override
@@ -59,12 +71,36 @@ public final class GenericClass extends GenericType {
 
     @Override
     GenericClass substitute(Substitutions substitutions, Set<TypeVar> visited) {
-        List<GenericType> argumentSubstitutions = new ArrayList<>();
+        List<TypeArgument> argumentSubstitutions = new ArrayList<>();
         boolean changed = false;
-        for (GenericType arg : arguments) {
-            GenericType argSubst = arg.substitute(substitutions, visited);
-            changed |= arg != argSubst;
+        for (TypeArgument arg : arguments) {
+            TypeArgument argSubst = arg.mapBound(bound -> bound.substitute(substitutions, visited));
             argumentSubstitutions.add(argSubst);
+            changed |= arg != argSubst;
+        }
+        return changed ? new GenericClass(name, argumentSubstitutions) : this;
+    }
+
+    @Override
+    public GenericClass substituteArgs(Function<TypeVar, TypeArgument> substitutions) {
+        return substituteArgs(substitutions, new HashSet<>());
+    }
+
+    @Override
+    GenericClass substituteArgs(Function<TypeVar, TypeArgument> substitutions, Set<TypeVar> visited) {
+        List<TypeArgument> argumentSubstitutions = new ArrayList<>();
+        boolean changed = false;
+        for (TypeArgument arg : arguments) {
+            if (arg.getVariance() == Variance.INVARIANT && arg.getBound() instanceof GenericReference) {
+
+                TypeArgument argSubst = substitutions.apply(
+                        ((GenericReference) arg.getBound()).getVar());
+                if (argSubst != null) {
+                    changed |= true;
+                    arg = argSubst;
+                }
+            }
+            argumentSubstitutions.add(arg);
         }
         return changed ? new GenericClass(name, argumentSubstitutions) : this;
     }
@@ -72,7 +108,7 @@ public final class GenericClass extends GenericType {
     @Override
     public int hashCode() {
         int hash = 31 * name.hashCode() + 13;
-        for (GenericType arg : arguments) {
+        for (TypeArgument arg : arguments) {
             hash = 31 * hash + arg.hashCode();
         }
         return hash;

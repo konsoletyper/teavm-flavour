@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,13 +15,8 @@
  */
 package org.teavm.flavour.expr.type;
 
-public enum PrimitiveKind {
-    BOOLEAN,
-    CHAR,
-    BYTE,
-    SHORT,
-    INT,
-    LONG,
-    FLOAT,
-    DOUBLE
+public enum  Variance {
+    INVARIANT,
+    COVARIANT,
+    CONTRAVARIANT
 }

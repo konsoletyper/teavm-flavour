@@ -15,7 +15,12 @@
  */
 package org.teavm.flavour.expr.type.meta;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,8 +30,10 @@ import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
-import org.teavm.flavour.expr.type.GenericWildcard;
+import org.teavm.flavour.expr.type.IntersectionType;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
@@ -94,41 +101,51 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
             if (javaClass.isPrimitive()) {
                 return primitiveMap.get(javaClass.getName());
             } else if (javaClass.isArray()) {
-                return new GenericArray(convertGenericType(javaClass.getComponentType()));
+                if (javaClass.getComponentType().isPrimitive()) {
+                    return new PrimitiveArray((Primitive) convertGenericType(javaClass.getComponentType()));
+                } else {
+                    return new GenericArray((GenericType) convertGenericType(javaClass.getComponentType()));
+                }
             }
-            return new GenericClass(javaClass.getName(), Collections.<GenericType>emptyList());
+            return new GenericClass(javaClass.getName(), Collections.emptyList());
         } else if (javaType instanceof ParameterizedType) {
             ParameterizedType javaGenericType = (ParameterizedType) javaType;
             Class<?> javaRawClass = (Class<?>) javaGenericType.getRawType();
             Type[] javaArgs = javaGenericType.getActualTypeArguments();
-            GenericType[] args = new GenericType[javaArgs.length];
+            TypeArgument[] args = new TypeArgument[javaArgs.length];
             for (int i = 0; i < args.length; ++i) {
-                args[i] = (GenericType) convertGenericType(javaArgs[i]);
+                args[i] = convertTypeArgument(javaArgs[i]);
             }
             return new GenericClass(javaRawClass.getName(), Arrays.asList(args));
         } else if (javaType instanceof GenericArrayType) {
             GenericArrayType javaArray = (GenericArrayType) javaType;
-            return new GenericArray(convertGenericType(javaArray.getGenericComponentType()));
+            return new GenericArray((GenericType) convertGenericType(javaArray.getGenericComponentType()));
         } else if (javaType instanceof TypeVariable<?>) {
             TypeVariable<?> javaVar = (TypeVariable<?>) javaType;
             return new GenericReference(getTypeVariable(javaVar));
-        } else if (javaType instanceof WildcardType) {
+        } else {
+            throw new AssertionError("Unsupported type: " + javaType);
+        }
+    }
+
+    private TypeArgument convertTypeArgument(Type javaType) {
+         if (javaType instanceof WildcardType) {
             WildcardType wildcard = (WildcardType) javaType;
             Type[] upperBounds = wildcard.getUpperBounds();
             Type[] lowerBounds = wildcard.getLowerBounds();
             if (lowerBounds.length > 0) {
-                return GenericWildcard.lowerBounded(Arrays.stream(lowerBounds)
+                return TypeArgument.contravariant(IntersectionType.of(Arrays.stream(lowerBounds)
                         .map(bound -> (GenericType) convertGenericType(bound))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList())));
             } else if (upperBounds.length > 0) {
-                return GenericWildcard.upperBounded(Arrays.stream(upperBounds)
+                return TypeArgument.covariant(IntersectionType.of(Arrays.stream(upperBounds)
                         .map(bound -> (GenericType) convertGenericType(bound))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList())));
             } else {
-                return GenericWildcard.unbounded();
+                return TypeArgument.covariant(GenericType.OBJECT);
             }
         } else {
-            throw new AssertionError("Unsupported type: " + javaType);
+            return TypeArgument.invariant((GenericType) convertGenericType(javaType));
         }
     }
 
@@ -165,8 +182,6 @@ public class ClassPathClassDescriberRepository implements ClassDescriberReposito
                 throw new RuntimeException("Class not found: " + cls.getName());
             }
         } else if (type instanceof GenericReference) {
-            return Object.class;
-        } else if (type instanceof GenericWildcard) {
             return Object.class;
         } else {
             throw new AssertionError("Can't convert type: " + type);

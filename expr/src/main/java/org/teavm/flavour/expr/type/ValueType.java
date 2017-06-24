@@ -15,13 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.HashSet;
-import java.util.Set;
-
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class ValueType {
     ValueType() {
     }
@@ -30,10 +23,4 @@ public abstract class ValueType {
     public String toString() {
         return new ValueTypeFormatter().format(this);
     }
-
-    public ValueType substitute(Substitutions substitutions) {
-        return substitute(substitutions, new HashSet<>());
-    }
-
-    abstract ValueType substitute(Substitutions substitutions, Set<TypeVar> visited);
 }

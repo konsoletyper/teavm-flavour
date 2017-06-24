@@ -45,6 +45,7 @@ import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveKind;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
@@ -111,19 +112,17 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
         } else if (first instanceof GenericClass) {
             TypeVar k = new TypeVar("K");
             TypeVar v = new TypeVar("V");
-            GenericClass mapClass = new GenericClass("java.util.Map", new GenericReference(k),
-                    new GenericReference(v));
+            GenericClass mapClass = new GenericClass("java.util.Map", k, v);
             TypeInference inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) first, mapClass)) {
+            if (inference.subtypeConstraint(first, mapClass)) {
                 GenericType keyType = CompilerCommons.box(second);
                 inference.subtypeConstraint(keyType, new GenericReference(k));
                 return new GenericReference(v).substitute(inference.getSubstitutions());
             }
 
-            GenericClass listClass = new GenericClass("java.util.List", new GenericReference(new TypeVar()),
-                    new GenericReference(v));
+            GenericClass listClass = new GenericClass("java.util.List", new TypeVar(), v);
             inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) first, listClass)) {
+            if (inference.subtypeConstraint(first, listClass)) {
                 return new GenericReference(v).substitute(inference.getSubstitutions());
             }
 
@@ -367,17 +366,16 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
                 return type;
             }
             boolean changed = !resolvedName.equals(cls.getName());
-            List<GenericType> arguments = new ArrayList<>();
-            for (GenericType arg : cls.getArguments()) {
-                GenericType resolvedArg = (GenericType) resolveType(arg);
-                if (resolvedArg != arg) {
-                    changed = true;
-                }
+            List<TypeArgument> arguments = new ArrayList<>();
+            for (TypeArgument arg : cls.getArguments()) {
+                TypeArgument resolvedArg = arg.mapBound(bound -> (GenericType) resolveType(bound));
+                arguments.add(resolvedArg);
+                changed |= arg != resolvedArg;
             }
             return !changed ? type : new GenericClass(resolvedName, arguments);
         } else if (type instanceof GenericArray) {
             GenericArray array = (GenericArray) type;
-            ValueType elementType = resolveType(array.getElementType());
+            GenericType elementType = (GenericType) resolveType(array.getElementType());
             return elementType == array.getElementType() ? type : new GenericArray(elementType);
         } else {
             return type;

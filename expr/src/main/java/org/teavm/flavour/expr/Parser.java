@@ -56,8 +56,10 @@ import org.teavm.flavour.expr.ast.VariableExpr;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericType;
-import org.teavm.flavour.expr.type.GenericWildcard;
+import org.teavm.flavour.expr.type.NullType;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.ValueType;
 
 public class Parser {
@@ -532,7 +534,11 @@ public class Parser {
                 arrayDegree = ctx.suffix.accept(arraySuffixVisitor);
             }
             while (arrayDegree-- > 0) {
-                type = new GenericArray(type);
+                if (type instanceof Primitive) {
+                    type = new PrimitiveArray((Primitive) type);
+                } else {
+                    type = new GenericArray((GenericType) type);
+                }
             }
             return type;
         }
@@ -545,7 +551,11 @@ public class Parser {
                 arrayDegree = ctx.suffix.accept(arraySuffixVisitor);
             }
             while (arrayDegree-- > 0) {
-                type = new GenericArray(type);
+                if (type instanceof Primitive) {
+                    type = new PrimitiveArray((Primitive) type);
+                } else {
+                    type = new GenericArray((GenericType) type);
+                }
             }
             return type;
         }
@@ -601,13 +611,13 @@ public class Parser {
                 int start = ctx.getStart().getStartIndex();
                 int end = ctx.getStop().getStopIndex() + 1;
                 diagnostics.add(new Diagnostic(start, end, "Unknown class " + ctx.getText()));
-                return GenericWildcard.unbounded();
+                return NullType.INSTANCE;
             }
 
-            List<GenericType> args = Collections.emptyList();
+            List<TypeArgument> args = Collections.emptyList();
             if (ctx.args != null) {
                 args = ctx.args.types.stream()
-                        .map(arg -> (GenericType) arg.accept(this))
+                        .map(arg -> TypeArgument.invariant((GenericType) arg.accept(this)))
                         .collect(Collectors.toList());
             }
             return new GenericClass(className, args);
@@ -625,7 +635,7 @@ public class Parser {
                 int start = ctx.getStart().getStartIndex();
                 int end = ctx.getStop().getStopIndex();
                 diagnostics.add(new Diagnostic(start, end, "Unknown class " + ctx.getText()));
-                return GenericWildcard.unbounded();
+                return NullType.INSTANCE;
             }
         }
     };

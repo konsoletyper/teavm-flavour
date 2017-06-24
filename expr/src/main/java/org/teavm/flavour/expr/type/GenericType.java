@@ -17,18 +17,25 @@ package org.teavm.flavour.expr.type;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 public abstract class GenericType extends ValueType {
     GenericType() {
     }
 
-    @Override
     public GenericType substitute(Substitutions substitutions) {
         return substitute(substitutions, new HashSet<>());
     }
 
-    @Override
     abstract GenericType substitute(Substitutions substitutions, Set<TypeVar> visited);
 
+    public GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions) {
+        return substituteArgs(substitutions, new HashSet<>());
+    }
+
+    abstract GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions, Set<TypeVar> visited);
+
     public abstract GenericType erasure();
+
+    public static final GenericType OBJECT = new GenericClass("java.lang.Object");
 }
