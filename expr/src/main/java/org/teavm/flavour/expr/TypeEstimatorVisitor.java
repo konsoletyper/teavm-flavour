@@ -16,6 +16,7 @@
 package org.teavm.flavour.expr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BinaryExpr;
 import org.teavm.flavour.expr.ast.CastExpr;
 import org.teavm.flavour.expr.ast.ConstantExpr;
+import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.ExprVisitor;
 import org.teavm.flavour.expr.ast.InstanceOfExpr;
 import org.teavm.flavour.expr.ast.InvocationExpr;
@@ -40,48 +42,50 @@ import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericField;
 import org.teavm.flavour.expr.type.GenericMethod;
-import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.NullType;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
 import org.teavm.flavour.expr.type.PrimitiveKind;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
-import org.teavm.flavour.expr.type.TypeVar;
+import org.teavm.flavour.expr.type.TypeUtils;
 import org.teavm.flavour.expr.type.ValueType;
 
-class TypeEstimatorVisitor implements ExprVisitor<Object> {
+class TypeEstimatorVisitor implements ExprVisitor<ValueType> {
+    private TypeInference inference;
     private ClassResolver classResolver;
     private GenericTypeNavigator navigator;
-    ValueType result;
     private Scope scope;
+    ValueType expectedType;
 
-    TypeEstimatorVisitor(ClassResolver classResolver, GenericTypeNavigator navigator, Scope scope) {
+    TypeEstimatorVisitor(TypeInference inference, ClassResolver classResolver, GenericTypeNavigator navigator,
+            Scope scope) {
+        this.inference = inference;
         this.classResolver = classResolver;
         this.navigator = navigator;
         this.scope = scope;
     }
 
     @Override
-    public void visit(BinaryExpr<?> expr) {
-        expr.getFirstOperand().acceptVisitor(this);
-        if (result == null) {
-            return;
+    public ValueType visit(BinaryExpr expr) {
+        ValueType first = expr.getFirstOperand().acceptVisitor(this);
+        if (first == null) {
+            return null;
         }
-        ValueType first = result;
 
-        expr.getSecondOperand().acceptVisitor(this);
-        if (result == null) {
-            return;
+        ValueType second = expr.getSecondOperand().acceptVisitor(this);
+        if (second == null) {
+            return null;
         }
-        ValueType second = result;
 
         switch (expr.getOperation()) {
             case SUBTRACT:
             case MULTIPLY:
             case DIVIDE:
             case REMAINDER:
-                result = CompilerCommons.getType(getAritmeticTypeForPair(first, second));
-                break;
+                return CompilerCommons.getType(getAritmeticTypeForPair(first, second));
             case AND:
             case OR:
             case EQUAL:
@@ -90,119 +94,126 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
             case LESS_OR_EQUAL:
             case GREATER:
             case GREATER_OR_EQUAL:
-                result = Primitive.BOOLEAN;
-                break;
+                return Primitive.BOOLEAN;
             case ADD:
-                if (first.equals(CompilerCommons.stringClass) || second.equals(CompilerCommons.stringClass)) {
-                    result = CompilerCommons.stringClass;
-                } else {
-                    result = CompilerCommons.getType(getAritmeticTypeForPair(first, second));
-                }
-                break;
+                return first.equals(TypeUtils.STRING_CLASS) || second.equals(TypeUtils.STRING_CLASS)
+                        ? TypeUtils.STRING_CLASS
+                        : CompilerCommons.getType(getAritmeticTypeForPair(first, second));
             case GET_ELEMENT:
-                result = estimateGetElement(first, second);
-                break;
+                return estimateGetElement(first, expr.getSecondOperand());
         }
+
+        return null;
     }
 
-    private ValueType estimateGetElement(ValueType first, ValueType second) {
+    private ValueType estimateGetElement(ValueType first, Expr argument) {
         if (first instanceof GenericArray) {
             return ((GenericArray) first).getElementType();
+        } else if (first instanceof PrimitiveArray) {
+            return ((PrimitiveArray) first).getElementType();
         } else if (first instanceof GenericClass) {
-            TypeVar k = new TypeVar("K");
-            TypeVar v = new TypeVar("V");
-            GenericClass mapClass = new GenericClass("java.util.Map", new GenericReference(k),
-                    new GenericReference(v));
-            TypeInference inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) first, mapClass)) {
-                GenericType keyType = CompilerCommons.box(second);
-                inference.subtypeConstraint(keyType, new GenericReference(k));
-                return new GenericReference(v).substitute(inference.getSubstitutions());
-            }
+            Collection<GenericClass> classes = CompilerCommons.extractClasses(first);
 
-            GenericClass listClass = new GenericClass("java.util.List", new GenericReference(new TypeVar()),
-                    new GenericReference(v));
-            inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) first, listClass)) {
-                return new GenericReference(v).substitute(inference.getSubstitutions());
-            }
-
-            return null;
+            MethodLookup lookup = new MethodLookup(inference, classResolver, navigator, scope);
+            GenericMethod method = lookup.lookupVirtual(classes, "get", Arrays.asList(argument));
+            return method == null ? null : lookup.getReturnType();
         } else {
             return null;
         }
     }
 
     @Override
-    public void visit(CastExpr<?> expr) {
-        result = resolveType(expr.getTargetType());
+    public ValueType visit(CastExpr expr) {
+        return resolveType(expr.getTargetType());
     }
 
     @Override
-    public void visit(InstanceOfExpr<?> expr) {
-        result = Primitive.BOOLEAN;
+    public ValueType visit(InstanceOfExpr expr) {
+        return Primitive.BOOLEAN;
     }
 
     @Override
-    public void visit(InvocationExpr<?> expr) {
-        if (expr.getInstance() != null) {
-            expr.getInstance().acceptVisitor(this);
-        } else {
-            result = scope.variableType("this");
-        }
-        if (result == null) {
-            return;
+    public ValueType visit(InvocationExpr expr) {
+        ValueType instance = expr.getInstance() != null
+                ? expr.getInstance().acceptVisitor(this)
+                : scope.variableType("this");
+        if (instance == null) {
+            return null;
         }
 
-        GenericType instance = CompilerCommons.box(result);
+        instance = TypeUtils.tryBox(instance);
+        if (!(instance instanceof GenericClass)) {
+            return null;
+        }
         Collection<GenericClass> classes = CompilerCommons.extractClasses(instance);
 
         ValueType[] args = new ValueType[expr.getArguments().size()];
         for (int i = 0; i < args.length; ++i) {
-            expr.getArguments().get(i).acceptVisitor(this);
-            args[i] = result;
+            args[i] = expr.getArguments().get(i).acceptVisitor(this);
         }
 
-        MethodLookup lookup = new MethodLookup(navigator);
-        GenericMethod method = lookup.lookupVirtual(classes, expr.getMethodName(), args, null);
-        result = method == null ? null : lookup.getReturnType();
+        MethodLookup lookup = new MethodLookup(inference, classResolver, navigator, scope);
+        GenericMethod method = lookup.lookupVirtual(classes, expr.getMethodName(), expr.getArguments());
+        return fixReturnType(method, lookup);
     }
 
     @Override
-    public void visit(StaticInvocationExpr<?> expr) {
+    public ValueType visit(StaticInvocationExpr expr) {
         ValueType[] args = new ValueType[expr.getArguments().size()];
         for (int i = 0; i < args.length; ++i) {
-            expr.getArguments().get(i).acceptVisitor(this);
-            args[i] = result;
+            args[i] = expr.getArguments().get(i).acceptVisitor(this);
         }
 
         GenericClass cls = navigator.getGenericClass(expr.getClassName());
 
-        MethodLookup lookup = new MethodLookup(navigator);
-        GenericMethod method = lookup.lookupStatic(Collections.singleton(cls), expr.getMethodName(), args, null);
-        result = method == null ? null : lookup.getReturnType();
+        MethodLookup lookup = new MethodLookup(inference, classResolver, navigator, scope);
+        GenericMethod method = lookup.lookupStatic(Collections.singleton(cls), expr.getMethodName(),
+                expr.getArguments());
+        return fixReturnType(method, lookup);
+    }
+
+    private ValueType fixReturnType(GenericMethod method, MethodLookup lookup) {
+        if (method == null) {
+            return null;
+        }
+
+        ValueType[] capturedReturnType = new ValueType[1];
+        if (!addReturnTypeConstraint(lookup.getReturnType(), expectedType)) {
+            return null;
+        }
+        if (capturedReturnType != null) {
+            return capturedReturnType[0];
+        }
+        return lookup.getReturnType();
+    }
+
+
+    private boolean addReturnTypeConstraint(ValueType actualType, ValueType expectedType) {
+        if (actualType == null || expectedType == null) {
+            return true;
+        }
+
+        return inference.subtypeConstraint(actualType, expectedType);
     }
 
     @Override
-    public void visit(PropertyExpr<?> expr) {
-        expr.getInstance().acceptVisitor(this);
-        ValueType instance = result;
+    public ValueType visit(PropertyExpr expr) {
+        ValueType instance = expr.getInstance().acceptVisitor(this);
         if (instance == null) {
-            return;
+            return null;
         }
 
         if (instance instanceof GenericArray && expr.getPropertyName().equals("length")) {
-            result = Primitive.INT;
-            return;
+            return Primitive.INT;
         }
 
-        result = estimatePropertyAccess(instance, CompilerCommons.extractClasses(instance), expr.getPropertyName());
+        return estimatePropertyAccess(instance, CompilerCommons.extractClasses(instance), expr.getPropertyName());
     }
 
     @Override
-    public void visit(StaticPropertyExpr<?> expr) {
+    public ValueType visit(StaticPropertyExpr expr) {
         GenericClass cls = navigator.getGenericClass(expr.getClassName());
-        result = estimatePropertyAccess(null, Collections.singleton(cls), expr.getPropertyName());
+        return estimatePropertyAccess(null, Collections.singleton(cls), expr.getPropertyName());
     }
 
     private ValueType estimatePropertyAccess(ValueType instance, Collection<GenericClass> classes,
@@ -248,88 +259,88 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
     }
 
     @Override
-    public void visit(UnaryExpr<?> expr) {
-        expr.getOperand().acceptVisitor(this);
+    public ValueType visit(UnaryExpr expr) {
+        ValueType result = expr.getOperand().acceptVisitor(this);
         if (result == null) {
-            return;
+            return null;
         }
         switch (expr.getOperation()) {
             case NEGATE: {
                 ArithmeticType type = getArithmeticType(result);
-                result = type != null ? CompilerCommons.getType(type) : null;
-                break;
+                return type != null ? CompilerCommons.getType(type) : null;
             }
             case NOT:
-                result = Primitive.BOOLEAN;
-                break;
+                return Primitive.BOOLEAN;
         }
+
+        return null;
     }
 
     @Override
-    public void visit(VariableExpr<?> expr) {
-        result = scope.variableType(expr.getName());
+    public ValueType visit(VariableExpr expr) {
+        ValueType result = scope.variableType(expr.getName());
         if (result == null) {
             ValueType thisType = scope.variableType("this");
-            result = estimatePropertyAccess(thisType, CompilerCommons.extractClasses(thisType), expr.getName());
+            return estimatePropertyAccess(thisType, CompilerCommons.extractClasses(thisType), expr.getName());
         }
+
+        return result;
     }
 
     @Override
-    public void visit(ConstantExpr<?> expr) {
+    public ValueType visit(ConstantExpr expr) {
         if (expr.getValue() == null) {
-            result = null;
+            return NullType.INSTANCE;
         } else if (expr.getValue() instanceof Boolean) {
-            result = Primitive.BOOLEAN;
+            return Primitive.BOOLEAN;
         } else if (expr.getValue() instanceof Character) {
-            result = Primitive.CHAR;
+            return Primitive.CHAR;
         } else if (expr.getValue() instanceof Byte) {
-            result = Primitive.BYTE;
+            return Primitive.BYTE;
         } else if (expr.getValue() instanceof Short) {
-            result = Primitive.SHORT;
+            return Primitive.SHORT;
         } else if (expr.getValue() instanceof Integer) {
-            result = Primitive.INT;
+            return Primitive.INT;
         } else if (expr.getValue() instanceof Long) {
-            result = Primitive.LONG;
+            return Primitive.LONG;
         } else if (expr.getValue() instanceof Float) {
-            result = Primitive.FLOAT;
+            return Primitive.FLOAT;
         } else if (expr.getValue() instanceof Double) {
-            result = Primitive.DOUBLE;
+            return Primitive.DOUBLE;
         } else if (expr.getValue() instanceof String) {
-            result = CompilerCommons.stringClass;
+            return TypeUtils.STRING_CLASS;
         } else {
-            result = null;
+            return null;
         }
     }
 
     @Override
-    public void visit(TernaryConditionExpr<?> expr) {
-        expr.getCondition().acceptVisitor(this);
-        if (result == null) {
-            return;
+    public ValueType visit(TernaryConditionExpr expr) {
+        ValueType first = expr.getConsequent().acceptVisitor(this);
+        if (first == null) {
+            return null;
         }
-        ValueType first = result;
-        expr.getAlternative().acceptVisitor(this);
-        if (result == null) {
-            return;
+        ValueType second = expr.getAlternative().acceptVisitor(this);
+        if (second == null) {
+            return null;
         }
-        ValueType second = result;
 
-        result = CompilerCommons.commonSupertype(first, second, navigator);
+        return CompilerCommons.commonSupertype(first, second, navigator);
     }
 
     @Override
-    public void visit(ThisExpr<?> expr) {
-        result = scope.variableType("this");
+    public ValueType visit(ThisExpr expr) {
+        return scope.variableType("this");
     }
 
     @Override
-    public void visit(LambdaExpr<?> expr) {
-        result = null;
+    public ValueType visit(LambdaExpr expr) {
+        return null;
     }
 
     @Override
-    public void visit(AssignmentExpr<?> expr) {
-        result = null;
+    public ValueType visit(AssignmentExpr expr) {
+        return null;
     }
 
     private ArithmeticType getAritmeticTypeForPair(ValueType first, ValueType second) {
@@ -346,7 +357,7 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
 
     private ArithmeticType getArithmeticType(ValueType type) {
         if (!(type instanceof Primitive)) {
-            type = CompilerCommons.unbox(type);
+            type = TypeUtils.tryUnbox((GenericType) type);
         }
         if (type != null) {
             PrimitiveKind kind = ((Primitive) type).getKind();
@@ -367,17 +378,16 @@ class TypeEstimatorVisitor implements ExprVisitor<Object> {
                 return type;
             }
             boolean changed = !resolvedName.equals(cls.getName());
-            List<GenericType> arguments = new ArrayList<>();
-            for (GenericType arg : cls.getArguments()) {
-                GenericType resolvedArg = (GenericType) resolveType(arg);
-                if (resolvedArg != arg) {
-                    changed = true;
-                }
+            List<TypeArgument> arguments = new ArrayList<>();
+            for (TypeArgument arg : cls.getArguments()) {
+                TypeArgument resolvedArg = arg.mapBound(bound -> (GenericType) resolveType(bound));
+                arguments.add(resolvedArg);
+                changed |= arg != resolvedArg;
             }
             return !changed ? type : new GenericClass(resolvedName, arguments);
         } else if (type instanceof GenericArray) {
             GenericArray array = (GenericArray) type;
-            ValueType elementType = resolveType(array.getElementType());
+            GenericType elementType = (GenericType) resolveType(array.getElementType());
             return elementType == array.getElementType() ? type : new GenericArray(elementType);
         } else {
             return type;

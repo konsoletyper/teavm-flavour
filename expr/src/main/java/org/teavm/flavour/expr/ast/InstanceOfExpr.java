@@ -17,20 +17,20 @@ package org.teavm.flavour.expr.ast;
 
 import org.teavm.flavour.expr.type.GenericType;
 
-public class InstanceOfExpr<T> extends Expr<T> {
-    private Expr<T> value;
+public class InstanceOfExpr extends Expr {
+    private Expr value;
     private GenericType checkedType;
 
-    public InstanceOfExpr(Expr<T> value, GenericType checkedType) {
+    public InstanceOfExpr(Expr value, GenericType checkedType) {
         this.value = value;
         this.checkedType = checkedType;
     }
 
-    public Expr<T> getValue() {
+    public Expr getValue() {
         return value;
     }
 
-    public void setValue(Expr<T> value) {
+    public void setValue(Expr value) {
         this.value = value;
     }
 
@@ -43,12 +43,7 @@ public class InstanceOfExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

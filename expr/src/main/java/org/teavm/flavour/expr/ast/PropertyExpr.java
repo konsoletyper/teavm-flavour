@@ -15,20 +15,20 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class PropertyExpr<T> extends Expr<T> {
-    private Expr<T> instance;
+public class PropertyExpr extends Expr {
+    private Expr instance;
     private String propertyName;
 
-    public PropertyExpr(Expr<T> instance, String propertyName) {
+    public PropertyExpr(Expr instance, String propertyName) {
         this.instance = instance;
         this.propertyName = propertyName;
     }
 
-    public Expr<T> getInstance() {
+    public Expr getInstance() {
         return instance;
     }
 
-    public void setInstance(Expr<T> instance) {
+    public void setInstance(Expr instance) {
         this.instance = instance;
     }
 
@@ -41,12 +41,7 @@ public class PropertyExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

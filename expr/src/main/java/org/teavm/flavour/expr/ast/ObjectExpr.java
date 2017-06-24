@@ -18,10 +18,10 @@ package org.teavm.flavour.expr.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ObjectExpr<T> {
-    private List<ObjectEntry<T>> entries = new ArrayList<>();
+public class ObjectExpr {
+    private List<ObjectEntry> entries = new ArrayList<>();
 
-    public List<ObjectEntry<T>> getEntries() {
+    public List<ObjectEntry> getEntries() {
         return entries;
     }
 }

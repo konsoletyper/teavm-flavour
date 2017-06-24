@@ -33,7 +33,7 @@ import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.CastExpr;
 import org.teavm.flavour.expr.ast.ConstantExpr;
 import org.teavm.flavour.expr.ast.Expr;
-import org.teavm.flavour.expr.ast.ExprVisitorStrict;
+import org.teavm.flavour.expr.ast.ExprVisitor;
 import org.teavm.flavour.expr.ast.InstanceOfExpr;
 import org.teavm.flavour.expr.ast.InvocationExpr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
@@ -79,21 +79,28 @@ import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.GenericWildcard;
+import org.teavm.flavour.expr.type.NullType;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
 import org.teavm.flavour.expr.type.PrimitiveKind;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeInferenceStatePoint;
+import org.teavm.flavour.expr.type.TypeUtils;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
+import org.teavm.flavour.expr.type.Variance;
+import org.teavm.flavour.expr.type.meta.ClassDescriber;
 
-class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
-    GenericTypeNavigator navigator;
+class CompilerVisitor implements ExprVisitor<TypedPlan> {
+    private GenericTypeNavigator navigator;
     private Scope scope;
     private Map<String, ValueType> boundVars = new HashMap<>();
     private Map<String, String> boundVarRenamings = new HashMap<>();
     private List<Diagnostic> diagnostics = new ArrayList<>();
     private ClassResolver classResolver;
+    private ValueType lambdaReturnType;
     ValueType expectedType;
 
     CompilerVisitor(GenericTypeNavigator navigator, ClassResolver classes, Scope scope) {
@@ -107,185 +114,154 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     @Override
-    public void visit(BinaryExpr<TypedPlan> expr) {
-        Expr<TypedPlan> firstOperand = expr.getFirstOperand();
-        Expr<TypedPlan> secondOperand = expr.getSecondOperand();
+    public TypedPlan visit(BinaryExpr expr) {
+        Expr firstOperand = expr.getFirstOperand();
+        Expr secondOperand = expr.getSecondOperand();
         expectedType = null;
-        firstOperand.acceptVisitor(this);
+        TypedPlan firstPlan = firstOperand.acceptVisitor(this);
         expectedType = null;
         secondOperand.acceptVisitor(this);
+        TypedPlan secondPlan = secondOperand.acceptVisitor(this);
         switch (expr.getOperation()) {
             case SUBTRACT:
             case MULTIPLY:
             case DIVIDE:
             case REMAINDER: {
-                ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
-                BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan, secondOperand.getAttribute().plan,
-                        getPlanType(expr.getOperation()), type);
-                expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
-                break;
+                ArithmeticTypeAndPlans result = getArithmeticTypeForPair(firstOperand, firstPlan,
+                        secondOperand, secondPlan);
+                BinaryPlan plan = new BinaryPlan(result.first.getPlan(), result.second.getPlan(),
+                        getPlanType(expr.getOperation()), result.arithmeticType);
+                return planWithLocation(plan, CompilerCommons.getType(result.arithmeticType), expr);
             }
             case AND:
             case OR: {
-                ensureBooleanType(firstOperand);
-                ensureBooleanType(secondOperand);
-                LogicalBinaryPlan plan = new LogicalBinaryPlan(firstOperand.getAttribute().plan,
-                        secondOperand.getAttribute().plan, getLogicalPlanType(expr.getOperation()));
-                expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
-                break;
+                firstPlan = ensureBooleanType(firstOperand, firstPlan);
+                secondPlan = ensureBooleanType(secondOperand, secondPlan);
+                LogicalBinaryPlan plan = new LogicalBinaryPlan(firstPlan.getPlan(), secondPlan.getPlan(),
+                        getLogicalPlanType(expr.getOperation()));
+                return planWithLocation(plan, Primitive.BOOLEAN, expr);
             }
             case EQUAL:
             case NOT_EQUAL: {
-                if (CompilerCommons.classesSuitableForComparison.contains(firstOperand.getAttribute().type)
-                        && CompilerCommons.classesSuitableForComparison.contains(secondOperand.getAttribute().type)) {
-                    ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
-                    BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan,
-                            secondOperand.getAttribute().plan, getPlanType(expr.getOperation()), type);
-                    expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
+                if (CompilerCommons.classesSuitableForComparison.contains(firstPlan.getType())
+                        && CompilerCommons.classesSuitableForComparison.contains(secondPlan.getType())) {
+                    ArithmeticTypeAndPlans result = getArithmeticTypeForPair(firstOperand, firstPlan,
+                            secondOperand, secondPlan);
+                    BinaryPlan plan = new BinaryPlan(result.first.getPlan(), result.second.getPlan(),
+                            getPlanType(expr.getOperation()), result.arithmeticType);
+                    return planWithLocation(plan, Primitive.BOOLEAN, expr);
                 } else {
-                    ReferenceEqualityPlan plan = new ReferenceEqualityPlan(firstOperand.getAttribute().plan,
-                            secondOperand.getAttribute().plan,
+                    ReferenceEqualityPlan plan = new ReferenceEqualityPlan(firstPlan.getPlan(), secondPlan.getPlan(),
                             expr.getOperation() == BinaryOperation.EQUAL ? ReferenceEqualityPlanType.EQUAL
                                     : ReferenceEqualityPlanType.NOT_EQUAL);
-                    expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
+                    return planWithLocation(plan, Primitive.BOOLEAN, expr);
                 }
-                break;
             }
             case LESS:
             case LESS_OR_EQUAL:
             case GREATER:
             case GREATER_OR_EQUAL: {
-                ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
-                BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan, secondOperand.getAttribute().plan,
-                        getPlanType(expr.getOperation()), type);
-                expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
-                break;
+                ArithmeticTypeAndPlans result = getArithmeticTypeForPair(firstOperand, firstPlan,
+                        secondOperand, secondPlan);
+                BinaryPlan plan = new BinaryPlan(result.first.getPlan(), result.second.getPlan(),
+                        getPlanType(expr.getOperation()), result.arithmeticType);
+                return planWithLocation(plan, Primitive.BOOLEAN, expr);
             }
             case GET_ELEMENT:
-                compileGetElement(expr);
-                break;
+                return compileGetElement(expr);
             case ADD:
-                compileAdd(expr);
-                break;
+                return compileAdd(expr);
+            default:
+                throw new AssertionError();
         }
-        copyLocation(expr);
     }
 
-    private void compileAdd(BinaryExpr<TypedPlan> expr) {
-        Expr<TypedPlan> firstOperand = expr.getFirstOperand();
-        ValueType firstType = firstOperand.getAttribute().type;
-        Expr<TypedPlan> secondOperand = expr.getSecondOperand();
-        ValueType secondType = secondOperand.getAttribute().type;
-        if (firstType.equals(CompilerCommons.stringClass) || secondType.equals(CompilerCommons.stringClass)) {
-            Plan firstPlan = firstOperand.getAttribute().plan;
-            if (firstPlan instanceof InvocationPlan) {
-                InvocationPlan invocation = (InvocationPlan) firstPlan;
+    private TypedPlan compileAdd(BinaryExpr expr) {
+        Expr firstOperand = expr.getFirstOperand();
+        TypedPlan firstPlan = firstOperand.acceptVisitor(this);
+        ValueType firstType = firstPlan.getType();
+        Expr secondOperand = expr.getSecondOperand();
+        TypedPlan secondPlan = secondOperand.acceptVisitor(this);
+        ValueType secondType = secondPlan.getType();
+
+        if (firstType.equals(TypeUtils.STRING_CLASS) || secondType.equals(TypeUtils.STRING_CLASS)) {
+            if (firstPlan.getPlan() instanceof InvocationPlan) {
+                InvocationPlan invocation = (InvocationPlan) firstPlan.getPlan();
                 if (invocation.getClassName().equals("java.lang.StringBuilder")
                         && invocation.getMethodName().equals("toString")) {
-                    convertToString(secondOperand);
+                    secondPlan = convertToString(expr.getSecondOperand(), secondPlan);
                     Plan instance = invocation.getInstance();
                     InvocationPlan append = new InvocationPlan("java.lang.StringBuilder", "append",
-                            "(Ljava/lang/String;)Ljava/lang/StringBuilder;", instance,
-                            secondOperand.getAttribute().plan);
+                            "(Ljava/lang/String;)Ljava/lang/StringBuilder;", instance, secondPlan.getPlan());
                     invocation.setInstance(append);
-                    expr.setAttribute(new TypedPlan(invocation, CompilerCommons.stringClass));
-                    copyLocation(expr);
-                    return;
+                    return planWithLocation(invocation, TypeUtils.STRING_CLASS, expr);
                 }
             }
-            convertToString(firstOperand);
-            convertToString(secondOperand);
+            firstPlan = convertToString(expr.getFirstOperand(), firstPlan);
+            secondPlan = convertToString(expr.getSecondOperand(), secondPlan);
             ConstructionPlan construction = new ConstructionPlan("java.lang.StringBuilder", "()V");
             InvocationPlan invocation = new InvocationPlan("java.lang.StringBuilder", "append",
-                    "(Ljava/lang/String;)Ljava/lang/StringBuilder;", construction,
-                    firstOperand.getAttribute().plan);
+                    "(Ljava/lang/String;)Ljava/lang/StringBuilder;", construction, firstPlan.getPlan());
             invocation = new InvocationPlan("java.lang.StringBuilder", "append",
-                    "(Ljava/lang/String;)Ljava/lang/StringBuilder;", invocation,
-                    secondOperand.getAttribute().plan);
+                    "(Ljava/lang/String;)Ljava/lang/StringBuilder;", invocation, secondPlan.getPlan());
             invocation = new InvocationPlan("java.lang.StringBuilder", "toString", "()Ljava/lang/String;",
                     invocation);
-            expr.setAttribute(new TypedPlan(invocation, CompilerCommons.stringClass));
+            return planWithLocation(invocation, TypeUtils.STRING_CLASS, expr);
         } else {
-            ArithmeticType type = getAritmeticTypeForPair(firstOperand, secondOperand);
-            BinaryPlan plan = new BinaryPlan(firstOperand.getAttribute().plan, secondOperand.getAttribute().plan,
-                    BinaryPlanType.ADD, type);
-            expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
+            ArithmeticTypeAndPlans result = getArithmeticTypeForPair(firstOperand, firstPlan,
+                    secondOperand, secondPlan);
+            BinaryPlan plan = new BinaryPlan(result.first.getPlan(), result.second.getPlan(),
+                    BinaryPlanType.ADD, result.arithmeticType);
+            return planWithLocation(plan, CompilerCommons.getType(result.arithmeticType), expr);
         }
-        copyLocation(expr);
     }
 
-    private void compileGetElement(BinaryExpr<TypedPlan> expr) {
-        Expr<TypedPlan> firstOperand = expr.getFirstOperand();
-        ValueType firstType = firstOperand.getAttribute().type;
-        Expr<TypedPlan> secondOperand = expr.getSecondOperand();
-        ValueType secondType = secondOperand.getAttribute().type;
+    private TypedPlan compileGetElement(BinaryExpr expr) {
+        Expr firstOperand = expr.getFirstOperand();
+        TypedPlan firstPlan = firstOperand.acceptVisitor(this);
+        ValueType firstType = firstPlan.getType();
+
+        Expr secondOperand = expr.getSecondOperand();
+        TypedPlan secondPlan = secondOperand.acceptVisitor(this);
+        ValueType secondType = secondPlan.getType();
+
         if (firstType instanceof GenericArray) {
             GenericArray arrayType = (GenericArray) firstType;
-            ensureIntType(secondOperand);
-            GetArrayElementPlan plan = new GetArrayElementPlan(firstOperand.getAttribute().plan,
-                    secondOperand.getAttribute().plan);
-            expr.setAttribute(new TypedPlan(plan, arrayType.getElementType()));
-            copyLocation(expr);
-            return;
+            secondPlan = ensureIntType(secondOperand, secondPlan);
+            GetArrayElementPlan plan = new GetArrayElementPlan(firstPlan.getPlan(), secondPlan.getPlan());
+            return planWithLocation(plan, arrayType.getElementType(), expr);
+        } else if (firstType instanceof PrimitiveArray) {
+            PrimitiveArray arrayType = (PrimitiveArray) firstType;
+            secondPlan = ensureIntType(secondOperand, secondPlan);
+            GetArrayElementPlan plan = new GetArrayElementPlan(firstPlan.getPlan(), secondPlan.getPlan());
+            return planWithLocation(plan, arrayType.getElementType(), expr);
         } else if (firstType instanceof GenericClass) {
-            TypeVar k = new TypeVar("K");
-            TypeVar v = new TypeVar("V");
-            GenericClass mapClass = new GenericClass("java.util.Map", new GenericReference(k),
-                    new GenericReference(v));
-            TypeInference inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) firstType, mapClass)) {
-                GenericType returnType = new GenericReference(v).substitute(inference.getSubstitutions());
-                InvocationPlan plan = new InvocationPlan("java.util.Map", "get",
-                        "(Ljava/lang/Object;)Ljava/lang/Object;",
-                        firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
-                expr.setAttribute(new TypedPlan(plan, new GenericClass("java.lang.Object")));
-                copyLocation(expr);
-                cast(expr, returnType);
-                return;
-            }
-
-            v = new TypeVar("V");
-            GenericClass listClass = new GenericClass("java.util.List", new GenericReference(v));
-            inference = new TypeInference(navigator);
-            if (inference.subtypeConstraint((GenericClass) firstType, listClass)) {
-                GenericType returnType = new GenericReference(v).substitute(inference.getSubstitutions());
-                ensureIntType(secondOperand);
-                InvocationPlan plan = new InvocationPlan("java.util.List", "get", "(I)Ljava/lang/Object;",
-                        firstOperand.getAttribute().plan, secondOperand.getAttribute().plan);
-                expr.setAttribute(new TypedPlan(plan, new GenericClass("java.lang.Object")));
-                copyLocation(expr);
-                cast(expr, returnType);
-                return;
-            }
+            Collection<GenericClass> classes = CompilerCommons.extractClasses(firstType);
+            return compileInvocation(expr, firstPlan, classes, "get", Arrays.asList(secondOperand), expectedType);
         }
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), new GenericClass("java.lang.Object")));
-        copyLocation(expr);
-        error(expr, "Can't apply subscript operator to " + firstType + " with argument of "  + secondType);
+        return errorAndFakeResult(expr, "Can't apply subscript operator to " + firstType + " with argument of "
+                + secondType);
+    }
+
+    private TypedPlan errorAndFakeResult(Expr expr, String message) {
+        error(expr, message);
+        return planWithLocation(new ConstantPlan(null), NullType.INSTANCE, expr);
     }
 
     @Override
-    public void visit(CastExpr<TypedPlan> expr) {
+    public TypedPlan visit(CastExpr expr) {
         expectedType = null;
-        expr.getValue().acceptVisitor(this);
-        expr.setAttribute(expr.getValue().getAttribute());
-        expr.setTargetType(resolveType(expr.getTargetType(), expr));
-        cast(expr, expr.getTargetType());
+        TypedPlan result = expr.getValue().acceptVisitor(this);
+        return cast(expr, result, resolveType(expr.getTargetType(), expr));
     }
 
-    private void cast(Expr<TypedPlan> expr, ValueType type) {
-        TypedPlan plan = expr.getAttribute();
-        plan = tryCast(plan, type);
-        if (plan == null) {
-            error(expr, "Can't cast " + expr.getAttribute().type + " to " + type);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), type));
-            copyLocation(expr);
-            return;
-        }
-        expr.setAttribute(plan);
-        copyLocation(expr);
+    private TypedPlan cast(Expr expr, TypedPlan plan, ValueType type) {
+        ValueType sourceType = plan.getType();
+        plan = tryCast(expr, plan, type);
+        return plan != null ? plan : errorAndFakeResult(expr, "Can't cast " + sourceType + " to " + type);
     }
 
-    private TypedPlan tryCast(TypedPlan plan, ValueType targetType) {
+    private TypedPlan tryCast(Expr expr, TypedPlan plan, ValueType targetType) {
         if (plan.getType().equals(targetType)) {
             return plan;
         }
@@ -304,144 +280,248 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return plan;
         }
         if (plan.type instanceof Primitive) {
-            plan = box(plan);
+            plan = box(expr, plan);
         }
 
-        TypeInference inference = new TypeInference(navigator);
-        if (!inference.subtypeConstraint((GenericType) plan.type, (GenericType) targetType)) {
+        if (!CompilerCommons.isSuperType(targetType, plan.type, navigator)) {
             GenericType erasure = ((GenericType) targetType).erasure();
-            plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)),
-                    targetType.substitute(inference.getSubstitutions()));
+            plan = new TypedPlan(new CastPlan(plan.plan, typeToString(erasure)), targetType);
         }
 
-        return plan;
+        return planWithLocation(plan.getPlan(), targetType, expr);
     }
 
     @Override
-    public void visit(InstanceOfExpr<TypedPlan> expr) {
+    public TypedPlan visit(InstanceOfExpr expr) {
         expectedType = null;
         expr.setCheckedType((GenericType) resolveType(expr.getCheckedType(), expr));
-        Expr<TypedPlan> value = expr.getValue();
-        value.acceptVisitor(this);
+        Expr value = expr.getValue();
+        TypedPlan valuePlan = value.acceptVisitor(this);
         GenericType checkedType = expr.getCheckedType();
 
-        if (!(value.getAttribute().type instanceof GenericClass)) {
+        ValueType sourceType = valuePlan.getType();
+        if (!(sourceType instanceof GenericClass)) {
             error(expr, "Can't check against " + checkedType);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(false), Primitive.BOOLEAN));
-            copyLocation(expr);
-            return;
+            return planWithLocation(new ConstantPlan(false), Primitive.BOOLEAN, expr);
         }
 
-        GenericType sourceType = (GenericType) value.getAttribute().type;
-        TypeInference inference = new TypeInference(navigator);
-        if (inference.subtypeConstraint(sourceType, checkedType)) {
-            expr.setAttribute(new TypedPlan(new ConstantPlan(true), Primitive.BOOLEAN));
-        } else {
-            GenericType erasure = checkedType.erasure();
-            InstanceOfPlan plan = new InstanceOfPlan(value.getAttribute().plan, typeToString(erasure));
-            expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
-        }
-        copyLocation(expr);
+        GenericType erasure = checkedType.erasure();
+        InstanceOfPlan plan = new InstanceOfPlan(valuePlan.getPlan(), typeToString(erasure));
+        return planWithLocation(plan, Primitive.BOOLEAN, expr);
     }
 
     @Override
-    public void visit(InvocationExpr<TypedPlan> expr) {
+    public TypedPlan visit(InvocationExpr expr) {
         ValueType expectedType = this.expectedType;
 
         TypedPlan instance;
         if (expr.getInstance() != null) {
             this.expectedType = null;
-            expr.getInstance().acceptVisitor(this);
-            instance = expr.getInstance().getAttribute();
+            instance = expr.getInstance().acceptVisitor(this);
         } else {
             instance = new TypedPlan(new ThisPlan(), scope.variableType("this"));
         }
 
         if (instance.type instanceof Primitive) {
-            instance = box(instance);
+            instance = box(expr.getInstance(), instance);
         }
         Collection<GenericClass> classes = CompilerCommons.extractClasses(instance.type);
-        compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments(), expectedType);
-        copyLocation(expr);
+        return compileInvocation(expr, instance, classes, expr.getMethodName(), expr.getArguments(), expectedType);
     }
 
     @Override
-    public void visit(StaticInvocationExpr<TypedPlan> expr) {
+    public TypedPlan visit(StaticInvocationExpr expr) {
         ValueType expectedType = this.expectedType;
-        compileInvocation(expr, null, Collections.singleton(navigator.getGenericClass(expr.getClassName())),
+        return compileInvocation(expr, null, Collections.singleton(navigator.getGenericClass(expr.getClassName())),
                 expr.getMethodName(), expr.getArguments(), expectedType);
-        copyLocation(expr);
     }
 
-    private void compileInvocation(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
-            String methodName, List<Expr<TypedPlan>> argumentExprList, ValueType expectedType) {
-        TypeEstimator estimator = new TypeEstimator(classResolver, navigator, new BoundScope());
-        ValueType[] estimateTypes = argumentExprList.stream().map(estimator::estimate)
-                .toArray(sz -> new ValueType[sz]);
+    private TypedPlan compileInvocation(Expr expr, TypedPlan instance, Collection<GenericClass> classes,
+            String methodName, List<Expr> argumentExprList, ValueType expectedType) {
+        TypeInference inference = new TypeInference(navigator);
 
-        MethodLookup lookup = new MethodLookup(navigator);
+        MethodLookup lookup = new MethodLookup(inference, classResolver, navigator, scope);
         GenericMethod method;
         if (instance != null) {
-            method = lookup.lookupVirtual(classes, methodName, estimateTypes, expectedType);
+            method = lookup.lookupVirtual(classes, methodName, argumentExprList);
         } else {
-            method = lookup.lookupStatic(classes, methodName, estimateTypes, expectedType);
+            method = lookup.lookupStatic(classes, methodName, argumentExprList);
         }
 
         if (method == null) {
-            reportMissingMethod(expr, methodName, estimateTypes, lookup, classes, instance == null);
-            return;
+            return reportMissingMethod(expr, methodName, argumentExprList, lookup, classes, instance == null);
         }
 
-        ValueType[] argTypes = method.getActualArgumentTypes();
-        ValueType[] matchArgTypes = new ValueType[argumentExprList.size()];
-        TypeInference inference = new TypeInference(navigator);
+        ValueType returnType = method.getActualReturnType();
+        ValueType[] capturedReturnType = new ValueType[1];
+        if (!addReturnTypeConstraint(method.getActualReturnType(), expectedType, inference, capturedReturnType)) {
+            return errorAndFakeResult(expr, "Expected type " + expectedType + " does not match actual return type "
+                    + method.getActualReturnType());
+        }
+        if (capturedReturnType[0] != null) {
+            returnType = capturedReturnType[0];
+        }
+
+        ValueType[] argTypes = method.getActualParameterTypes();
+        ValueType[] matchParamTypes = new ValueType[argumentExprList.size()];
+
+        TypeInferenceStatePoint statePointAfterLookup = inference.createStatePoint();
+        inference.resolve();
+
+        TypedPlan[] rawArguments = new TypedPlan[argumentExprList.size()];
         for (int i = 0; i < argumentExprList.size(); ++i) {
-            Expr<TypedPlan> arg = argumentExprList.get(i);
+            Expr arg = argumentExprList.get(i);
             ValueType paramType;
             if (lookup.isVarArgs() && i >= argTypes.length - 1) {
-                paramType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
+                ValueType lastArg = argTypes[argTypes.length - 1];
+                if (lastArg instanceof PrimitiveArray) {
+                    paramType = ((PrimitiveArray) lastArg).getElementType();
+                } else {
+                    paramType = ((GenericArray) lastArg).getElementType();
+                }
             } else {
                 paramType = argTypes[i];
             }
-            matchArgTypes[i] = paramType;
-            if (!(arg instanceof LambdaExpr<?>)) {
-                this.expectedType = paramType;
-                arg.acceptVisitor(this);
-                convert(arg, paramType, new TypeInference(navigator));
+
+            matchParamTypes[i] = paramType;
+
+            if (!(arg instanceof LambdaExpr)) {
                 if (paramType instanceof GenericType) {
-                    GenericType actualType = CompilerCommons.box(arg.getAttribute().type);
-                    inference.subtypeConstraint(actualType, (GenericType) paramType);
+                    paramType = ((GenericType) paramType).substitute(inference.getSubstitutions());
+                }
+                this.expectedType = paramType;
+                TypedPlan argPlan = arg.acceptVisitor(this);
+                rawArguments[i] = argPlan;
+            }
+        }
+
+        statePointAfterLookup.restoreTo();
+
+        for (int i = 0; i < argumentExprList.size(); ++i) {
+            if (rawArguments[i] != null) {
+                if (!inference.subtypeConstraint(rawArguments[i].getType(), matchParamTypes[i])) {
+                    return errorAndFakeResult(expr, "Argument " + (i + 1) + " type " + rawArguments[i].getType()
+                            + " does not match parameter type " + matchParamTypes[i]);
                 }
             }
         }
-        method = method.substitute(inference.getSubstitutions());
-        for (int i = 0; i < matchArgTypes.length; ++i) {
-            matchArgTypes[i] = matchArgTypes[i].substitute(inference.getSubstitutions());
-        }
-        for (int i = 0; i < argTypes.length; ++i) {
-            argTypes[i] = argTypes[i].substitute(inference.getSubstitutions());
+
+        TypeInferenceStatePoint statePointBeforeLambdas = inference.createStatePoint();
+        if (!inference.resolve()) {
+            return errorAndFakeResult(expr, "Could not infer type");
         }
 
+        ValueType[] lambdaReturnTypes = new ValueType[rawArguments.length];
         for (int i = 0; i < argumentExprList.size(); ++i) {
-            Expr<TypedPlan> arg = argumentExprList.get(i);
-            ValueType paramType = matchArgTypes[i];
-            if (arg instanceof LambdaExpr<?>) {
+            Expr arg = argumentExprList.get(i);
+            if (arg instanceof LambdaExpr) {
+                ValueType paramType = matchParamTypes[i];
+                if (paramType instanceof GenericType) {
+                    paramType = ((GenericType) paramType).substitute(inference.getSubstitutions());
+                }
+
                 this.expectedType = paramType;
-                arg.acceptVisitor(this);
+                TypedPlan lambdaPlan = arg.acceptVisitor(this);
+                rawArguments[i] = lambdaPlan;
+                lambdaReturnTypes[i] = lambdaReturnType;
             }
+        }
+
+        statePointBeforeLambdas.restoreTo();
+        for (int i = 0; i < argumentExprList.size(); ++i) {
+            Expr arg = argumentExprList.get(i);
+            if (!(arg instanceof LambdaExpr)) {
+                continue;
+            }
+
+            LambdaExpr lambda = (LambdaExpr) arg;
+            ValueType paramType = matchParamTypes[i];
+            if (!(paramType instanceof GenericClass)) {
+                continue;
+            }
+            GenericMethod paramSam = navigator.findSingleAbstractMethod((GenericClass) paramType);
+            if (paramSam == null) {
+                continue;
+            }
+
+            ValueType[] paramParamTypes = paramSam.getActualParameterTypes();
+            for (int j = 0; j < paramParamTypes.length; ++j) {
+                ValueType lambdaArgType = lambda.getBoundVariables().get(j).getType();
+                if (lambdaArgType != null
+                        && !inference.subtypeConstraint(paramParamTypes[j], lambdaArgType)) {
+                    return errorAndFakeResult(expr, "Could not infer type");
+                }
+            }
+
+            ValueType lambdaReturnType = lambdaReturnTypes[i];
+            if (paramSam.getActualReturnType() != null && lambdaReturnType != null) {
+                if (!inference.subtypeConstraint(lambdaReturnType, paramSam.getActualReturnType())) {
+                    return errorAndFakeResult(expr, "Could not infer type");
+                }
+            }
+        }
+
+        if (!inference.resolve()) {
+            return errorAndFakeResult(expr, "Could not infer type");
+        }
+
+        for (int i = 0; i < matchParamTypes.length; ++i) {
+            if (matchParamTypes[i] instanceof GenericType) {
+                matchParamTypes[i] = ((GenericType) matchParamTypes[i]).substitute(inference.getSubstitutions());
+            }
+        }
+        for (int i = 0; i < argTypes.length; ++i) {
+            if (argTypes[i] instanceof GenericType) {
+                argTypes[i] = ((GenericType) argTypes[i]).substitute(inference.getSubstitutions());
+            }
+        }
+
+        Plan[] convertedArguments = new Plan[rawArguments.length];
+        for (int i = 0; i < convertedArguments.length; ++i) {
+            if (rawArguments[i] != null) {
+                convertedArguments[i] = convert(argumentExprList.get(i), rawArguments[i], matchParamTypes[i]).getPlan();
+            }
+        }
+
+        method = method.substitute(inference.getSubstitutions());
+        if (returnType instanceof GenericType) {
+            returnType = ((GenericType) returnType).substitute(inference.getSubstitutions());
         }
 
         String className = method.getDescriber().getOwner().getName();
         String desc = methodToDesc(method.getDescriber());
-        Plan[] convertedArguments = argumentExprList.stream().map(arg -> arg.getAttribute().getPlan())
-                .toArray(sz -> new Plan[sz]);
         if (lookup.isVarArgs()) {
             convertedArguments = convertVarArgs(convertedArguments, argTypes);
         }
 
         Plan plan = new InvocationPlan(className, methodName, desc, instance != null ? instance.plan : null,
                 convertedArguments);
-        expr.setAttribute(new TypedPlan(plan, method.getActualReturnType()));
+        return planWithLocation(plan, returnType, expr);
+    }
+
+    private boolean addReturnTypeConstraint(ValueType actualType, ValueType expectedType, TypeInference inference,
+            ValueType[] newReturnTypeHolder) {
+        if (actualType == null || expectedType == null) {
+            return true;
+        }
+
+        if (actualType instanceof GenericClass) {
+            GenericClass actualClass = (GenericClass) actualType;
+            if (actualClass.getArguments().stream().anyMatch(arg -> arg.getVariance() != Variance.INVARIANT)) {
+                ClassDescriber describer = navigator.getClassRepository().describe(actualClass.getName());
+                List<? extends TypeVar> typeParameters = Arrays.asList(describer.getTypeVariables());
+                List<? extends TypeArgument> capturedTypeArgs = inference.captureConversionConstraint(typeParameters,
+                        actualClass.getArguments());
+                if (capturedTypeArgs == null) {
+                    return false;
+                }
+
+                newReturnTypeHolder[0] = new GenericClass(actualClass.getName(), capturedTypeArgs);
+                return true;
+            }
+        }
+
+        return inference.subtypeConstraint(actualType, expectedType);
     }
 
     private Plan[] convertVarArgs(Plan[] args, ValueType[] argTypes) {
@@ -453,179 +533,161 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         for (int i = 0; i < array.length; ++i) {
             array[i] = args[varargs.length - 1 + i];
         }
-        ValueType elementType = ((GenericArray) argTypes[argTypes.length - 1]).getElementType();
+
+        ValueType lastArgType = argTypes[argTypes.length - 1];
+        ValueType elementType;
+        if (lastArgType instanceof PrimitiveArray) {
+            elementType = ((PrimitiveArray) lastArgType).getElementType();
+        } else {
+            elementType = ((GenericArray) lastArgType).getElementType();
+        }
         ArrayConstructionPlan arrayPlan = new ArrayConstructionPlan(typeToString(elementType));
         arrayPlan.getElements().addAll(Arrays.asList(array));
         varargs[varargs.length - 1] = arrayPlan;
         return varargs;
     }
 
-    private void reportMissingMethod(Expr<TypedPlan> expr, String methodName, ValueType[] estimateTypes,
+    private TypedPlan reportMissingMethod(Expr expr, String methodName, List<Expr> args,
             MethodLookup lookup, Collection<GenericClass> classes, boolean isStatic) {
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
+        TypedPlan result = planWithLocation(new ConstantPlan(null), NullType.INSTANCE, expr);
 
-        MethodLookup altLookup = new MethodLookup(navigator);
-        GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, estimateTypes, null)
-                : altLookup.lookupStatic(classes, methodName, estimateTypes, null);
-        if (altMethod != null) {
+        TypeInference inference = new TypeInference(navigator);
+        MethodLookup altLookup = new MethodLookup(inference, classResolver, navigator, scope);
+        GenericMethod altMethod = isStatic ? altLookup.lookupVirtual(classes, methodName, args)
+                : altLookup.lookupStatic(classes, methodName, args);
+        if (altMethod != null && inference.resolve()) {
             if (isStatic) {
                 error(expr, "Method should be called as an instance method: " + altMethod);
             } else {
                 error(expr, "Method should be called as a static method: " + altMethod);
             }
-            return;
+            return result;
         }
 
-        StringBuilder sb = new StringBuilder();
-        ValueTypeFormatter formatter = new ValueTypeFormatter();
-        if (estimateTypes.length > 0) {
-            formatter.format(estimateTypes[0], sb);
-            for (int i = 1; i < estimateTypes.length; ++i) {
-                sb.append(", ");
-                if (estimateTypes[i] != null) {
-                    formatter.format(estimateTypes[i], sb);
-                } else {
-                    sb.append('?');
-                }
-            }
-        }
         if (lookup.getCandidates().isEmpty()) {
             error(expr, "Method not found: " + methodName);
         } else if (lookup.getCandidates().size() == 1) {
-            error(expr, "Method " + lookup.getCandidates().get(0) + " is not applicable to (" + sb + ")");
+            error(expr, "Method " + lookup.getCandidates().get(0) + " is not applicable to given arguments");
         } else {
-            error(expr, "Ambiguous method invocation " + methodName + "(" + sb + ")");
+            error(expr, "Ambiguous method invocation " + methodName);
         }
+
+        return result;
     }
 
     @Override
-    public void visit(PropertyExpr<TypedPlan> expr) {
+    public TypedPlan visit(PropertyExpr expr) {
         expectedType = null;
-        expr.getInstance().acceptVisitor(this);
-        TypedPlan instance = expr.getInstance().getAttribute();
+        TypedPlan instance = expr.getInstance().acceptVisitor(this);
 
-        if (instance.type instanceof GenericArray && expr.getPropertyName().equals("length")) {
-            expr.setAttribute(new TypedPlan(new ArrayLengthPlan(instance.plan), Primitive.INT));
-            copyLocation(expr);
-            return;
+        if ((instance.type instanceof GenericArray || instance.type instanceof PrimitiveArray)
+                && expr.getPropertyName().equals("length")) {
+            return planWithLocation(new ArrayLengthPlan(instance.plan), Primitive.INT, expr);
         }
 
         if (instance.type instanceof Primitive) {
-            instance = box(instance);
+            instance = box(expr, instance);
         }
         Collection<GenericClass> classes = CompilerCommons.extractClasses(instance.type);
-        compilePropertyAccess(expr, instance, classes, expr.getPropertyName());
-        copyLocation(expr);
+        return compilePropertyAccess(expr, instance, classes, expr.getPropertyName());
     }
 
     @Override
-    public void visit(StaticPropertyExpr<TypedPlan> expr) {
+    public TypedPlan visit(StaticPropertyExpr expr) {
         Collection<GenericClass> classes = Collections.singleton(navigator.getGenericClass(expr.getClassName()));
-        compilePropertyAccess(expr, null, classes, expr.getPropertyName());
-        copyLocation(expr);
+        return compilePropertyAccess(expr, null, classes, expr.getPropertyName());
     }
 
-    private void compilePropertyAccess(Expr<TypedPlan> expr, TypedPlan instance, Collection<GenericClass> classes,
+    private TypedPlan compilePropertyAccess(Expr expr, TypedPlan instance, Collection<GenericClass> classes,
             String propertyName) {
         GenericField field = findField(classes, propertyName);
         boolean isStatic = instance == null;
         if (field != null) {
             if (isStatic == field.getDescriber().isStatic()) {
-                expr.setAttribute(new TypedPlan(new FieldPlan(instance != null ? instance.plan : null,
+                FieldPlan plan = new FieldPlan(instance != null ? instance.plan : null,
                         field.getDescriber().getOwner().getName(), field.getDescriber().getName(),
-                        typeToString(field.getDescriber().getRawType())), field.getActualType()));
-                return;
+                        typeToString(field.getDescriber().getRawType()));
+                return planWithLocation(plan, field.getActualType(), expr);
             } else {
-                error(expr, "Field " + propertyName + " should " + (!isStatic ? "not " : "") + "be static");
+                return errorAndFakeResult(expr, "Field " + propertyName + " should " + (!isStatic ? "not " : "")
+                        + "be static");
             }
         } else {
             GenericMethod getter = findGetter(classes, propertyName);
             if (getter != null) {
                 if (isStatic == getter.getDescriber().isStatic()) {
                     String desc = "()" + typeToString(getter.getDescriber().getRawReturnType());
-                    expr.setAttribute(new TypedPlan(new InvocationPlan(getter.getDescriber().getOwner().getName(),
-                            getter.getDescriber().getName(), desc, instance != null ? instance.plan : null),
-                            getter.getActualReturnType()));
-                    return;
+                    InvocationPlan plan = new InvocationPlan(getter.getDescriber().getOwner().getName(),
+                            getter.getDescriber().getName(), desc, instance != null ? instance.plan : null);
+                    return planWithLocation(plan, getter.getActualReturnType(), expr);
                 } else {
-                    error(expr, "Method " + getter.getDescriber().getName() + " should "
+                    return errorAndFakeResult(expr, "Method " + getter.getDescriber().getName() + " should "
                             + (!isStatic ? "not " : "") + "be static");
                 }
             } else {
                 if (instance.plan instanceof ThisPlan) {
-                    error(expr, "Variable " + propertyName + " was not found");
+                    return errorAndFakeResult(expr, "Variable " + propertyName + " was not found");
                 } else {
-                    error(expr, "Property " + propertyName + " was not found");
+                    return errorAndFakeResult(expr, "Property " + propertyName + " was not found");
                 }
             }
         }
-
-        expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
     }
 
     @Override
-    public void visit(UnaryExpr<TypedPlan> expr) {
+    public TypedPlan visit(UnaryExpr expr) {
         expectedType = null;
-        expr.getOperand().acceptVisitor(this);
+        TypedPlan operand = expr.getOperand().acceptVisitor(this);
         switch (expr.getOperation()) {
             case NEGATE: {
-                ArithmeticType type = getArithmeticType(expr.getOperand());
-                NegatePlan plan = new NegatePlan(expr.getOperand().getAttribute().plan, type);
-                expr.setAttribute(new TypedPlan(plan, CompilerCommons.getType(type)));
-                copyLocation(expr);
-                break;
+                ArithmeticTypeAndPlan result = getArithmeticType(expr, operand);
+                NegatePlan plan = new NegatePlan(result.plan.getPlan(), result.type);
+                return planWithLocation(plan, CompilerCommons.getType(result.type), expr);
             }
             case NOT: {
-                ensureBooleanType(expr.getOperand());
-                NotPlan plan = new NotPlan(expr.getOperand().getAttribute().plan);
-                expr.setAttribute(new TypedPlan(plan, Primitive.BOOLEAN));
-                copyLocation(expr);
-                break;
+                operand = ensureBooleanType(expr, operand);
+                NotPlan plan = new NotPlan(operand.getPlan());
+                return planWithLocation(plan, Primitive.BOOLEAN, expr);
             }
+            default:
+                throw new AssertionError("Should not get here");
         }
     }
 
     @Override
-    public void visit(VariableExpr<TypedPlan> expr) {
+    public TypedPlan visit(VariableExpr expr) {
         ValueType type = boundVars.get(expr.getName());
         if (type != null) {
             String boundName = boundVarRenamings.get(expr.getName());
-            expr.setAttribute(new TypedPlan(new VariablePlan(boundName), type));
-            return;
+            return planWithLocation(new VariablePlan(boundName), type, expr);
         }
         type = scope.variableType(expr.getName());
         if (type == null) {
             type = scope.variableType("this");
-            compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type), CompilerCommons.extractClasses(type),
-                    expr.getName());
-            copyLocation(expr);
-            return;
+            return compilePropertyAccess(expr, new TypedPlan(new ThisPlan(), type),
+                    CompilerCommons.extractClasses(type), expr.getName());
         }
-        expr.setAttribute(new TypedPlan(new VariablePlan(expr.getName()), type));
-        copyLocation(expr);
+
+        return planWithLocation(new VariablePlan(expr.getName()), type, expr);
     }
 
     @Override
-    public void visit(ThisExpr<TypedPlan> expr) {
+    public TypedPlan visit(ThisExpr expr) {
         ValueType type = scope.variableType("this");
-        expr.setAttribute(new TypedPlan(new ThisPlan(), type));
-        copyLocation(expr);
+        return planWithLocation(new ThisPlan(), type, expr);
     }
 
     @Override
-    public void visit(LambdaExpr<TypedPlan> expr) {
+    public TypedPlan visit(LambdaExpr expr) {
         GenericMethod lambdaSam = null;
         if (expectedType instanceof GenericClass) {
             lambdaSam = navigator.findSingleAbstractMethod((GenericClass) expectedType);
         }
         if (lambdaSam == null) {
-            error(expr, "Can't infer type of the lambda expression");
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
-            copyLocation(expr);
-            return;
+            return errorAndFakeResult(expr, "Can't infer type of the lambda expression");
         }
 
-        ValueType[] actualArgTypes = lambdaSam.getActualArgumentTypes();
+        ValueType[] actualArgTypes = lambdaSam.getActualParameterTypes();
         ValueType[] oldVarTypes = new ValueType[expr.getBoundVariables().size()];
         String[] oldRenamings = new String[oldVarTypes.length];
         Set<String> usedNames = new HashSet<>();
@@ -638,7 +700,13 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 if (!usedNames.add(boundVar.getName())) {
                     error(expr, "Duplicate bound variable name: " + boundVar.getName());
                 } else {
-                    ValueType boundVarType = actualArgTypes[i];
+                    ValueType boundVarType = boundVar.getType();
+                    if (boundVarType == null) {
+                        boundVarType = actualArgTypes[i];
+                    } else if (!CompilerCommons.isSuperType(boundVarType, actualArgTypes[i], navigator)) {
+                        error(expr, "Expected parameter type " + actualArgTypes[i]
+                                + " is not a subtype of actually declared parameterType" + boundVarType);
+                    }
                     boundVars.put(boundVar.getName(), boundVarType);
                     String renaming = "$" + boundVarRenamings.size();
                     boundVarRenamings.put(boundVar.getName(), renaming);
@@ -650,18 +718,16 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         }
 
         expectedType = lambdaSam.getActualReturnType();
-        expr.getBody().acceptVisitor(this);
-        TypeInference inference = new TypeInference(navigator);
+        TypedPlan body = expr.getBody().acceptVisitor(this);
+        lambdaReturnType = body.getType();
         if (lambdaSam.getActualReturnType() != null) {
-            convert(expr.getBody(), lambdaSam.getActualReturnType(), inference);
+            body = convert(expr.getBody(), body, lambdaSam.getActualReturnType());
         }
-        TypedPlan body = expr.getBody().getAttribute();
         String className = lambdaSam.getDescriber().getOwner().getName();
         String methodName = lambdaSam.getDescriber().getName();
         String methodDesc = methodToDesc(lambdaSam.getDescriber());
 
         LambdaPlan lambda = new LambdaPlan(body.plan, className, methodName, methodDesc, boundVarNames);
-        expr.setAttribute(new TypedPlan(lambda, lambdaSam.getActualOwner().substitute(inference.getSubstitutions())));
 
         for (int i = 0; i < oldVarTypes.length; ++i) {
             BoundVariable boundVar = expr.getBoundVariables().get(i);
@@ -670,14 +736,15 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 boundVarRenamings.put(boundVar.getName(), oldRenamings[i]);
             }
         }
-        copyLocation(expr);
+
+        return planWithLocation(lambda, lambdaSam.getActualOwner(), expr);
     }
 
     @Override
-    public void visit(ConstantExpr<TypedPlan> expr) {
+    public TypedPlan visit(ConstantExpr expr) {
         ValueType type;
         if (expr.getValue() == null) {
-            type = GenericWildcard.unbounded();
+            type = NullType.INSTANCE;
         } else if (expr.getValue() instanceof Boolean) {
             type = Primitive.BOOLEAN;
         } else if (expr.getValue() instanceof Character) {
@@ -695,73 +762,64 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         } else if (expr.getValue() instanceof Double) {
             type = Primitive.DOUBLE;
         } else if (expr.getValue() instanceof String) {
-            type = CompilerCommons.stringClass;
+            type = TypeUtils.STRING_CLASS;
         } else {
             throw new IllegalArgumentException("Don't know how to compile constant: " + expr.getValue());
         }
-        expr.setAttribute(new TypedPlan(new ConstantPlan(expr.getValue()), type));
-        copyLocation(expr);
+
+        return planWithLocation(new ConstantPlan(expr.getValue()), type, expr);
     }
 
     @Override
-    public void visit(TernaryConditionExpr<TypedPlan> expr) {
+    public TypedPlan visit(TernaryConditionExpr expr) {
         ValueType expectedType = null;
         this.expectedType = Primitive.BOOLEAN;
-        expr.getCondition().acceptVisitor(this);
-        convert(expr.getCondition(), Primitive.BOOLEAN);
+        TypedPlan condition = expr.getCondition().acceptVisitor(this);
+        condition = convert(expr.getCondition(), condition, Primitive.BOOLEAN);
 
         this.expectedType = expectedType;
-        expr.getConsequent().acceptVisitor(this);
+        TypedPlan consequent = expr.getConsequent().acceptVisitor(this);
         this.expectedType = expectedType;
-        expr.getAlternative().acceptVisitor(this);
+        TypedPlan alternative = expr.getAlternative().acceptVisitor(this);
 
-        ValueType a = expr.getConsequent().getAttribute().type;
-        ValueType b = expr.getAlternative().getAttribute().type;
+        ValueType a = consequent.getType();
+        ValueType b = alternative.getType();
         ValueType type = CompilerCommons.commonSupertype(a, b, navigator);
         if (type == null) {
-            expr.setAttribute(new TypedPlan(new ConstantPlan(null), GenericWildcard.unbounded()));
             ValueTypeFormatter formatter = new ValueTypeFormatter();
-            error(expr, "Clauses of ternary conditional operator are not compatible: "
+            return errorAndFakeResult(expr, "Clauses of ternary conditional operator are not compatible: "
                     + formatter.format(a) + " vs. " + formatter.format(b));
-            copyLocation(expr);
-            return;
         }
-        convert(expr.getConsequent(), type);
-        convert(expr.getAlternative(), type);
-        TypedPlan plan = new TypedPlan(new ConditionalPlan(expr.getCondition().getAttribute().plan,
-                expr.getConsequent().getAttribute().plan, expr.getAlternative().getAttribute().plan), type);
-        expr.setAttribute(plan);
-        copyLocation(expr);
+        consequent = convert(expr.getConsequent(), consequent, type);
+        alternative = convert(expr.getAlternative(), alternative, type);
+        return planWithLocation(new ConditionalPlan(condition.getPlan(), consequent.getPlan(), alternative.getPlan()),
+                type, expr);
     }
 
     @Override
-    public void visit(AssignmentExpr<TypedPlan> expr) {
+    public TypedPlan visit(AssignmentExpr expr) {
         if (expr.getTarget() instanceof VariableExpr) {
             ValueType instanceType = scope.variableType("this");
-            String identifier = ((VariableExpr<?>) expr.getTarget()).getName();
+            String identifier = ((VariableExpr) expr.getTarget()).getName();
             TypedPlan instance = new TypedPlan(new ThisPlan(), instanceType);
-            TypedPlan result = compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
+            return compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
                     expr.getValue(), expr);
-            expr.setAttribute(result);
         } else if (expr.getTarget() instanceof PropertyExpr) {
-            PropertyExpr<TypedPlan> property = (PropertyExpr<TypedPlan>) expr.getTarget();
-            property.getInstance().acceptVisitor(this);
-            TypedPlan instance = property.getInstance().getAttribute();
+            PropertyExpr property = (PropertyExpr) expr.getTarget();
+            TypedPlan instance = property.getInstance().acceptVisitor(this);
             ValueType instanceType = instance.getType();
             String identifier = property.getPropertyName();
-            TypedPlan result = compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
+            return compileAssignment(instance, CompilerCommons.extractClasses(instanceType), identifier,
                     expr.getValue(), expr);
-            expr.setAttribute(result);
         } else if (expr.getTarget() instanceof StaticPropertyExpr) {
-            StaticPropertyExpr<TypedPlan> property = (StaticPropertyExpr<TypedPlan>) expr.getTarget();
+            StaticPropertyExpr property = (StaticPropertyExpr) expr.getTarget();
             ValueType instanceType = navigator.getGenericClass(property.getClassName());
             String identifier = property.getPropertyName();
-            TypedPlan result = compileAssignment(null, CompilerCommons.extractClasses(instanceType), identifier,
+            return compileAssignment(null, CompilerCommons.extractClasses(instanceType), identifier,
                     expr.getValue(), expr);
-            expr.setAttribute(result);
         } else {
             error(expr.getTarget(), "Invalid left side of assignment");
-            expr.setAttribute(new TypedPlan(new ThisPlan(), voidType()));
+            return planWithLocation(new ThisPlan(), voidType(), expr);
         }
     }
 
@@ -770,11 +828,11 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
     }
 
     private TypedPlan compileAssignment(TypedPlan instance, Collection<GenericClass> classes, String name,
-            Expr<TypedPlan> value, Expr<TypedPlan> expr) {
-        value.acceptVisitor(this);
-        if (value.getAttribute().getType() == null) {
+            Expr value, Expr expr) {
+        TypedPlan valuePlan = value.acceptVisitor(this);
+        if (valuePlan.getType() == null) {
             error(value, "Right side of assignment must return a value");
-            return new TypedPlan(new ThisPlan(), voidType());
+            return planWithLocation(new ThisPlan(), voidType(), expr);
         }
 
         GenericField field = findField(classes, name);
@@ -782,21 +840,21 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             String owner = field.getDescriber().getOwner().getName();
             String fieldName = field.getDescriber().getName();
             String desc = typeToString(field.getDescriber().getRawType());
-            return new TypedPlan(new FieldAssignmentPlan(instance != null ? instance.getPlan() : null,
-                    owner, fieldName, desc, value.getAttribute().getPlan()), voidType());
+            return planWithLocation(new FieldAssignmentPlan(instance != null ? instance.getPlan() : null,
+                    owner, fieldName, desc, valuePlan.getPlan()), voidType(), expr);
         }
 
-        GenericMethod setter = findSetter(classes, name, value.getAttribute().getType());
+        GenericMethod setter = findSetter(classes, name, valuePlan.getType());
         if (setter != null) {
             String owner = setter.getDescriber().getOwner().getName();
             String methodName = setter.getDescriber().getName();
             String methodDesc = methodToDesc(setter.getDescriber());
-            return new TypedPlan(new InvocationPlan(owner, methodName, methodDesc,
-                    instance != null ? instance.getPlan() : null, value.getAttribute().getPlan()), voidType());
+            return planWithLocation(new InvocationPlan(owner, methodName, methodDesc,
+                    instance != null ? instance.getPlan() : null, valuePlan.getPlan()), voidType(), expr);
         }
 
         error(expr, "Property not found: " + name);
-        return new TypedPlan(new ThisPlan(), voidType());
+        return planWithLocation(new ThisPlan(), voidType(), expr);
     }
 
     private GenericField findField(Collection<GenericClass> classes, String name) {
@@ -831,7 +889,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         String setterName = getSetterName(propertyName);
         for (GenericClass cls : classes) {
             for (GenericMethod method : navigator.findMethods(cls, setterName, 1)) {
-                if (TypeUtil.subtype(type, method.getActualArgumentTypes()[0], new TypeInference(navigator))) {
+                if (CompilerCommons.isLooselyCompatibleType(method.getActualParameterTypes()[0], type, navigator)) {
                     return method;
                 }
             }
@@ -860,33 +918,35 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         return "is" + Character.toUpperCase(propertyName.charAt(0)) + propertyName.substring(1);
     }
 
-    private void ensureBooleanType(Expr<TypedPlan> expr) {
-        convert(expr, Primitive.BOOLEAN);
+    private TypedPlan ensureBooleanType(Expr expr, TypedPlan plan) {
+        return convert(expr, plan, Primitive.BOOLEAN);
     }
 
-    private void ensureIntType(Expr<TypedPlan> expr) {
-        convert(expr, Primitive.INT);
+    private TypedPlan ensureIntType(Expr expr, TypedPlan plan) {
+        return convert(expr, plan, Primitive.INT);
     }
 
-    private void convertToString(Expr<TypedPlan> expr) {
-        if (expr.getAttribute().getType().equals(CompilerCommons.stringClass)) {
-            return;
+    private TypedPlan convertToString(Expr expr, TypedPlan value) {
+        if (value.getType().equals(TypeUtils.STRING_CLASS)) {
+            return value;
         }
-        ValueType type = expr.getAttribute().type;
-        Plan plan = expr.getAttribute().plan;
+        ValueType type = value.getType();
+        Plan plan = value.getPlan();
         if (type instanceof Primitive) {
-            GenericClass wrapperClass = CompilerCommons.primitivesToWrappers.get(type);
+            GenericClass wrapperClass = (GenericClass) TypeUtils.tryBox(type);
             plan = new InvocationPlan(wrapperClass.getName(), "toString", "(" + typeToString(type)
                     + ")Ljava/lang/String;", null, plan);
         } else {
             plan = new InvocationPlan("java.lang.String", "valueOf", "(Ljava/lang/Object;)Ljava/lang/String;",
                     null, plan);
         }
-        expr.setAttribute(new TypedPlan(plan, CompilerCommons.stringClass));
+
+        return planWithLocation(plan, TypeUtils.STRING_CLASS, expr);
     }
 
-    private ArithmeticType getArithmeticType(Expr<TypedPlan> expr) {
-        TypedPlan plan = expr.getAttribute();
+    private ArithmeticTypeAndPlan getArithmeticType(Expr expr, TypedPlan plan) {
+        ValueType initialType = plan.getType();
+
         if (!(plan.getType() instanceof Primitive)) {
             plan = unbox(plan);
         }
@@ -894,34 +954,63 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             PrimitiveKind kind = ((Primitive) plan.type).getKind();
             IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(kind);
             if (subtype != null) {
-                expr.setAttribute(new TypedPlan(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT));
-                plan = expr.getAttribute();
+                plan = planWithLocation(new CastToIntegerPlan(subtype, plan.plan), Primitive.INT, expr);
                 kind = ((Primitive) plan.type).getKind();
             }
             ArithmeticType type = CompilerCommons.getArithmeticType(kind);
             if (type != null) {
-                expr.setAttribute(plan);
-                return type;
+                return new ArithmeticTypeAndPlan(type, plan);
             }
         }
-        error(expr, "Invalid operand type: " + expr.getAttribute().type);
-        expr.setAttribute(new TypedPlan(new ConstantPlan(0), Primitive.INT));
-        return ArithmeticType.INT;
+
+        error(expr, "Invalid operand type: " + initialType);
+        return new ArithmeticTypeAndPlan(ArithmeticType.INT, planWithLocation(
+                new ConstantPlan(0), Primitive.INT, expr));
     }
 
-    private ArithmeticType getAritmeticTypeForPair(Expr<TypedPlan> firstExpr, Expr<TypedPlan> secondExpr) {
-        ArithmeticType firstType = getArithmeticType(firstExpr);
-        ArithmeticType secondType = getArithmeticType(secondExpr);
+    static class ArithmeticTypeAndPlan {
+        ArithmeticType type;
+        TypedPlan plan;
+
+        ArithmeticTypeAndPlan(ArithmeticType type, TypedPlan plan) {
+            this.type = type;
+            this.plan = plan;
+        }
+    }
+
+    private ArithmeticTypeAndPlans getArithmeticTypeForPair(Expr firstExpr, TypedPlan firstPlan, Expr secondExpr,
+            TypedPlan secondPlan) {
+        ArithmeticTypeAndPlan firstResult = getArithmeticType(firstExpr, firstPlan);
+        ArithmeticTypeAndPlan secondResult = getArithmeticType(secondExpr, secondPlan);
+
+        ArithmeticType firstType = firstResult.type;
+        ArithmeticType secondType = secondResult.type;
+        firstPlan = firstResult.plan;
+        secondPlan = secondResult.plan;
+
         ArithmeticType common = ArithmeticType.values()[Math.max(firstType.ordinal(), secondType.ordinal())];
         if (firstType != common) {
-            firstExpr.setAttribute(new TypedPlan(new ArithmeticCastPlan(firstType, common,
-                    firstExpr.getAttribute().plan), CompilerCommons.getType(common)));
+            firstPlan = planWithLocation(new ArithmeticCastPlan(firstType, common, firstPlan.getPlan()),
+                    CompilerCommons.getType(common), firstExpr);
         }
         if (secondType != common) {
-            secondExpr.setAttribute(new TypedPlan(new ArithmeticCastPlan(secondType, common,
-                    secondExpr.getAttribute().plan), CompilerCommons.getType(common)));
+            secondPlan = planWithLocation(new ArithmeticCastPlan(secondType, common, secondPlan.getPlan()),
+                    CompilerCommons.getType(common), secondExpr);
         }
-        return common;
+
+        return new ArithmeticTypeAndPlans(common, firstPlan, secondPlan);
+    }
+
+    static class ArithmeticTypeAndPlans {
+        ArithmeticType arithmeticType;
+        TypedPlan first;
+        TypedPlan second;
+
+        ArithmeticTypeAndPlans(ArithmeticType arithmeticType, TypedPlan first, TypedPlan second) {
+            this.arithmeticType = arithmeticType;
+            this.first = first;
+            this.second = second;
+        }
     }
 
     private BinaryPlanType getPlanType(BinaryOperation op) {
@@ -966,33 +1055,21 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         throw new AssertionError("Don't know how to map binary operation " + op + " to plan");
     }
 
-    void convert(Expr<TypedPlan> expr, ValueType targetType) {
-        convert(expr, targetType, new TypeInference(navigator));
+    TypedPlan convert(Expr expr, TypedPlan plan, ValueType targetType) {
+        TypedPlan convertedPlan = tryConvert(expr, plan, targetType);
+        return convertedPlan != null
+                ? convertedPlan
+                : errorAndFakeResult(expr, "Can't convert " + plan.getType() + " to " + targetType);
     }
 
-    void convert(Expr<TypedPlan> expr, ValueType targetType, TypeInference inference) {
-        TypedPlan plan = expr.getAttribute();
-        plan = tryConvert(plan, targetType, inference);
-        if (plan != null) {
-            expr.setAttribute(plan);
-        } else {
-            error(expr, "Can't convert " + expr.getAttribute().type + " to " + targetType);
-            expr.setAttribute(new TypedPlan(new ConstantPlan(getDefaultConstant(targetType)), targetType));
-        }
-    }
-
-    TypedPlan tryConvert(TypedPlan plan, ValueType targetType) {
-        return tryConvert(plan, targetType, new TypeInference(navigator));
-    }
-
-    TypedPlan tryConvert(TypedPlan plan, ValueType targetType, TypeInference inference) {
+    private TypedPlan tryConvert(Expr expr, TypedPlan plan, ValueType targetType) {
         if (plan.getType() == null) {
             return null;
         }
         if (plan.getType().equals(targetType)) {
             return plan;
         }
-        if (plan.getType().equals(GenericWildcard.unbounded())) {
+        if (plan.getType().equals(NullType.INSTANCE)) {
             return new TypedPlan(plan.plan, targetType);
         }
 
@@ -1014,17 +1091,17 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return plan;
         }
         if (plan.type instanceof Primitive) {
-            plan = box(plan);
+            plan = box(expr, plan);
             if (plan == null) {
                 return null;
             }
         }
 
-        if (!inference.subtypeConstraint((GenericType) plan.type, (GenericType) targetType)) {
+        if (!CompilerCommons.isErasedSuperType(targetType, plan.type, navigator)) {
             return null;
         }
 
-        return new TypedPlan(plan.plan, targetType.substitute(inference.getSubstitutions()));
+        return new TypedPlan(plan.plan, targetType);
     }
 
     private TypedPlan tryCastPrimitive(TypedPlan plan, Primitive targetType) {
@@ -1068,16 +1145,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
         if (plan.type instanceof GenericReference) {
             TypeVar v = ((GenericReference) plan.type).getVar();
             cls = (GenericClass) v.getLowerBound().stream()
-                    .filter(CompilerCommons.wrappersToPrimitives::containsKey)
-                    .findFirst()
-                    .orElse(null);
-            if (cls == null) {
-                return null;
-            }
-        } else if (plan.type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) plan.type;
-            cls = (GenericClass) wildcard.getLowerBound().stream()
-                    .filter(CompilerCommons.wrappersToPrimitives::containsKey)
+                    .filter(bound -> TypeUtils.tryUnbox(bound) != bound)
                     .findFirst()
                     .orElse(null);
             if (cls == null) {
@@ -1089,7 +1157,7 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
             return null;
         }
 
-        Primitive primitive = CompilerCommons.wrappersToPrimitives.get(cls);
+        Primitive primitive = TypeUtils.unbox(cls);
         if (primitive == null) {
             return null;
         }
@@ -1098,43 +1166,19 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 plan.plan), primitive);
     }
 
-    private TypedPlan box(TypedPlan plan) {
+    private TypedPlan box(Expr expr, TypedPlan plan) {
         if (!(plan.type instanceof Primitive)) {
             return null;
         }
-        GenericClass wrapper = CompilerCommons.primitivesToWrappers.get(plan.type);
+        GenericClass wrapper = TypeUtils.box(plan.type);
         if (wrapper == null) {
             return null;
         }
-        return new TypedPlan(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type)
-                + ")" + typeToString(wrapper), null, plan.plan), wrapper);
+        return planWithLocation(new InvocationPlan(wrapper.getName(), "valueOf", "(" + typeToString(plan.type)
+                + ")" + typeToString(wrapper), null, plan.plan), wrapper, expr);
     }
 
-    private Object getDefaultConstant(ValueType type) {
-        if (type instanceof Primitive) {
-            switch (((Primitive) type).getKind()) {
-                case BOOLEAN:
-                    return false;
-                case CHAR:
-                    return '\0';
-                case BYTE:
-                    return (byte) 0;
-                case SHORT:
-                    return (short) 0;
-                case INT:
-                    return 0;
-                case LONG:
-                    return 0L;
-                case FLOAT:
-                    return 0F;
-                case DOUBLE:
-                    return 0.0;
-            }
-        }
-        return null;
-    }
-
-    private ValueType resolveType(ValueType type, Expr<TypedPlan> expr) {
+    private ValueType resolveType(ValueType type, Expr expr) {
         if (type instanceof GenericClass) {
             GenericClass cls = (GenericClass) type;
             String resolvedName = classResolver.findClass(cls.getName());
@@ -1143,39 +1187,28 @@ class CompilerVisitor implements ExprVisitorStrict<TypedPlan> {
                 return type;
             }
             boolean changed = !resolvedName.equals(cls.getName());
-            List<GenericType> arguments = new ArrayList<>();
-            for (GenericType arg : cls.getArguments()) {
-                GenericType resolvedArg = (GenericType) resolveType(arg, expr);
-                if (resolvedArg != arg) {
-                    changed = true;
-                }
+            List<TypeArgument> arguments = new ArrayList<>();
+            for (TypeArgument arg : cls.getArguments()) {
+                TypeArgument resolvedArg = arg.mapBound(bound -> (GenericType) resolveType(bound, expr));
+                arguments.add(resolvedArg);
+                changed |= resolvedArg != arg;
             }
             return !changed ? type : new GenericClass(resolvedName, arguments);
         } else if (type instanceof GenericArray) {
             GenericArray array = (GenericArray) type;
-            ValueType elementType = resolveType(array.getElementType(), expr);
+            GenericType elementType = (GenericType) resolveType(array.getElementType(), expr);
             return elementType == array.getElementType() ? type : new GenericArray(elementType);
         } else {
             return type;
         }
     }
 
-    private void error(Expr<TypedPlan> expr, String message) {
+    private void error(Expr expr, String message) {
         diagnostics.add(new Diagnostic(expr.getStart(), expr.getEnd(), message));
     }
 
-    private void copyLocation(Expr<? extends TypedPlan> expr) {
-        expr.getAttribute().plan.setLocation(new Location(expr.getStart(), expr.getEnd()));
-    }
-
-    class BoundScope implements Scope {
-        @Override
-        public ValueType variableType(String variableName) {
-            ValueType result = boundVars.get(variableName);
-            if (result == null) {
-                result = scope.variableType(variableName);
-            }
-            return result;
-        }
+    private TypedPlan planWithLocation(Plan plan, ValueType type, Expr expr) {
+        plan.setLocation(new Location(expr.getStart(), expr.getEnd()));
+        return new TypedPlan(plan, type);
     }
 }

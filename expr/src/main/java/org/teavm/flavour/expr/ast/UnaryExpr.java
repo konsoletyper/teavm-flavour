@@ -15,20 +15,20 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class UnaryExpr<T> extends Expr<T> {
-    private Expr<T> operand;
+public class UnaryExpr extends Expr {
+    private Expr operand;
     private UnaryOperation operation;
 
-    public UnaryExpr(Expr<T> operand, UnaryOperation operation) {
+    public UnaryExpr(Expr operand, UnaryOperation operation) {
         this.operand = operand;
         this.operation = operation;
     }
 
-    public Expr<T> getOperand() {
+    public Expr getOperand() {
         return operand;
     }
 
-    public void setOperand(Expr<T> operand) {
+    public void setOperand(Expr operand) {
         this.operand = operand;
     }
 
@@ -37,12 +37,7 @@ public class UnaryExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

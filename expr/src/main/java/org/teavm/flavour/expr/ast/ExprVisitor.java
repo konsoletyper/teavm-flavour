@@ -16,31 +16,31 @@
 package org.teavm.flavour.expr.ast;
 
 public interface ExprVisitor<T> {
-    void visit(BinaryExpr<? extends T> expr);
+    T visit(BinaryExpr expr);
 
-    void visit(CastExpr<? extends T> expr);
+    T visit(CastExpr expr);
 
-    void visit(InstanceOfExpr<? extends T> expr);
+    T visit(InstanceOfExpr expr);
 
-    void visit(InvocationExpr<? extends T> expr);
+    T visit(InvocationExpr expr);
 
-    void visit(StaticInvocationExpr<? extends T> expr);
+    T visit(StaticInvocationExpr expr);
 
-    void visit(PropertyExpr<? extends T> expr);
+    T visit(PropertyExpr expr);
 
-    void visit(StaticPropertyExpr<? extends T> expr);
+    T visit(StaticPropertyExpr expr);
 
-    void visit(UnaryExpr<? extends T> expr);
+    T visit(UnaryExpr expr);
 
-    void visit(VariableExpr<? extends T> expr);
+    T visit(VariableExpr expr);
 
-    void visit(ConstantExpr<? extends T> expr);
+    T visit(ConstantExpr expr);
 
-    void visit(TernaryConditionExpr<? extends T> expr);
+    T visit(TernaryConditionExpr expr);
 
-    void visit(ThisExpr<? extends T> expr);
+    T visit(ThisExpr expr);
 
-    void visit(LambdaExpr<? extends T> expr);
+    T visit(LambdaExpr expr);
 
-    void visit(AssignmentExpr<? extends T> expr);
+    T visit(AssignmentExpr expr);
 }

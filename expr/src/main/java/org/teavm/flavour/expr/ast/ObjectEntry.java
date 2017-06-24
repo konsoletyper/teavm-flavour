@@ -15,9 +15,9 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class ObjectEntry<T> {
+public class ObjectEntry {
     private String key;
-    private Expr<T> value;
+    private Expr value;
 
     public String getKey() {
         return key;
@@ -27,11 +27,11 @@ public class ObjectEntry<T> {
         this.key = key;
     }
 
-    public Expr<T> getValue() {
+    public Expr getValue() {
         return value;
     }
 
-    public void setValue(Expr<T> value) {
+    public void setValue(Expr value) {
         this.value = value;
     }
 }

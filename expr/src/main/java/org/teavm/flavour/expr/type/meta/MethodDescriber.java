@@ -18,10 +18,6 @@ package org.teavm.flavour.expr.type.meta;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface MethodDescriber extends AnnotationsDescriber {
     ClassDescriber getOwner();
 
@@ -33,9 +29,9 @@ public interface MethodDescriber extends AnnotationsDescriber {
 
     TypeVar[] getTypeVariables();
 
-    ValueType[] getRawArgumentTypes();
+    ValueType[] getRawParameterTypes();
 
-    ValueType[] getArgumentTypes();
+    ValueType[] getParameterTypes();
 
     ValueType getReturnType();
 

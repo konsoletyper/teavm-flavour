@@ -20,23 +20,22 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public class InvocationExpr<T> extends Expr<T> {
-    private Expr<T> instance;
+public class InvocationExpr extends Expr {
+    private Expr instance;
     private String methodName;
-    private List<Expr<T>> arguments = new ArrayList<>();
+    private List<Expr> arguments = new ArrayList<>();
 
-    @SafeVarargs
-    public InvocationExpr(Expr<T> instance, String methodName, Expr<T>... arguments) {
+    public InvocationExpr(Expr instance, String methodName, Expr... arguments) {
         this(instance, methodName, Arrays.asList(arguments));
     }
 
-    public InvocationExpr(Expr<T> instance, String methodName, Collection<Expr<T>> arguments) {
+    public InvocationExpr(Expr instance, String methodName, Collection<Expr> arguments) {
         this.instance = instance;
         this.methodName = methodName;
         this.arguments.addAll(arguments);
     }
 
-    public Expr<T> getInstance() {
+    public Expr getInstance() {
         return instance;
     }
 
@@ -48,21 +47,16 @@ public class InvocationExpr<T> extends Expr<T> {
         this.methodName = methodName;
     }
 
-    public void setInstance(Expr<T> instance) {
+    public void setInstance(Expr instance) {
         this.instance = instance;
     }
 
-    public List<Expr<T>> getArguments() {
+    public List<Expr> getArguments() {
         return arguments;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

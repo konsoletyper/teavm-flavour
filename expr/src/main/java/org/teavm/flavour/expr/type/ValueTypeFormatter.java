@@ -15,16 +15,10 @@
  */
 package org.teavm.flavour.expr.type;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ValueTypeFormatter {
     private Map<TypeVar, String> typeVarNames = new HashMap<>();
     private boolean usingShortClassNames;
@@ -108,37 +102,47 @@ public class ValueTypeFormatter {
             GenericArray array = (GenericArray) type;
             format(array.getElementType(), sb);
             sb.append("[]");
+        } else if (type instanceof PrimitiveArray) {
+            PrimitiveArray array = (PrimitiveArray) type;
+            format(array.getElementType(), sb);
+            sb.append("[]");
         } else if (type instanceof GenericReference) {
             GenericReference ref = (GenericReference) type;
             sb.append(getNameOfTypeVar(ref.getVar()));
-        } else if (type instanceof GenericWildcard) {
-            GenericWildcard wildcard = (GenericWildcard) type;
-            sb.append("?");
-            List<GenericType> bounds = !wildcard.getLowerBound().isEmpty() ? wildcard.getLowerBound()
-                    : wildcard.getUpperBound();
-            if (!bounds.isEmpty()) {
-                if (bounds == wildcard.getLowerBound()) {
-                    sb.append(" extends ");
-                } else {
-                    sb.append(" super ");
-                }
-                StringBuilder inner = new StringBuilder();
-                List<String> parts = new ArrayList<>();
-                for (GenericType bound : bounds) {
-                    format(bound, inner);
-                    parts.add(inner.toString());
-                    inner.setLength(0);
-                }
-                Collections.sort(parts);
-
-                sb.append(parts.get(0));
-                for (int i = 1; i < parts.size(); ++i) {
-                    sb.append(" & ");
-                    sb.append(parts.get(i));
-                }
-            }
+        } else if (type instanceof NullType) {
+            sb.append("-null-");
+        } else if (type instanceof IntersectionType) {
+            sb.append(((IntersectionType) type).getTypes().stream()
+                    .map(t -> {
+                        StringBuilder innerSb = new StringBuilder();
+                        format(t, innerSb);
+                        return innerSb.toString();
+                    })
+                    .sorted()
+                    .collect(Collectors.joining(" & ")));
         } else {
             throw new AssertionError("Unexpected type: " + type.getClass().getName());
+        }
+    }
+
+    public void format(TypeArgument type, StringBuilder sb) {
+        switch (type.getVariance()) {
+            case INVARIANT:
+                format(type.getBound(), sb);
+                break;
+            case COVARIANT:
+                if (type.getBound() instanceof GenericClass
+                        && ((GenericClass) type.getBound()).getName().equals("java.lang.Object")) {
+                    sb.append("?");
+                } else {
+                    sb.append("? extends ");
+                    format(type.getBound(), sb);
+                }
+                break;
+            case CONTRAVARIANT:
+                sb.append("? super ");
+                format(type.getBound(), sb);
+                break;
         }
     }
 
@@ -149,12 +153,7 @@ public class ValueTypeFormatter {
         if (usingWildcardChars) {
             return "?";
         }
-        String name = typeVarNames.get(var);
-        if (name == null) {
-            name = generateName(typeVarNames.size());
-            typeVarNames.put(var, name);
-        }
-        return name;
+        return typeVarNames.computeIfAbsent(var, k -> generateName(typeVarNames.size()));
     }
 
     private String generateName(int index) {

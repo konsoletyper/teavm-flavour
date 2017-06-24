@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.Test;
 import org.teavm.flavour.expr.type.*;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
@@ -32,7 +33,7 @@ public class TypeNavigatorTest {
         GenericClass cls = navigator.getGenericClass(List.class.getName());
         assertThat(cls.getName(), is(List.class.getName()));
         assertThat(cls.getArguments().size(), is(1));
-        assertThat(cls.getArguments().get(0), is(instanceOf(GenericReference.class)));
+        assertThat(cls.getArguments().get(0).getBound(), is(instanceOf(GenericReference.class)));
     }
 
     @Test
@@ -65,7 +66,9 @@ public class TypeNavigatorTest {
     }
 
     private GenericClass cls(Class<?> javaClass, GenericType... args) {
-        return new GenericClass(javaClass.getName(), Arrays.asList(args));
+        return new GenericClass(javaClass.getName(), Arrays.stream(args)
+                .map(TypeArgument::invariant)
+                .collect(Collectors.toList()));
     }
 
     class A<X> extends ArrayList<Set<X>> implements Collection<Set<X>> {

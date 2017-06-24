@@ -17,10 +17,6 @@ package org.teavm.flavour.expr.type;
 
 import java.util.Map;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MapSubstitutions implements Substitutions {
     private Map<TypeVar, GenericType> map;
 

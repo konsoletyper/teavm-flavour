@@ -19,10 +19,6 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ClassDescriber extends AnnotationsDescriber {
     String getName();
 
@@ -36,7 +32,7 @@ public interface ClassDescriber extends AnnotationsDescriber {
 
     MethodDescriber[] getMethods();
 
-    MethodDescriber getMethod(String name, ValueType... argumentTypes);
+    MethodDescriber getMethod(String name, ValueType... parameterTypes);
 
     FieldDescriber[] getFields();
 

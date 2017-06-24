@@ -15,30 +15,30 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class BinaryExpr<T> extends Expr<T> {
-    private Expr<T> firstOperand;
-    private Expr<T> secondOperand;
+public class BinaryExpr extends Expr {
+    private Expr firstOperand;
+    private Expr secondOperand;
     private BinaryOperation operation;
 
-    public BinaryExpr(Expr<T> firstOperand, Expr<T> secondOperand, BinaryOperation operation) {
+    public BinaryExpr(Expr firstOperand, Expr secondOperand, BinaryOperation operation) {
         this.firstOperand = firstOperand;
         this.secondOperand = secondOperand;
         this.operation = operation;
     }
 
-    public Expr<T> getFirstOperand() {
+    public Expr getFirstOperand() {
         return firstOperand;
     }
 
-    public void setFirstOperand(Expr<T> firstOperand) {
+    public void setFirstOperand(Expr firstOperand) {
         this.firstOperand = firstOperand;
     }
 
-    public Expr<T> getSecondOperand() {
+    public Expr getSecondOperand() {
         return secondOperand;
     }
 
-    public void setSecondOperand(Expr<T> secondOperand) {
+    public void setSecondOperand(Expr secondOperand) {
         this.secondOperand = secondOperand;
     }
 
@@ -51,12 +51,7 @@ public class BinaryExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

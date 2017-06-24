@@ -25,9 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Test;
+import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.Evaluator;
 import org.teavm.flavour.expr.EvaluatorBuilder;
 import org.teavm.flavour.expr.InterpretingEvaluatorBuilder;
+import org.teavm.flavour.expr.InvalidExpressionException;
 
 public class EvaluatorTest extends BaseEvaluatorTest {
     TestVars vars;
@@ -215,21 +217,21 @@ public class EvaluatorTest extends BaseEvaluatorTest {
 
     @Test
     public void castsLongToInt() {
-        IntComputation c = parseExpr(IntComputation.class, "(int)longWrapper");
+        IntComputation c = parseExpr(IntComputation.class, "(int) longWrapper");
         vars.longWrapper(23L);
         assertThat(c.compute(), is(23));
     }
 
     @Test
     public void castsObjectToLong() {
-        LongComputation c = parseExpr(LongComputation.class, "(Long)object");
+        LongComputation c = parseExpr(LongComputation.class, "(Long) object");
         vars.object(2L);
         assertThat(c.compute(), is(2L));
     }
 
     @Test
     public void castsObjectToPrimitiveArray() {
-        IntComputation c = parseExpr(IntComputation.class, "((int[])object)[0]");
+        IntComputation c = parseExpr(IntComputation.class, "((int[]) object)[0]");
         vars.object(new int[] { 23 });
         assertThat(c.compute(), is(23));
     }
@@ -316,7 +318,7 @@ public class EvaluatorTest extends BaseEvaluatorTest {
         vars.stringIntMap(map);
         assertThat(c.compute(), is(23));
 
-        ObjectComputation o = parseExpr(ObjectComputation.class, "foo.extract(stringIntMap, (String)null)");
+        ObjectComputation o = parseExpr(ObjectComputation.class, "foo.extract(stringIntMap, (String) null)");
         vars.foo(new Foo(0));
         vars.stringIntMap(new HashMap<>());
         assertThat(o.compute(), is((Object)null));
@@ -460,7 +462,25 @@ public class EvaluatorTest extends BaseEvaluatorTest {
                 .importPackage("java.util")
                 .importClass(EvaluatorTest.class.getName())
                 .importClass(Collectors.class.getName());
-        Evaluator<T, TestVars> e = builder.build(cls, TestVars.class, str);
+        Evaluator<T, TestVars> e;
+        try {
+            e = builder.build(cls, TestVars.class, str);
+        } catch (InvalidExpressionException ex) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Errors occurred compiling expression:\n");
+            sb.append(str).append("\n");
+            List<Diagnostic> diagnostics = ex.getDiagnostics().stream()
+                    .sorted(Comparator.comparingInt(d -> d.getStart()))
+                    .collect(Collectors.toList());
+            for (Diagnostic diagnostic : diagnostics) {
+                for (int i = 0; i < diagnostic.getStart(); ++i) {
+                    sb.append(' ');
+                }
+                sb.append("^\n");
+                sb.append(diagnostic.getMessage()).append("\n\n");
+            }
+            throw new AssertionError(sb.toString());
+        }
         vars = e.getVariables();
         return e.getFunction();
     }

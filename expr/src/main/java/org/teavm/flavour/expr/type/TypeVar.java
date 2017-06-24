@@ -17,15 +17,12 @@ package org.teavm.flavour.expr.type;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class TypeVar {
-    private List<GenericType> lowerBound = Collections.emptyList();
-    private List<GenericType> upperBound = Collections.emptyList();
+    private Set<? extends GenericType> lowerBound = Collections.emptySet();
+    private Set<? extends GenericType> upperBound = Collections.emptySet();
     private String name;
 
     public TypeVar() {
@@ -40,21 +37,21 @@ public class TypeVar {
         return name;
     }
 
-    public List<GenericType> getLowerBound() {
+    public Set<? extends GenericType> getLowerBound() {
         return lowerBound;
     }
 
-    public List<GenericType> getUpperBound() {
+    public Set<? extends GenericType> getUpperBound() {
         return upperBound;
     }
 
     public void withLowerBound(GenericType... lowerBound) {
-        this.lowerBound = Collections.unmodifiableList(Arrays.asList(lowerBound));
-        this.upperBound = Collections.emptyList();
+        this.lowerBound = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(lowerBound)));
+        this.upperBound = Collections.emptySet();
     }
 
     public void withUpperBound(GenericType... upperBound) {
-        this.upperBound = Collections.unmodifiableList(Arrays.asList(upperBound));
-        this.lowerBound = Collections.emptyList();
+        this.upperBound = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(upperBound)));
+        this.lowerBound = Collections.emptySet();
     }
 }

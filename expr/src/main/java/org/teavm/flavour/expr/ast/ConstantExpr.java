@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class ConstantExpr<T> extends Expr<T> {
+public class ConstantExpr extends Expr {
     private Object value;
 
     public ConstantExpr(Object value) {
@@ -31,12 +31,7 @@ public class ConstantExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

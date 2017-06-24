@@ -127,9 +127,9 @@ public class GenericTypeNavigator {
         if (describer == null) {
             return null;
         }
-        List<GenericType> arguments = new ArrayList<>();
+        List<TypeArgument> arguments = new ArrayList<>();
         for (TypeVar var : describer.getTypeVariables()) {
-            arguments.add(new GenericReference(var));
+            arguments.add(TypeArgument.invariant(new GenericReference(var)));
         }
         return new GenericClass(className, arguments);
     }
@@ -145,16 +145,16 @@ public class GenericTypeNavigator {
         }
 
         TypeVar[] typeVars = describer.getTypeVariables();
-        List<GenericType> typeValues = cls.getArguments();
+        List<? extends TypeArgument> typeValues = cls.getArguments();
         if (typeVars.length != typeValues.size()) {
             return null;
         }
-        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        Map<TypeVar, TypeArgument> substitutions = new HashMap<>();
         for (int i = 0; i < typeVars.length; ++i) {
             substitutions.put(typeVars[i], typeValues.get(i));
         }
 
-        return superType.substitute(new MapSubstitutions(substitutions));
+        return superType.substituteArgs(substitutions::get);
     }
 
     public GenericClass[] getInterfaces(GenericClass cls) {
@@ -164,11 +164,11 @@ public class GenericTypeNavigator {
         }
 
         TypeVar[] typeVars = describer.getTypeVariables();
-        List<GenericType> typeValues = cls.getArguments();
+        List<? extends TypeArgument> typeValues = cls.getArguments();
         if (typeVars.length != typeValues.size()) {
-            return null;
+            return new GenericClass[0];
         }
-        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        Map<TypeVar, TypeArgument> substitutions = new HashMap<>();
         for (int i = 0; i < typeVars.length; ++i) {
             substitutions.put(typeVars[i], typeValues.get(i));
         }
@@ -176,7 +176,7 @@ public class GenericTypeNavigator {
         GenericClass[] interfaces = describer.getInterfaces();
         GenericClass[] result = new GenericClass[interfaces.length];
         for (int i = 0; i < interfaces.length; ++i) {
-            result[i] = interfaces[i].substitute(new MapSubstitutions(substitutions));
+            result[i] = interfaces[i].substituteArgs(substitutions::get);
         }
         return result;
     }
@@ -187,13 +187,13 @@ public class GenericTypeNavigator {
         return methods.values().toArray(new GenericMethod[0]);
     }
 
-    private Map<TypeVar, GenericType> prepareSubstitutions(ClassDescriber describer, GenericClass cls) {
+    private Map<TypeVar, TypeArgument> prepareSubstitutions(ClassDescriber describer, GenericClass cls) {
         TypeVar[] typeVars = describer.getTypeVariables();
-        List<GenericType> typeValues = cls.getArguments();
+        List<? extends TypeArgument> typeValues = cls.getArguments();
         if (typeVars.length != typeValues.size()) {
             return null;
         }
-        Map<TypeVar, GenericType> substitutions = new HashMap<>();
+        Map<TypeVar, TypeArgument> substitutions = new HashMap<>();
         for (int i = 0; i < typeVars.length; ++i) {
             substitutions.put(typeVars[i], typeValues.get(i));
         }
@@ -238,7 +238,7 @@ public class GenericTypeNavigator {
             return null;
         }
 
-        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        Map<TypeVar, TypeArgument> substitutions = prepareSubstitutions(describer, cls);
         if (substitutions == null) {
             return null;
         }
@@ -248,7 +248,10 @@ public class GenericTypeNavigator {
             return null;
         }
 
-        ValueType type = fieldDescriber.getType().substitute(new MapSubstitutions(substitutions));
+        ValueType type = fieldDescriber.getType();
+        if (type instanceof GenericType) {
+            type = ((GenericType) type).substituteArgs(substitutions::get);
+        }
         return new GenericField(fieldDescriber, type);
     }
 
@@ -285,31 +288,33 @@ public class GenericTypeNavigator {
         return method;
     }
 
-    private GenericMethod getMethodImpl(GenericClass cls, String name, GenericClass... argumentTypes) {
+    private GenericMethod getMethodImpl(GenericClass cls, String name, GenericClass... parameterTypes) {
         ClassDescriber describer = classRepository.describe(cls.getName());
         if (describer == null) {
             return null;
         }
 
-        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        Map<TypeVar, TypeArgument> substitutions = prepareSubstitutions(describer, cls);
         if (substitutions == null) {
             return null;
         }
 
-        MethodDescriber methodDescriber = describer.getMethod(name, argumentTypes);
+        MethodDescriber methodDescriber = describer.getMethod(name, parameterTypes);
         if (methodDescriber == null) {
             return null;
         }
-        ValueType[] argTypes = methodDescriber.getArgumentTypes();
+        ValueType[] argTypes = methodDescriber.getParameterTypes();
         for (int i = 0; i < argTypes.length; ++i) {
-            argTypes[i] = argTypes[i].substitute(new MapSubstitutions(substitutions));
+            if (argTypes[i] instanceof GenericType) {
+                argTypes[i] = ((GenericType) argTypes[i]).substituteArgs(substitutions::get);
+            }
         }
         ValueType returnType = methodDescriber.getReturnType();
-        if (returnType != null) {
-            returnType = returnType.substitute(new MapSubstitutions(substitutions));
+        if (returnType instanceof GenericType) {
+            returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
         }
 
-        return new GenericMethod(methodDescriber, cls, argumentTypes, returnType);
+        return new GenericMethod(methodDescriber, cls, parameterTypes, returnType);
     }
 
     private void findMethodsImpl(GenericClass cls, String name, int paramCount, Set<String> visitedClasses,
@@ -323,7 +328,7 @@ public class GenericTypeNavigator {
             return;
         }
 
-        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        Map<TypeVar, TypeArgument> substitutions = prepareSubstitutions(describer, cls);
         if (substitutions == null) {
             return;
         }
@@ -333,20 +338,22 @@ public class GenericTypeNavigator {
                 continue;
             }
 
-            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            ValueType[] paramTypes = methodDesc.getParameterTypes();
             if (paramTypes.length != paramCount) {
                 continue;
             }
             for (int i = 0; i < paramTypes.length; ++i) {
-                paramTypes[i] = paramTypes[i].substitute(new MapSubstitutions(substitutions));
+                if (paramTypes[i] instanceof GenericType) {
+                    paramTypes[i] = ((GenericType) paramTypes[i]).substituteArgs(substitutions::get);
+                }
             }
 
             ValueType returnType = methodDesc.getReturnType();
-            if (returnType != null) {
-                returnType = returnType.substitute(new MapSubstitutions(substitutions));
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
             }
 
-            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            MethodSignature signature = new MethodSignature(methodDesc.getRawParameterTypes());
             methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
         }
 
@@ -387,7 +394,7 @@ public class GenericTypeNavigator {
             return 0;
         }
 
-        Map<TypeVar, GenericType> substitutions = prepareSubstitutions(describer, cls);
+        Map<TypeVar, TypeArgument> substitutions = prepareSubstitutions(describer, cls);
         if (substitutions == null) {
             return 0;
         }
@@ -395,24 +402,26 @@ public class GenericTypeNavigator {
         int result = 0;
         ClassDescriber objectDescriber = classRepository.describe(Object.class.getName());
         for (MethodDescriber methodDesc : describer.getMethods()) {
-            if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getArgumentTypes()) != null) {
+            if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getParameterTypes()) != null) {
                 continue;
             }
             if (!methodDesc.isAbstract() || methodDesc.isStatic()) {
                 continue;
             }
 
-            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            ValueType[] paramTypes = methodDesc.getParameterTypes();
             for (int i = 0; i < paramTypes.length; ++i) {
-                paramTypes[i] = paramTypes[i].substitute(new MapSubstitutions(substitutions));
+                if (paramTypes[i] instanceof GenericType) {
+                    paramTypes[i] = ((GenericType) paramTypes[i]).substituteArgs(substitutions::get);
+                }
             }
 
             ValueType returnType = methodDesc.getReturnType();
-            if (returnType != null) {
-                returnType = returnType.substitute(new MapSubstitutions(substitutions));
+            if (returnType instanceof GenericType) {
+                returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
             }
 
-            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            MethodSignature signature = new MethodSignature(methodDesc.getRawParameterTypes());
             if (!methods.containsKey(signature)) {
                 methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
                 if (methodDesc.isAbstract()) {

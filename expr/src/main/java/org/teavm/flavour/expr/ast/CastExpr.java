@@ -17,20 +17,20 @@ package org.teavm.flavour.expr.ast;
 
 import org.teavm.flavour.expr.type.ValueType;
 
-public class CastExpr<T> extends Expr<T> {
-    private Expr<T> value;
+public class CastExpr extends Expr {
+    private Expr value;
     private ValueType targetType;
 
-    public CastExpr(Expr<T> value, ValueType targetType) {
+    public CastExpr(Expr value, ValueType targetType) {
         this.value = value;
         this.targetType = targetType;
     }
 
-    public Expr<T> getValue() {
+    public Expr getValue() {
         return value;
     }
 
-    public void setValue(Expr<T> value) {
+    public void setValue(Expr value) {
         this.value = value;
     }
 
@@ -42,13 +42,9 @@ public class CastExpr<T> extends Expr<T> {
         this.targetType = targetType;
     }
 
-    @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
 
     @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

@@ -18,7 +18,9 @@ package org.teavm.flavour.expr.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,62 +30,61 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
-import org.teavm.flavour.expr.type.GenericWildcard;
 import org.teavm.flavour.expr.type.Primitive;
+import org.teavm.flavour.expr.type.PrimitiveArray;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.ClassPathClassDescriberRepository;
 
 public class TypeInferenceTest {
-    private TypeInference inf;
-
-    public TypeInferenceTest() {
-        inf = new TypeInference(new GenericTypeNavigator(new ClassPathClassDescriberRepository()));
-    }
+    private ClassDescriberRepository types = new ClassPathClassDescriberRepository();
+    private TypeInference inf = new TypeInference(new GenericTypeNavigator(types));
 
     @Test
     public void infersCommonSupertype() {
         TypeVar t = new TypeVar("T");
         GenericType pattern = ref(t);
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(cls(Class.class, cls(Integer.class)), pattern);
-        ok &= inf.subtypeConstraint(cls(Class.class, cls(Long.class)), pattern);
+        addVariables(t);
+        subtypeConstraint(cls(Class.class, inv(cls(Integer.class))), pattern);
+        subtypeConstraint(cls(Class.class, inv(cls(Long.class))), pattern);
+        infer();
 
-        assertTrue(ok);
-        assertEquals("Class<? extends Comparable<T> & Number>", string(pattern));
+        assertEquals("Class<? extends Comparable<?> & Number>", string(pattern));
     }
 
     @Test
-    public void infersExaсtVariable() {
+    public void infersExactVariable() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
-        GenericType first = cls(Map.class, ref(k), ref(v));
+        GenericType first = cls(Map.class, inv(ref(k)), inv(ref(v)));
         GenericType second = ref(k);
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Number.class), cls(String.class)), first);
-        ok &= inf.subtypeConstraint(cls(Integer.class), second);
+        addVariables(k, v);
+        subtypeConstraint(cls(HashMap.class, inv(cls(Number.class)), inv(cls(String.class))), first);
+        subtypeConstraint(cls(Integer.class), second);
+        infer();
 
-        assertTrue(ok);
         assertEquals("String", string(ref(v)));
         assertEquals("Number", string(ref(k)));
     }
 
     @Test
-    public void infersExaсtVariableReverse() {
+    public void infersExactVariableReverse() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
-        GenericType first = cls(Map.class, ref(k), ref(v));
+        GenericType first = cls(Map.class, inv(ref(k)), inv(ref(v)));
         GenericType second = ref(k);
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(cls(Integer.class), second);
-        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Number.class), cls(String.class)), first);
+        addVariables(k, v);
+        subtypeConstraint(cls(Integer.class), second);
+        subtypeConstraint(cls(HashMap.class, inv(cls(Number.class)), inv(cls(String.class))), first);
+        infer();
 
-        assertTrue(ok);
         assertEquals("String", string(ref(v)));
         assertEquals("Number", string(ref(k)));
     }
@@ -92,42 +93,26 @@ public class TypeInferenceTest {
     public void exactVariableInferenceFailsOnContradiction() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
-        GenericType first = cls(Map.class, ref(k), ref(v));
-        GenericType second = ref(k);
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(cls(HashMap.class, cls(Long.class), cls(String.class)), first);
-        ok &= inf.subtypeConstraint(cls(Integer.class), second);
-
-        assertFalse(ok);
-    }
-
-    @Test
-    public void mergesVariables() {
-        TypeVar t = new TypeVar("T");
-        GenericType actual = cls(List.class, in(cls(Number.class)));
-        GenericType formal = cls(List.class, ref(t));
-
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(actual, formal);
-
-        assertTrue(ok);
-        assertEquals("Number", string(ref(t)));
+        addVariables(k, v);
+        subtypeConstraint(cls(HashMap.class, inv(cls(Long.class)), inv(cls(String.class))),
+                cls(Map.class, inv(ref(k)), inv(ref(v))));
+        assertFalse(inf.subtypeConstraint(ref(k), cls(Integer.class)));
     }
 
     @Test
     public void checksEqualClasses() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
-        GenericType first = cls(Map.class, ref(k), cls(Integer.class));
-        GenericType second = cls(Map.class, cls(String.class), ref(v));
-        GenericType actual = cls(Map.class, cls(String.class), cls(Integer.class));
+        GenericType first = cls(Map.class, inv(ref(k)), inv(cls(Integer.class)));
+        GenericType second = cls(Map.class, inv(cls(String.class)), inv(ref(v)));
+        GenericType actual = cls(Map.class, inv(cls(String.class)), inv(cls(Integer.class)));
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(actual, first);
-        ok &= inf.subtypeConstraint(actual, second);
+        addVariables(k, v);
+        subtypeConstraint(actual, first);
+        subtypeConstraint(actual, second);
+        infer();
 
-        assertTrue(ok);
         assertEquals("String", string(ref(k)));
         assertEquals("Integer", string(ref(v)));
     }
@@ -137,13 +122,13 @@ public class TypeInferenceTest {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
         k.withUpperBound(ref(v));
-        GenericType formal = cls(Map.class, ref(k), ref(v));
-        GenericType actual = cls(Map.class, cls(Integer.class), cls(Number.class));
+        GenericType formal = cls(Map.class, inv(ref(k)), inv(ref(v)));
+        GenericType actual = cls(Map.class, inv(cls(Integer.class)), inv(cls(Number.class)));
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(actual, formal);
+        addVariables(k, v);
+        subtypeConstraint(actual, formal);
+        infer();
 
-        assertTrue(ok);
         assertEquals("Integer", string(ref(k)));
         assertEquals("Number", string(ref(v)));
     }
@@ -153,29 +138,15 @@ public class TypeInferenceTest {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
         k.withUpperBound(ref(v));
-        GenericType formal = cls(Map.class, ref(k), out(ref(v)));
-        GenericType actual = cls(HashMap.class, cls(Integer.class), cls(Object.class));
+        GenericType formal = cls(Map.class, inv(ref(k)), out(ref(v)));
+        GenericType actual = cls(HashMap.class, inv(cls(Integer.class)), inv(cls(Object.class)));
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(actual, formal);
+        addVariables(k, v);
+        subtypeConstraint(actual, formal);
+        infer();
 
-        assertTrue(ok);
         assertEquals("Integer", string(ref(k)));
-        assertEquals("Integer", string(ref(v)));
-    }
-
-    @Test
-    public void findsLowerDependenciesViolations() {
-        TypeVar k = new TypeVar("K");
-        TypeVar v = new TypeVar("V");
-        k.withUpperBound(ref(v));
-        GenericType formal = cls(Map.class, ref(k), out(ref(v)));
-        GenericType actual = cls(HashMap.class, cls(Number.class), cls(Integer.class));
-
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(actual, formal);
-
-        assertFalse(ok);
+        assertEquals("Object", string(ref(v)));
     }
 
     @Test
@@ -183,43 +154,150 @@ public class TypeInferenceTest {
         TypeVar t = new TypeVar("T");
         GenericType pattern = ref(t);
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(array(cls(Integer.class)), pattern);
-        ok &= inf.subtypeConstraint(array(cls(Long.class)), pattern);
+        addVariables(t);
+        subtypeConstraint(array(cls(Integer.class)), pattern);
+        subtypeConstraint(array(cls(Long.class)), pattern);
+        infer();
 
-        assertTrue(ok);
-        assertEquals("? extends Comparable<T> & Number[]", string(pattern));
+        assertEquals("Comparable<? extends Comparable<?> & Number> & Number[]", string(pattern));
     }
 
     @Test
-    public void primitiveArrayCommonItem() {
+    public void addsLowerBoundsFromTypeVarToInferenceVar() {
         TypeVar t = new TypeVar("T");
-        GenericType pattern = ref(t);
+        t.withLowerBound(cls(List.class, inv(cls(A.class))));
 
-        boolean ok = true;
-        ok &= inf.subtypeConstraint(array(cls(Integer.class)), pattern);
-        ok &= inf.subtypeConstraint(array(Primitive.LONG), pattern);
+        addVariables(t);
+        subtypeConstraint(cls(List.class, inv(cls(B.class))), ref(t));
+        infer();
 
-        assertTrue(ok);
-        assertEquals("? extends Object", string(pattern));
+        assertEquals("List<? extends BaseClass>", string(ref(t)));
     }
 
-    private static native <T> T f(T a, T b);
+    @Test
+    public void circularDependency() {
+        TypeVar a = new TypeVar("A");
+        TypeVar b = new TypeVar("B");
+        a.withLowerBound(ref(b));
 
-    static GenericType cls(Class<?> cls, GenericType... args) {
+        addVariables(a, b);
+        subtypeConstraint(ref(a), ref(b));
+        infer();
+
+        assertEquals("Object", string(ref(a)));
+        assertEquals("Object", string(ref(b)));
+    }
+
+    @Test
+    public void circularDependencyWithBound() {
+        TypeVar a = new TypeVar("A");
+        TypeVar b = new TypeVar("B");
+        a.withLowerBound(ref(b));
+
+        addVariables(a, b);
+        subtypeConstraint(ref(a), ref(b));
+        subtypeConstraint(cls(Integer.class), ref(a));
+        infer();
+
+        assertEquals("Integer", string(ref(a)));
+        assertEquals("Integer", string(ref(b)));
+    }
+
+    @Test
+    public void equalConstraintBetweenInferenceVars() {
+        TypeVar a = new TypeVar("A");
+        TypeVar b = new TypeVar("B");
+
+        addVariables(a, b);
+        subtypeConstraint(cls(ArrayList.class, inv(ref(a))), cls(Iterable.class, inv(ref(b))));
+        subtypeConstraint(cls(Integer.class), ref(a));
+        infer();
+
+        assertEquals("Integer", string(ref(a)));
+        assertEquals("Integer", string(ref(b)));
+    }
+
+    @Test
+    public void equalConstraintBetweenInferenceVars2() {
+        TypeVar a = new TypeVar("A");
+        TypeVar b = new TypeVar("B");
+
+        addVariables(a, b);
+        subtypeConstraint(cls(Integer.class), ref(a));
+        subtypeConstraint(cls(ArrayList.class, inv(ref(a))), cls(Iterable.class, inv(ref(b))));
+        infer();
+
+        assertEquals("Integer", string(ref(a)));
+        assertEquals("Integer", string(ref(b)));
+    }
+
+    @Test
+    public void captureConversion() {
+        TypeVar t = types.describe(List.class.getName()).getTypeVariables()[0];
+
+        // for example, List<T> get(), with receiver = List<? extends Integer>()
+        captureConversionConstraint(Arrays.asList(t), Arrays.asList(out(cls(Integer.class)))).get(0);
+        infer();
+
+        GenericType result = ref(t).substitute(inf.getSubstitutions());
+        assertTrue(result instanceof GenericReference);
+        TypeVar s = ((GenericReference) result).getVar();
+        assertEquals(1, s.getUpperBound().size());
+        assertEquals("Integer", string(s.getUpperBound().iterator().next()));
+    }
+
+    private void addVariables(TypeVar... typeVars) {
+        addVariables(Arrays.asList(typeVars));
+    }
+
+    private void addVariables(Collection<? extends TypeVar> typeVars) {
+        if (!inf.addVariables(typeVars)) {
+            throw new AssertionError("Could not build initial constraint set");
+        }
+    }
+
+    private void subtypeConstraint(GenericType subtype, GenericType supertype) {
+        System.out.println(subtype + " <: " + supertype);
+        if (!inf.subtypeConstraint(subtype, supertype)) {
+            throw new AssertionError("Could not add subtype constraint: " + subtype + " <: " + supertype);
+        }
+    }
+
+    private List<? extends TypeArgument> captureConversionConstraint(List<TypeVar> typeParameters,
+            List<TypeArgument> typeArguments) {
+        List<? extends TypeArgument> result = inf.captureConversionConstraint(typeParameters, typeArguments);
+        if (result == null) {
+            throw new AssertionError("Could not add capture conversion constraint");
+        }
+        return result;
+    }
+
+    private void infer() {
+        if (!inf.resolve()) {
+            throw new AssertionError("Could not resolve constraint set");
+        }
+    }
+
+    static GenericType cls(Class<?> cls, TypeArgument... args) {
         return new GenericClass(cls.getName(), args);
     }
 
     static GenericType array(ValueType item) {
-        return new GenericArray(item);
+        return item instanceof Primitive
+                ? new PrimitiveArray((Primitive) item)
+                : new GenericArray((GenericType) item);
     }
 
-    static GenericType in(GenericType cls) {
-        return GenericWildcard.lowerBounded(Arrays.asList(cls));
+    static TypeArgument inv(GenericType cls) {
+        return TypeArgument.invariant(cls);
     }
 
-    static GenericType out(GenericType cls) {
-        return GenericWildcard.upperBounded(Arrays.asList(cls));
+    static TypeArgument in(GenericType cls) {
+        return TypeArgument.contravariant(cls);
+    }
+
+    static TypeArgument out(GenericType cls) {
+        return TypeArgument.covariant(cls);
     }
 
     static GenericType ref(TypeVar var) {

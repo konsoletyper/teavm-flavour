@@ -18,20 +18,17 @@ package org.teavm.flavour.expr.type;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
-/**
- *
- * @author Alexey Andreev
- */
 public final class GenericArray extends GenericType {
-    ValueType elementType;
+    private GenericType elementType;
 
-    public GenericArray(ValueType elementType) {
+    public GenericArray(GenericType elementType) {
         Objects.requireNonNull(elementType);
         this.elementType = elementType;
     }
 
-    public ValueType getElementType() {
+    public GenericType getElementType() {
         return elementType;
     }
 
@@ -42,13 +39,19 @@ public final class GenericArray extends GenericType {
 
     @Override
     GenericArray substitute(Substitutions substitutions, Set<TypeVar> visited) {
-        if (elementType instanceof GenericType) {
-            GenericType genericElem = (GenericType) elementType;
-            GenericType substElement = genericElem.substitute(substitutions, visited);
-            return substElement != elementType ? new GenericArray(substElement) : this;
-        } else {
-            return this;
-        }
+        GenericType substElem = elementType.substitute(substitutions, visited);
+        return substElem != elementType ? new GenericArray(substElem) : this;
+    }
+
+    @Override
+    public GenericArray substituteArgs(Function<TypeVar, TypeArgument> substitutions) {
+        return substituteArgs(substitutions, new HashSet<>());
+    }
+
+    @Override
+    GenericArray substituteArgs(Function<TypeVar, TypeArgument> substitutions, Set<TypeVar> visited) {
+        GenericType substElem = elementType.substituteArgs(substitutions, visited);
+        return substElem != elementType ? new GenericArray(substElem) : this;
     }
 
     @Override
@@ -69,7 +72,7 @@ public final class GenericArray extends GenericType {
     }
 
     @Override
-    public GenericType erasure() {
-        return elementType instanceof GenericType ? new GenericArray(((GenericType) elementType).erasure()) : this;
+    public GenericArray erasure() {
+        return new GenericArray(elementType.erasure());
     }
 }

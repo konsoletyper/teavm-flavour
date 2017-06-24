@@ -15,48 +15,43 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class TernaryConditionExpr<T> extends Expr<T> {
-    private Expr<T> condition;
-    private Expr<T> consequent;
-    private Expr<T> alternative;
+public class TernaryConditionExpr extends Expr {
+    private Expr condition;
+    private Expr consequent;
+    private Expr alternative;
 
-    public TernaryConditionExpr(Expr<T> condition, Expr<T> consequent, Expr<T> alternative) {
+    public TernaryConditionExpr(Expr condition, Expr consequent, Expr alternative) {
         this.condition = condition;
         this.consequent = consequent;
         this.alternative = alternative;
     }
 
-    public Expr<T> getCondition() {
+    public Expr getCondition() {
         return condition;
     }
 
-    public void setCondition(Expr<T> condition) {
+    public void setCondition(Expr condition) {
         this.condition = condition;
     }
 
-    public Expr<T> getConsequent() {
+    public Expr getConsequent() {
         return consequent;
     }
 
-    public void setConsequent(Expr<T> consequent) {
+    public void setConsequent(Expr consequent) {
         this.consequent = consequent;
     }
 
-    public Expr<T> getAlternative() {
+    public Expr getAlternative() {
         return alternative;
     }
 
-    public void setAlternative(Expr<T> alternative) {
+    public void setAlternative(Expr alternative) {
         this.alternative = alternative;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

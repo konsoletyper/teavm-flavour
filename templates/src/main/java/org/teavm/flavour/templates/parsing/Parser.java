@@ -50,7 +50,6 @@ import org.teavm.flavour.expr.ImportingClassResolver;
 import org.teavm.flavour.expr.Location;
 import org.teavm.flavour.expr.Scope;
 import org.teavm.flavour.expr.TypeEstimator;
-import org.teavm.flavour.expr.TypeUtil;
 import org.teavm.flavour.expr.TypedPlan;
 import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.ast.LambdaExpr;
@@ -59,7 +58,6 @@ import org.teavm.flavour.expr.ast.ObjectExpr;
 import org.teavm.flavour.expr.plan.LambdaPlan;
 import org.teavm.flavour.expr.plan.ObjectPlan;
 import org.teavm.flavour.expr.plan.ObjectPlanEntry;
-import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericReference;
@@ -240,7 +238,7 @@ public class Parser {
         List<PostponedComponentParse> postponedList = new ArrayList<>();
         TemplateNode node = parseComponent(componentMeta, prefix, name, elem, postponedList,
                 new MapSubstitutions(new HashMap<>()));
-        completeComponentParsing(postponedList);
+        completeComponentParsing(postponedList, componentMeta, elem);
         position = elem.getEnd();
         return node;
     }
@@ -251,6 +249,27 @@ public class Parser {
         component.setLocation(new Location(elem.getBegin(), elem.getEnd()));
         if (componentMeta.nameSetter != null) {
             component.setElementNameMethodName(componentMeta.nameSetter.getName());
+        }
+
+        List<GenericType> typeVarsBackup = new ArrayList<>();
+        Map<TypeVar, TypeVar> freshVarsMap = new HashMap<>();
+        for (TypeVar typeVar : componentMeta.typeVarsToRefresh) {
+            TypeVar freshVar = new TypeVar();
+            freshVarsMap.put(typeVar, freshVar);
+            typeVarsBackup.add(typeVars.getMap().put(typeVar, new GenericReference(freshVar)));
+        }
+
+        for (TypeVar typeVar : componentMeta.typeVarsToRefresh) {
+            TypeVar freshVar = freshVarsMap.get(typeVar);
+            if (!typeVar.getLowerBound().isEmpty()) {
+                freshVar.withLowerBound(typeVar.getLowerBound().stream()
+                        .map(bound -> bound.substitute(typeVars))
+                        .toArray(GenericType[]::new));
+            } else {
+                freshVar.withUpperBound(typeVar.getUpperBound().stream()
+                        .map(bound -> bound.substitute(typeVars))
+                        .toArray(GenericType[]::new));
+            }
         }
 
         List<PostponedAttributeParse> attributesParse = new ArrayList<>();
@@ -279,7 +298,10 @@ public class Parser {
             }
 
             if (attrParse.meta.valueType != null) {
-                attrParse.type = attrParse.meta.valueType.substitute(typeVars);
+                attrParse.type = attrParse.meta.valueType;
+                if (attrParse.type instanceof GenericType) {
+                    attrParse.type = ((GenericType) attrParse.type).substitute(typeVars);
+                }
             }
             if (attrParse.meta.sam != null) {
                 attrParse.sam = attrParse.meta.sam.substitute(typeVars);
@@ -298,14 +320,8 @@ public class Parser {
 
         PostponedComponentParse componentParse = new PostponedComponentParse(position, componentMeta, component, elem);
         componentParse.attributes.addAll(attributesParse);
+        componentParse.freshTypeVars.addAll(freshVarsMap.values());
         postponed.add(componentParse);
-
-        Map<NestedComponent, Set<TypeVar>> nestedNewVars = new HashMap<>();
-        for (NestedComponent nestedComponent : componentMeta.nestedComponents) {
-            Set<TypeVar> newVars = new HashSet<>();
-            newVariables(typeVars.getMap().keySet(), newVars, nestedComponent.setter.getActualArgumentTypes()[0]);
-            nestedNewVars.put(nestedComponent, newVars);
-        }
 
         parseSegment(elem.getEnd(), new ArrayList<>(), child -> {
             int nestedPrefixLength = child.getName().indexOf(':');
@@ -315,13 +331,8 @@ public class Parser {
                 if (nestedPrefix.equals(prefix)) {
                     NestedComponent nested = resolveNestedComponent(componentMeta, nestedName);
                     if (nested != null) {
-                        Set<TypeVar> newVars = nestedNewVars.get(nested);
-                        for (TypeVar var : newVars) {
-                            typeVars.getMap().put(var, new GenericReference(new TypeVar()));
-                        }
                         ComponentBinding nestedNode = parseComponent(nested.metadata, prefix, nestedName, child,
                                 postponed, typeVars);
-                        typeVars.getMap().keySet().removeAll(newVars);
                         NestedComponentBinding binding = getNestedComponentBinding(component, nested);
                         binding.getComponents().add(nestedNode);
                     }
@@ -330,6 +341,15 @@ public class Parser {
             return false;
         });
         validateNestedComponents(component, componentMeta, elem, prefix);
+
+        for (int i = 0; i < componentMeta.typeVarsToRefresh.size(); i++) {
+            TypeVar typeVar = componentMeta.typeVarsToRefresh.get(i);
+            if (typeVarsBackup.get(i) != null) {
+                typeVars.getMap().put(typeVar, typeVarsBackup.get(i));
+            } else {
+                typeVars.getMap().remove(typeVar);
+            }
+        }
 
         return component;
     }
@@ -353,49 +373,49 @@ public class Parser {
         }
     }
 
-    private void newVariables(Set<TypeVar> fixedVars, Set<TypeVar> result, ValueType type) {
-        if (type instanceof GenericClass) {
-            for (GenericType arg : ((GenericClass) type).getArguments()) {
-                newVariables(fixedVars, result, arg);
-            }
-        } else if (type instanceof GenericArray) {
-            newVariables(fixedVars, result, ((GenericArray) type).getElementType());
-        } else if (type instanceof GenericReference) {
-            TypeVar var = ((GenericReference) type).getVar();
-            if (!fixedVars.contains(var)) {
-                result.add(var);
-            }
-        }
-    }
-
-    private void completeComponentParsing(List<PostponedComponentParse> postponed) {
+    private void completeComponentParsing(List<PostponedComponentParse> postponed,
+            BaseComponentMetadata componentMetadata, Segment segment) {
         // Attempting to infer values for component's type parameters
-        TypeEstimator estimator = new TypeEstimator(classResolver, typeNavigator, new TemplateScope());
         TypeInference inference = new TypeInference(typeNavigator);
+        inference.addVariables(Arrays.asList(componentMetadata.cls.getTypeVariables()));
+
+        TypeEstimator estimator = new TypeEstimator(inference, classResolver, typeNavigator, new TemplateScope());
         boolean inferenceFailed = false;
         for (PostponedComponentParse parse : postponed) {
+            inference.addVariables(parse.freshTypeVars);
             for (PostponedAttributeParse attrParse : parse.attributes) {
                 if (attrParse.expr != null && attrParse.meta.type == ComponentAttributeType.FUNCTION) {
                     if (attrParse.expr instanceof LambdaExpr) {
-                        attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr<Void>) attrParse.expr,
-                                attrParse.sam);
+                        attrParse.typeEstimate = estimator.estimateLambda((LambdaExpr) attrParse.expr, attrParse.sam);
                     } else {
-                        attrParse.typeEstimate = estimator.estimate(attrParse.expr);
+                        ValueType expectedType = attrParse.sam.getActualReturnType();
+                        attrParse.typeEstimate = estimator.estimate(attrParse.expr, expectedType);
                     }
                     if (attrParse.typeEstimate != null && !inferenceFailed) {
-                        inferenceFailed |= !TypeUtil.subtype(attrParse.typeEstimate,
-                                attrParse.sam.getActualReturnType(), inference);
+                        if (!inference.subtypeConstraint(attrParse.typeEstimate, attrParse.sam.getActualReturnType())) {
+                            inferenceFailed = true;
+                        }
                     }
                 }
             }
         }
+
+        if (!inference.resolve()) {
+            error(segment, "Could not infer component type");
+            inferenceFailed = true;
+        }
+
         if (inferenceFailed) {
             inference = new TypeInference(typeNavigator);
+            inference.addVariables(Arrays.asList(componentMetadata.cls.getTypeVariables()));
         }
 
         // Process functions
         TypeInference varInference = new TypeInference(typeNavigator);
+        varInference.addVariables(Arrays.asList(componentMetadata.cls.getTypeVariables()));
         for (PostponedComponentParse parse : postponed) {
+            varInference.addVariables(parse.freshTypeVars);
+
             for (PostponedAttributeParse attrParse : parse.attributes) {
                 if (attrParse.expr == null && attrParse.objectExpr == null) {
                     continue;
@@ -413,7 +433,9 @@ public class Parser {
                         setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                         attrParse.sam.getActualOwner().getName());
                 parse.component.getComputations().add(computationBinding);
-                varInference.equalConstraint((GenericType) plan.getType(), attrParse.sam.getActualOwner());
+                if (!varInference.equalConstraint(plan.getType(), attrParse.sam.getActualOwner())) {
+                    inferenceFailed = true;
+                }
 
                 if (attrParse.meta.type == ComponentAttributeType.BIDIRECTIONAL) {
                     setter = attrParse.meta.altSetter;
@@ -425,6 +447,10 @@ public class Parser {
                     parse.component.getComputations().add(computationBinding);
                 }
             }
+        }
+
+        if (!varInference.resolve() && !inferenceFailed) {
+            error(segment, "Could not infer component type");
         }
 
         // Process variables
@@ -481,6 +507,7 @@ public class Parser {
         ComponentBinding component;
         Element elem;
         List<PostponedAttributeParse> attributes = new ArrayList<>();
+        List<TypeVar> freshTypeVars = new ArrayList<>();
 
         PostponedComponentParse(int position, ElementComponentMetadata metadata, ComponentBinding component,
                 Element elem) {
@@ -494,8 +521,8 @@ public class Parser {
     static class PostponedAttributeParse {
         ComponentAttributeMetadata meta;
         Attribute node;
-        Expr<Void> expr;
-        ObjectExpr<Void> objectExpr;
+        Expr expr;
+        ObjectExpr objectExpr;
         ValueType type;
         ValueType typeEstimate;
         GenericMethod sam;
@@ -591,16 +618,20 @@ public class Parser {
         switch (componentMeta.type) {
             case VARIABLE: {
                 String varName = attr.getValue();
-                ComponentVariableBinding varBinding = new ComponentVariableBinding(
-                        setter.getOwner().getName(), getter.getName(), varName, getter.getRawReturnType(),
-                        componentMeta.valueType);
+                ComponentVariableBinding varBinding = new ComponentVariableBinding(setter.getOwner().getName(),
+                        getter.getName(), varName, getter.getRawReturnType(), componentMeta.valueType);
                 component.getVariables().add(varBinding);
                 break;
             }
             case FUNCTION: {
+                TypeInference inference = new TypeInference(typeNavigator);
+                inference.addVariables(Arrays.asList(componentMeta.cls.getTypeVariables()));
+                TypeEstimator estimator = new TypeEstimator(inference, classResolver, typeNavigator,
+                        new TemplateScope());
+
                 TypedPlan plan;
                 if (isSettingsObject(componentMeta.valueType)) {
-                    ObjectExpr<Void> expr = parseObject(attr.getValueSegment());
+                    ObjectExpr expr = parseObject(attr.getValueSegment());
                     if (expr == null) {
                         break;
                     }
@@ -609,17 +640,30 @@ public class Parser {
                         break;
                     }
                 } else {
-                    Expr<Void> expr = parseExpr(attr.getValueSegment());
+                    Expr expr = parseExpr(attr.getValueSegment());
                     if (expr == null) {
                         break;
                     }
-                    plan = compileExpr(attr.getValueSegment(), expr, componentMeta.sam.getActualOwner());
+
+                    if (expr instanceof LambdaExpr) {
+                        estimator.estimateLambda((LambdaExpr) expr, componentMeta.sam);
+                    } else {
+                        estimator.estimate(expr, componentMeta.sam.getActualReturnType());
+                    }
+
+                    if (!inference.resolve()) {
+                        error(attr.getValueSegment(), "Could not infer type");
+                        return component;
+                    }
+
+                    plan = compileExpr(attr.getValueSegment(), expr,
+                            componentMeta.sam.getActualOwner().substitute(inference.getSubstitutions()));
                     if (plan == null) {
                         break;
                     }
                 }
-                ComponentFunctionBinding functionBinding = new ComponentFunctionBinding(
-                        setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                ComponentFunctionBinding functionBinding = new ComponentFunctionBinding(setter.getOwner().getName(),
+                        setter.getName(), (LambdaPlan) plan.getPlan(),
                         componentMeta.sam.getDescriber().getOwner().getName());
                 component.getFunctions().add(functionBinding);
                 break;
@@ -634,10 +678,10 @@ public class Parser {
         return component;
     }
 
-    private Expr<Void> parseExpr(Segment segment) {
+    private Expr parseExpr(Segment segment) {
         boolean hasErrors = false;
         org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
-        Expr<Void> expr = exprParser.parse(segment.toString());
+        Expr expr = exprParser.parse(segment.toString());
         int offset = segment.getBegin();
         for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
@@ -651,10 +695,10 @@ public class Parser {
         return expr;
     }
 
-    private ObjectExpr<Void> parseObject(Segment segment) {
+    private ObjectExpr parseObject(Segment segment) {
         boolean hasErrors = false;
         org.teavm.flavour.expr.Parser exprParser = new org.teavm.flavour.expr.Parser(classResolver);
-        ObjectExpr<Void> expr = exprParser.parseObject(segment.toString());
+        ObjectExpr expr = exprParser.parseObject(segment.toString());
         int offset = segment.getBegin();
         for (Diagnostic diagnostic : exprParser.getDiagnostics()) {
             diagnostic = new Diagnostic(offset + diagnostic.getStart(), offset + diagnostic.getEnd(),
@@ -668,7 +712,7 @@ public class Parser {
         return expr;
     }
 
-    private TypedPlan compileExpr(Segment segment, Expr<?> expr, GenericClass type) {
+    private TypedPlan compileExpr(Segment segment, Expr expr, GenericClass type) {
         boolean hasErrors = false;
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
         TypedPlan result = compiler.compileLambda(expr, type);
@@ -688,12 +732,12 @@ public class Parser {
         return result;
     }
 
-    private TypedPlan compileSettingsObject(Segment segment, ObjectExpr<?> expr, GenericClass type) {
+    private TypedPlan compileSettingsObject(Segment segment, ObjectExpr expr, GenericClass type) {
         boolean hasErrors = false;
         Compiler compiler = new Compiler(classRepository, classResolver, new TemplateScope());
 
         GenericMethod sam = typeNavigator.findSingleAbstractMethod(type);
-        if (sam.getActualArgumentTypes().length != 0 || !(sam.getActualReturnType() instanceof GenericClass)) {
+        if (sam.getActualParameterTypes().length != 0 || !(sam.getActualReturnType() instanceof GenericClass)) {
             diagnostics.add(new Diagnostic(segment.getBegin(), segment.getEnd(), "Wrong target lambda type"));
             return null;
         }
@@ -701,11 +745,11 @@ public class Parser {
         GenericClass objectType = (GenericClass) sam.getActualReturnType();
         ObjectPlan objectPlan = new ObjectPlan(objectType.getName());
         Set<String> requiredFields = collectRequiredFields(objectType.getName());
-        for (ObjectEntry<?> entry : expr.getEntries()) {
+        for (ObjectEntry entry : expr.getEntries()) {
             GenericMethod setter = findSetter(segment, objectType, entry.getKey());
             if (setter != null) {
                 requiredFields.remove(entry.getKey());
-                TypedPlan valuePlan = compiler.compile(entry.getValue(), setter.getActualArgumentTypes()[0]);
+                TypedPlan valuePlan = compiler.compile(entry.getValue(), setter.getActualParameterTypes()[0]);
                 ObjectPlanEntry planEntry = new ObjectPlanEntry(setter.getDescriber().getName(),
                         CompilerCommons.methodToDesc(setter.getDescriber()), valuePlan.getPlan());
                 objectPlan.getEntries().add(planEntry);
@@ -744,7 +788,7 @@ public class Parser {
         for (MethodDescriber method : cls.getMethods()) {
             if (method.getName().startsWith("set") && method.getName().length() > 3
                     && Character.isUpperCase(method.getName().charAt(3))
-                    && method.getArgumentTypes().length == 1) {
+                    && method.getParameterTypes().length == 1) {
                 if (method.getAnnotation(OptionalBinding.class.getName()) == null) {
                     char firstChar = Character.toLowerCase(method.getName().charAt(3));
                     fields.add(firstChar + method.getName().substring(4));

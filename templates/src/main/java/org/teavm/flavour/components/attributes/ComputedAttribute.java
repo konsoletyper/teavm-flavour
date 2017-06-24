@@ -25,9 +25,9 @@ import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeComponent(name = "*")
-public class ComputedAttribute<T> implements Renderable {
+public class ComputedAttribute implements Renderable {
     private HTMLElement element;
-    private Supplier<T> value;
+    private Supplier<?> value;
     private Object cachedValue;
     private String name;
 
@@ -36,7 +36,7 @@ public class ComputedAttribute<T> implements Renderable {
     }
 
     @BindContent
-    public void setValue(Supplier<T> value) {
+    public void setValue(Supplier<?> value) {
         this.value = value;
     }
 

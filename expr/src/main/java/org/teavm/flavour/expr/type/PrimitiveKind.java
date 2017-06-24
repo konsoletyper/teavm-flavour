@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.type;
 
-/**
- *
- * @author Alexey Andreev
- */
 public enum PrimitiveKind {
     BOOLEAN,
     CHAR,
