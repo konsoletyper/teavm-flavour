@@ -48,13 +48,20 @@ public final class GenericReference extends GenericType {
     }
 
     @Override
-    public GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions) {
-        return this;
-    }
-
-    @Override
     GenericType substituteArgs(Function<TypeVar, TypeArgument> substitutions, Set<TypeVar> visited) {
-        return this;
+        try {
+            if (!visited.add(var)) {
+                return this;
+            }
+            TypeArgument substitutionArg = substitutions.apply(var);
+            if (substitutionArg == null) {
+                return this;
+            }
+            GenericType substitution = substitutionArg.getBound();
+            return substitution != this ? substitution.substituteArgs(substitutions, visited) : substitution;
+        } finally {
+            visited.remove(var);
+        }
     }
 
     @Override

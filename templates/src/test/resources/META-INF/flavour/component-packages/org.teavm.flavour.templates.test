@@ -1,3 +1,7 @@
 ValueCopyComponent
 ExposeValueComponent
 AttributeValueCopyComponent
+ComponentWithTypeParameter
+ComponentWithNestedWildcard
+GenericAttributeComponent
+VariableWithWildcardType

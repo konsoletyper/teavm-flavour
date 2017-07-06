@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,49 +13,36 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.components.attributes;
+package org.teavm.flavour.templates.test;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
-import org.teavm.flavour.templates.BindElementName;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.dom.html.HTMLElement;
 
-@BindAttributeComponent(name = "*")
-public class ComputedAttribute implements Renderable {
+@BindAttributeComponent(name = "generic-attribute-component")
+public class GenericAttributeComponent<T> implements Renderable {
     private HTMLElement element;
-    private Supplier<?> value;
-    private Object cachedValue;
-    private String name;
+    private Supplier<T> valueSupplier;
 
-    public ComputedAttribute(ModifierTarget target) {
-        this.element = target.getElement();
+    public GenericAttributeComponent(ModifierTarget target) {
+        element = target.getElement();
     }
 
     @BindContent
-    public void setValue(Supplier<?> value) {
-        this.value = value;
-    }
-
-    @BindElementName
-    public void setName(String name) {
-        this.name = name;
+    public void setValueSupplier(Supplier<T> valueSupplier) {
+        this.valueSupplier = valueSupplier;
     }
 
     @Override
     public void render() {
-        Object newValue = value.get();
-        if (!Objects.equals(newValue, cachedValue)) {
-            cachedValue = newValue;
-            element.setAttribute(name, String.valueOf(newValue));
-        }
+        String text = valueSupplier.get().toString();
+        element.setAttribute("class", text != null ? text : "");
     }
 
     @Override
     public void destroy() {
-        element.removeAttribute(name);
     }
 }

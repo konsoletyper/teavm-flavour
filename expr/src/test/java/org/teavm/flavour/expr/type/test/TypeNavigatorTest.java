@@ -33,7 +33,7 @@ public class TypeNavigatorTest {
         GenericClass cls = navigator.getGenericClass(List.class.getName());
         assertThat(cls.getName(), is(List.class.getName()));
         assertThat(cls.getArguments().size(), is(1));
-        assertThat(cls.getArguments().get(0), is(instanceOf(GenericReference.class)));
+        assertThat(cls.getArguments().get(0).getBound(), is(instanceOf(GenericReference.class)));
     }
 
     @Test

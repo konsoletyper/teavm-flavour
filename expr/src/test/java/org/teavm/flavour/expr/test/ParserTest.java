@@ -28,31 +28,31 @@ public class ParserTest {
 
     @Test
     public void parseInteger() {
-        Expr<?> expr = parser.parse("23");
+        Expr expr = parser.parse("23");
         assertThat(expr, is(instanceOf(ConstantExpr.class)));
-        ConstantExpr<?> constant = (ConstantExpr<?>)expr;
+        ConstantExpr constant = (ConstantExpr)expr;
         assertThat(constant.getValue(), is(23));
     }
 
     @Test
     public void parseIdentifier() {
-        Expr<?> expr = parser.parse("foo");
+        Expr expr = parser.parse("foo");
         assertThat(expr, is(instanceOf(VariableExpr.class)));
-        VariableExpr<?> var = (VariableExpr<?>)expr;
+        VariableExpr var = (VariableExpr)expr;
         assertThat(var.getName(), is("foo"));
     }
 
     @Test
     public void parseExpression() {
-        Expr<?> expr = parser.parse("x * q.f(2 + u, -v)");
+        Expr expr = parser.parse("x * q.f(2 + u, -v)");
         assertThat(parser.getDiagnostics().size(), is(0));
         assertThat(expr, is(instanceOf(BinaryExpr.class)));
-        BinaryExpr<?> binary = (BinaryExpr<?>)expr;
+        BinaryExpr binary = (BinaryExpr)expr;
         assertThat(binary.getOperation(), is(BinaryOperation.MULTIPLY));
         assertThat(binary.getFirstOperand(), is(instanceOf(VariableExpr.class)));
-        assertThat(((VariableExpr<?>)binary.getFirstOperand()).getName(), is("x"));
+        assertThat(((VariableExpr)binary.getFirstOperand()).getName(), is("x"));
         assertThat(binary.getSecondOperand(), is(instanceOf(InvocationExpr.class)));
-        InvocationExpr<?> invocation = (InvocationExpr<?>)binary.getSecondOperand();
+        InvocationExpr invocation = (InvocationExpr)binary.getSecondOperand();
         assertThat(invocation.getMethodName(), is("f"));
         assertThat(invocation.getArguments().size(), is(2));
         assertThat(invocation.getArguments().get(0), is(instanceOf(BinaryExpr.class)));

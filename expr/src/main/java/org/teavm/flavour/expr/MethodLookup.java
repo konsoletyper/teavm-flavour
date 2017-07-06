@@ -24,42 +24,50 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import org.teavm.flavour.expr.ast.Expr;
 import org.teavm.flavour.expr.type.GenericArray;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.MethodWithFreshTypeVars;
 import org.teavm.flavour.expr.type.PrimitiveArray;
 import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeInferenceStatePoint;
+import org.teavm.flavour.expr.type.TypeUtils;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 public class MethodLookup {
+    private TypeInference inference;
     private GenericTypeNavigator navigator;
+    private TypeEstimator typeEstimator;
     private List<GenericMethod> candidates = new ArrayList<>();
     private List<GenericMethod> safeCandidates = Collections.unmodifiableList(candidates);
     private boolean varArgs;
     private ValueType returnType;
 
-    public MethodLookup(GenericTypeNavigator navigator) {
+    public MethodLookup(TypeInference inference, ClassResolver classResolver, GenericTypeNavigator navigator,
+            Scope scope) {
+        this.inference = inference;
         this.navigator = navigator;
+        typeEstimator = new TypeEstimator(inference, classResolver, navigator, scope);
     }
 
-    public GenericMethod lookupVirtual(Collection<GenericClass> classes, String name, ValueType[] args,
-            ValueType returnType) {
-        return lookupMethod(classes, name, args, returnType, false);
+    public GenericMethod lookupVirtual(Collection<GenericClass> classes, String name, List<Expr> args) {
+        return lookupMethod(classes, name, args, false);
     }
 
-    public GenericMethod lookupStatic(Collection<GenericClass> classes, String name, ValueType[] args,
-            ValueType returnType) {
-        return lookupMethod(classes, name, args, returnType, true);
+    public GenericMethod lookupStatic(Collection<GenericClass> classes, String name, List<Expr> args) {
+        return lookupMethod(classes, name, args, true);
     }
 
-    private GenericMethod lookupMethod(Collection<GenericClass> classes, String name, ValueType[] args,
-            ValueType expectedReturnType, boolean isStatic) {
+    private GenericMethod lookupMethod(Collection<GenericClass> classes, String name, List<Expr> args,
+            boolean isStatic) {
         varArgs = false;
         returnType = null;
         candidates.clear();
@@ -68,15 +76,15 @@ public class MethodLookup {
             return null;
         }
 
-        GenericMethod result = lookupMethodStrict(args, expectedReturnType);
+        GenericMethod result = lookupMethodStrict(args);
         if (result != null) {
             return result;
         }
-        result = lookupMethodCompatible(args, expectedReturnType);
+        result = lookupMethodCompatible(args);
         if (result != null) {
             return result;
         }
-        result = lookupVarargMethod(args, expectedReturnType);
+        result = lookupVarargMethod(args);
         if (result != null) {
             varArgs = true;
         }
@@ -95,122 +103,135 @@ public class MethodLookup {
         return returnType;
     }
 
-    private GenericMethod lookupMethodStrict(ValueType[] args, ValueType expectedReturnType) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : candidates) {
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (paramTypes.length != args.length) {
-                continue;
+    private GenericMethod lookupMethodStrict(List<Expr> args) {
+        return lookup(params -> {
+            if (params.length != args.size()) {
+                return false;
             }
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length; ++i) {
-                if (args[i] != null && !TypeUtil.same(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-            if (expectedReturnType != null) {
-                if (method.getActualReturnType() == null
-                        || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
+
+            for (int i = 0; i < params.length; ++i) {
+                if (args.get(i) == null) {
                     continue;
                 }
-            }
-
-            method = method.substitute(inference.getSubstitutions());
-            if (result != null) {
-                if (isMoreSpecific(method, result)) {
-                    result = method;
-                    returnType = inferReturnType(method, inference);
-                } else if (!isMoreSpecific(result, method)) {
-                    return null;
+                ValueType argType = typeEstimator.estimate(args.get(i), params[i]);
+                if (argType != null && !inference.equalConstraint(argType, params[i])) {
+                    return false;
                 }
-            } else {
-                result = method;
-                returnType = inferReturnType(method, inference);
             }
-        }
 
-        return result;
+            return true;
+        });
     }
 
-    private GenericMethod lookupMethodCompatible(ValueType[] args, ValueType expectedReturnType) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : candidates) {
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (paramTypes.length != args.length) {
-                continue;
+    private GenericMethod lookupMethodCompatible(List<Expr> args) {
+        return lookup(params -> {
+            if (params.length != args.size()) {
+                return false;
             }
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length; ++i) {
-                if (args[i] != null && !TypeUtil.subtype(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-            if (expectedReturnType != null) {
-                if (method.getActualReturnType() == null
-                        || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
+
+            for (int i = 0; i < params.length; ++i) {
+                if (args.get(i) == null) {
                     continue;
+                }
+                ValueType argType = typeEstimator.estimate(args.get(i), params[i]);
+                if (argType != null && !inference.subtypeConstraint(argType, params[i])) {
+                    return false;
                 }
             }
 
-            method = method.substitute(inference.getSubstitutions());
-            if (result != null) {
-                if (isMoreSpecific(method, result)) {
-                    result = method;
-                    returnType = inferReturnType(method, inference);
-                } else if (!isMoreSpecific(result, method)) {
-                    return null;
-                }
-            } else {
-                result = method;
-                returnType = inferReturnType(result, inference);
-            }
-        }
-        return result;
+            return true;
+        });
     }
 
-    private GenericMethod lookupVarargMethod(ValueType[] args, ValueType expectedReturnType) {
-        GenericMethod result = null;
-        lookup: for (GenericMethod method : candidates) {
-            if (!method.getDescriber().isVariableArgument()) {
-                continue;
-            }
-            ValueType[] paramTypes = method.getActualArgumentTypes();
-            if (args.length < paramTypes.length - 1) {
-                continue;
-            }
-
-            TypeInference inference = new TypeInference(navigator);
-            for (int i = 0; i < paramTypes.length - 1; ++i) {
-                if (args[i] != null && !TypeUtil.subtype(args[i], paramTypes[i], inference)) {
-                    continue lookup;
-                }
-            }
-            if (expectedReturnType != null) {
-                if (method.getActualReturnType() == null
-                        || !TypeUtil.subtype(method.getActualReturnType(), expectedReturnType, inference)) {
-                    continue;
-                }
+    private GenericMethod lookupVarargMethod(List<Expr> args) {
+        return lookup(params -> {
+            if (params.length == 0 || params.length > args.size() - 1) {
+                return false;
             }
 
             ValueType lastParam;
-            ValueType lastParamType = paramTypes[paramTypes.length - 1];
+            ValueType lastParamType = params[params.length - 1];
             if (lastParamType instanceof PrimitiveArray) {
                 lastParam = ((PrimitiveArray) lastParamType).getElementType();
-            } else {
+            } else if (lastParamType instanceof GenericArray) {
                 lastParam = ((GenericArray) lastParamType).getElementType();
+            } else {
+                return false;
             }
-            for (int i = paramTypes.length - 1; i < args.length; ++i) {
-                if (!TypeUtil.subtype(args[i], lastParam, inference)) {
-                    continue lookup;
+
+            for (int i = 0; i < params.length - 1; ++i) {
+                if (args.get(i) == null) {
+                    continue;
+                }
+
+                ValueType argType = typeEstimator.estimate(args.get(i), params[i]);
+                if (argType != null && !inference.subtypeConstraint(argType, params[i])) {
+                    return false;
                 }
             }
-            method = method.substitute(inference.getSubstitutions());
-            if (result != null) {
-                return null;
-            } else {
-                result = method;
-                returnType = inferReturnType(result, inference);
+
+            for (int i = params.length - 1; i < args.size(); ++i) {
+                ValueType argType = typeEstimator.estimate(args.get(i), lastParam);
+                if (argType != null && !inference.subtypeConstraint(argType, lastParam)) {
+                    return false;
+                }
             }
+
+            return true;
+        });
+    }
+
+    private GenericMethod lookup(Function<ValueType[], Boolean> constraintSupplier) {
+        GenericMethod result = null;
+        GenericMethod resultWithFixedVars = null;
+        TypeVar[] bestMatchingTypeVars = null;
+        TypeInferenceStatePoint statePoint = inference.createStatePoint();
+
+        for (GenericMethod method : candidates) {
+            statePoint.restoreTo();
+
+            MethodWithFreshTypeVars methodWithFreshTypeVars = TypeUtils.withFreshTypeVars(method, inference);
+            if (methodWithFreshTypeVars == null) {
+                continue;
+            }
+            method = methodWithFreshTypeVars.getMethod();
+
+            ValueType[] paramTypes = method.getActualParameterTypes();
+            if (!constraintSupplier.apply(paramTypes)) {
+                continue;
+            }
+
+            if (!inference.resolve()) {
+                continue;
+            }
+            GenericMethod methodWithFixedVars = method.substitute(inference.getSubstitutions());
+
+            if (result != null) {
+                if (isMoreSpecific(methodWithFixedVars, resultWithFixedVars)) {
+                    resultWithFixedVars = methodWithFixedVars;
+                    result = method;
+                    bestMatchingTypeVars = methodWithFreshTypeVars.getFreshTypeVars();
+                    returnType = method.getActualReturnType();
+                } else if (!isMoreSpecific(resultWithFixedVars, methodWithFixedVars)) {
+                    statePoint.restoreTo();
+                    return null;
+                }
+            } else {
+                resultWithFixedVars = methodWithFixedVars;
+                result = method;
+                bestMatchingTypeVars = methodWithFreshTypeVars.getFreshTypeVars();
+                returnType = method.getActualReturnType();
+            }
+        }
+
+        statePoint.restoreTo();
+
+        if (result != null) {
+            boolean ok = inference.addVariables(Arrays.asList(bestMatchingTypeVars));
+            assert ok;
+
+            ok = constraintSupplier.apply(result.getActualParameterTypes());
+            assert ok;
         }
 
         return result;
@@ -245,19 +266,19 @@ public class MethodLookup {
             if (!methodDesc.getName().equals(name) || methodDesc.isStatic() != isStatic) {
                 continue;
             }
-            ValueType[] args = Arrays.stream(methodDesc.getArgumentTypes())
+            ValueType[] params = Arrays.stream(methodDesc.getParameterTypes())
                     .map(arg -> {
                         if (arg instanceof GenericType) {
                             arg = ((GenericType) arg).substituteArgs(substitutionMap::get);
                         }
                         return arg;
                     })
-                    .toArray(sz -> new ValueType[sz]);
+                    .toArray(ValueType[]::new);
             ValueType returnType = methodDesc.getReturnType();
             if (returnType instanceof GenericType) {
                 returnType = ((GenericType) returnType).substituteArgs(substitutionMap::get);
             }
-            GenericMethod method = new GenericMethod(methodDesc, cls, args, returnType);
+            GenericMethod method = new GenericMethod(methodDesc, cls, params, returnType);
             methods.add(method);
         }
 
@@ -277,25 +298,23 @@ public class MethodLookup {
             }
         }
 
-        ValueType[] specificArgs = specific.getActualArgumentTypes();
-        ValueType[] generalArgs = general.getActualArgumentTypes();
-        TypeInference inference = new TypeInference(navigator);
+        ValueType[] specificArgs = specific.getActualParameterTypes();
+        ValueType[] generalArgs = general.getActualParameterTypes();
         for (int i = 0; i < specificArgs.length; ++i) {
-            if (!TypeUtil.subtype(specificArgs[i], generalArgs[i], inference)) {
+            if (!CompilerCommons.isLooselyCompatibleType(generalArgs[i], specificArgs[i], navigator)) {
                 return false;
             }
         }
-        return TypeUtil.subtype(general.getActualReturnType(), specific.getActualReturnType(), inference);
-    }
 
-    private ValueType inferReturnType(GenericMethod method, TypeInference inference) {
-        if (method == null || method.getActualReturnType() == null) {
-            return null;
+        if (specific.getActualReturnType() == null && general.getActualReturnType() == null) {
+            return true;
         }
-        if (method.getActualReturnType() instanceof GenericType) {
-            return ((GenericType) method.getActualReturnType()).substitute(inference.getSubstitutions());
-        } else {
-            return method.getActualReturnType();
+
+        if (specific.getActualReturnType() == null || general.getActualReturnType() == null) {
+            return false;
         }
+
+        return CompilerCommons.isLooselyCompatibleType(specific.getActualReturnType(), general.getActualReturnType(),
+                navigator);
     }
 }

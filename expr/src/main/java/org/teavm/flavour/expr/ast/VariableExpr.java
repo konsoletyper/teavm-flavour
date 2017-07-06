@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class VariableExpr<T> extends Expr<T> {
+public class VariableExpr extends Expr {
     private String name;
 
     public VariableExpr(String name) {
@@ -31,12 +31,7 @@ public class VariableExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

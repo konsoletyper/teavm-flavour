@@ -17,49 +17,83 @@ package org.teavm.flavour.expr.type;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TypeInference {
     private GenericTypeNavigator typeNavigator;
-    private Map<TypeVar, InferenceVar> inferenceVars = new WeakHashMap<>();
+    private Map<TypeVar, InferenceVar> inferenceVars = new LinkedHashMap<>();
     private Set<InferenceVar> unresolvedVars = new HashSet<>();
     private LeastUpperBoundFinder lubFinder;
+    List<TypeInferenceStatePoint> statePoints = new ArrayList<>();
+    TypeInferenceStatePoint currentStatePoint;
 
     public TypeInference(GenericTypeNavigator typeNavigator) {
         this.typeNavigator = typeNavigator;
         lubFinder = new LeastUpperBoundFinder(typeNavigator);
+        statePoints.add(new TypeInferenceStatePoint(this, 0));
+        currentStatePoint = statePoints.get(0);
     }
 
-    public void addVariable(TypeVar var) {
-        if (inferenceVars.containsKey(var)) {
-            return;
+    public TypeInferenceStatePoint createStatePoint() {
+        TypeInferenceStatePoint statePoint = new TypeInferenceStatePoint(this, statePoints.size());
+        TypeInferenceStatePoint previousStatePoint = currentStatePoint;
+        statePoints.add(statePoint);
+        currentStatePoint = statePoint;
+        return previousStatePoint;
+    }
+
+    void rollBack(TypeInferenceStatePoint statePoint) {
+        if (statePoint.addedTypeVars != null) {
+            inferenceVars.keySet().removeAll(statePoint.addedTypeVars);
         }
 
-        InferenceVar inferenceVar = new InferenceVar(var);
-        inferenceVars.put(var, inferenceVar);
+        if (statePoint.inferenceVarsBackup != null) {
+            for (Map.Entry<InferenceVar, InferenceVar> entry : statePoint.inferenceVarsBackup.entrySet()) {
+                InferenceVar inferenceVar = entry.getKey();
+                inferenceVar.restore(entry.getValue());
+            }
+        }
+
+        if (statePoint.inferenceVarMapBackup != null) {
+            for (Map.Entry<TypeVar, InferenceVar> entry : statePoint.inferenceVarMapBackup.entrySet()) {
+                if (inferenceVars.containsKey(entry.getKey())) {
+                    inferenceVars.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
     }
 
-    public boolean start() {
+    public boolean addVariables(Collection<? extends TypeVar> vars) {
+        for (TypeVar var : vars) {
+            if (inferenceVars.containsKey(var)) {
+                continue;
+            }
+
+            InferenceVar inferenceVar = new InferenceVar(var);
+            inferenceVars.put(var, inferenceVar);
+            currentStatePoint.addTypeVar(var);
+        }
+
         for (InferenceVar inferenceVar : inferenceVars.values()) {
             for (TypeVar typeVar : inferenceVar.variables) {
                 for (GenericType lowerBound : typeVar.getLowerBound()) {
                     if (!inferenceVar.addLowerBound(lowerBound)) {
-                        inferenceVar.inferenceFailed = true;
+                        inferenceVar.fail();
                         return false;
                     }
                 }
                 for (GenericType upperBound : typeVar.getUpperBound()) {
                     if (!inferenceVar.addUpperBound(upperBound)) {
-                        inferenceVar.inferenceFailed = true;
+                        inferenceVar.fail();
                         return false;
                     }
                 }
@@ -79,49 +113,111 @@ public class TypeInference {
                     .collect(Collectors.toList()));
 
             Collection<InferenceVar> variablesToResolve = findVariablesToResolve();
-            Map<InferenceVar, List<GenericType>> improperLowerBounds = new HashMap<>();
-            Map<InferenceVar, List<GenericType>> improperUpperBounds = new HashMap<>();
-            Map<InferenceVar, GenericType> improperExactBounds = new HashMap<>();
-            for (InferenceVar inferenceVar : variablesToResolve) {
-                improperLowerBounds.put(inferenceVar, inferenceVar.lowerBounds.stream()
-                        .filter(bound -> !isProperType(bound)).collect(Collectors.toList()));
-                improperUpperBounds.put(inferenceVar, inferenceVar.upperBounds.stream()
-                        .filter(bound -> !isProperType(bound)).collect(Collectors.toList()));
-                if (inferenceVar.exactBound != null && !isProperType(inferenceVar.exactBound)) {
-                    improperExactBounds.put(inferenceVar, inferenceVar.exactBound);
-                    inferenceVar.exactBound = null;
+            if (variablesToResolve.stream().noneMatch(v -> v.captureConversionBound != null)) {
+                TypeInferenceStatePoint statePoint = createStatePoint();
+                if (resolveVariablesSimple(variablesToResolve)) {
+                    continue;
                 }
+                statePoint.restoreTo();
+            }
 
-                if (!resolve(inferenceVar)) {
+            if (!resolveVariablesCaptured(variablesToResolve)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean resolveVariablesSimple(Collection<? extends InferenceVar> variablesToResolve) {
+        Map<InferenceVar, List<GenericType>> improperLowerBounds = new HashMap<>();
+        Map<InferenceVar, List<GenericType>> improperUpperBounds = new HashMap<>();
+        Map<InferenceVar, GenericType> improperExactBounds = new HashMap<>();
+        for (InferenceVar inferenceVar : variablesToResolve) {
+            improperLowerBounds.put(inferenceVar, inferenceVar.lowerBounds.stream()
+                    .filter(bound -> !isProperType(bound)).collect(Collectors.toList()));
+            improperUpperBounds.put(inferenceVar, inferenceVar.upperBounds.stream()
+                    .filter(bound -> !isProperType(bound)).collect(Collectors.toList()));
+            if (inferenceVar.exactBound != null && !isProperType(inferenceVar.exactBound)) {
+                inferenceVar.takeSnapshot();
+                improperExactBounds.put(inferenceVar, inferenceVar.exactBound);
+                inferenceVar.exactBound = null;
+            }
+
+            if (!resolveSimple(inferenceVar)) {
+                return false;
+            }
+        }
+
+        for (InferenceVar inferenceVar : variablesToResolve) {
+            inferenceVar.takeSnapshot();
+            inferenceVar.instantiation = inferenceVar.pendingInstantiation;
+            inferenceVar.exactBound = inferenceVar.pendingInstantiation;
+        }
+
+        for (InferenceVar inferenceVar : variablesToResolve) {
+            for (GenericType bound : improperLowerBounds.get(inferenceVar)) {
+                if (!inferenceVar.addLowerBound(bound.substitute(substitutions))) {
+                    return false;
+                }
+            }
+            for (GenericType bound : improperUpperBounds.get(inferenceVar)) {
+                if (!inferenceVar.addUpperBound(bound.substitute(substitutions))) {
                     return false;
                 }
             }
 
-            for (InferenceVar inferenceVar : variablesToResolve) {
-                inferenceVar.instantiation = inferenceVar.pendingInstantiation;
-                inferenceVar.exactBound = inferenceVar.pendingInstantiation;
-                inferenceVar.captureConversionBound = null;
-            }
-
-            for (InferenceVar inferenceVar : variablesToResolve) {
-                for (GenericType bound : improperLowerBounds.get(inferenceVar)) {
-                    if (!inferenceVar.addLowerBound(bound.substitute(substitutions))) {
-                        return false;
-                    }
-                }
-                for (GenericType bound : improperUpperBounds.get(inferenceVar)) {
-                    if (!inferenceVar.addUpperBound(bound.substitute(substitutions))) {
-                        return false;
-                    }
-                }
-
-                GenericType exactBound = improperExactBounds.get(inferenceVar);
-                if (exactBound != null) {
-                    if (!inferenceVar.addExactBound(exactBound.substitute(substitutions))) {
-                        return false;
-                    }
+            GenericType exactBound = improperExactBounds.get(inferenceVar);
+            if (exactBound != null) {
+                if (!inferenceVar.addExactBound(exactBound.substitute(substitutions))) {
+                    return false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    private boolean resolveVariablesCaptured(Collection<? extends InferenceVar> variablesToResolve) {
+        for (InferenceVar var : variablesToResolve) {
+            var.takeSnapshot();
+        }
+
+        List<? extends InferenceVar> originalVariables = new ArrayList<>(variablesToResolve);
+        List<TypeVar> freshTypeVariables = new ArrayList<>();
+        Map<TypeVar, GenericType> typeMap = new HashMap<>();
+        for (int i = 0; i < originalVariables.size(); ++i) {
+            TypeVar freshTypeVar = new TypeVar();
+            freshTypeVariables.add(freshTypeVar);
+            for (TypeVar originalTypeVar : originalVariables.get(i).variables) {
+                typeMap.put(originalTypeVar, new GenericReference(freshTypeVar));
+            }
+        }
+        Substitutions freshSubstitutions = new MapSubstitutions(typeMap);
+
+        for (int i = 0; i < originalVariables.size(); ++i) {
+            InferenceVar originalVar = originalVariables.get(i);
+            List<GenericType> lowerBounds = originalVar.lowerBounds.stream()
+                    .filter(this::isProperType)
+                    .map(b -> b.substitute(substitutions))
+                    .collect(Collectors.toList());
+            if (!lowerBounds.isEmpty()) {
+                freshTypeVariables.get(i).withLowerBound(lubFinder.find(lowerBounds));
+            } else {
+                List<GenericType> upperBounds = originalVar.upperBounds.stream()
+                        .map(b -> b.substitute(substitutions))
+                        .map(b -> b.substitute(freshSubstitutions))
+                        .collect(Collectors.toList());
+                freshTypeVariables.get(i).withUpperBound(intersect(upperBounds));
+            }
+        }
+
+        // TODO: check bound consistency
+
+        for (int i = 0; i < originalVariables.size(); ++i) {
+            InferenceVar originalVar = originalVariables.get(i);
+            originalVar.instantiation = new GenericReference(freshTypeVariables.get(i));
+            originalVar.captureConversionBound = null;
         }
 
         return true;
@@ -189,7 +285,7 @@ public class TypeInference {
                     u.unresolvedDependantVars.add(v);
                 }
                 for (InferenceVar u : v.captureConversionBound.captureConversion.captureVars) {
-                    if (u != v) {
+                    if (u != v && u != null) {
                         v.unresolvedDependantVars.add(u);
                     }
                 }
@@ -197,7 +293,7 @@ public class TypeInference {
         }
     }
 
-    private boolean resolve(InferenceVar inferenceVar) {
+    private boolean resolveSimple(InferenceVar inferenceVar) {
         if (inferenceVar.exactBound != null && isProperType(inferenceVar.exactBound)) {
             inferenceVar.pendingInstantiation = inferenceVar.exactBound;
             return true;
@@ -342,12 +438,30 @@ public class TypeInference {
             supertype = ((GenericType) supertype).substitute(substitutions);
         }
 
-        if (subtype instanceof NullType) {
+        if (subtype instanceof Primitive && supertype instanceof Primitive) {
+            return TypeUtils.isPrimitiveSubType((Primitive) subtype, (Primitive) supertype);
+        } else if (subtype instanceof Primitive && supertype instanceof GenericClass) {
+            supertype = TypeUtils.tryUnbox((GenericType) supertype);
+            return supertype instanceof Primitive
+                    && TypeUtils.isPrimitiveSubType((Primitive) subtype, (Primitive) supertype);
+        } else if (supertype instanceof Primitive && subtype instanceof GenericClass) {
+            subtype = TypeUtils.tryUnbox((GenericType) subtype);
+            return subtype instanceof Primitive
+                    && TypeUtils.isPrimitiveSubType((Primitive) subtype, (Primitive) supertype);
+        } else if (subtype instanceof NullType) {
             return !(supertype instanceof Primitive);
-        } else if (isInferenceVar(subtype) && supertype instanceof GenericType) {
+        } else if (isInferenceVar(subtype)) {
+            supertype = TypeUtils.tryBox(supertype);
+            if (!(supertype instanceof GenericType)) {
+                return false;
+            }
             InferenceVar inferenceVar = inferenceVars.get(((GenericReference) subtype).getVar());
             return inferenceVar.addUpperBound((GenericType) supertype);
-        } else if (isInferenceVar(supertype) && subtype instanceof GenericType) {
+        } else if (isInferenceVar(supertype)) {
+            subtype = TypeUtils.tryBox(subtype);
+            if (!(subtype instanceof GenericType)) {
+                return false;
+            }
             InferenceVar inferenceVar = inferenceVars.get(((GenericReference) supertype).getVar());
             return inferenceVar.addLowerBound((GenericType) subtype);
         } else if (subtype instanceof GenericClass && supertype instanceof GenericClass) {
@@ -392,7 +506,8 @@ public class TypeInference {
     private boolean isContainedBy(TypeArgument a, TypeArgument b) {
         if (a.getVariance() == Variance.COVARIANT && b.getVariance() == Variance.COVARIANT) {
             return subtypeConstraint(a.getBound(), b.getBound());
-        } else if (a.getVariance() == Variance.CONTRAVARIANT && b.getVariance() == Variance.CONTRAVARIANT) {
+        } else if ((a.getVariance() == Variance.CONTRAVARIANT || a.getVariance() == Variance.INVARIANT)
+                && b.getVariance() == Variance.CONTRAVARIANT) {
             return subtypeConstraint(b.getBound(), a.getBound());
         } else if (a.getVariance() == Variance.INVARIANT) {
             return equalConstraint(a.getBound(), b.getBound());
@@ -401,30 +516,46 @@ public class TypeInference {
         }
     }
 
-    public List<? extends TypeVar> captureConversionConstraint(List<TypeVar> typeParameters,
-            List<TypeArgument> typeArguments) {
+    public List<? extends TypeArgument> captureConversionConstraint(List<? extends TypeVar> typeParameters,
+            List<? extends TypeArgument> typeArguments) {
         if (typeArguments.size() != typeArguments.size()) {
             throw new IllegalArgumentException("Number of type parameters (" + typeArguments.size()
                     + ") is not equal to number of type arguments (" + typeArguments.size() + ")");
         }
 
         List<TypeVar> captureTypeVars = new ArrayList<>();
+        List<TypeArgument> resultList = new ArrayList<>();
         List<InferenceVar> captureVars = new ArrayList<>();
         for (int i = 0; i < typeParameters.size(); ++i) {
-            TypeVar freshTypeVar = new TypeVar();
-            addVariable(freshTypeVar);
+            TypeVar freshTypeVar = typeArguments.get(i).getVariance() != Variance.INVARIANT ? new TypeVar() : null;
             captureTypeVars.add(freshTypeVar);
-            captureVars.add(inferenceVars.get(freshTypeVar));
+            resultList.add(freshTypeVar != null
+                    ? TypeArgument.invariant(new GenericReference(freshTypeVar))
+                    : typeArguments.get(i));
+        }
+        if (!addVariables(captureTypeVars.stream().filter(Objects::nonNull).collect(Collectors.toList()))) {
+            return null;
+        }
+
+        for (int i = 0; i < typeParameters.size(); ++i) {
+            TypeVar freshTypeVar = captureTypeVars.get(i);
+            captureVars.add(freshTypeVar != null ? inferenceVars.get(freshTypeVar) : null);
         }
 
         CaptureConversion capture = new CaptureConversion(captureVars, typeParameters, typeArguments);
         for (int i = 0; i < typeParameters.size(); ++i) {
             InferenceVar captureVar = captureVars.get(i);
-            captureVar.captureConversionBound = new CaptureConversionBound(capture, i);
+            if (captureVar != null) {
+                captureVar.captureConversionBound = new CaptureConversionBound(capture, i);
+            }
         }
 
         for (int i = 0; i < typeParameters.size(); ++i) {
             InferenceVar captureVar = captureVars.get(i);
+            if (captureVar == null) {
+                continue;
+            }
+
             for (GenericType lowerBound : typeParameters.get(i).getLowerBound()) {
                 if (!captureVar.addLowerBound(lowerBound)) {
                     return null;
@@ -456,7 +587,7 @@ public class TypeInference {
             }
         }
 
-        return Collections.unmodifiableList(captureTypeVars);
+        return resultList;
     }
 
     public Substitutions getSubstitutions() {
@@ -519,6 +650,39 @@ public class TypeInference {
             upperBounds.addAll(var.getUpperBound());
         }
 
+        private InferenceVar() {
+        }
+
+        InferenceVar backup() {
+            InferenceVar copy = new InferenceVar();
+            copy.parent = parent;
+            copy.rank = rank;
+            copy.variables.addAll(variables);
+            copy.lowerBounds.addAll(lowerBounds);
+            copy.upperBounds.addAll(upperBounds);
+            copy.captureConversionBound = captureConversionBound;
+            copy.exactBound = exactBound;
+            copy.instantiation = instantiation;
+            copy.inferenceFailed = inferenceFailed;
+            return copy;
+        }
+
+        void restore(InferenceVar backup) {
+            parent = backup.parent;
+            rank = backup.rank;
+            variables.retainAll(backup.variables);
+            lowerBounds.retainAll(backup.lowerBounds);
+            upperBounds.retainAll(backup.upperBounds);
+            captureConversionBound = backup.captureConversionBound;
+            exactBound = backup.exactBound;
+            instantiation = backup.instantiation;
+            inferenceFailed = backup.inferenceFailed;
+        }
+
+        void takeSnapshot() {
+            currentStatePoint.backup(this);
+        }
+
         InferenceVar find() {
             if (parent == null) {
                 return this;
@@ -533,6 +697,7 @@ public class TypeInference {
                 v = v.parent;
             }
             for (InferenceVar u : path) {
+                u.takeSnapshot();
                 u.parent = v;
             }
             return v;
@@ -564,6 +729,7 @@ public class TypeInference {
             type = type.substitute(substitutions);
 
             if (exactBound == null) {
+                takeSnapshot();
                 exactBound = type;
                 for (GenericType lowerBound : lowerBounds) {
                     if (!subtypeConstraint(lowerBound, exactBound)) {
@@ -640,6 +806,7 @@ public class TypeInference {
 
             type = type.substitute(substitutions);
 
+            takeSnapshot();
             if (!upperBounds.add(type)) {
                 return true;
             }
@@ -697,7 +864,8 @@ public class TypeInference {
 
             type = type.substitute(substitutions);
 
-            if (lowerBounds.add(type)) {
+            takeSnapshot();
+            if (!lowerBounds.add(type)) {
                 return true;
             }
             if (exactBound != null && !subtypeConstraint(type, exactBound)) {
@@ -729,23 +897,25 @@ public class TypeInference {
             if (this == other) {
                 return this;
             }
+            takeSnapshot();
+            other.takeSnapshot();
             if (rank > other.rank) {
                 other.parent = this;
                 if (!mergeData(other)) {
-                    inferenceFailed = true;
+                    fail();
                 }
                 return this;
             } else if (rank < other.rank) {
                 parent = other;
                 if (!other.mergeData(this)) {
-                    other.inferenceFailed = true;
+                    fail();
                 }
                 return other;
             } else {
                 other.parent = this;
                 ++rank;
                 if (!mergeData(other)) {
-                    inferenceFailed = true;
+                    fail();
                 }
                 return this;
             }
@@ -796,7 +966,11 @@ public class TypeInference {
             }
 
             for (TypeVar var : other.variables) {
-                inferenceVars.put(var, this);
+                if (currentStatePoint.inferenceVarMapBackup == null) {
+                    currentStatePoint.inferenceVarMapBackup = new HashMap<>();
+                }
+                InferenceVar old = inferenceVars.put(var, this);
+                currentStatePoint.inferenceVarMapBackup.put(var, old);
             }
 
             return true;
@@ -831,22 +1005,34 @@ public class TypeInference {
 
             return true;
         }
+
+        void fail() {
+            takeSnapshot();
+            if (!inferenceFailed) {
+                inferenceFailed = true;
+            }
+        }
     }
 
     class CaptureConversion {
-        List<InferenceVar> captureVars;
-        List<TypeVar> parameters;
-        List<TypeArgument> arguments;
+        List<? extends InferenceVar> captureVars;
+        List<? extends TypeVar> parameters;
+        List<? extends TypeArgument> arguments;
         Substitutions substitutions;
 
-        CaptureConversion(List<InferenceVar> captureVars, List<TypeVar> parameters,  List<TypeArgument> arguments) {
+        CaptureConversion(List<? extends InferenceVar> captureVars, List<? extends TypeVar> parameters,
+                List<? extends TypeArgument> arguments) {
             this.captureVars = captureVars;
             this.parameters = parameters;
             this.arguments = arguments;
 
             MapSubstitutions substitutions = new MapSubstitutions(new HashMap<>());
             for (int i = 0; i < captureVars.size(); ++i) {
-                TypeVar capturingVar = captureVars.get(i).variables.iterator().next();
+                InferenceVar capturingInferenceVar = captureVars.get(i);
+                if (capturingInferenceVar == null) {
+                    continue;
+                }
+                TypeVar capturingVar = capturingInferenceVar.variables.iterator().next();
                 substitutions.getMap().put(parameters.get(i), new GenericReference(capturingVar));
                 inferenceVars.put(parameters.get(i), captureVars.get(i));
             }

@@ -15,30 +15,25 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class AssignmentExpr<T> extends Expr<T> {
-    private Expr<T> target;
-    private Expr<T> value;
+public class AssignmentExpr extends Expr {
+    private Expr target;
+    private Expr  value;
 
-    public AssignmentExpr(Expr<T> target, Expr<T> value) {
+    public AssignmentExpr(Expr target, Expr value) {
         this.target = target;
         this.value = value;
     }
 
-    public Expr<T> getTarget() {
+    public Expr getTarget() {
         return target;
     }
 
-    public Expr<T> getValue() {
+    public Expr getValue() {
         return value;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

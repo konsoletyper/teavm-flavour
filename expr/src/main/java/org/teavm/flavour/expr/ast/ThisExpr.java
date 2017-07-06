@@ -15,14 +15,9 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public class ThisExpr<T> extends Expr<T> {
+public class ThisExpr extends Expr {
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

@@ -26,13 +26,15 @@ import net.htmlparser.jericho.Segment;
 import org.teavm.flavour.expr.Diagnostic;
 import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.MapSubstitutions;
-import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.ValueTypeFormatter;
+import org.teavm.flavour.expr.type.Variance;
 import org.teavm.flavour.expr.type.meta.AnnotationDescriber;
 import org.teavm.flavour.expr.type.meta.AnnotationList;
 import org.teavm.flavour.expr.type.meta.AnnotationString;
@@ -86,6 +88,23 @@ class ComponentParser {
         ElementComponentMetadata metadata = new ElementComponentMetadata();
         metadata.nameRules = parseNames(annot);
         metadata.cls = typeNavigator.getClassRepository().describe(genericCls.getName());
+
+        List<TypeArgument> typeArguments = new ArrayList<>();
+        for (TypeArgument arg : genericCls.getArguments()) {
+            if (arg.getVariance() == Variance.INVARIANT) {
+                typeArguments.add(arg);
+            } else {
+                TypeVar freshVar = new TypeVar();
+                if (arg.getVariance() == Variance.COVARIANT) {
+                    freshVar.withUpperBound(arg.getBound());
+                } else {
+                    freshVar.withLowerBound(arg.getBound());
+                }
+                typeArguments.add(TypeArgument.invariant(new GenericReference(freshVar)));
+                metadata.typeVarsToRefresh.add(freshVar);
+            }
+        }
+        genericCls = new GenericClass(genericCls.getName(), typeArguments);
 
         if (top) {
             parseConstructor(metadata);
@@ -194,7 +213,7 @@ class ComponentParser {
 
         MapSubstitutions subst = new MapSubstitutions(vars);
         for (MethodDescriber methodDesc : clsDesc.getMethods()) {
-            ValueType[] argumentTypes = methodDesc.getArgumentTypes();
+            ValueType[] argumentTypes = methodDesc.getParameterTypes();
             for (int i = 0; i < argumentTypes.length; ++i) {
                 if (argumentTypes[i] instanceof GenericType) {
                     argumentTypes[i] = ((GenericType) argumentTypes[i]).substitute(subst);
@@ -238,7 +257,7 @@ class ComponentParser {
             return;
         }
         metadata.contentSetter = method.getDescriber();
-        ValueType[] arguments = method.getActualArgumentTypes();
+        ValueType[] arguments = method.getActualParameterTypes();
         if (arguments.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked with "
                     + BindContent.class.getName() + " and therefore should take exactly 1 argument, "
@@ -263,7 +282,7 @@ class ComponentParser {
                     + methodToString(metadata.setter));
         }
         metadata.setter = method.getDescriber();
-        ValueType[] arguments = method.getActualArgumentTypes();
+        ValueType[] arguments = method.getActualParameterTypes();
 
         if (arguments.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by "
@@ -307,7 +326,7 @@ class ComponentParser {
         metadata.attributes.put(name, attrMetadata);
         attrMetadata.required = method.getDescriber().getAnnotation(OptionalBinding.class.getName()) == null;
 
-        ValueType[] arguments = method.getActualArgumentTypes();
+        ValueType[] arguments = method.getActualParameterTypes();
         if (method.getActualReturnType() == null) {
             if (arguments.length != 1) {
                 error("Method " + methodToString(method.getDescriber()) + " is marked by "
@@ -337,10 +356,10 @@ class ComponentParser {
         if (attribute.type != ComponentAttributeType.FUNCTION) {
             return false;
         }
-        if (method.getActualReturnType() != null || method.getActualArgumentTypes().length != 1) {
+        if (method.getActualReturnType() != null || method.getActualParameterTypes().length != 1) {
             return false;
         }
-        ValueType valueType = method.getActualArgumentTypes()[0];
+        ValueType valueType = method.getActualParameterTypes()[0];
         if (!(valueType instanceof GenericClass)) {
             return false;
         }
@@ -367,11 +386,11 @@ class ComponentParser {
     }
 
     private static boolean isGetterLike(GenericMethod sam) {
-        return sam.getActualArgumentTypes().length == 0 && sam.getActualReturnType() != null;
+        return sam.getActualParameterTypes().length == 0 && sam.getActualReturnType() != null;
     }
 
     private static boolean isSetterLike(GenericMethod sam) {
-        return sam.getActualArgumentTypes().length == 1 && sam.getActualReturnType() == null;
+        return sam.getActualParameterTypes().length == 1 && sam.getActualReturnType() == null;
     }
 
     private void parseBindElement(ElementComponentMetadata metadata, GenericMethod method,
@@ -383,7 +402,7 @@ class ComponentParser {
 
         bindings.add(binding);
 
-        ValueType[] arguments = method.getActualArgumentTypes();
+        ValueType[] arguments = method.getActualParameterTypes();
         if (method.getActualReturnType() != null || arguments.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindElement.class.getName()
                     + " and therefore must take exactly one parameter and return void");
@@ -397,11 +416,12 @@ class ComponentParser {
 
         boolean multiple = false;
         GenericType type = (GenericType) arguments[0];
-        TypeInference inference = new TypeInference(typeNavigator);
-        TypeVar var = new TypeVar();
-        if (inference.subtypeConstraint(type, new GenericClass("java.util.List", var))) {
-             type = inference.getSubstitutions().get(var);
-             multiple = true;
+        if (type instanceof GenericClass) {
+            List<GenericClass> path = typeNavigator.sublassPath((GenericClass) type, "java.util.List");
+            if (path != null) {
+                type = path.get(path.size() - 1).getArguments().get(0).getBound();
+                multiple = true;
+            }
         }
 
         if (!(type instanceof GenericClass)) {
@@ -450,7 +470,7 @@ class ComponentParser {
             return;
         }
 
-        ValueType[] args = method.getActualArgumentTypes();
+        ValueType[] args = method.getActualParameterTypes();
         if (args.length != 1) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by "
                     + BindElementName.class.getName() + " and therefore must take exactly 1 argument, but "
@@ -469,7 +489,7 @@ class ComponentParser {
         StringBuilder sb = new StringBuilder();
         sb.append(method.getOwner().getName()).append('.').append(method.getName()).append('(');
         ValueTypeFormatter formatter = new ValueTypeFormatter();
-        ValueType[] args = method.getArgumentTypes();
+        ValueType[] args = method.getParameterTypes();
         for (int i = 0; i < args.length; ++i) {
             if (i > 0) {
                 sb.append(", ");

@@ -22,7 +22,7 @@ public class TypeArgument {
     private Variance variance;
     private GenericType bound;
 
-    private TypeArgument(Variance variance, GenericType bound) {
+    public TypeArgument(Variance variance, GenericType bound) {
         this.variance = variance;
         this.bound = bound;
     }

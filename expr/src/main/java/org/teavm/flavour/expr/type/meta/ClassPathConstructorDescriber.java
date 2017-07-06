@@ -17,10 +17,6 @@ package org.teavm.flavour.expr.type.meta;
 
 import java.lang.reflect.*;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ClassPathConstructorDescriber extends ClassPathAbstractMethodDescriber {
     private Constructor<?> javaConstructor;
 

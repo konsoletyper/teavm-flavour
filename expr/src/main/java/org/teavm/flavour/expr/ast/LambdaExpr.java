@@ -18,20 +18,20 @@ package org.teavm.flavour.expr.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LambdaExpr<T> extends Expr<T> {
+public class LambdaExpr extends Expr {
     private List<BoundVariable> boundVariables = new ArrayList<>();
-    private Expr<T> body;
+    private Expr body;
 
-    public LambdaExpr(Expr<T> body, List<BoundVariable> boundVariables) {
+    public LambdaExpr(Expr body, List<BoundVariable> boundVariables) {
         this.body = body;
         this.boundVariables.addAll(boundVariables);
     }
 
-    public Expr<T> getBody() {
+    public Expr getBody() {
         return body;
     }
 
-    public void setBody(Expr<T> body) {
+    public void setBody(Expr body) {
         this.body = body;
     }
 
@@ -40,12 +40,7 @@ public class LambdaExpr<T> extends Expr<T> {
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

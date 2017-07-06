@@ -17,8 +17,10 @@ package org.teavm.flavour.expr.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,9 +49,7 @@ public class TypeInferenceTest {
         TypeVar t = new TypeVar("T");
         GenericType pattern = ref(t);
 
-        addVariable(t);
-
-        start();
+        addVariables(t);
         subtypeConstraint(cls(Class.class, inv(cls(Integer.class))), pattern);
         subtypeConstraint(cls(Class.class, inv(cls(Long.class))), pattern);
         infer();
@@ -58,16 +58,13 @@ public class TypeInferenceTest {
     }
 
     @Test
-    public void infersExaсtVariable() {
+    public void infersExactVariable() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
         GenericType first = cls(Map.class, inv(ref(k)), inv(ref(v)));
         GenericType second = ref(k);
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(cls(HashMap.class, inv(cls(Number.class)), inv(cls(String.class))), first);
         subtypeConstraint(cls(Integer.class), second);
         infer();
@@ -77,16 +74,13 @@ public class TypeInferenceTest {
     }
 
     @Test
-    public void infersExaсtVariableReverse() {
+    public void infersExactVariableReverse() {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
         GenericType first = cls(Map.class, inv(ref(k)), inv(ref(v)));
         GenericType second = ref(k);
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(cls(Integer.class), second);
         subtypeConstraint(cls(HashMap.class, inv(cls(Number.class)), inv(cls(String.class))), first);
         infer();
@@ -100,10 +94,7 @@ public class TypeInferenceTest {
         TypeVar k = new TypeVar("K");
         TypeVar v = new TypeVar("V");
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(cls(HashMap.class, inv(cls(Long.class)), inv(cls(String.class))),
                 cls(Map.class, inv(ref(k)), inv(ref(v))));
         assertFalse(inf.subtypeConstraint(ref(k), cls(Integer.class)));
@@ -117,10 +108,7 @@ public class TypeInferenceTest {
         GenericType second = cls(Map.class, inv(cls(String.class)), inv(ref(v)));
         GenericType actual = cls(Map.class, inv(cls(String.class)), inv(cls(Integer.class)));
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(actual, first);
         subtypeConstraint(actual, second);
         infer();
@@ -137,10 +125,7 @@ public class TypeInferenceTest {
         GenericType formal = cls(Map.class, inv(ref(k)), inv(ref(v)));
         GenericType actual = cls(Map.class, inv(cls(Integer.class)), inv(cls(Number.class)));
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(actual, formal);
         infer();
 
@@ -156,10 +141,7 @@ public class TypeInferenceTest {
         GenericType formal = cls(Map.class, inv(ref(k)), out(ref(v)));
         GenericType actual = cls(HashMap.class, inv(cls(Integer.class)), inv(cls(Object.class)));
 
-        addVariable(k);
-        addVariable(v);
-
-        start();
+        addVariables(k, v);
         subtypeConstraint(actual, formal);
         infer();
 
@@ -172,9 +154,7 @@ public class TypeInferenceTest {
         TypeVar t = new TypeVar("T");
         GenericType pattern = ref(t);
 
-        addVariable(t);
-
-        start();
+        addVariables(t);
         subtypeConstraint(array(cls(Integer.class)), pattern);
         subtypeConstraint(array(cls(Long.class)), pattern);
         infer();
@@ -187,7 +167,7 @@ public class TypeInferenceTest {
         TypeVar t = new TypeVar("T");
         t.withLowerBound(cls(List.class, inv(cls(A.class))));
 
-        addVariable(t);
+        addVariables(t);
         subtypeConstraint(cls(List.class, inv(cls(B.class))), ref(t));
         infer();
 
@@ -200,10 +180,7 @@ public class TypeInferenceTest {
         TypeVar b = new TypeVar("B");
         a.withLowerBound(ref(b));
 
-        addVariable(a);
-        addVariable(b);
-
-        start();
+        addVariables(a, b);
         subtypeConstraint(ref(a), ref(b));
         infer();
 
@@ -212,18 +189,18 @@ public class TypeInferenceTest {
     }
 
     @Test
-    public void inconsistentCircularDependency() {
+    public void circularDependencyWithBound() {
         TypeVar a = new TypeVar("A");
         TypeVar b = new TypeVar("B");
         a.withLowerBound(ref(b));
 
-        addVariable(a);
-        addVariable(b);
-
-        start();
+        addVariables(a, b);
         subtypeConstraint(ref(a), ref(b));
         subtypeConstraint(cls(Integer.class), ref(a));
-        assertFalse("Should not resolve constraint set", inf.resolve());
+        infer();
+
+        assertEquals("Integer", string(ref(a)));
+        assertEquals("Integer", string(ref(b)));
     }
 
     @Test
@@ -231,10 +208,7 @@ public class TypeInferenceTest {
         TypeVar a = new TypeVar("A");
         TypeVar b = new TypeVar("B");
 
-        addVariable(a);
-        addVariable(b);
-
-        start();
+        addVariables(a, b);
         subtypeConstraint(cls(ArrayList.class, inv(ref(a))), cls(Iterable.class, inv(ref(b))));
         subtypeConstraint(cls(Integer.class), ref(a));
         infer();
@@ -248,10 +222,7 @@ public class TypeInferenceTest {
         TypeVar a = new TypeVar("A");
         TypeVar b = new TypeVar("B");
 
-        addVariable(a);
-        addVariable(b);
-
-        start();
+        addVariables(a, b);
         subtypeConstraint(cls(Integer.class), ref(a));
         subtypeConstraint(cls(ArrayList.class, inv(ref(a))), cls(Iterable.class, inv(ref(b))));
         infer();
@@ -264,16 +235,25 @@ public class TypeInferenceTest {
     public void captureConversion() {
         TypeVar t = types.describe(List.class.getName()).getTypeVariables()[0];
 
-        start();
         // for example, List<T> get(), with receiver = List<? extends Integer>()
         captureConversionConstraint(Arrays.asList(t), Arrays.asList(out(cls(Integer.class)))).get(0);
         infer();
 
-        assertEquals("Integer", string(ref(t)));
+        GenericType result = ref(t).substitute(inf.getSubstitutions());
+        assertTrue(result instanceof GenericReference);
+        TypeVar s = ((GenericReference) result).getVar();
+        assertEquals(1, s.getUpperBound().size());
+        assertEquals("Integer", string(s.getUpperBound().iterator().next()));
     }
 
-    private void addVariable(TypeVar typeVar) {
-        inf.addVariable(typeVar);
+    private void addVariables(TypeVar... typeVars) {
+        addVariables(Arrays.asList(typeVars));
+    }
+
+    private void addVariables(Collection<? extends TypeVar> typeVars) {
+        if (!inf.addVariables(typeVars)) {
+            throw new AssertionError("Could not build initial constraint set");
+        }
     }
 
     private void subtypeConstraint(GenericType subtype, GenericType supertype) {
@@ -283,19 +263,13 @@ public class TypeInferenceTest {
         }
     }
 
-    private List<? extends TypeVar> captureConversionConstraint(List<TypeVar> typeParameters,
+    private List<? extends TypeArgument> captureConversionConstraint(List<TypeVar> typeParameters,
             List<TypeArgument> typeArguments) {
-        List<? extends TypeVar> result = inf.captureConversionConstraint(typeParameters, typeArguments);
+        List<? extends TypeArgument> result = inf.captureConversionConstraint(typeParameters, typeArguments);
         if (result == null) {
             throw new AssertionError("Could not add capture conversion constraint");
         }
         return result;
-    }
-
-    private void start() {
-        if (!inf.start()) {
-            throw new AssertionError("Could not build initial constraint set");
-        }
     }
 
     private void infer() {

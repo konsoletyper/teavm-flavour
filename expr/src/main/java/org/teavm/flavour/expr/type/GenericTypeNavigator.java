@@ -288,7 +288,7 @@ public class GenericTypeNavigator {
         return method;
     }
 
-    private GenericMethod getMethodImpl(GenericClass cls, String name, GenericClass... argumentTypes) {
+    private GenericMethod getMethodImpl(GenericClass cls, String name, GenericClass... parameterTypes) {
         ClassDescriber describer = classRepository.describe(cls.getName());
         if (describer == null) {
             return null;
@@ -299,11 +299,11 @@ public class GenericTypeNavigator {
             return null;
         }
 
-        MethodDescriber methodDescriber = describer.getMethod(name, argumentTypes);
+        MethodDescriber methodDescriber = describer.getMethod(name, parameterTypes);
         if (methodDescriber == null) {
             return null;
         }
-        ValueType[] argTypes = methodDescriber.getArgumentTypes();
+        ValueType[] argTypes = methodDescriber.getParameterTypes();
         for (int i = 0; i < argTypes.length; ++i) {
             if (argTypes[i] instanceof GenericType) {
                 argTypes[i] = ((GenericType) argTypes[i]).substituteArgs(substitutions::get);
@@ -314,7 +314,7 @@ public class GenericTypeNavigator {
             returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
         }
 
-        return new GenericMethod(methodDescriber, cls, argumentTypes, returnType);
+        return new GenericMethod(methodDescriber, cls, parameterTypes, returnType);
     }
 
     private void findMethodsImpl(GenericClass cls, String name, int paramCount, Set<String> visitedClasses,
@@ -338,7 +338,7 @@ public class GenericTypeNavigator {
                 continue;
             }
 
-            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            ValueType[] paramTypes = methodDesc.getParameterTypes();
             if (paramTypes.length != paramCount) {
                 continue;
             }
@@ -353,7 +353,7 @@ public class GenericTypeNavigator {
                 returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
             }
 
-            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            MethodSignature signature = new MethodSignature(methodDesc.getRawParameterTypes());
             methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
         }
 
@@ -402,14 +402,14 @@ public class GenericTypeNavigator {
         int result = 0;
         ClassDescriber objectDescriber = classRepository.describe(Object.class.getName());
         for (MethodDescriber methodDesc : describer.getMethods()) {
-            if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getArgumentTypes()) != null) {
+            if (objectDescriber.getMethod(methodDesc.getName(), methodDesc.getParameterTypes()) != null) {
                 continue;
             }
             if (!methodDesc.isAbstract() || methodDesc.isStatic()) {
                 continue;
             }
 
-            ValueType[] paramTypes = methodDesc.getArgumentTypes();
+            ValueType[] paramTypes = methodDesc.getParameterTypes();
             for (int i = 0; i < paramTypes.length; ++i) {
                 if (paramTypes[i] instanceof GenericType) {
                     paramTypes[i] = ((GenericType) paramTypes[i]).substituteArgs(substitutions::get);
@@ -421,7 +421,7 @@ public class GenericTypeNavigator {
                 returnType = ((GenericType) returnType).substituteArgs(substitutions::get);
             }
 
-            MethodSignature signature = new MethodSignature(methodDesc.getRawArgumentTypes());
+            MethodSignature signature = new MethodSignature(methodDesc.getRawParameterTypes());
             if (!methods.containsKey(signature)) {
                 methods.put(signature, new GenericMethod(methodDesc, cls, paramTypes, returnType));
                 if (methodDesc.isAbstract()) {

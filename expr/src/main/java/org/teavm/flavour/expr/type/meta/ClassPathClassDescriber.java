@@ -123,10 +123,10 @@ class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements C
     }
 
     @Override
-    public MethodDescriber getMethod(String name, ValueType... argumentTypes) {
-        Class<?>[] javaArgs = new Class<?>[argumentTypes.length];
+    public MethodDescriber getMethod(String name, ValueType... parameterTypes) {
+        Class<?>[] javaArgs = new Class<?>[parameterTypes.length];
         for (int i = 0; i < javaArgs.length; ++i) {
-            javaArgs[i] = repository.convertToRawType(argumentTypes[i]);
+            javaArgs[i] = repository.convertToRawType(parameterTypes[i]);
         }
         try {
             if (name.equals("<init>")) {

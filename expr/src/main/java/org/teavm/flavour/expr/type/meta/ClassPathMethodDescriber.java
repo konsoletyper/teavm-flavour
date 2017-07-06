@@ -21,10 +21,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ClassPathMethodDescriber extends ClassPathAbstractMethodDescriber {
     private Method javaMethod;
 

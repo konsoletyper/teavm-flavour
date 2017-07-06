@@ -30,7 +30,7 @@ public class InvalidExpressionException extends RuntimeException {
 
     private static String createMessage(List<Diagnostic> diagnostics) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Errors occured compiling expression:");
+        sb.append("Errors occurred compiling expression:");
         for (Diagnostic diagnostic : diagnostics) {
             sb.append("\n  at (" + diagnostic.getStart() + "; " + diagnostic.getEnd() + "): ")
                     .append(diagnostic.getMessage());

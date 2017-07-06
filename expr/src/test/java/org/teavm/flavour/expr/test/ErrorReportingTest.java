@@ -87,7 +87,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsSubscriptArrayError() {
         Diagnostic d = parseExpr(StringComputation.class, "object[0]").get(0);
-        assertThat(d.getMessage(), is("Can't apply subscript operator to java.lang.Object with argument of int"));
+        assertThat(d.getMessage(), is("Method not found: get"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(9));
 
@@ -108,8 +108,7 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     @Test
     public void reportsInvalidMethodArgumentsError() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.extract(stringIntMap, object)").get(0);
-        assertThat(d.getMessage(), is("Method extract(java.util.Map<K, V>, K) is not applicable to "
-                + "(java.util.Map<java.lang.String, java.lang.Integer>, java.lang.Object)"));
+        assertThat(d.getMessage(), is("Method extract(java.util.Map<K, V>, K) is not applicable to given arguments"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(33));
     }
@@ -123,9 +122,9 @@ public class ErrorReportingTest extends BaseEvaluatorTest {
     }
 
     @Test
-    public void reportsAmbigousMethod() {
+    public void reportsAmbiguousMethod() {
         Diagnostic d = parseExpr(StringComputation.class, "foo.bar(null)").get(0);
-        assertThat(d.getMessage(), startsWith("Ambiguous method invocation bar(?)"));
+        assertThat(d.getMessage(), startsWith("Ambiguous method invocation bar"));
         assertThat(d.getStart(), is(0));
         assertThat(d.getEnd(), is(13));
     }

@@ -70,7 +70,7 @@ public class Parser {
         this.classes = classes;
     }
 
-    public ObjectExpr<Void> parseObject(String text) {
+    public ObjectExpr parseObject(String text) {
         diagnostics.clear();
         try (Reader reader = new StringReader(text)) {
             ExprLexer lexer = new ExprLexer(new ANTLRInputStream(reader));
@@ -85,7 +85,7 @@ public class Parser {
         }
     }
 
-    public Expr<Void> parse(String text) {
+    public Expr parse(String text) {
         diagnostics.clear();
         try (Reader reader = new StringReader(text)) {
             ExprLexer lexer = new ExprLexer(new ANTLRInputStream(reader));
@@ -120,22 +120,22 @@ public class Parser {
     };
 
 
-    private <S, T extends Expr<S>> T withLocation(T expr, ParserRuleContext ctx) {
+    private <T extends Expr> T withLocation(T expr, ParserRuleContext ctx) {
         return withLocation(expr, ctx, ctx);
     }
 
-    private <S, T extends Expr<S>> T withLocation(T expr, ParserRuleContext startCtx, ParserRuleContext endCtx) {
+    private <T extends Expr> T withLocation(T expr, ParserRuleContext startCtx, ParserRuleContext endCtx) {
         expr.setStart(startCtx.getStart().getStartIndex());
         expr.setEnd(endCtx.getStop().getStopIndex() + 1);
         return expr;
     }
 
-    private final ExprBaseVisitor<ObjectExpr<Void>> objectVisitor = new ExprBaseVisitor<ObjectExpr<Void>>() {
+    private final ExprBaseVisitor<ObjectExpr> objectVisitor = new ExprBaseVisitor<ObjectExpr>() {
         @Override
-        public ObjectExpr<Void> visitObject(ExprParser.ObjectContext ctx) {
-            ObjectExpr<Void> object = new ObjectExpr<>();
+        public ObjectExpr visitObject(ExprParser.ObjectContext ctx) {
+            ObjectExpr object = new ObjectExpr();
             for (ExprParser.ObjectEntryContext entryContext : ctx.entires) {
-                ObjectEntry<Void> entry = new ObjectEntry<>();
+                ObjectEntry entry = new ObjectEntry();
                 entry.setKey(entryContext.key.getText());
                 entry.setValue(entryContext.value.accept(exprVisitor));
                 object.getEntries().add(entry);
@@ -144,13 +144,13 @@ public class Parser {
         }
     };
 
-    private final ExprBaseVisitor<Expr<Void>> exprVisitor = new ExprBaseVisitor<Expr<Void>>() {
+    private final ExprBaseVisitor<Expr> exprVisitor = new ExprBaseVisitor<Expr>() {
         @Override
-        public Expr<Void> visitLambda(ExprParser.LambdaContext ctx) {
+        public Expr visitLambda(ExprParser.LambdaContext ctx) {
             if (ctx.body == null) {
-                return new ConstantExpr<>(null);
+                return new ConstantExpr(null);
             }
-            Expr<Void> body = ctx.body.accept(this);
+            Expr body = ctx.body.accept(this);
             if (ctx.boundVars == null) {
                 return body;
             }
@@ -158,71 +158,71 @@ public class Parser {
                     .map(boundVar -> boundVar.accept(boundVarVisitor))
                     .collect(Collectors.toList());
 
-            return withLocation(new LambdaExpr<>(body, boundVars), ctx);
+            return withLocation(new LambdaExpr(body, boundVars), ctx);
         }
 
         @Override
-        public Expr<Void> visitAssignment(ExprParser.AssignmentContext ctx) {
+        public Expr visitAssignment(ExprParser.AssignmentContext ctx) {
             if (ctx.rhs == null) {
                 return null;
             }
-            Expr<Void> rhs = ctx.rhs.accept(this);
+            Expr rhs = ctx.rhs.accept(this);
             if (ctx.lhs == null) {
                 return rhs;
             }
-            return withLocation(new AssignmentExpr<>(ctx.lhs.accept(this), rhs), ctx);
+            return withLocation(new AssignmentExpr(ctx.lhs.accept(this), rhs), ctx);
         }
 
         @Override
-        public Expr<Void> visitExpression(ExprParser.ExpressionContext ctx) {
+        public Expr visitExpression(ExprParser.ExpressionContext ctx) {
             return ctx.value.accept(this);
         }
 
         @Override
-        public Expr<Void> visitTernaryCondition(ExprParser.TernaryConditionContext ctx) {
-            Expr<Void> condition = ctx.condition.accept(this);
+        public Expr visitTernaryCondition(ExprParser.TernaryConditionContext ctx) {
+            Expr condition = ctx.condition.accept(this);
             if (ctx.consequent == null) {
                 return condition;
             }
-            Expr<Void> consequent = ctx.consequent.accept(this);
-            Expr<Void> alternative = ctx.alternative.accept(this);
-            return withLocation(new TernaryConditionExpr<>(condition, consequent, alternative), ctx);
+            Expr consequent = ctx.consequent.accept(this);
+            Expr alternative = ctx.alternative.accept(this);
+            return withLocation(new TernaryConditionExpr(condition, consequent, alternative), ctx);
         }
 
         @Override
-        public Expr<Void> visitOr(ExprParser.OrContext ctx) {
-            Expr<Void> result = ctx.arguments.get(0).accept(this);
+        public Expr visitOr(ExprParser.OrContext ctx) {
+            Expr result = ctx.arguments.get(0).accept(this);
             for (int i = 1; i < ctx.arguments.size(); ++i) {
                 ExprParser.AndContext rhsContext = ctx.arguments.get(i);
-                Expr<Void> rhs = rhsContext.accept(this);
-                result = withLocation(new BinaryExpr<>(result, rhs, BinaryOperation.OR), ctx, rhsContext);
+                Expr rhs = rhsContext.accept(this);
+                result = withLocation(new BinaryExpr(result, rhs, BinaryOperation.OR), ctx, rhsContext);
             }
             return result;
         }
 
         @Override
-        public Expr<Void> visitAnd(ExprParser.AndContext ctx) {
-            Expr<Void> result = ctx.arguments.get(0).accept(this);
+        public Expr visitAnd(ExprParser.AndContext ctx) {
+            Expr result = ctx.arguments.get(0).accept(this);
             for (int i = 1; i < ctx.arguments.size(); ++i) {
                 ExprParser.NotContext rhsContext = ctx.arguments.get(i);
-                Expr<Void> rhs = rhsContext.accept(this);
-                result = withLocation(new BinaryExpr<>(result, rhs, BinaryOperation.AND), ctx, rhsContext);
+                Expr rhs = rhsContext.accept(this);
+                result = withLocation(new BinaryExpr(result, rhs, BinaryOperation.AND), ctx, rhsContext);
             }
             return result;
         }
 
         @Override
-        public Expr<Void> visitNot(ExprParser.NotContext ctx) {
-            Expr<Void> result = ctx.operand.accept(this);
+        public Expr visitNot(ExprParser.NotContext ctx) {
+            Expr result = ctx.operand.accept(this);
             if (ctx.notKeyword != null) {
-                result = withLocation(new UnaryExpr<>(result, UnaryOperation.NOT), ctx);
+                result = withLocation(new UnaryExpr(result, UnaryOperation.NOT), ctx);
             }
             return result;
         }
 
         @Override
-        public Expr<Void> visitComparison(ExprParser.ComparisonContext ctx) {
-            Expr<Void> result = ctx.first.accept(this);
+        public Expr visitComparison(ExprParser.ComparisonContext ctx) {
+            Expr result = ctx.first.accept(this);
             for (int i = 0; i < ctx.remaining.size(); ++i) {
                 BinaryOperation operation;
                 switch (ctx.operations.get(i).getText()) {
@@ -252,14 +252,14 @@ public class Parser {
                         throw new AssertionError("Unknown token: " + ctx.operations.get(i).getText());
                 }
                 ExprParser.AdditiveContext rhsContext = ctx.remaining.get(i);
-                result = withLocation(new BinaryExpr<>(result, rhsContext.accept(this), operation), ctx, rhsContext);
+                result = withLocation(new BinaryExpr(result, rhsContext.accept(this), operation), ctx, rhsContext);
             }
             return result;
         }
 
         @Override
-        public Expr<Void> visitAdditive(ExprParser.AdditiveContext ctx) {
-            Expr<Void> result = ctx.arguments.get(0).accept(this);
+        public Expr visitAdditive(ExprParser.AdditiveContext ctx) {
+            Expr result = ctx.arguments.get(0).accept(this);
             for (int i = 0; i < ctx.operations.size(); ++i) {
                 BinaryOperation operation;
                 switch (ctx.operations.get(i).getText()) {
@@ -273,15 +273,15 @@ public class Parser {
                         throw new AssertionError("Unknown token: " + ctx.operations.get(i).getText());
                 }
                 ExprParser.MultiplicativeContext rhsContext = ctx.arguments.get(i + 1);
-                result = withLocation(new BinaryExpr<>(result, rhsContext.accept(this), operation), ctx, rhsContext);
+                result = withLocation(new BinaryExpr(result, rhsContext.accept(this), operation), ctx, rhsContext);
             }
 
             return result;
         }
 
         @Override
-        public Expr<Void> visitMultiplicative(ExprParser.MultiplicativeContext ctx) {
-            Expr<Void> result = ctx.arguments.get(0).accept(this);
+        public Expr visitMultiplicative(ExprParser.MultiplicativeContext ctx) {
+            Expr result = ctx.arguments.get(0).accept(this);
             for (int i = 0; i < ctx.operations.size(); ++i) {
                 BinaryOperation operation;
                 switch (ctx.operations.get(i).getText()) {
@@ -298,53 +298,53 @@ public class Parser {
                         throw new AssertionError("Unknown token: " + ctx.operations.get(i).getText());
                 }
                 ExprParser.ArithmeticContext rhsContext = ctx.arguments.get(i + 1);
-                result = withLocation(new BinaryExpr<>(result, rhsContext.accept(this), operation), ctx, rhsContext);
+                result = withLocation(new BinaryExpr(result, rhsContext.accept(this), operation), ctx, rhsContext);
             }
 
             return result;
         }
 
         @Override
-        public Expr<Void> visitTrueArithmetic(ExprParser.TrueArithmeticContext ctx) {
-            Expr<Void> operand = ctx.operand.accept(this);
-            return withLocation(new UnaryExpr<>(operand, UnaryOperation.NEGATE), ctx);
+        public Expr visitTrueArithmetic(ExprParser.TrueArithmeticContext ctx) {
+            Expr operand = ctx.operand.accept(this);
+            return withLocation(new UnaryExpr(operand, UnaryOperation.NEGATE), ctx);
         }
 
         @Override
-        public Expr<Void> visitArithmeticFallback(ExprParser.ArithmeticFallbackContext ctx) {
+        public Expr visitArithmeticFallback(ExprParser.ArithmeticFallbackContext ctx) {
             return ctx.operand.accept(this);
         }
 
         @Override
-        public Expr<Void> visitPathCast(ExprParser.PathCastContext ctx) {
-            Expr<Void> value = ctx.value.accept(this);
+        public Expr visitPathCast(ExprParser.PathCastContext ctx) {
+            Expr value = ctx.value.accept(this);
             ValueType type = ctx.targetType.accept(typeVisitor);
-            return withLocation(new CastExpr<>(value, type), ctx);
+            return withLocation(new CastExpr(value, type), ctx);
         }
 
         @Override
-        public Expr<Void> visitPathNavigated(ExprParser.PathNavigatedContext ctx) {
-            Expr<Void> base = ctx.base.accept(this);
+        public Expr visitPathNavigated(ExprParser.PathNavigatedContext ctx) {
+            Expr base = ctx.base.accept(this);
             NavigationVisitor navigationVisitor = new NavigationVisitor(ctx, base);
             for (ExprParser.NavigationContext navigationContext : ctx.navigations) {
                 navigationContext.accept(navigationVisitor);
             }
-            Expr<Void> result = navigationVisitor.expr;
+            Expr result = navigationVisitor.expr;
             if (result == null) {
                 int start = ctx.getStart().getStartIndex();
                 int end = ctx.getStop().getStopIndex();
                 diagnostics.add(new Diagnostic(start, end, "Reference to class. Static property access supposed?"));
-                return new ConstantExpr<>(null);
+                return new ConstantExpr(null);
             }
             if (ctx.isInstance != null) {
                 GenericType type = (GenericType) ctx.isInstance.checkedType.accept(typeVisitor);
-                result = withLocation(new InstanceOfExpr<>(result, type), ctx, ctx.isInstance);
+                result = withLocation(new InstanceOfExpr(result, type), ctx, ctx.isInstance);
             }
             return result;
         }
 
         @Override
-        public Expr<Void> visitNumberPrimitive(ExprParser.NumberPrimitiveContext ctx) {
+        public Expr visitNumberPrimitive(ExprParser.NumberPrimitiveContext ctx) {
             String text = ctx.getText();
             Object value;
             if (text.contains(".")) {
@@ -352,11 +352,11 @@ public class Parser {
             } else {
                 value = Integer.parseInt(text);
             }
-            return withLocation(new ConstantExpr<>(value), ctx);
+            return withLocation(new ConstantExpr(value), ctx);
         }
 
         @Override
-        public Expr<Void> visitStringPrimitive(ExprParser.StringPrimitiveContext ctx) {
+        public Expr visitStringPrimitive(ExprParser.StringPrimitiveContext ctx) {
             StringBuilder sb = new StringBuilder();
             String text = ctx.getText();
             for (int i = 1; i < text.length() - 1; ++i) {
@@ -390,60 +390,60 @@ public class Parser {
                     }
                 }
             }
-            return withLocation(new ConstantExpr<>(sb.toString()), ctx);
+            return withLocation(new ConstantExpr(sb.toString()), ctx);
         }
 
         @Override
-        public Expr<Void> visitThisPrimitive(ExprParser.ThisPrimitiveContext ctx) {
-            return withLocation(new ThisExpr<>(), ctx);
+        public Expr visitThisPrimitive(ExprParser.ThisPrimitiveContext ctx) {
+            return withLocation(new ThisExpr(), ctx);
         }
 
         @Override
-        public Expr<Void> visitTruePrimitive(ExprParser.TruePrimitiveContext ctx) {
-            return withLocation(new ConstantExpr<>(true), ctx);
+        public Expr visitTruePrimitive(ExprParser.TruePrimitiveContext ctx) {
+            return withLocation(new ConstantExpr(true), ctx);
         }
 
         @Override
-        public Expr<Void> visitFalsePrimitive(ExprParser.FalsePrimitiveContext ctx) {
-            return withLocation(new ConstantExpr<>(false), ctx);
+        public Expr visitFalsePrimitive(ExprParser.FalsePrimitiveContext ctx) {
+            return withLocation(new ConstantExpr(false), ctx);
         }
 
         @Override
-        public Expr<Void> visitNullPrimitive(ExprParser.NullPrimitiveContext ctx) {
-            return withLocation(new ConstantExpr<>(null), ctx);
+        public Expr visitNullPrimitive(ExprParser.NullPrimitiveContext ctx) {
+            return withLocation(new ConstantExpr(null), ctx);
         }
 
         @Override
-        public Expr<Void> visitIdPrimitive(ExprParser.IdPrimitiveContext ctx) {
-            return withLocation(new VariableExpr<>(ctx.getText()), ctx);
+        public Expr visitIdPrimitive(ExprParser.IdPrimitiveContext ctx) {
+            return withLocation(new VariableExpr(ctx.getText()), ctx);
         }
 
         @Override
-        public Expr<Void> visitFunctionCall(ExprParser.FunctionCallContext ctx) {
+        public Expr visitFunctionCall(ExprParser.FunctionCallContext ctx) {
             String name = ctx.functionName.getText();
-            List<Expr<Void>> arguments = Collections.emptyList();
+            List<Expr> arguments = Collections.emptyList();
             if (ctx.arguments != null) {
                 arguments = ctx.arguments.expressions.stream()
                         .map(arg -> arg.accept(exprVisitor))
                         .collect(Collectors.toList());
             }
-            return withLocation(new InvocationExpr<>(null, name, arguments), ctx);
+            return withLocation(new InvocationExpr(null, name, arguments), ctx);
         }
 
         @Override
-        public Expr<Void> visitParenthesized(ExprParser.ParenthesizedContext ctx) {
+        public Expr visitParenthesized(ExprParser.ParenthesizedContext ctx) {
             return ctx.value.accept(this);
         }
     };
 
     private class NavigationVisitor extends ExprBaseVisitor<Void> {
         private ParserRuleContext topLevelContext;
-        private Expr<Void> expr;
+        private Expr expr;
         private StringBuilder fqnBuilder = new StringBuilder();
         private boolean fqnFinished;
         private String className;
 
-        NavigationVisitor(ParserRuleContext topLevelContext, Expr<Void> expr) {
+        NavigationVisitor(ParserRuleContext topLevelContext, Expr expr) {
             this.topLevelContext = topLevelContext;
             if (expr instanceof VariableExpr) {
                 String name = ((VariableExpr) expr).getName();
@@ -460,7 +460,7 @@ public class Parser {
 
         @Override
         public Void visitArrayNavigation(ExprParser.ArrayNavigationContext ctx) {
-            expr = withLocation(new BinaryExpr<>(expr, ctx.index.accept(exprVisitor), BinaryOperation.GET_ELEMENT),
+            expr = withLocation(new BinaryExpr(expr, ctx.index.accept(exprVisitor), BinaryOperation.GET_ELEMENT),
                     topLevelContext, ctx);
             return null;
         }
@@ -469,26 +469,26 @@ public class Parser {
         public Void visitPropertyNavigation(ExprParser.PropertyNavigationContext ctx) {
             String propertyName = ctx.id.getText();
             if (ctx.invoke != null) {
-                List<Expr<Void>> arguments = Collections.emptyList();
+                List<Expr> arguments = Collections.emptyList();
                 if (ctx.arguments != null) {
                     arguments = ctx.arguments.expressions.stream()
                             .map(arg -> arg.accept(exprVisitor))
                             .collect(Collectors.toList());
                 }
                 if (className != null) {
-                    expr = new StaticInvocationExpr<>(className, propertyName, arguments);
+                    expr = new StaticInvocationExpr(className, propertyName, arguments);
                     className = null;
                 } else {
-                    expr = new InvocationExpr<>(expr, propertyName, arguments);
+                    expr = new InvocationExpr(expr, propertyName, arguments);
                 }
                 fqnFinished = true;
             } else {
                 fqnBuilder.append(".").append(propertyName);
                 if (!tryResolve()) {
                     if (className != null) {
-                        expr = new StaticPropertyExpr<>(className, propertyName);
+                        expr = new StaticPropertyExpr(className, propertyName);
                     } else {
-                        expr = new PropertyExpr<>(expr, propertyName);
+                        expr = new PropertyExpr(expr, propertyName);
                     }
                 }
             }

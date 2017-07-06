@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,29 +13,22 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type.meta;
+package org.teavm.flavour.expr.type;
 
-import org.teavm.flavour.expr.type.TypeVar;
-import org.teavm.flavour.expr.type.ValueType;
+public class MethodWithFreshTypeVars {
+    private GenericMethod method;
+    private TypeVar[] freshTypeVars;
 
-public interface MethodDescriber extends AnnotationsDescriber {
-    ClassDescriber getOwner();
+    public MethodWithFreshTypeVars(GenericMethod method, TypeVar[] freshTypeVars) {
+        this.method = method;
+        this.freshTypeVars = freshTypeVars;
+    }
 
-    String getName();
+    public GenericMethod getMethod() {
+        return method;
+    }
 
-    boolean isStatic();
-
-    boolean isAbstract();
-
-    TypeVar[] getTypeVariables();
-
-    ValueType[] getRawParameterTypes();
-
-    ValueType[] getParameterTypes();
-
-    ValueType getReturnType();
-
-    ValueType getRawReturnType();
-
-    boolean isVariableArgument();
+    public TypeVar[] getFreshTypeVars() {
+        return freshTypeVars;
+    }
 }

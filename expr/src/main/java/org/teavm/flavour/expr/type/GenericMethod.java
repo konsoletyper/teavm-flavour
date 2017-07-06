@@ -17,19 +17,15 @@ package org.teavm.flavour.expr.type;
 
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class GenericMethod {
     private MethodDescriber describer;
     private GenericClass actualOwner;
-    private ValueType[] actualArgumentTypes;
+    private ValueType[] actualParameterTypes;
     private ValueType actualReturnType;
 
     public GenericMethod(MethodDescriber describer, GenericClass actualOwner,
-            ValueType[] actualArgumentTypes, ValueType actualReturnType) {
-        if (describer.getArgumentTypes().length != actualArgumentTypes.length) {
+            ValueType[] actualParameterTypes, ValueType actualReturnType) {
+        if (describer.getParameterTypes().length != actualParameterTypes.length) {
             throw new IllegalArgumentException();
         }
         if ((actualReturnType == null) != (describer.getReturnType() == null)) {
@@ -37,7 +33,7 @@ public class GenericMethod {
         }
         this.describer = describer;
         this.actualOwner = actualOwner;
-        this.actualArgumentTypes = actualArgumentTypes;
+        this.actualParameterTypes = actualParameterTypes;
         this.actualReturnType = actualReturnType;
     }
 
@@ -49,8 +45,8 @@ public class GenericMethod {
         return describer;
     }
 
-    public ValueType[] getActualArgumentTypes() {
-        return actualArgumentTypes.clone();
+    public ValueType[] getActualParameterTypes() {
+        return actualParameterTypes.clone();
     }
 
     public ValueType getActualReturnType() {
@@ -59,17 +55,17 @@ public class GenericMethod {
 
     public GenericMethod substitute(Substitutions substitutions) {
         GenericClass actualOwner = this.actualOwner.substitute(substitutions);
-        ValueType[] actualArgumentTypes = this.actualArgumentTypes.clone();
-        for (int i = 0; i < actualArgumentTypes.length; ++i) {
-            if (actualArgumentTypes[i] instanceof GenericType) {
-                actualArgumentTypes[i] = ((GenericType) actualArgumentTypes[i]).substitute(substitutions);
+        ValueType[] actualParameterTypes = this.actualParameterTypes.clone();
+        for (int i = 0; i < actualParameterTypes.length; ++i) {
+            if (actualParameterTypes[i] instanceof GenericType) {
+                actualParameterTypes[i] = ((GenericType) actualParameterTypes[i]).substitute(substitutions);
             }
         }
         ValueType actualReturnType = this.actualReturnType;
-        if (actualReturnType != null) {
+        if (actualReturnType instanceof GenericType) {
             actualReturnType = ((GenericType) actualReturnType).substitute(substitutions);
         }
-        return new GenericMethod(describer, actualOwner, actualArgumentTypes, actualReturnType);
+        return new GenericMethod(describer, actualOwner, actualParameterTypes, actualReturnType);
     }
 
     @Override
@@ -77,11 +73,11 @@ public class GenericMethod {
         StringBuilder sb = new StringBuilder();
         sb.append(describer.getName()).append('(');
         ValueTypeFormatter formatter = new ValueTypeFormatter();
-        if (actualArgumentTypes.length > 0) {
-            formatter.format(actualArgumentTypes[0], sb);
-            for (int i = 1; i < actualArgumentTypes.length; ++i) {
+        if (actualParameterTypes.length > 0) {
+            formatter.format(actualParameterTypes[0], sb);
+            for (int i = 1; i < actualParameterTypes.length; ++i) {
                 sb.append(", ");
-                formatter.format(actualArgumentTypes[i], sb);
+                formatter.format(actualParameterTypes[i], sb);
             }
         }
         sb.append(')');

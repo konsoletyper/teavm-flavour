@@ -32,7 +32,7 @@ public interface ClassDescriber extends AnnotationsDescriber {
 
     MethodDescriber[] getMethods();
 
-    MethodDescriber getMethod(String name, ValueType... argumentTypes);
+    MethodDescriber getMethod(String name, ValueType... parameterTypes);
 
     FieldDescriber[] getFields();
 

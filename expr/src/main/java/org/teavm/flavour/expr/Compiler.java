@@ -22,11 +22,13 @@ import java.util.List;
 import org.teavm.flavour.expr.ast.AssignmentExpr;
 import org.teavm.flavour.expr.ast.BoundVariable;
 import org.teavm.flavour.expr.ast.Expr;
-import org.teavm.flavour.expr.ast.ExprCopier;
 import org.teavm.flavour.expr.ast.LambdaExpr;
 import org.teavm.flavour.expr.ast.PropertyExpr;
 import org.teavm.flavour.expr.ast.VariableExpr;
-import org.teavm.flavour.expr.type.*;
+import org.teavm.flavour.expr.type.GenericClass;
+import org.teavm.flavour.expr.type.GenericMethod;
+import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.ValueType;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
 /**
@@ -53,7 +55,7 @@ public class Compiler {
      * @param expr expression AST to compile.
      * @return evaluation plan and its type.
      */
-    public TypedPlan compile(Expr<?> expr) {
+    public TypedPlan compile(Expr expr) {
         return compile(expr, null);
     }
 
@@ -67,44 +69,41 @@ public class Compiler {
      * @param type if not null, compiler will try to cast expression result to this type.
      * @return evaluation plan and its type.
      */
-    public TypedPlan compile(Expr<?> expr, ValueType type) {
+    public TypedPlan compile(Expr expr, ValueType type) {
         diagnostics.clear();
-        ExprCopier<TypedPlan> copier = new ExprCopier<>();
-        expr.acceptVisitor(copier);
-        Expr<TypedPlan> attributedExpr = copier.getResult();
         CompilerVisitor visitor = new CompilerVisitor(typeNavigator, classResolver, scope);
         visitor.expectedType = type;
-        attributedExpr.acceptVisitor(visitor);
+        TypedPlan plan = expr.acceptVisitor(visitor);
         if (type != null) {
-            visitor.convert(attributedExpr, type);
+            plan = visitor.convert(expr, plan, type);
         }
         diagnostics.addAll(visitor.getDiagnostics());
-        return attributedExpr.getAttribute();
+        return plan;
     }
 
-    public TypedPlan compileLambda(Expr<?> expr, GenericClass cls) {
-        if (!(expr instanceof LambdaExpr<?>)) {
+    public TypedPlan compileLambda(Expr expr, GenericClass cls) {
+        if (!(expr instanceof LambdaExpr)) {
             GenericMethod sam = typeNavigator.findSingleAbstractMethod(cls);
-            if (sam.getActualReturnType() == null && sam.getActualArgumentTypes().length == 1
+            if (sam.getActualReturnType() == null && sam.getActualParameterTypes().length == 1
                     && (expr instanceof VariableExpr || expr instanceof PropertyExpr)) {
-                BoundVariable var = new BoundVariable("$value$", sam.getActualArgumentTypes()[0]);
-                AssignmentExpr<?> assignment = new AssignmentExpr<>(expr, new VariableExpr<>("$value$"));
+                BoundVariable var = new BoundVariable("$value$", sam.getActualParameterTypes()[0]);
+                AssignmentExpr assignment = new AssignmentExpr(expr, new VariableExpr("$value$"));
                 assignment.setStart(expr.getStart());
                 assignment.setEnd(expr.getEnd());
-                LambdaExpr<?> lambda = new LambdaExpr<>(assignment, Arrays.asList(var));
+                LambdaExpr lambda = new LambdaExpr(assignment, Arrays.asList(var));
                 lambda.setStart(expr.getStart());
                 lambda.setEnd(expr.getEnd());
                 expr = lambda;
             } else {
                 List<BoundVariable> boundVars = new ArrayList<>();
-                if (sam.getActualArgumentTypes().length == 1) {
-                    boundVars.add(new BoundVariable("it", sam.getActualArgumentTypes()[0]));
+                if (sam.getActualParameterTypes().length == 1) {
+                    boundVars.add(new BoundVariable("it", sam.getActualParameterTypes()[0]));
                 } else {
-                    for (ValueType arg : sam.getActualArgumentTypes()) {
+                    for (ValueType arg : sam.getActualParameterTypes()) {
                         boundVars.add(new BoundVariable("", arg));
                     }
                 }
-                LambdaExpr<?> lambda = new LambdaExpr<>(expr, boundVars);
+                LambdaExpr lambda = new LambdaExpr(expr, boundVars);
                 lambda.setStart(expr.getStart());
                 lambda.setEnd(expr.getEnd());
                 expr = lambda;

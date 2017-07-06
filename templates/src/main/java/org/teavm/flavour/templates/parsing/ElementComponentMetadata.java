@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 class ElementComponentMetadata extends BaseComponentMetadata {
@@ -27,4 +28,5 @@ class ElementComponentMetadata extends BaseComponentMetadata {
     boolean ignoreContent;
     final Map<String, ComponentAttributeMetadata> attributes = new HashMap<>();
     final List<NestedComponent> nestedComponents = new ArrayList<>();
+    final List<TypeVar> typeVarsToRefresh = new ArrayList<>();
 }

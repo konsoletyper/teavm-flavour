@@ -91,13 +91,29 @@ public final class GenericClass extends GenericType {
         List<TypeArgument> argumentSubstitutions = new ArrayList<>();
         boolean changed = false;
         for (TypeArgument arg : arguments) {
-            if (arg.getVariance() == Variance.INVARIANT && arg.getBound() instanceof GenericReference) {
-
-                TypeArgument argSubst = substitutions.apply(
-                        ((GenericReference) arg.getBound()).getVar());
-                if (argSubst != null) {
-                    changed |= true;
+            if (arg.getBound() instanceof GenericReference) {
+                if (arg.getVariance() == Variance.INVARIANT) {
+                    TypeArgument argSubst = substitutions.apply(
+                            ((GenericReference) arg.getBound()).getVar());
+                    if (argSubst != null) {
+                        changed |= true;
+                        arg = argSubst;
+                    }
+                } else {
+                    TypeArgument argSubst = substitutions.apply(
+                            ((GenericReference) arg.getBound()).getVar());
+                    if (argSubst != null && argSubst.getVariance() == Variance.INVARIANT) {
+                        if (argSubst != null) {
+                            changed |= true;
+                            arg = new TypeArgument(arg.getVariance(), argSubst.getBound());
+                        }
+                    }
+                }
+            } else {
+                TypeArgument argSubst = arg.mapBound(bound -> bound.substituteArgs(substitutions, visited));
+                if (argSubst != arg) {
                     arg = argSubst;
+                    changed = true;
                 }
             }
             argumentSubstitutions.add(arg);

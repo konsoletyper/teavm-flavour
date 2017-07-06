@@ -19,14 +19,10 @@ import java.lang.reflect.*;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 abstract class ClassPathAbstractMethodDescriber extends ClassPathAnnotationsDescriber implements MethodDescriber {
     private ClassPathClassDescriber owner;
     private TypeVar[] typeVariables;
-    private ValueType[] argumentTypes;
+    private ValueType[] parameterTypes;
     private ValueType[] rawArgumentTypes;
     private ValueType returnType;
     private ValueType rawReturnType;
@@ -55,21 +51,21 @@ abstract class ClassPathAbstractMethodDescriber extends ClassPathAnnotationsDesc
     abstract TypeVariable<?>[] getJavaTypeVariables();
 
     @Override
-    public ValueType[] getArgumentTypes() {
-        if (argumentTypes == null) {
+    public ValueType[] getParameterTypes() {
+        if (parameterTypes == null) {
             Type[] javaArgs = getJavaArgumentTypes();
-            argumentTypes = new ValueType[javaArgs.length];
+            parameterTypes = new ValueType[javaArgs.length];
             for (int i = 0; i < javaArgs.length; ++i) {
-                argumentTypes[i] = owner.repository.convertGenericType(javaArgs[i]);
+                parameterTypes[i] = owner.repository.convertGenericType(javaArgs[i]);
             }
         }
-        return argumentTypes.clone();
+        return parameterTypes.clone();
     }
 
     abstract Type[] getJavaArgumentTypes();
 
     @Override
-    public ValueType[] getRawArgumentTypes() {
+    public ValueType[] getRawParameterTypes() {
         if (rawArgumentTypes == null) {
             Class<?>[] javaArgs = getJavaRawArgumentTypes();
             rawArgumentTypes = new ValueType[javaArgs.length];

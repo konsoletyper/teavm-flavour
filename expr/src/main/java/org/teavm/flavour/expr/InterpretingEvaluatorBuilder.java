@@ -72,7 +72,7 @@ public class InterpretingEvaluatorBuilder implements EvaluatorBuilder {
         }
 
         Parser parser = new Parser(classResolver);
-        Expr<Void> expr = parser.parse(exprString);
+        Expr expr = parser.parse(exprString);
         if (!parser.getDiagnostics().isEmpty()) {
             throw new InvalidExpressionException(parser.getDiagnostics());
         }

@@ -18,136 +18,101 @@ package org.teavm.flavour.expr.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExprCopier<T> implements ExprVisitor<Object> {
-    private Expr<T> result;
-
-    public Expr<T> getResult() {
-        return result;
+public class ExprCopier implements ExprVisitor<Expr> {
+    @Override
+    public Expr visit(BinaryExpr expr) {
+        Expr firstOperand = expr.getFirstOperand().acceptVisitor(this);
+        Expr secondOperand = expr.getSecondOperand().acceptVisitor(this);
+        return copyLocation(new BinaryExpr(firstOperand, secondOperand, expr.getOperation()), expr);
     }
 
     @Override
-    public void visit(BinaryExpr<?> expr) {
-        expr.getFirstOperand().acceptVisitor(this);
-        Expr<T> firstOperand = result;
-        expr.getSecondOperand().acceptVisitor(this);
-        Expr<T> secondOperand = result;
-        result = new BinaryExpr<>(firstOperand, secondOperand, expr.getOperation());
-        copyLocation(expr);
+    public Expr visit(CastExpr expr) {
+        Expr operand = expr.getValue().acceptVisitor(this);
+        return copyLocation(new CastExpr(operand, expr.getTargetType()), expr);
     }
 
     @Override
-    public void visit(CastExpr<?> expr) {
-        expr.getValue().acceptVisitor(this);
-        result = new CastExpr<>(result, expr.getTargetType());
-        copyLocation(expr);
+    public Expr visit(InstanceOfExpr expr) {
+        Expr operand = expr.getValue().acceptVisitor(this);
+        return copyLocation(new InstanceOfExpr(operand, expr.getCheckedType()), expr);
     }
 
     @Override
-    public void visit(InstanceOfExpr<?> expr) {
-        expr.getValue().acceptVisitor(this);
-        result = new InstanceOfExpr<>(result, expr.getCheckedType());
-        copyLocation(expr);
-    }
-
-    @Override
-    public void visit(InvocationExpr<?> expr) {
-        Expr<T> instance;
-        if (expr.getInstance() != null) {
-            expr.getInstance().acceptVisitor(this);
-            instance = result;
-        } else {
-            instance = null;
+    public Expr visit(InvocationExpr expr) {
+        Expr instance = expr.getInstance() != null ? expr.getInstance().acceptVisitor(this) : null;
+        List<Expr> arguments = new ArrayList<>();
+        for (Expr arg : expr.getArguments()) {
+            arguments.add(arg.acceptVisitor(this));
         }
-        List<Expr<T>> arguments = new ArrayList<>();
-        for (Expr<?> arg : expr.getArguments()) {
-            arg.acceptVisitor(this);
-            arguments.add(result);
+        return copyLocation(new InvocationExpr(instance, expr.getMethodName(), arguments), expr);
+    }
+
+    @Override
+    public Expr visit(StaticInvocationExpr expr) {
+        List<Expr> arguments = new ArrayList<>();
+        for (Expr arg : expr.getArguments()) {
+            arguments.add(arg.acceptVisitor(this));
         }
-        result = new InvocationExpr<>(instance, expr.getMethodName(), arguments);
-        copyLocation(expr);
+        return copyLocation(new StaticInvocationExpr(expr.getClassName(), expr.getMethodName(), arguments), expr);
     }
 
     @Override
-    public void visit(StaticInvocationExpr<?> expr) {
-        List<Expr<T>> arguments = new ArrayList<>();
-        for (Expr<?> arg : expr.getArguments()) {
-            arg.acceptVisitor(this);
-            arguments.add(result);
-        }
-        result = new StaticInvocationExpr<>(expr.getClassName(), expr.getMethodName(), arguments);
-        copyLocation(expr);
+    public Expr visit(PropertyExpr expr) {
+        Expr instance = expr.getInstance().acceptVisitor(this);
+        return copyLocation(new PropertyExpr(instance, expr.getPropertyName()), expr);
     }
 
     @Override
-    public void visit(PropertyExpr<?> expr) {
-        expr.getInstance().acceptVisitor(this);
-        Expr<T> instance = result;
-        result = new PropertyExpr<>(instance, expr.getPropertyName());
-        copyLocation(expr);
+    public Expr visit(StaticPropertyExpr expr) {
+        return copyLocation(new StaticPropertyExpr(expr.getClassName(), expr.getPropertyName()), expr);
     }
 
     @Override
-    public void visit(StaticPropertyExpr<?> expr) {
-        result = new StaticPropertyExpr<>(expr.getClassName(), expr.getPropertyName());
-        copyLocation(expr);
+    public Expr visit(UnaryExpr expr) {
+        Expr operand = expr.getOperand().acceptVisitor(this);
+        return copyLocation(new UnaryExpr(operand, expr.getOperation()), expr);
     }
 
     @Override
-    public void visit(UnaryExpr<?> expr) {
-        expr.getOperand().acceptVisitor(this);
-        result = new UnaryExpr<>(result, expr.getOperation());
-        copyLocation(expr);
+    public Expr visit(VariableExpr expr) {
+        return copyLocation(new VariableExpr(expr.getName()), expr);
     }
 
     @Override
-    public void visit(VariableExpr<?> expr) {
-        result = new VariableExpr<>(expr.getName());
-        copyLocation(expr);
+    public Expr visit(ConstantExpr expr) {
+        return copyLocation(new ConstantExpr(expr.getValue()), expr);
     }
 
     @Override
-    public void visit(ConstantExpr<?> expr) {
-        result = new ConstantExpr<>(expr.getValue());
-        copyLocation(expr);
+    public Expr visit(TernaryConditionExpr expr) {
+        Expr condition = expr.getCondition().acceptVisitor(this);
+        Expr consequent = expr.getConsequent().acceptVisitor(this);
+        Expr alternative = expr.getAlternative().acceptVisitor(this);
+        return copyLocation(new TernaryConditionExpr(condition, consequent, alternative), expr);
     }
 
     @Override
-    public void visit(TernaryConditionExpr<?> expr) {
-        expr.getCondition().acceptVisitor(this);
-        Expr<T> condition = result;
-        expr.getConsequent().acceptVisitor(this);
-        Expr<T> consequent = result;
-        expr.getAlternative().acceptVisitor(this);
-        Expr<T> alternative = result;
-        result = new TernaryConditionExpr<>(condition, consequent, alternative);
-        copyLocation(expr);
+    public Expr visit(ThisExpr expr) {
+        return copyLocation(new ThisExpr(), expr);
     }
 
     @Override
-    public void visit(ThisExpr<?> expr) {
-        result = new ThisExpr<>();
-        copyLocation(expr);
+    public Expr visit(LambdaExpr expr) {
+        Expr body = expr.getBody().acceptVisitor(this);
+        return copyLocation(new LambdaExpr(body, expr.getBoundVariables()), expr);
     }
 
     @Override
-    public void visit(LambdaExpr<?> expr) {
-        expr.getBody().acceptVisitor(this);
-        result = new LambdaExpr<>(result, expr.getBoundVariables());
-        copyLocation(expr);
+    public Expr visit(AssignmentExpr expr) {
+        Expr target = expr.getTarget().acceptVisitor(this);
+        Expr value = expr.getValue().acceptVisitor(this);
+        return copyLocation(new AssignmentExpr(target, value), expr);
     }
 
-    @Override
-    public void visit(AssignmentExpr<?> expr) {
-        expr.getTarget().acceptVisitor(this);
-        Expr<T> target = result;
-        expr.getValue().acceptVisitor(this);
-        Expr<T> value = result;
-        result = new AssignmentExpr<>(target, value);
-        copyLocation(expr);
-    }
-
-    private void copyLocation(Expr<?> expr) {
-        result.setStart(expr.getStart());
-        result.setEnd(expr.getEnd());
+    private Expr copyLocation(Expr expr, Expr from) {
+        expr.setStart(from.getStart());
+        expr.setEnd(from.getEnd());
+        return expr;
     }
 }

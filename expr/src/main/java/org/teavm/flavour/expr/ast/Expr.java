@@ -15,18 +15,9 @@
  */
 package org.teavm.flavour.expr.ast;
 
-public abstract class Expr<T> {
-    private T attribute;
+public abstract class Expr {
     private int start;
     private int end;
-
-    public T getAttribute() {
-        return attribute;
-    }
-
-    public void setAttribute(T attribute) {
-        this.attribute = attribute;
-    }
 
     public int getStart() {
         return start;
@@ -44,7 +35,5 @@ public abstract class Expr<T> {
         this.end = end;
     }
 
-    public abstract void acceptVisitor(ExprVisitor<? super T> visitor);
-
-    public abstract void acceptVisitor(ExprVisitorStrict<T> visitor);
+    public abstract <T> T acceptVisitor(ExprVisitor<T> visitor);
 }

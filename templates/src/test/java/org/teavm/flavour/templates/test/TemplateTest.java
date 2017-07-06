@@ -97,4 +97,88 @@ public class TemplateTest {
     static class ModelForAttributeLambdaToAttribute {
         public String property;
     }
+
+    @Test
+    public void infersComponentTypeArgument() {
+        ModelForComponentWithTypeParameter model = new ModelForComponentWithTypeParameter();
+        model.property = new A();
+        Component component = Templates.bind(model, root);
+        component.render();
+
+        HTMLElement elem = document.getElementById("type-param-component");
+        assertEquals("OK", elem.getAttribute("class"));
+    }
+
+    @BindTemplate("templates/infers-component-type-argument.html")
+    static class ModelForComponentWithTypeParameter {
+        public A property;
+    }
+
+    @Test
+    public void infersWildcardTypeArgument() {
+        ModelForComponentWithWildcardTypeArgument model = new ModelForComponentWithWildcardTypeArgument();
+        model.property = new A();
+        Component component = Templates.bind(model, root);
+        component.render();
+
+        HTMLElement elem = document.getElementById("test-component");
+        assertEquals("OK;23;", elem.getAttribute("class"));
+    }
+
+    @BindTemplate("templates/infers-type-for-wildcard.html")
+    static class ModelForComponentWithWildcardTypeArgument {
+        public A property;
+    }
+
+    @Test
+    public void supportsGenericAttributeComponent() {
+        ModelForGenericAttributeComponent model = new ModelForGenericAttributeComponent();
+        model.property = new B();
+
+        Component component = Templates.bind(model, root);
+        component.render();
+        HTMLElement elem = document.getElementById("result");
+
+        assertEquals("BBB", elem.getAttribute("class"));
+    }
+
+    @BindTemplate("templates/supports-generic-attribute-component.html")
+    static class ModelForGenericAttributeComponent {
+        public B property;
+    }
+
+    @Test
+    public void infersTypeOfVariableWithWildcardType() {
+        ModelForVariableWithWildcard model = new ModelForVariableWithWildcard();
+        model.a = new A();
+        model.b = new B();
+
+        Component component = Templates.bind(model, root);
+        component.render();
+
+        HTMLElement elem1 = document.getElementById("result1");
+        assertEquals("OK", elem1.getAttribute("class"));
+
+        HTMLElement elem2 = document.getElementById("result2");
+        assertEquals("BBB", elem2.getAttribute("class"));
+    }
+
+    @BindTemplate("templates/infers-variable-with-wildcard-type.html")
+    static class ModelForVariableWithWildcard {
+        public A a;
+        public B b;
+    }
+
+    public class A {
+        public String foo() {
+            return "OK";
+        }
+    }
+
+    public class B {
+        @Override
+        public String toString() {
+            return "BBB";
+        }
+    }
 }

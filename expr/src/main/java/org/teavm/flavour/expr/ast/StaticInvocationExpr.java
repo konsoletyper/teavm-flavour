@@ -20,17 +20,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public class StaticInvocationExpr<T> extends Expr<T> {
+public class StaticInvocationExpr extends Expr {
     private String className;
     private String methodName;
-    private List<Expr<T>> arguments = new ArrayList<>();
+    private List<Expr> arguments = new ArrayList<>();
 
-    @SafeVarargs
-    public StaticInvocationExpr(String className, String methodName, Expr<T>... arguments) {
+    public StaticInvocationExpr(String className, String methodName, Expr... arguments) {
         this(className, methodName, Arrays.asList(arguments));
     }
 
-    public StaticInvocationExpr(String className, String methodName, Collection<Expr<T>> arguments) {
+    public StaticInvocationExpr(String className, String methodName, Collection<Expr> arguments) {
         this.className = className;
         this.methodName = methodName;
         this.arguments.addAll(arguments);
@@ -52,17 +51,12 @@ public class StaticInvocationExpr<T> extends Expr<T> {
         this.methodName = methodName;
     }
 
-    public List<Expr<T>> getArguments() {
+    public List<Expr> getArguments() {
         return arguments;
     }
 
     @Override
-    public void acceptVisitor(ExprVisitor<? super T> visitor) {
-        visitor.visit(this);
-    }
-
-    @Override
-    public void acceptVisitor(ExprVisitorStrict<T> visitor) {
-        visitor.visit(this);
+    public <T> T acceptVisitor(ExprVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

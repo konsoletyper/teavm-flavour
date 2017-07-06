@@ -18,11 +18,8 @@ package org.teavm.flavour.expr;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.teavm.flavour.expr.plan.ArithmeticType;
@@ -32,48 +29,27 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
+import org.teavm.flavour.expr.type.IntersectionType;
+import org.teavm.flavour.expr.type.LeastUpperBoundFinder;
+import org.teavm.flavour.expr.type.NullType;
 import org.teavm.flavour.expr.type.Primitive;
 import org.teavm.flavour.expr.type.PrimitiveArray;
 import org.teavm.flavour.expr.type.PrimitiveKind;
-import org.teavm.flavour.expr.type.TypeInference;
+import org.teavm.flavour.expr.type.TypeArgument;
+import org.teavm.flavour.expr.type.TypeUtils;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.Variance;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
 
 public final class CompilerCommons {
-    static final GenericClass booleanClass = new GenericClass("java.lang.Boolean");
-    static final GenericClass characterClass = new GenericClass("java.lang.Character");
-    static final GenericClass byteClass = new GenericClass("java.lang.Byte");
-    static final GenericClass shortClass = new GenericClass("java.lang.Short");
-    static final GenericClass integerClass = new GenericClass("java.lang.Integer");
-    static final GenericClass longClass = new GenericClass("java.lang.Long");
-    static final GenericClass floatClass = new GenericClass("java.lang.Float");
-    static final GenericClass doubleClass = new GenericClass("java.lang.Double");
-    static final GenericClass stringClass = new GenericClass("java.lang.String");
     static final Set<ValueType> classesSuitableForComparison = new HashSet<>(Arrays.asList(
-            characterClass, byteClass, shortClass, integerClass, longClass,
-            floatClass, doubleClass, Primitive.BYTE, Primitive.CHAR, Primitive.SHORT,
-            Primitive.INT, Primitive.LONG, Primitive.FLOAT, Primitive.DOUBLE));
-    static final Map<Primitive, GenericClass> primitivesToWrappers = new HashMap<>();
-    static final Map<GenericClass, Primitive> wrappersToPrimitives = new HashMap<>();
+            TypeUtils.CHARACTER_CLASS, TypeUtils.BYTE_CLASS, TypeUtils.SHORT_CLASS, TypeUtils.INTEGER_CLASS,
+            TypeUtils.LONG_CLASS, TypeUtils.FLOAT_CLASS, TypeUtils.DOUBLE_CLASS, Primitive.BYTE, Primitive.CHAR,
+            Primitive.SHORT, Primitive.INT, Primitive.LONG, Primitive.FLOAT, Primitive.DOUBLE));
+
     private static ValueType[] orderedNumericTypes = { Primitive.BYTE, Primitive.SHORT, Primitive.INT, Primitive.LONG,
             Primitive.FLOAT, Primitive.DOUBLE };
-
-    static {
-        primitiveAndWrapper(Primitive.BOOLEAN, booleanClass);
-        primitiveAndWrapper(Primitive.CHAR, characterClass);
-        primitiveAndWrapper(Primitive.BYTE, byteClass);
-        primitiveAndWrapper(Primitive.SHORT, shortClass);
-        primitiveAndWrapper(Primitive.INT, integerClass);
-        primitiveAndWrapper(Primitive.LONG, longClass);
-        primitiveAndWrapper(Primitive.FLOAT, floatClass);
-        primitiveAndWrapper(Primitive.DOUBLE, doubleClass);
-    }
-
-    static void primitiveAndWrapper(Primitive primitive, GenericClass wrapper) {
-        primitivesToWrappers.put(primitive, wrapper);
-        wrappersToPrimitives.put(wrapper, primitive);
-    }
 
     private CompilerCommons() {
     }
@@ -92,21 +68,15 @@ public final class CompilerCommons {
             }
             return orderedNumericTypes[Math.max(p, q)];
         } else if (a instanceof Primitive) {
-            a = primitivesToWrappers.get(a);
+            a = TypeUtils.tryBox(a);
         } else if (b instanceof Primitive) {
-            b = primitivesToWrappers.get(b);
+            b = TypeUtils.tryBox(b);
         }
 
-        TypeInference inference = new TypeInference(navigator);
-        GenericReference common = new GenericReference(new TypeVar());
-        if (inference.subtypeConstraint((GenericType) a, common)
-                && inference.subtypeConstraint((GenericType) b, common)) {
-            return getType(common.substitute(inference.getSubstitutions()));
-        }
-        return null;
+        return new LeastUpperBoundFinder(navigator).find(Arrays.asList((GenericType) a, (GenericType) b));
     }
 
-    static int numericTypeToOrder(PrimitiveKind kind) {
+    private static int numericTypeToOrder(PrimitiveKind kind) {
         switch (kind) {
             case BYTE:
                 return 0;
@@ -169,7 +139,7 @@ public final class CompilerCommons {
         }
     }
 
-    static int arithmeticSize(PrimitiveKind kind) {
+    private static int arithmeticSize(PrimitiveKind kind) {
         switch (kind) {
             case BYTE:
                 return 0;
@@ -186,16 +156,6 @@ public final class CompilerCommons {
             default:
                 return -1;
         }
-    }
-
-    static GenericType getType(GenericType type) {
-        if (type instanceof GenericReference) {
-            TypeVar var = ((GenericReference) type).getVar();
-            if (var.getLowerBound().size() == 1) {
-                type = var.getLowerBound().iterator().next();
-            }
-        }
-        return type;
     }
 
     static boolean hasImplicitConversion(PrimitiveKind from, PrimitiveKind to) {
@@ -227,40 +187,20 @@ public final class CompilerCommons {
         }
     }
 
-    static ValueType unbox(ValueType type) {
-        if (type instanceof GenericReference) {
-            TypeVar v = ((GenericReference) type).getVar();
-            return v.getLowerBound().stream()
-                    .map(CompilerCommons.wrappersToPrimitives::get)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-        }
-        return CompilerCommons.wrappersToPrimitives.get(type);
-    }
-
-    static GenericType box(ValueType type) {
-        GenericClass wrapper = CompilerCommons.primitivesToWrappers.get(type);
-        if (wrapper == null) {
-            return (GenericType) type;
-        }
-        return wrapper;
-    }
-
     static boolean tryCastPrimitive(Primitive source, Primitive target) {
         if (source.getKind() == PrimitiveKind.BOOLEAN) {
             return target == Primitive.BOOLEAN;
         } else {
-            IntegerSubtype subtype = CompilerCommons.getIntegerSubtype(source.getKind());
+            IntegerSubtype subtype = getIntegerSubtype(source.getKind());
             if (subtype != null) {
                 source = Primitive.INT;
             }
-            ArithmeticType sourceArithmetic = CompilerCommons.getArithmeticType(source.getKind());
+            ArithmeticType sourceArithmetic = getArithmeticType(source.getKind());
             if (sourceArithmetic == null) {
                 return false;
             }
-            subtype = CompilerCommons.getIntegerSubtype(target.getKind());
-            ArithmeticType targetArithmetic = CompilerCommons.getArithmeticType(target.getKind());
+            subtype = getIntegerSubtype(target.getKind());
+            ArithmeticType targetArithmetic = getArithmeticType(target.getKind());
             if (targetArithmetic == null) {
                 if (subtype == null) {
                     return false;
@@ -273,7 +213,7 @@ public final class CompilerCommons {
     static Collection<GenericClass> extractClasses(ValueType type) {
         List<GenericClass> classes = new ArrayList<>();
         if (type instanceof Primitive) {
-            type = CompilerCommons.box(type);
+            type = TypeUtils.tryBox(type);
             if (type instanceof GenericClass) {
                 classes.add((GenericClass) type);
             }
@@ -348,7 +288,7 @@ public final class CompilerCommons {
 
     public static String methodToDesc(MethodDescriber method) {
         StringBuilder desc = new StringBuilder().append('(');
-        for (ValueType argType : method.getRawArgumentTypes()) {
+        for (ValueType argType : method.getRawParameterTypes()) {
             desc.append(typeToString(argType));
         }
         desc.append(')');
@@ -358,5 +298,86 @@ public final class CompilerCommons {
             desc.append('V');
         }
         return desc.toString();
+    }
+
+    public static boolean isSuperType(ValueType supertype, ValueType subtype, GenericTypeNavigator navigator) {
+        if (supertype.equals(subtype)) {
+            return true;
+        } else if (supertype instanceof Primitive && subtype instanceof Primitive) {
+            return TypeUtils.isPrimitiveSubType((Primitive) subtype, (Primitive) supertype);
+        } else if (supertype instanceof GenericClass && subtype instanceof GenericClass) {
+            GenericClass superclass = (GenericClass) supertype;
+            GenericClass subclass = (GenericClass) subtype;
+            List<GenericClass> path = navigator.sublassPath(subclass, superclass.getName());
+            if (path == null) {
+                return false;
+            }
+            GenericClass candidate = path.get(path.size() - 1);
+            for (int i = 0; i < superclass.getArguments().size(); ++i) {
+                if (!isContainedBy(candidate.getArguments().get(i), superclass.getArguments().get(i), navigator)) {
+                    return false;
+                }
+            }
+
+            return true;
+        } else if (supertype instanceof GenericArray && subtype instanceof GenericArray) {
+            return isSuperType(((GenericArray) supertype).getElementType(), ((GenericArray) subtype).getElementType(),
+                    navigator);
+        } else if (subtype instanceof IntersectionType) {
+            Collection<? extends GenericType> types = ((IntersectionType) subtype).getTypes();
+            return types.stream().anyMatch(t -> isSuperType(supertype, t, navigator));
+        } else if (subtype instanceof GenericReference) {
+            TypeVar typeVar = ((GenericReference) subtype).getVar();
+            return typeVar.getUpperBound().stream().anyMatch(t -> isSuperType(supertype, t, navigator));
+        } else if (supertype instanceof GenericReference) {
+            TypeVar typeVar = ((GenericReference) supertype).getVar();
+            return typeVar.getLowerBound().stream().anyMatch(t -> isSuperType(t, subtype, navigator));
+        } else if (subtype instanceof NullType) {
+            return supertype instanceof GenericType;
+        }
+
+        return supertype.equals(GenericType.OBJECT) && subtype instanceof GenericType;
+    }
+
+    public static boolean isContainedBy(TypeArgument a, TypeArgument b, GenericTypeNavigator navigator) {
+        if (a.getVariance() == Variance.COVARIANT && b.getVariance() == Variance.COVARIANT) {
+            return isSuperType(a.getBound(), b.getBound(), navigator);
+        } else if (a.getVariance() == Variance.CONTRAVARIANT && b.getVariance() == Variance.CONTRAVARIANT) {
+            return isSuperType(b.getBound(), a.getBound(), navigator);
+        } else if (a.getVariance() == Variance.INVARIANT) {
+            return isSuperType(a.getBound(), b.getBound(), navigator);
+        } else {
+            return false;
+        }
+    }
+
+    public static boolean isLooselyCompatibleType(ValueType targetType, ValueType sourceType,
+            GenericTypeNavigator navigator) {
+        if (targetType.equals(sourceType)) {
+            return true;
+        }
+        if (targetType instanceof Primitive) {
+            if (sourceType instanceof Primitive) {
+                ValueType unboxed = TypeUtils.tryUnbox((GenericType) sourceType);
+                if (unboxed == null) {
+                    ValueType boxed = TypeUtils.tryBox(targetType);
+                    return isSuperType(boxed, sourceType, navigator);
+                } else {
+                    sourceType = unboxed;
+                }
+            }
+            if (!hasImplicitConversion(((Primitive) sourceType).getKind(), ((Primitive) targetType).getKind())) {
+                return false;
+            }
+            return tryCastPrimitive((Primitive) sourceType, (Primitive) targetType);
+        }
+        if (sourceType instanceof Primitive) {
+            sourceType = TypeUtils.tryBox(sourceType);
+            if (sourceType == null) {
+                return false;
+            }
+        }
+
+        return isSuperType(targetType, sourceType, navigator);
     }
 }
