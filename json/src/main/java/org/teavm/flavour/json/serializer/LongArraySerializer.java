@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,17 +15,19 @@
  */
 package org.teavm.flavour.json.serializer;
 
+import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
-import org.teavm.flavour.json.tree.NullNode;
+import org.teavm.flavour.json.tree.NumberNode;
 
-public abstract class NullableSerializer implements JsonSerializer {
+public class LongArraySerializer extends NullableSerializer {
     @Override
-    public Node serialize(JsonSerializerContext context, Object value) {
-        if (value == null) {
-            return NullNode.instance();
+    public Node serializeNonNull(JsonSerializerContext context, Object value) {
+        ArrayNode arrayNode = ArrayNode.create();
+        long[] array = (long[]) value;
+        for (int i = 0; i < array.length; ++i) {
+            arrayNode.set(i, NumberNode.create(array[i]));
         }
-        return serializeNonNull(context, value);
-    }
 
-    public abstract Node serializeNonNull(JsonSerializerContext context, Object value);
+        return arrayNode;
+    }
 }

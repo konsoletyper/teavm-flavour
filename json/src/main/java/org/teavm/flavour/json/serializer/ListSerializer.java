@@ -16,21 +16,24 @@
 package org.teavm.flavour.json.serializer;
 
 import java.util.Collection;
+import java.util.function.BiFunction;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ListSerializer extends NullableSerializer {
+    private JsonSerializer itemSerializer;
+
+    public ListSerializer(JsonSerializer itemSerializer) {
+        this.itemSerializer = itemSerializer;
+    }
+
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
         ArrayNode result = ArrayNode.create();
         Collection<?> collection = (Collection<?>) value;
         for (Object item : collection) {
-            result.add(JSON.serialize(context, item));
+            result.add(itemSerializer.serialize(context, item));
         }
         return result;
     }

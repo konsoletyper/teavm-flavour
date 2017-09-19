@@ -18,10 +18,6 @@ package org.teavm.flavour.json.deserializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class LongDeserializer extends NullableDeserializer {
     @Override
     public Object deserializeNonNull(JsonDeserializerContext context, Node node) {

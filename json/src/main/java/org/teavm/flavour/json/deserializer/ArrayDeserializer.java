@@ -19,10 +19,6 @@ import java.lang.reflect.Array;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class ArrayDeserializer extends NullableDeserializer {
     private Class<?> itemType;
     private JsonDeserializer itemDeserializer;

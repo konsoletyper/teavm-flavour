@@ -20,11 +20,9 @@ import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.ObjectNode;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MapSerializer extends NullableSerializer {
+    private JsonSerializer serializer;
+
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
         ObjectNode result = ObjectNode.create();
