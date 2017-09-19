@@ -18,13 +18,12 @@ package org.teavm.flavour.json.deserializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.StringNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class StringDeserializer extends NullableDeserializer {
+public class StringDeserializer extends JsonDeserializer {
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isString()) {
             throw new IllegalArgumentException("Can't deserialize non-string node as a string");
         }

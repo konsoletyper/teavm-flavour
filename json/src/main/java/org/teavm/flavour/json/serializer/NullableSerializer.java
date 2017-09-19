@@ -18,11 +18,7 @@ package org.teavm.flavour.json.serializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NullNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public abstract class NullableSerializer extends JsonSerializer {
+public abstract class NullableSerializer implements JsonSerializer {
     @Override
     public Node serialize(JsonSerializerContext context, Object value) {
         if (value == null) {

@@ -19,11 +19,7 @@ import java.lang.reflect.Array;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class ArrayDeserializer extends NullableDeserializer {
+public class ArrayDeserializer extends JsonDeserializer {
     private Class<?> itemType;
     private JsonDeserializer itemDeserializer;
 
@@ -33,7 +29,10 @@ public class ArrayDeserializer extends NullableDeserializer {
     }
 
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isArray()) {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }

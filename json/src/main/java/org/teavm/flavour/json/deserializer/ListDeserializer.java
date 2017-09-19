@@ -20,11 +20,7 @@ import java.util.List;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class ListDeserializer extends NullableDeserializer {
+public class ListDeserializer extends JsonDeserializer {
     private JsonDeserializer itemDeserializer;
 
     public ListDeserializer(JsonDeserializer itemDeserializer) {
@@ -32,7 +28,10 @@ public class ListDeserializer extends NullableDeserializer {
     }
 
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isArray()) {
             throw new IllegalArgumentException("Can't deserialize non-array node as a list");
         }

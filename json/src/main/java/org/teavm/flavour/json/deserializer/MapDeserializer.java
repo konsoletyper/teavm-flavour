@@ -21,11 +21,7 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.ObjectNode;
 import org.teavm.flavour.json.tree.StringNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class MapDeserializer extends NullableDeserializer {
+public class MapDeserializer extends JsonDeserializer {
     private JsonDeserializer keyDeserializer;
     private JsonDeserializer valueDeserializer;
 
@@ -35,7 +31,10 @@ public class MapDeserializer extends NullableDeserializer {
     }
 
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isObject()) {
             throw new IllegalArgumentException("Can't deserialize non-object node as a map");
         }

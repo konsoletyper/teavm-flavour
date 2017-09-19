@@ -18,13 +18,12 @@ package org.teavm.flavour.json.deserializer;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class DoubleDeserializer extends NullableDeserializer {
+public class DoubleDeserializer extends JsonDeserializer {
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         return JSON.deserializeDouble(node);
     }
 }

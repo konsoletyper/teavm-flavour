@@ -18,8 +18,16 @@ package org.teavm.flavour.json.emit;
 import static org.teavm.metaprogramming.Metaprogramming.emit;
 import static org.teavm.metaprogramming.Metaprogramming.exit;
 import static org.teavm.metaprogramming.Metaprogramming.findClass;
+import static org.teavm.metaprogramming.Metaprogramming.getClassLoader;
 import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.DateFormat;
@@ -27,19 +35,30 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.serializer.ArraySerializer;
+import org.teavm.flavour.json.serializer.BooleanArraySerializer;
 import org.teavm.flavour.json.serializer.BooleanSerializer;
+import org.teavm.flavour.json.serializer.ByteArraySerializer;
+import org.teavm.flavour.json.serializer.CharArraySerializer;
 import org.teavm.flavour.json.serializer.CharacterSerializer;
+import org.teavm.flavour.json.serializer.DoubleArraySerializer;
 import org.teavm.flavour.json.serializer.DoubleSerializer;
 import org.teavm.flavour.json.serializer.EnumSerializer;
+import org.teavm.flavour.json.serializer.FloatArraySerializer;
+import org.teavm.flavour.json.serializer.IntArraySerializer;
 import org.teavm.flavour.json.serializer.IntegerSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializer;
 import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.serializer.ListSerializer;
+import org.teavm.flavour.json.serializer.LongArraySerializer;
 import org.teavm.flavour.json.serializer.MapSerializer;
+import org.teavm.flavour.json.serializer.ShortArraySerializer;
 import org.teavm.flavour.json.serializer.StringSerializer;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.BooleanNode;
@@ -56,6 +75,7 @@ import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 public class JsonSerializerEmitter {
     private ClassInformationProvider informationProvider;
+    private GenericTypeProvider genericTypeProvider = new GenericTypeProvider(getClassLoader());
     private static Map<String, Class<?>> predefinedSerializers = new HashMap<>();
 
     static {
@@ -98,9 +118,11 @@ public class JsonSerializerEmitter {
         if (findClass(Enum.class).isAssignableFrom(cls)) {
             return emit(() -> new EnumSerializer());
         } else if (findClass(Map.class).isAssignableFrom(cls)) {
-            return emit(() -> new MapSerializer());
+            Value<JsonSerializer> itemSerializer = createObjectSerializer(Object.class);
+            return emit(() -> new MapSerializer(itemSerializer.get(), itemSerializer.get()));
         } else if (findClass(Collection.class).isAssignableFrom(cls)) {
-            return emit(() -> new ListSerializer());
+            Value<JsonSerializer> itemSerializer = createObjectSerializer(Object.class);
+            return emit(() -> new ListSerializer(itemSerializer.get()));
         }
         return null;
     }
@@ -270,37 +292,134 @@ public class JsonSerializerEmitter {
             Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         ReflectMethod method = property.getter;
         String outputName = property.outputName;
-        Value<Node> propertyValue = convertValue(emit(() -> method.invoke(value.get())), context,
-                method.getReturnType(), method);
+        Method javaMethod = genericTypeProvider.findMethod(method);
+        Type type = javaMethod.getGenericReturnType();
+        Value<Node> propertyValue = convertValue(emit(() -> method.invoke(value.get())), context, type, method);
         emit(() -> target.get().set(outputName, propertyValue.get()));
     }
 
     private void emitField(PropertyInformation property, Value<Object> value,
             Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         ReflectField field = property.field;
+        Field javaField = genericTypeProvider.findField(field);
         String outputName = property.outputName;
 
         Value<Node> propertyValue = convertValue(emit(() -> field.get(value.get())), context,
-                field.getType(), field);
+                javaField.getGenericType(), field);
         emit(() -> target.get().set(outputName, propertyValue.get()));
     }
 
     private Value<Node> convertValue(Value<Object> value, Value<JsonSerializerContext> context,
-            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
-        if (type.isPrimitive()) {
-            return convertPrimitive(value, type);
+            Type type, ReflectAnnotatedElement annotations) {
+        if (type instanceof Class<?>) {
+            Class<?> cls = (Class<?>) type;
+            if (!cls.isArray()) {
+                if (cls.getName().equals(String.class.getName())) {
+                    return emit(() -> StringNode.create((String) value.get()));
+                } else if (findClass(Date.class).isAssignableFrom(cls)) {
+                    return convertDate(value, annotations);
+                }
+            }
+            if (cls.isPrimitive()) {
+                return convertPrimitive(value, cls);
+            }
+        }
+
+        return convertNullable(value, context, type, annotations);
+    }
+
+    private Value<JsonSerializer> createSerializer(Type type, ReflectAnnotatedElement annotations) {
+        if (type instanceof Class<?>) {
+            Class<?> cls = (Class<?>) type;
+            return cls.isArray()
+                    ? createArraySerializer(cls.getComponentType(), annotations)
+                    : createObjectSerializer(cls);
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType paramType = (ParameterizedType) type;
+            Type[] typeArgs = paramType.getActualTypeArguments();
+            if (paramType.getRawType().equals(Map.class)) {
+                return createMapSerializer(typeArgs[0], typeArgs[1], annotations);
+            } else if (paramType.getRawType().equals(List.class) || paramType.getRawType().equals(Set.class)) {
+                return createListSerializer(typeArgs[0], annotations);
+            } else {
+                return createSerializer(paramType.getRawType(), annotations);
+            }
+        } else if (type instanceof GenericArrayType) {
+            GenericArrayType arrayType = (GenericArrayType) type;
+            return createArraySerializer(arrayType, annotations);
+        } else if (type instanceof WildcardType) {
+            WildcardType wildcard = (WildcardType) type;
+            Type upperBound = wildcard.getUpperBounds()[0];
+            Class<?> upperCls = Object.class;
+            if (upperBound instanceof Class<?>) {
+                upperCls = (Class<?>) upperBound;
+            }
+            return createObjectSerializer(upperCls);
+        } else if (type instanceof TypeVariable<?>) {
+            TypeVariable<?> tyvar = (TypeVariable<?>) type;
+            Type upperBound = tyvar.getBounds()[0];
+            Class<?> upperCls = Object.class;
+            if (upperBound instanceof Class<?>) {
+                upperCls = (Class<?>) upperBound;
+            }
+
+            return createObjectSerializer(upperCls);
         } else {
-            return convertNullable(value, context, type, annotations);
+            return createObjectSerializer(Object.class);
         }
     }
 
-    private Value<Node> convertNullable(Value<Object> value, Value<JsonSerializerContext> context,
-            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
-        Value<Node> result = lazyFragment(() -> convertObject(value, context, type, annotations));
+    private Value<JsonSerializer> createArraySerializer(Class<?> type, ReflectAnnotatedElement annotations) {
+        if (type.isPrimitive()) {
+            String name = type.getName();
+            switch (name) {
+                case "boolean":
+                    return emit(() -> new BooleanArraySerializer());
+                case "byte":
+                    return emit(() -> new ByteArraySerializer());
+                case "short":
+                    return emit(() -> new ShortArraySerializer());
+                case "char":
+                    return emit(() -> new CharArraySerializer());
+                case "int":
+                    return emit(() -> new IntArraySerializer());
+                case "long":
+                    return emit(() -> new LongArraySerializer());
+                case "float":
+                    return emit(() -> new FloatArraySerializer());
+                case "double":
+                    return emit(() -> new DoubleArraySerializer());
+            }
+        }
+        Value<JsonSerializer> itemSerializer = createSerializer(type, annotations);
+        return emit(() -> new ArraySerializer(itemSerializer.get()));
+    }
+
+    private Value<JsonSerializer> createArraySerializer(GenericArrayType type,
+            ReflectAnnotatedElement annotations) {
+        Value<JsonSerializer> itemSerializer = createSerializer(type.getGenericComponentType(), annotations);
+        return emit(() -> new ArraySerializer(itemSerializer.get()));
+    }
+
+    private Value<JsonSerializer> createObjectSerializer(Class<?> type) {
+        ReflectClass<?> cls = findClass(type);
+        return proxy(JsonSerializer.class, (instance, method, args) -> {
+            Value<Object> castValue = emit(() -> cls.cast(args[1].get()));
+            Value<Node> result = emit(() -> JSON.serialize((JsonSerializerContext) args[0].get(), castValue.get()));
+            exit(() -> result.get());
+        });
+    }
+
+    private Value<Node> convertNullable(Value<Object> value, Value<JsonSerializerContext> context, Type type,
+            ReflectAnnotatedElement annotations) {
+        Value<Node> result = lazyFragment(() -> {
+            Value<JsonSerializer> serializer = createSerializer(type, annotations);
+            return emit(() -> serializer.get().serialize(context.get(), value.get()));
+        });
         return emit(() -> value.get() == null ? NullNode.instance() : result.get());
     }
 
-    private Value<Node> convertPrimitive(Value<Object> value, ReflectClass<?> type) {
+    private Value<Node> convertPrimitive(Value<Object> value, Class<?> type) {
         switch (type.getName()) {
             case "boolean":
                 return emit(() -> BooleanNode.get((Boolean) value.get()));
@@ -322,17 +441,16 @@ public class JsonSerializerEmitter {
         throw new AssertionError("Unknown primitive type: " + type);
     }
 
-    private Value<Node> convertObject(Value<Object> value, Value<JsonSerializerContext> context,
-            ReflectClass<?> type, ReflectAnnotatedElement annotations) {
-        if (!type.isArray()) {
-            if (type.getName().equals(String.class.getName())) {
-                return emit(() -> StringNode.create((String) value.get()));
-            } else if (findClass(Date.class).isAssignableFrom(type)) {
-                return convertDate(value, annotations);
-            }
-        }
+    private Value<JsonSerializer> createListSerializer(Type type, ReflectAnnotatedElement annotations) {
+        Value<JsonSerializer> itemSerializer = createSerializer(type, annotations);
+        return emit(() -> new ListSerializer(itemSerializer.get()));
+    }
 
-        return emit(() -> JSON.serialize(context.get(), value.get()));
+    private Value<JsonSerializer> createMapSerializer(Type keyType, Type valueType,
+            ReflectAnnotatedElement annotations) {
+        Value<JsonSerializer> keySerializer = createSerializer(keyType, annotations);
+        Value<JsonSerializer> valueSerializer = createSerializer(valueType, annotations);
+        return emit(() -> new MapSerializer(keySerializer.get(), valueSerializer.get()));
     }
 
     private Value<Node> convertDate(Value<Object> value, ReflectAnnotatedElement annotations) {

@@ -22,14 +22,12 @@ import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 import org.teavm.flavour.json.tree.StringNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class ObjectDeserializer extends NullableDeserializer {
+public class ObjectDeserializer extends JsonDeserializer {
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
-        if (node.isArray()) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        } else if (node.isArray()) {
             ArrayNode arrayNode = (ArrayNode) node;
             Object[] result = new Object[arrayNode.size()];
             for (int i = 0; i < arrayNode.size(); ++i) {

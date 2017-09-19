@@ -18,15 +18,14 @@ package org.teavm.flavour.json.deserializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.NumberNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class LongDeserializer extends NullableDeserializer {
+public class LongDeserializer extends JsonDeserializer {
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isNumber()) {
-            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a byte");
+            throw new IllegalArgumentException("Don't know how to deserialize non-numeric node as a long");
         }
         NumberNode number = (NumberNode) node;
         return (long) number.getValue();

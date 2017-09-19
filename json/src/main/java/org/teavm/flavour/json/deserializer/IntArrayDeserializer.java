@@ -19,13 +19,12 @@ import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
-public class IntArrayDeserializer extends NullableDeserializer {
+public class IntArrayDeserializer extends JsonDeserializer {
     @Override
-    public Object deserializeNonNull(JsonDeserializerContext context, Node node) {
+    public Object deserialize(JsonDeserializerContext context, Node node) {
+        if (node.isNull()) {
+            return null;
+        }
         if (!node.isArray()) {
             throw new IllegalArgumentException("Can't deserialize non-array node as an array");
         }

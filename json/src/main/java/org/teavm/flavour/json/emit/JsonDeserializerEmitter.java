@@ -22,8 +22,6 @@ import static org.teavm.metaprogramming.Metaprogramming.getDiagnostics;
 import static org.teavm.metaprogramming.Metaprogramming.lazy;
 import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -34,7 +32,6 @@ import java.lang.reflect.WildcardType;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -44,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.function.Function;
-import java.util.function.IntFunction;
 import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanArrayDeserializer;
@@ -65,7 +61,6 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.LongArrayDeserializer;
 import org.teavm.flavour.json.deserializer.LongDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
-import org.teavm.flavour.json.deserializer.NullableDeserializer;
 import org.teavm.flavour.json.deserializer.ObjectDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.deserializer.ShortArrayDeserializer;
@@ -88,6 +83,7 @@ public class JsonDeserializerEmitter {
     private Diagnostics diagnostics = getDiagnostics();
     private ClassLoader classLoader = getClassLoader();
     private ClassInformationProvider informationProvider = ClassInformationProvider.getInstance();
+    private GenericTypeProvider genericTypeProvider = new GenericTypeProvider(classLoader);
     private static Map<String, Class<?>> predefinedDeserializers = new HashMap<>();
 
     static {
@@ -166,14 +162,14 @@ public class JsonDeserializerEmitter {
     }
 
     private Value<? extends JsonDeserializer> emitEnumDeserializer(ReflectClass<?> cls) {
-        return proxy(NullableDeserializer.class, (instance, method, args) -> {
+        return proxy(JsonDeserializer.class, (instance, method, args) -> {
             Value<Node> node = emit(() -> (Node) args[1]);
             emitEnumDeserializer(cls, node);
         });
     }
 
     private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
-        return proxy(NullableDeserializer.class, (instance, method, args) -> {
+        return proxy(JsonDeserializer.class, (instance, method, args) -> {
             ClassInformation information = informationProvider.get(cls.getName());
             Value<JsonDeserializerContext> context = emit(() -> (JsonDeserializerContext) args[0]);
             Value<Node> node = emit(() -> (Node) args[1]);
@@ -187,7 +183,7 @@ public class JsonDeserializerEmitter {
             result = emitNodeTypeCheck(node, result, emitIdCheck(information, node, context));
 
             Value<Object> finalResult = result;
-            exit(() -> finalResult.get());
+            exit(() -> node.get().isNull() ? null : finalResult.get());
         });
     }
 
@@ -210,11 +206,13 @@ public class JsonDeserializerEmitter {
 
         Value<Object> finalResult = result;
         exit(() -> {
-            if (!node.get().isString()) {
+            if (node.get().isNull()) {
+                return null;
+            } else if (!node.get().isString()) {
                 throw new IllegalArgumentException("Can't convert to " + className + ": "
                         + node.get().stringify());
             } else {
-                return finalResult;
+                return finalResult.get();
             }
         });
     }
@@ -378,14 +376,7 @@ public class JsonDeserializerEmitter {
 
         int paramCount = information.constructorArgs.size();
         Value<Object[]> args = emit(() -> new Object[paramCount]);
-        Type[] genericTypes;
-        if (information.constructor.getName().equals("<init>")) {
-            Constructor<?> javaCtor = findConstructor(information.constructor);
-            genericTypes = javaCtor.getGenericParameterTypes();
-        } else {
-            Method javaMethod = findMethod(information.constructor);
-            genericTypes = javaMethod.getGenericParameterTypes();
-        }
+        Type[] genericTypes = genericTypeProvider.getGenericTypesForConstructor(information);
 
         for (int i = 0; i < paramCount; ++i) {
             PropertyInformation property = information.constructorArgs.get(i);
@@ -478,7 +469,7 @@ public class JsonDeserializerEmitter {
     private void emitSetter(PropertyInformation property, Value<Object> target,
             Value<ObjectNode> node, Value<JsonDeserializerContext> context) {
         ReflectMethod method = property.setter;
-        Method javaMethod = findMethod(method);
+        Method javaMethod = genericTypeProvider.findMethod(method);
         Type type = javaMethod.getGenericParameterTypes()[0];
 
         String propertyName = property.outputName;
@@ -490,7 +481,7 @@ public class JsonDeserializerEmitter {
     private void emitField(PropertyInformation property, Value<Object> target,
             Value<ObjectNode> node, Value<JsonDeserializerContext> context) {
         ReflectField field = property.field;
-        Field javaField = findField(field);
+        Field javaField = genericTypeProvider.findField(field);
         Type type = javaField.getGenericType();
 
         String propertyName = property.outputName;
@@ -502,13 +493,13 @@ public class JsonDeserializerEmitter {
     private Type getPropertyGenericType(PropertyInformation property) {
         Type type = null;
         if (property.getter != null) {
-            Method getter = findMethod(property.getter);
+            Method getter = genericTypeProvider.findMethod(property.getter);
             if (getter != null) {
                 type = getter.getGenericReturnType();
             }
         }
         if (type == null && property.field != null) {
-            Field field = findField(property.field);
+            Field field = genericTypeProvider.findField(property.field);
             if (field != null) {
                 type = field.getGenericType();
             }
@@ -601,7 +592,7 @@ public class JsonDeserializerEmitter {
     private Value<JsonDeserializer> createArrayDeserializer(GenericArrayType type,
             ReflectAnnotatedElement annotations) {
         Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getGenericComponentType(), annotations);
-        Class<?> cls = rawType(type);
+        Class<?> cls = GenericTypeProvider.rawType(type);
         return emit(() -> new ArrayDeserializer(cls, itemDeserializer.get()));
     }
 
@@ -677,107 +668,12 @@ public class JsonDeserializerEmitter {
         }
     }
 
-    private Method findMethod(ReflectMethod reference) {
-        Class<?> owner = findClass(reference.getDeclaringClass().getName());
-        Class<?>[] params = Arrays.stream(reference.getParameterTypes())
-                .map(this::convertType)
-                .toArray((IntFunction<Class<?>[]>) Class[]::new);
-        while (owner != null) {
-            try {
-                return owner.getDeclaredMethod(reference.getName(), params);
-            } catch (NoSuchMethodException e) {
-                owner = owner.getSuperclass();
-            }
-        }
-        return null;
-    }
-
-    private Constructor<?> findConstructor(ReflectMethod method) {
-        Class<?> owner = findClass(method.getDeclaringClass().getName());
-        Class<?>[] params = Arrays.stream(method.getParameterTypes())
-                .map(this::convertType)
-                .toArray((IntFunction<Class<?>[]>) Class[]::new);
-        while (owner != null) {
-            try {
-                return owner.getDeclaredConstructor(params);
-            } catch (NoSuchMethodException e) {
-                owner = owner.getSuperclass();
-            }
-        }
-        return null;
-    }
-
-    private Field findField(ReflectField field) {
-        Class<?> owner = findClass(field.getDeclaringClass().getName());
-        while (owner != null) {
-            try {
-                return owner.getDeclaredField(field.getName());
-            } catch (NoSuchFieldException e) {
-                owner = owner.getSuperclass();
-            }
-        }
-        return null;
-    }
-
-    private Class<?> convertType(ReflectClass<?> type) {
-        if (type.isPrimitive()) {
-            switch (type.getName()) {
-                case "boolean":
-                    return boolean.class;
-                case "byte":
-                    return byte.class;
-                case "short":
-                    return short.class;
-                case "char":
-                    return char.class;
-                case "int":
-                    return int.class;
-                case "long":
-                    return long.class;
-                case "float":
-                    return float.class;
-                case "double":
-                    return double.class;
-                case "void":
-                    return void.class;
-            }
-        } else if (type.isArray()) {
-            Class<?> itemCls = convertType(type.getComponentType());
-            return Array.newInstance(itemCls, 0).getClass();
-        }
-        return findClass(type.getName());
-    }
-
-    private Class<?> findClass(String name) {
-        try {
-            return Class.forName(name, false, classLoader);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Can't find class " + name, e);
-        }
-    }
-
     static class ObjectWithTag {
         Value<String> tag;
         Value<ObjectNode> object;
         ObjectWithTag(Value<String> tag, Value<ObjectNode> object) {
             this.tag = tag;
             this.object = object;
-        }
-    }
-
-    private Class<?> rawType(Type type) {
-        if (type instanceof Class<?>) {
-            return (Class<?>) type;
-        } else if (type instanceof ParameterizedType) {
-            return rawType(((ParameterizedType) type).getRawType());
-        } else if (type instanceof GenericArrayType) {
-            return Array.newInstance(rawType(((GenericArrayType) type).getGenericComponentType()), 0).getClass();
-        } else if (type instanceof TypeVariable<?>) {
-            return rawType(((TypeVariable<?>) type).getBounds()[0]);
-        } else if (type instanceof WildcardType) {
-            return rawType(((WildcardType) type).getUpperBounds()[0]);
-        } else {
-            throw new IllegalArgumentException("Don't know how to convert generic type: " + type);
         }
     }
 

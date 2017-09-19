@@ -17,10 +17,6 @@ package org.teavm.flavour.json.serializer;
 
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
-public abstract class JsonSerializer {
-    public abstract Node serialize(JsonSerializerContext context, Object value);
+public interface JsonSerializer {
+    Node serialize(JsonSerializerContext context, Object value);
 }

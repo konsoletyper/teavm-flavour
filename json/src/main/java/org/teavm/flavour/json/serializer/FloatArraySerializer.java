@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,19 +13,21 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.json.deserializer;
+package org.teavm.flavour.json.serializer;
 
+import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.NumberNode;
 
-/**
- *
- * @author Alexey Andreev
- */
-public abstract class NullableDeserializer extends JsonDeserializer {
+public class FloatArraySerializer extends NullableSerializer {
     @Override
-    public final Object deserialize(JsonDeserializerContext context, Node node) {
-        return node.isNull() ? null : deserializeNonNull(context, node);
-    }
+    public Node serializeNonNull(JsonSerializerContext context, Object value) {
+        ArrayNode arrayNode = ArrayNode.create();
+        float[] array = (float[]) value;
+        for (int i = 0; i < array.length; ++i) {
+            arrayNode.set(i, NumberNode.create(array[i]));
+        }
 
-    public abstract Object deserializeNonNull(JsonDeserializerContext context, Node node);
+        return arrayNode;
+    }
 }

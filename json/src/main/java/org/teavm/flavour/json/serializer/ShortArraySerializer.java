@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2017 Alexey Andreev.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,28 +13,21 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.json.deserializer;
+package org.teavm.flavour.json.serializer;
 
-import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.ArrayNode;
 import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.json.tree.NumberNode;
 
-public class FloatArrayDeserializer extends JsonDeserializer {
+public class ShortArraySerializer extends NullableSerializer {
     @Override
-    public Object deserialize(JsonDeserializerContext context, Node node) {
-        if (node.isNull()) {
-            return null;
-        }
-        if (!node.isArray()) {
-            throw new IllegalArgumentException("Can't deserialize non-array node as an array");
-        }
-
-        ArrayNode arrayNode = (ArrayNode) node;
-        float[] array = new float[arrayNode.size()];
+    public Node serializeNonNull(JsonSerializerContext context, Object value) {
+        ArrayNode arrayNode = ArrayNode.create();
+        short[] array = (short[]) value;
         for (int i = 0; i < array.length; ++i) {
-            array[i] = JSON.deserializeFloat(arrayNode.get(i));
+            arrayNode.set(i, NumberNode.create(array[i]));
         }
 
-        return array;
+        return arrayNode;
     }
 }

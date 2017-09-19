@@ -17,10 +17,6 @@ package org.teavm.flavour.json.deserializer;
 
 import org.teavm.flavour.json.tree.Node;
 
-/**
- *
- * @author Alexey Andreev
- */
 public abstract class JsonDeserializer {
     public abstract Object deserialize(JsonDeserializerContext context, Node node);
 }

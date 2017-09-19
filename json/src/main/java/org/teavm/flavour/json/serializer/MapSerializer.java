@@ -16,21 +16,25 @@
 package org.teavm.flavour.json.serializer;
 
 import java.util.Map;
-import org.teavm.flavour.json.JSON;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.ObjectNode;
+import org.teavm.flavour.json.tree.StringNode;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class MapSerializer extends NullableSerializer {
+    private JsonSerializer keySerializer;
+    private JsonSerializer valueSerializer;
+
+    public MapSerializer(JsonSerializer keySerializer, JsonSerializer valueSerializer) {
+        this.keySerializer = keySerializer;
+        this.valueSerializer = valueSerializer;
+    }
+
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {
         ObjectNode result = ObjectNode.create();
         for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-            String key = entry.getKey() instanceof String ? (String) entry.getKey() : entry.getKey().toString();
-            result.set(key, JSON.serialize(context, entry.getValue()));
+            StringNode key = (StringNode) keySerializer.serialize(context, entry.getKey());
+            result.set(key.getValue(), valueSerializer.serialize(context, entry.getValue()));
         }
         return result;
     }
