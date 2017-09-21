@@ -23,7 +23,10 @@ class AttributeComponentMetadata extends BaseComponentMetadata {
     MethodDescriber constructor;
     ComponentAttributeType type;
     MethodDescriber setter;
+    MethodDescriber altSetter;
     MethodDescriber getter;
     ValueType valueType;
+    ValueType altValueType;
     GenericMethod sam;
+    GenericMethod altSam;
 }

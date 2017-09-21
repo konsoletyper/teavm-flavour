@@ -252,7 +252,7 @@ class ComponentParser {
         bindings.add(binding);
         if (metadata.contentSetter != null) {
             error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName()
-                    + " but another method is alredy bound to content of component " + metadata.cls.getName() + ": "
+                    + " but another method is already bound to content of component " + metadata.cls.getName() + ": "
                     + methodToString(metadata.contentSetter));
             return;
         }
@@ -277,9 +277,12 @@ class ComponentParser {
             return;
         }
         if (metadata.type != null) {
-            error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName()
-                    + " but another method is alredy bound to content of component " + metadata.cls.getName() + ": "
-                    + methodToString(metadata.setter));
+            if (!tryBidirectional(metadata, method)) {
+                error("Method " + methodToString(method.getDescriber()) + " is marked by " + BindContent.class.getName()
+                        + " but another method is already bound to content of component " + metadata.cls.getName()
+                        + ": " + methodToString(metadata.setter));
+            }
+            return;
         }
         metadata.setter = method.getDescriber();
         ValueType[] arguments = method.getActualParameterTypes();
@@ -353,6 +356,39 @@ class ComponentParser {
     }
 
     private boolean tryBidirectional(ComponentAttributeMetadata attribute, GenericMethod method) {
+        if (attribute.type != ComponentAttributeType.FUNCTION) {
+            return false;
+        }
+        if (method.getActualReturnType() != null || method.getActualParameterTypes().length != 1) {
+            return false;
+        }
+        ValueType valueType = method.getActualParameterTypes()[0];
+        if (!(valueType instanceof GenericClass)) {
+            return false;
+        }
+        GenericMethod sam = typeNavigator.findSingleAbstractMethod((GenericClass) valueType);
+
+        if (isGetterLike(sam) && isSetterLike(attribute.sam)) {
+            attribute.type = ComponentAttributeType.BIDIRECTIONAL;
+            attribute.altSam = attribute.sam;
+            attribute.altSetter = attribute.setter;
+            attribute.altValueType = attribute.valueType;
+            attribute.sam = sam;
+            attribute.setter = method.getDescriber();
+            attribute.valueType = valueType;
+            return true;
+        } else if (isSetterLike(sam) && isGetterLike(attribute.sam)) {
+            attribute.type = ComponentAttributeType.BIDIRECTIONAL;
+            attribute.altSam = sam;
+            attribute.altSetter = method.getDescriber();
+            attribute.altValueType = valueType;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean tryBidirectional(AttributeComponentMetadata attribute, GenericMethod method) {
         if (attribute.type != ComponentAttributeType.FUNCTION) {
             return false;
         }

@@ -623,24 +623,27 @@ public class Parser {
                 component.getVariables().add(varBinding);
                 break;
             }
-            case FUNCTION: {
+            case FUNCTION:
+            case BIDIRECTIONAL: {
                 TypeInference inference = new TypeInference(typeNavigator);
                 inference.addVariables(Arrays.asList(componentMeta.cls.getTypeVariables()));
                 TypeEstimator estimator = new TypeEstimator(inference, classResolver, typeNavigator,
                         new TemplateScope());
 
                 TypedPlan plan;
+                Expr expr = null;
                 if (isSettingsObject(componentMeta.valueType)) {
-                    ObjectExpr expr = parseObject(attr.getValueSegment());
-                    if (expr == null) {
+                    ObjectExpr objectExpr = parseObject(attr.getValueSegment());
+                    if (objectExpr == null) {
                         break;
                     }
-                    plan = compileSettingsObject(attr.getValueSegment(), expr, componentMeta.sam.getActualOwner());
+                    plan = compileSettingsObject(attr.getValueSegment(), objectExpr,
+                            componentMeta.sam.getActualOwner());
                     if (plan == null) {
                         break;
                     }
                 } else {
-                    Expr expr = parseExpr(attr.getValueSegment());
+                    expr = parseExpr(attr.getValueSegment());
                     if (expr == null) {
                         break;
                     }
@@ -666,11 +669,17 @@ public class Parser {
                         setter.getName(), (LambdaPlan) plan.getPlan(),
                         componentMeta.sam.getDescriber().getOwner().getName());
                 component.getFunctions().add(functionBinding);
-                break;
-            }
-            case BIDIRECTIONAL: {
-                diagnostics.add(new Diagnostic(attr.getBegin(), attr.getEnd(), "Bidirectional attributes "
-                        + "are not supported yet"));
+
+                if (componentMeta.type == ComponentAttributeType.BIDIRECTIONAL && expr != null) {
+                    setter = componentMeta.altSetter;
+                    ValueType type = componentMeta.altSam.getActualOwner().substitute(inference.getSubstitutions());
+                    plan = compileExpr(attr.getValueSegment(), expr, (GenericClass) type);
+                    ComponentFunctionBinding computationBinding = new ComponentFunctionBinding(
+                            setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                            componentMeta.altSam.getActualOwner().getName());
+                    component.getFunctions().add(computationBinding);
+                }
+
                 break;
             }
         }

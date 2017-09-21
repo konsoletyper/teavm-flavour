@@ -19,7 +19,7 @@
       <form>
         <div class="form-group">
           <label>Status</label>
-          <select class="form-control" html:value="order.status" html:change="order.status" html:enabled="not fresh">
+          <select class="form-control" html:bidir-value="order.status" html:enabled="not fresh">
             <option value="PLANNED">Planned</option>
             <option value="DELIVERED">Delivered</option>
             <option value="INVALID">Invalid</option>
