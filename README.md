@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/konsoletyper/teavm-flavour.svg?branch=master)](https://travis-ci.org/konsoletyper/teavm-flavour)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.teavm.flavour/teavm-flavour-widgets/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.teavm/teavm-maven-plugin) 
 [![Bintray](https://api.bintray.com/packages/konsoletyper/teavm/teavm-flavour-dev/images/download.svg) ](https://bintray.com/konsoletyper/teavm/teavm-flavour-dev/_latestVersion)
 
 TeaVM Flavour is a subproject of TeaVM.
