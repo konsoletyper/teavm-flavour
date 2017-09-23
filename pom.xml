@@ -44,19 +44,23 @@
     </developer>
   </developers>
 
-  <repositories>
-    <repository>
-      <id>teavm-dev</id>
-      <url>https://dl.bintray.com/konsoletyper/teavm</url>
-    </repository>
-  </repositories>
+  <scm>
+    <url>https://github.com/konsoletyper/teavm</url>
+    <connection>scm:git:git@github.com:konsoletyper/teavm-flavour.git</connection>
+  </scm>
 
-  <pluginRepositories>
-    <pluginRepository>
-      <id>teavm-dev</id>
-      <url>https://dl.bintray.com/konsoletyper/teavm</url>
-    </pluginRepository>
-  </pluginRepositories>
+  <distributionManagement>
+    <snapshotRepository>
+      <id>sonatype-nexus-snapshots</id>
+      <name>Sonatype Nexus Snapshots</name>
+      <url>${sonatypeOssDistMgmtSnapshotsUrl}</url>
+    </snapshotRepository>
+    <repository>
+      <id>sonatype-nexus-staging</id>
+      <name>Nexus Release Repository</name>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -65,6 +69,7 @@
     <jackson.version>2.5.4</jackson.version>
     <antlr.version>4.6</antlr.version>
     <selenium.version>2.51.0</selenium.version>
+    <sonatypeOssDistMgmtSnapshotsUrl>https://oss.sonatype.org/content/repositories/snapshots/</sonatypeOssDistMgmtSnapshotsUrl>
   </properties>
 
   <dependencyManagement>
@@ -324,6 +329,7 @@
         <module>example</module>
       </modules>
     </profile>
+
     <profile>
       <id>deploy-to-bintray</id>
       <distributionManagement>
@@ -333,6 +339,28 @@
           <url>https://api.bintray.com/maven/konsoletyper/teavm/teavm-flavour-dev/;publish=1</url>
         </repository>
       </distributionManagement>
+    </profile>
+
+    <profile>
+      <id>sign-artifacts</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.4</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>
