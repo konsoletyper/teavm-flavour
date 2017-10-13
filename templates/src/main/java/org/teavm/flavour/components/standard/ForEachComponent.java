@@ -77,23 +77,64 @@ public class ForEachComponent<T> extends AbstractComponent {
             }
         }
 
-        for (int i = 0; i < newComputedCollection.size(); ++i) {
-            elementVariable = newComputedCollection.get(i);
-            indexVariable = i;
-            if (i >= computedCollection.size()) {
+
+        int sizeDiff = Math.abs(newComputedCollection.size() - computedCollection.size());
+
+        if (sizeDiff <= 2) {
+            int upper = computedCollection.size() - 1;
+            int newUpper = newComputedCollection.size() - 1;
+            while (upper > 0 && newUpper > 0 && newComputedCollection.get(newUpper) == computedCollection.get(upper)) {
+                --upper;
+                --newUpper;
+            }
+
+            if (newComputedCollection.size() > computedCollection.size()) {
+                for (int i = 0; i < sizeDiff; ++i) {
+                    int index = upper + i;
+                    elementVariable = newComputedCollection.get(index);
+                    indexVariable = index;
+                    Component childComponent = body.create();
+                    childComponent.render();
+                    childComponents.add(upper + i, childComponent);
+                    getSlot().insert(childComponent.getSlot(), upper + i);
+                }
+            } else {
+                for (int i = sizeDiff - 1; i >= 0; --i) {
+                    childComponents.remove(newUpper + i).destroy();
+                }
+            }
+
+            for (int i = 0; i < upper; ++i) {
+                rerenderElement(newComputedCollection, i);
+            }
+            for (int i = newUpper + 1; i < newComputedCollection.size(); ++i) {
+                rerenderElement(newComputedCollection, i);
+            }
+
+        } else {
+            for (int i = 0; i < computedCollection.size(); ++i) {
+                rerenderElement(newComputedCollection, i);
+            }
+            for (int i = computedCollection.size(); i < newComputedCollection.size(); ++i) {
+                elementVariable = newComputedCollection.get(i);
+                indexVariable = i;
                 Component childComponent = body.create();
                 childComponent.render();
                 childComponents.add(childComponent);
                 getSlot().append(childComponent.getSlot());
-            } else {
-                childComponents.get(i).render();
             }
-        }
-        for (int i = childComponents.size() - 1; i >= newComputedCollection.size(); --i) {
-            childComponents.remove(i).destroy();
+            for (int i = childComponents.size() - 1; i >= newComputedCollection.size(); --i) {
+                childComponents.remove(i).destroy();
+            }
         }
 
         computedCollection = newComputedCollection;
+    }
+
+    private void rerenderElement(List<T> collection, int index) {
+        elementVariable = collection.get(index);
+        indexVariable = index;
+        childComponents.get(index).render();
     }
 
     @Override
