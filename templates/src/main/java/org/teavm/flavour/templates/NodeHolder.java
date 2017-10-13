@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.templates;
 
-import java.util.List;
+import org.teavm.jso.core.JSArray;
 import org.teavm.jso.dom.xml.Node;
 
 public class NodeHolder extends Space {
@@ -23,16 +23,25 @@ public class NodeHolder extends Space {
 
     public NodeHolder(Node node) {
         this.node = node;
-        upperNode = 1;
     }
 
     @Override
-    void getNodeHolders(List<NodeHolder> receiver) {
-        receiver.add(this);
+    Node getFirstNode() {
+        return node;
     }
 
     @Override
-    public void buildDebugString(StringBuilder sb) {
-        sb.append('[').append(lowerNode).append(" dom ").append(upperNode).append(']');
+    Node getLastNode() {
+        return node;
+    }
+
+    @Override
+    void getAllNodes(JSArray<Node> nodes) {
+        nodes.push(node);
+    }
+
+    @Override
+    void deleteDom() {
+        node.delete();
     }
 }

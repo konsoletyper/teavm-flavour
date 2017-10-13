@@ -15,25 +15,33 @@
  */
 package org.teavm.flavour.templates;
 
-import java.util.List;
+import org.teavm.jso.core.JSArray;
 import org.teavm.jso.dom.xml.Node;
-import org.teavm.jso.dom.xml.NodeList;
 
 public abstract class Space {
     Slot parent;
-    int index;
-    int lowerNode;
-    int upperNode;
+    Space previous;
+    Space next;
 
     Space() {
     }
 
-    public int getIndex() {
-        return index;
-    }
-
     public Slot getParent() {
         return parent;
+    }
+
+    abstract Node getFirstNode();
+
+    abstract Node getLastNode();
+
+    abstract void getAllNodes(JSArray<Node> nodes);
+
+    public Space getPrevious() {
+        return previous;
+    }
+
+    public Space getNext() {
+        return next;
     }
 
     public void delete() {
@@ -41,40 +49,33 @@ public abstract class Space {
             return;
         }
 
-        RootSlot root = getRoot();
-        if (root != null) {
-            NodeList<Node> domNodes = root.domNode.getChildNodes();
-            for (int i = upperNode - 1; i >= lowerNode; --i) {
-                root.domNode.removeChild(domNodes.get(i));
-            }
+        deleteDom();
+
+        Space newPrevious = previous;
+        if (newPrevious != null) {
+            newPrevious = newPrevious.previous;
+        } else {
+            parent.first = next;
+        }
+        Space newNext = next;
+        if (newNext != null) {
+            newNext = newNext.next;
+        } else {
+            parent.previous = previous;
         }
 
-        parent.childList.remove(index);
-        int nodeCount = upperNode - lowerNode;
-        for (int i = index; i < parent.childList.size(); ++i) {
-            parent.childList.get(i).index = i;
+        if (newPrevious != null) {
+            newPrevious.next = newNext;
+        }
+        if (newNext != null) {
+            newNext.previous = newPrevious;
         }
 
-        upperNode += nodeCount;
-        Space ancestor = this;
-        while (ancestor != null) {
-            if (ancestor.parent != null) {
-                for (int i = ancestor.index + 1; i < ancestor.parent.childList.size(); ++i) {
-                    ancestor.parent.childList.get(i).offsetNode(-nodeCount);
-                }
-            }
-            ancestor.upperNode -= nodeCount;
-            ancestor = ancestor.parent;
-        }
-
-        parent = null;
-        index = 0;
-        offsetNode(-lowerNode);
+        next = newNext;
+        previous = newPrevious;
     }
 
-    void offsetNode(int offset) {
-        lowerNode += offset;
-        upperNode += offset;
+    void deleteDom() {
     }
 
     RootSlot getRoot() {
@@ -84,10 +85,4 @@ public abstract class Space {
         }
         return space instanceof RootSlot ? (RootSlot) space : null;
     }
-
-    void getNodeHolders(@SuppressWarnings("unused") List<NodeHolder> receiver) {
-        // Do nothing
-    }
-
-    public abstract void buildDebugString(StringBuilder sb);
 }

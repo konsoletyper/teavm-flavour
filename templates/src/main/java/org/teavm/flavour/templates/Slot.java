@@ -15,98 +15,128 @@
  */
 package org.teavm.flavour.templates;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.teavm.jso.core.JSArray;
 import org.teavm.jso.dom.xml.Node;
 
 public abstract class Slot extends Space {
-    List<Space> childList = new ArrayList<>();
+    Space first;
+    Space last;
 
     Slot() {
     }
 
     public void append(Space slot) {
-        insert(slot, size());
+        insertBefore(slot, null);
     }
 
-    public void insert(Space space, int index) {
+    public void insertBefore(Space space, Space successor) {
         if (space.getParent() != null) {
             throw new IllegalArgumentException("The given space is already hosted by a slot");
         }
+        if (successor != null && successor.getParent() != this) {
+            throw new IllegalArgumentException("Successor does not belong to this slot");
+        }
+
+        space.parent = this;
+        if (successor == null) {
+            space.previous = last;
+            if (last != null) {
+                last.next = space;
+            } else {
+                first = space;
+            }
+            last = space;
+        } else {
+            space.next = successor;
+            space.previous = successor.previous;
+            if (space.next != null) {
+                space.next.previous = space;
+            } else {
+                last = space;
+            }
+            if (space.previous != null) {
+                space.previous.next = space;
+            } else {
+                first = space;
+            }
+        }
 
         RootSlot root = getRoot();
-        int successorIndex = index < childList.size() ? childList.get(index).upperNode : upperNode;
-        if (root != null) {
-            List<NodeHolder> nodeHolders = new ArrayList<>();
-            space.getNodeHolders(nodeHolders);
-            Node successor = root.domNode.getChildNodes().get(successorIndex);
-            for (NodeHolder nodeHolder : nodeHolders) {
-                root.domNode.insertBefore(nodeHolder.node, successor);
-            }
+        if (root == null) {
+            return;
         }
 
-        childList.add(index, space);
-        space.parent = this;
-        for (int i = index; i < childList.size(); ++i) {
-            childList.get(i).index = index;
+        JSArray<Node> domNodes = JSArray.create();
+        space.getAllNodes(domNodes);
+        if (domNodes.getLength() == 0) {
+            return;
         }
-
-        int nodeCount = space.upperNode - space.lowerNode;
-        space.offsetNode(successorIndex);
-        space.upperNode -= nodeCount;
-        Space ancestor = space;
-        while (ancestor != null) {
-            if (ancestor.parent != null) {
-                for (int i = ancestor.index + 1; i < ancestor.parent.childList.size(); ++i) {
-                    ancestor.parent.childList.get(i).offsetNode(nodeCount);
+        Node successorDomNode;
+        if (successor != null) {
+            successorDomNode = successor.getFirstNode();
+        } else {
+            Space ancestor = this;
+            successorDomNode = null;
+            while (ancestor != null) {
+                if (ancestor.next != null) {
+                    successorDomNode = ancestor.next.getFirstNode();
+                    break;
                 }
+                ancestor = ancestor.parent;
             }
-            ancestor.upperNode += nodeCount;
-            ancestor = ancestor.parent;
+        }
+        for (int i = 0; i < domNodes.getLength(); ++i) {
+            root.domNode.insertBefore(domNodes.get(i), successorDomNode);
         }
     }
 
-    public Space getChild(int index) {
-        return childList.get(index);
+    @Override
+    Node getFirstNode() {
+        Space child = first;
+        while (child != null) {
+            Node result = child.getFirstNode();
+            if (result != null) {
+                return result;
+            }
+            child = child.getNext();
+        }
+        return null;
     }
 
-    public int size() {
-        return childList.size();
+    @Override
+    Node getLastNode() {
+        Space child = last;
+        while (child != null) {
+            Node result = child.getLastNode();
+            if (result != null) {
+                return result;
+            }
+            child = child.getPrevious();
+        }
+        return null;
     }
+
+    @Override
+    void getAllNodes(JSArray<Node> nodes) {
+        for (Space child = first; child != null; child = child.getNext()) {
+            child.getAllNodes(nodes);
+        }
+    }
+
+    @Override
+    void deleteDom() {
+        Space child = first;
+        while (child != null) {
+            child.deleteDom();
+            child = child.getNext();
+        }
+    }
+
     public static Slot create() {
         return new ContainerSlot();
     }
 
     public static Slot root(Node domNode) {
         return new RootSlot(domNode);
-    }
-
-    @Override
-    void offsetNode(int offset) {
-        super.offsetNode(offset);
-        for (Space child : childList) {
-            child.offsetNode(offset);
-        }
-    }
-
-    @Override
-    void getNodeHolders(List<NodeHolder> receiver) {
-        for (Space child : childList) {
-            child.getNodeHolders(receiver);
-        }
-    }
-
-    @Override
-    public void buildDebugString(StringBuilder sb) {
-        sb.append('[').append(lowerNode).append(' ').append('(');
-        if (!childList.isEmpty()) {
-            childList.get(0).buildDebugString(sb);
-            for (int i = 1; i < childList.size(); ++i) {
-                sb.append(' ');
-                childList.get(i).buildDebugString(sb);
-            }
-        }
-        sb.append(')');
-        sb.append(' ').append(upperNode).append(']');
     }
 }

@@ -15,9 +15,10 @@
  */
 package org.teavm.flavour.components.standard;
 
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.function.Supplier;
 import org.teavm.flavour.templates.AbstractComponent;
 import org.teavm.flavour.templates.BindAttribute;
@@ -27,6 +28,7 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.OptionalBinding;
 import org.teavm.flavour.templates.Slot;
+import org.teavm.flavour.templates.Space;
 
 @BindElement(name = "foreach")
 public class ForEachComponent<T> extends AbstractComponent {
@@ -34,8 +36,8 @@ public class ForEachComponent<T> extends AbstractComponent {
     private T elementVariable;
     private int indexVariable;
     private Fragment body;
-    private List<Component> childComponents = new ArrayList<>();
-    private List<T> computedCollection = new ArrayList<>();
+    private List<Component> childComponents = new LinkedList<>();
+    private List<T> computedCollection = new LinkedList<>();
 
     public ForEachComponent(Slot slot) {
         super(slot);
@@ -64,38 +66,82 @@ public class ForEachComponent<T> extends AbstractComponent {
 
     @Override
     public void render() {
+        List<T> newComputedCollection = initNewCollection();
+
+        ListIterator<T> lowerDataIterator = computedCollection.listIterator();
+        ListIterator<T> lowerNewDataIterator = newComputedCollection.listIterator();
+        ListIterator<Component> lowerComponentIterator = childComponents.listIterator();
+        ListIterator<T> upperDataIterator = computedCollection.listIterator(computedCollection.size());
+        ListIterator<T> upperNewDataIterator = newComputedCollection.listIterator(newComputedCollection.size());
+        ListIterator<Component> upperComponentIterator = childComponents.listIterator(childComponents.size());
+
+        findLastChangedItem(upperDataIterator, upperNewDataIterator, upperComponentIterator);
+        int dataLimit = upperDataIterator.nextIndex();
+        int newDataLimit = upperNewDataIterator.nextIndex();
+        while (lowerDataIterator.hasNext() && lowerDataIterator.nextIndex() < dataLimit
+                && lowerNewDataIterator.hasNext() && lowerNewDataIterator.nextIndex() < newDataLimit) {
+            Component component = lowerComponentIterator.next();
+            indexVariable = lowerDataIterator.nextIndex();
+            elementVariable = lowerNewDataIterator.next();
+            lowerDataIterator.next();
+            component.render();
+        }
+
+        if (lowerDataIterator.hasNext() && lowerDataIterator.nextIndex() < dataLimit) {
+            while (lowerDataIterator.hasNext() && lowerDataIterator.nextIndex() < dataLimit) {
+                Component component = lowerComponentIterator.next();
+                lowerComponentIterator.remove();
+                component.destroy();
+                lowerDataIterator.next();
+                lowerDataIterator.remove();
+                --dataLimit;
+            }
+        } else if (lowerNewDataIterator.hasNext() && lowerNewDataIterator.nextIndex() < newDataLimit) {
+            Component nextComponent = upperComponentIterator.hasNext() ? upperComponentIterator.next() : null;
+            Space nextSlot = nextComponent != null ? nextComponent.getSlot() : null;
+            while (lowerNewDataIterator.hasNext() && lowerNewDataIterator.nextIndex() < newDataLimit) {
+                indexVariable = lowerNewDataIterator.nextIndex();
+                elementVariable = lowerNewDataIterator.next();
+                lowerDataIterator.add(elementVariable);
+                Component childComponent = body.create();
+                childComponent.render();
+                lowerComponentIterator.add(childComponent);
+                getSlot().insertBefore(childComponent.getSlot(), nextSlot);
+            }
+        }
+    }
+
+    private List<T> initNewCollection() {
         List<T> newComputedCollection;
         Iterable<T> items = collection.get();
-        if (items instanceof Collection<?>) {
-            @SuppressWarnings("unchecked")
+        if (items instanceof List<?>) {
+            newComputedCollection = (List<T>) items;
+        } else if (items instanceof Collection<?>) {
             Collection<T> safeItems = (Collection<T>) items;
-            newComputedCollection = new ArrayList<>(safeItems);
+            newComputedCollection = new LinkedList<>(safeItems);
         } else {
-            newComputedCollection = new ArrayList<>();
+            newComputedCollection = new LinkedList<>();
             for (T item : items) {
                 newComputedCollection.add(item);
             }
         }
-
-        for (int i = 0; i < newComputedCollection.size(); ++i) {
-            elementVariable = newComputedCollection.get(i);
-            indexVariable = i;
-            if (i >= computedCollection.size()) {
-                Component childComponent = body.create();
-                childComponent.render();
-                childComponents.add(childComponent);
-                getSlot().append(childComponent.getSlot());
-            } else {
-                childComponents.get(i).render();
-            }
-        }
-        for (int i = childComponents.size() - 1; i >= newComputedCollection.size(); --i) {
-            childComponents.remove(i).destroy();
-        }
-
-        computedCollection = newComputedCollection;
+        return newComputedCollection;
     }
 
+    private void findLastChangedItem(ListIterator<T> dataIterator, ListIterator<T> newDataIterator,
+            ListIterator<Component> componentIterator) {
+        while (dataIterator.hasPrevious() && newDataIterator.hasPrevious()) {
+            indexVariable = newDataIterator.previousIndex();
+            elementVariable = newDataIterator.previous();
+            if (elementVariable != dataIterator.previous()) {
+                dataIterator.next();
+                newDataIterator.next();
+                break;
+            }
+            Component component = componentIterator.previous();
+            component.render();
+        }
+    }
     @Override
     public void destroy() {
         super.destroy();

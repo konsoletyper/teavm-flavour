@@ -17,6 +17,7 @@ package org.teavm.flavour.components.standard.test;
 
 import static org.junit.Assert.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,26 +55,54 @@ public class StandardComponentsTest {
         model.collection.add("baz");
         component.render();
         String[] values = toStrings(root.getElementsByTagName("div"));
-        assertArrayEquals(new String[] { "foo", "bar", "baz" }, values);
+        assertArrayEquals("Initial list construction", new String[] { "foo", "bar", "baz" }, values);
 
         model.collection.add("qqq");
         component.render();
         values = toStrings(root.getElementsByTagName("div"));
-        assertArrayEquals(new String[] { "foo", "bar", "baz", "qqq" }, values);
+        assertArrayEquals("Add element to end", new String[] { "foo", "bar", "baz", "qqq" }, values);
 
         model.collection.add(1, "www");
         component.render();
         values = toStrings(root.getElementsByTagName("div"));
-        assertArrayEquals(new String[] { "foo", "www", "bar", "baz", "qqq" }, values);
+        assertArrayEquals("Insert element ", new String[] { "foo", "www", "bar", "baz", "qqq" }, values);
 
-        model.collection.remove(2);
+        model.collection.add(4, "ttt");
         component.render();
         values = toStrings(root.getElementsByTagName("div"));
-        assertArrayEquals(new String[] { "foo", "www", "baz", "qqq" }, values);
+        assertArrayEquals("Insert element 2", new String[] { "foo", "www", "bar", "baz", "ttt", "qqq" }, values);
+
+        model.collection.add(0, "eee");
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("Add element to start",
+                new String[] { "eee", "foo", "www", "bar", "baz", "ttt", "qqq" }, values);
+
+        model.collection.remove(3);
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("Remove element from inside list",
+                new String[] { "eee", "foo", "www", "baz", "ttt", "qqq" }, values);
+
+        model.collection.remove(0);
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("Remove first element", new String[] { "foo", "www", "baz", "ttt", "qqq" }, values);
+
+        model.collection.remove(4);
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("Remove last element", new String[] { "foo", "www", "baz", "ttt" }, values);
+
+        model.collection.clear();
+        model.collection.addAll(Arrays.asList("1", "2", "3", "4", "5"));
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("Refresh list", new String[] { "1", "2", "3", "4", "5" }, values);
 
         model.collection.clear();
         component.render();
-        assertEquals(0, toList(root.getElementsByTagName("div")).size());
+        assertEquals("Clear list", 0, toList(root.getElementsByTagName("div")).size());
     }
 
     @BindTemplate("templates/foreach-works.html")
@@ -136,6 +165,26 @@ public class StandardComponentsTest {
         public String f() {
             return a;
         }
+    }
+
+    @Test
+    public void ifSurroundedWithElements() {
+        IfSurroundedModel model = new IfSurroundedModel();
+        Component component = Templates.bind(model, root);
+
+        component.render();
+        String[] values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("first", new String[] { "foo", "bar", "baz" }, values);
+
+        model.a = true;
+        component.render();
+        values = toStrings(root.getElementsByTagName("div"));
+        assertArrayEquals("second", new String[] { "foo", "ttt", "baz" }, values);
+    }
+
+    @BindTemplate("templates/if-surrounded.html")
+    static class IfSurroundedModel {
+        public boolean a;
     }
 
     private static List<HTMLElement> toList(NodeList<? extends HTMLElement> nodeList) {
