@@ -16,6 +16,7 @@
 package org.teavm.flavour.rest.test;
 
 public class TestServiceImpl implements TestService {
+
     @Override
     public int sum(int a, int b) {
         return a + b;
@@ -23,10 +24,7 @@ public class TestServiceImpl implements TestService {
 
     @Override
     public int sum(int mod, int a, int b) {
-        int result = a + b % mod;
-        if (result < 0) {
-            result += mod;
-        }
-        return result;
+        return (a + b) % mod;
     }
+
 }
