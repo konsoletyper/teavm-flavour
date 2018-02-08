@@ -163,6 +163,9 @@ public class FactoryEmitter {
                 sb = appendConstant(sb, pattern.substring(index));
                 break;
             }
+            
+            sb = appendConstant(sb, pattern.substring(index, next));
+            
             int sep = pattern.indexOf(':', next);
             if (sep < 0 || sep > end) {
                 sep = end;

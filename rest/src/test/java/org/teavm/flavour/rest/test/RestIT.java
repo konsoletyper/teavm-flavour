@@ -26,6 +26,7 @@ import org.teavm.junit.TeaVMTestRunner;
 @RunWith(TeaVMTestRunner.class)
 @SkipJVM
 public class RestIT {
+
     private TestService service = RESTClient.factory(TestService.class).createResource(getUrl());
 
     @Test
@@ -33,6 +34,12 @@ public class RestIT {
         assertEquals(5, service.sum(2, 3));
     }
 
+    @Test
+    public void passesPathParamInsideUrl() throws Exception {
+        assertEquals(0, service.sum(10, 7, 3));
+    }
+
     @JSBody(script = "return $test_url;")
     private static native String getUrl();
+
 }
