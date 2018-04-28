@@ -15,15 +15,15 @@
  */
 package org.teavm.flavour.json.serializer;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
 public class JsonSerializerContext {
     private int lastId;
-    private Map<Object, Integer> ids = new HashMap<>();
-    private Set<Object> touchedObjects = new HashSet<>();
+    private Map<Object, Integer> ids = new IdentityHashMap<>();
+    private Set<Object> touchedObjects = Collections.newSetFromMap(new IdentityHashMap<>());
 
     public boolean hasId(Object object) {
         return ids.containsKey(object);
@@ -39,8 +39,9 @@ public class JsonSerializerContext {
     }
 
     public void touch(Object object) {
-        if (!touchedObjects.add(object)) {
-            throw new IllegalArgumentException("Object has already been serialzied: " + object);
+        if (touchedObjects.contains(object)) {
+            throw new IllegalArgumentException("Object has already been serialized: " + object);
         }
+        touchedObjects.add(object);
     }
 }

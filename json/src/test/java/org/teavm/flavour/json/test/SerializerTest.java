@@ -44,8 +44,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.teavm.junit.TeaVMTestRunner;
@@ -86,6 +88,27 @@ public class SerializerTest {
         assertTrue("Property `foo' must be an object", fooNode.isObject());
         assertTrue("Property `foo.a` expected", fooNode.has("a"));
         assertTrue("Property `foo.b` expected", fooNode.has("b"));
+    }
+
+    @Ignore
+    public void writesEqualsReference() {
+        C a1 = new C();
+        C a2 = new C();
+        a1.a = a2.a = "ciao";
+
+        C[] array = new C[]{a1, a2};
+
+        JsonNode node = JSONRunner.serialize(array);
+
+        assertTrue("Root node should be JSON array", node.isArray());
+
+        ArrayNode arrayNode = (ArrayNode)node;
+        assertEquals("Length must be 2", 2, arrayNode.size());
+
+        JsonNode firstNode = arrayNode.get(0);
+        assertTrue("Item must be a JSON object", firstNode.isObject());
+        JsonNode secondNode = arrayNode.get(1);
+        assertTrue("Item must be a JSON object", secondNode.isObject());
     }
 
     @Test
@@ -414,6 +437,23 @@ public class SerializerTest {
 
         public void setFoo(Object foo) {
             this.foo = foo;
+        }
+    }
+
+    public static class C {
+        private String a;
+
+        @Override
+        public int hashCode() {
+            return a.hashCode();
+        }
+
+        public String getA() {
+            return a;
+        }
+
+        public void setA(String a) {
+            this.a = a;
         }
     }
 
