@@ -44,6 +44,20 @@
     </developer>
   </developers>
 
+  <repositories>
+    <repository>
+      <id>teavm-dev</id>
+      <url>https://dl.bintray.com/konsoletyper/teavm</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>teavm-dev</id>
+      <url>https://dl.bintray.com/konsoletyper/teavm</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <scm>
     <url>https://github.com/konsoletyper/teavm</url>
     <connection>scm:git:git@github.com:konsoletyper/teavm-flavour.git</connection>
@@ -65,7 +79,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.7</slf4j.version>
-    <teavm.version>0.5.1</teavm.version>
+    <teavm.version>0.6.0-dev-529</teavm.version>
     <jackson.version>2.5.4</jackson.version>
     <antlr.version>4.6</antlr.version>
     <selenium.version>2.51.0</selenium.version>
