@@ -50,6 +50,7 @@ import java.util.TimeZone;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
@@ -405,6 +406,17 @@ public class SerializerTest {
         assertEquals(date.getTime(), node.get("numeric").asDouble(), 0.1);
         assertTrue("Textual date is a string", node.get("textual").isTextual());
         assertEquals("2015-08-02 16:25:35 Z", node.get("textual").asText());
+    }
+
+    @Test
+    public void arrayOfStrings() {
+        String[] stringArray = { "one", "two" };
+
+        JsonNode node = JSONRunner.serialize(stringArray);
+        assertTrue(node instanceof ArrayNode);
+        ArrayNode array = (ArrayNode) node;
+        assertEquals("one", array.get(0).asText());
+        assertEquals("two", array.get(1).asText());
     }
 
     public static class A {

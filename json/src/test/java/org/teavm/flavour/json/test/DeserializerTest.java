@@ -221,6 +221,14 @@ public class DeserializerTest {
         assertSame(node, node.successors.get(1).successors.get(0));
     }
 
+    @Test
+    public void arrayOfStrings() {
+        String[] stringArray = JSONRunner.deserialize("[\"one\", \"two\"]", String[].class);
+        assertEquals(2, stringArray.length);
+        assertEquals("one", stringArray[0]);
+        assertEquals("two", stringArray[1]);
+    }
+
     public static class A {
         String a;
         int b;

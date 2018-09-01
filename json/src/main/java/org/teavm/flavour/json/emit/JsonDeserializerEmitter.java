@@ -157,7 +157,7 @@ public class JsonDeserializerEmitter {
                     return emit(() -> new DoubleArrayDeserializer());
             }
         }
-        Value<? extends JsonDeserializer> itemDeserializer = getClassDeserializer(cls);
+        Value<? extends JsonDeserializer> itemDeserializer = getClassDeserializer(cls.getComponentType());
         return emit(() -> new ArrayDeserializer(cls.asJavaClass(), itemDeserializer.get()));
     }
 
