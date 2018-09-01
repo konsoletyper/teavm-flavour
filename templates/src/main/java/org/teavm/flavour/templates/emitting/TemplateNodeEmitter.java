@@ -49,12 +49,17 @@ import org.teavm.model.MethodDescriptor;
 import org.teavm.model.ValueType;
 
 class TemplateNodeEmitter implements TemplateNodeVisitor {
+    private static final int COMPLEXITY_THRESHOLD = 20;
+
     private EmitContext context;
     private Value<DomBuilder> builder;
+    private Value<DomBuilder> initialBuilder;
+    private int complexity;
 
     TemplateNodeEmitter(EmitContext context, Value<DomBuilder> builder) {
         this.context = context;
         this.builder = builder;
+        initialBuilder = builder;
     }
 
     @Override
@@ -67,9 +72,9 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         {
             Value<DomBuilder> tmpBuilder = builder;
             if (hasInnerComponents) {
-                builder = emit(() -> tmpBuilder.get().openSlot(tagName));
+                updateBuilder(emit(() -> tmpBuilder.get().openSlot(tagName)));
             } else {
-                builder = emit(() -> tmpBuilder.get().open(tagName));
+                updateBuilder(emit(() -> tmpBuilder.get().open(tagName)));
             }
         }
 
@@ -78,13 +83,13 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             String attrValue = attr.getValue();
             Value<DomBuilder> tmpBuilder = builder;
             context.location(attr.getLocation());
-            builder = emit(() -> tmpBuilder.get().attribute(attrName, attrValue));
+            updateBuilder(emit(() -> tmpBuilder.get().attribute(attrName, attrValue)));
         }
 
         for (AttributeComponentBinding binding : node.getAttributeComponents()) {
             Value<DomBuilder> tmpBuilder = builder;
             Value<Modifier> modifier = emitAttributeComponent(binding);
-            builder = emit(() -> tmpBuilder.get().add(modifier.get()));
+            updateBuilder(emit(() -> tmpBuilder.get().add(modifier.get())));
         }
 
         for (TemplateNode child : node.getChildNodes()) {
@@ -94,7 +99,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         {
             Value<DomBuilder> tmpBuilder = builder;
             context.endLocation(node.getLocation());
-            builder = emit(() -> tmpBuilder.get().close());
+            updateBuilder(emit(() -> tmpBuilder.get().close()));
         }
     }
 
@@ -103,7 +108,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         context.location(node.getLocation());
         String value = node.getValue();
         Value<DomBuilder> tmpBuilder = builder;
-        builder = emit(() -> tmpBuilder.get().text(value));
+        updateBuilder(emit(() -> tmpBuilder.get().text(value)));
     }
 
     @Override
@@ -127,7 +132,7 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         context.popBoundVars();
 
         Value<DomBuilder> tmpBuilder = builder;
-        builder = emit(() -> tmpBuilder.get().add(component.get()));
+        updateBuilder(emit(() -> tmpBuilder.get().add(component.get())));
     }
 
     private List<NestedComponentInstance> emitElementComponent(ComponentBinding node, Value<?> component,
@@ -252,6 +257,15 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
             ReflectClass<?> componentType) {
         ReflectMethod setter = componentType.getJMethod(methodName, String.class);
         emit(() -> setter.invoke(component.get(), elementName));
+    }
+
+    private void updateBuilder(Value<DomBuilder> newBuilder) {
+        if (++complexity > COMPLEXITY_THRESHOLD) {
+            complexity = 0;
+            builder = initialBuilder;
+        } else {
+            builder = newBuilder;
+        }
     }
 
     static class NestedComponentInstance {
