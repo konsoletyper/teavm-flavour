@@ -181,4 +181,20 @@ public class TemplateTest {
             return "BBB";
         }
     }
+
+    @Test
+    public void instanceOfWorks() {
+        InstanceOf model = new InstanceOf();
+
+        Component component = Templates.bind(model, root);
+        HTMLElement element = document.getElementById("value");
+
+        model.setA("");
+        component.render();
+        assertEquals("false", element.getAttribute("class"));
+
+        model.setA(23);
+        component.render();
+        assertEquals("true", element.getAttribute("class"));
+    }
 }
