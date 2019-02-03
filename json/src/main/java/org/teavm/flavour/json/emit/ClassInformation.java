@@ -28,11 +28,11 @@ class ClassInformation {
     InheritanceInformation inheritance = new InheritanceInformation();
     Map<String, PropertyInformation> properties = new HashMap<>();
     Map<String, PropertyInformation> propertiesByOutputName = new HashMap<>();
-    Visibility getterVisibility = Visibility.PUBLIC_ONLY;
-    Visibility isGetterVisibility = Visibility.PUBLIC_ONLY;
-    Visibility setterVisibility = Visibility.ANY;
-    Visibility creatorVisibility = Visibility.NONE;
-    Visibility fieldVisibility = Visibility.NONE;
+    Visibility getterVisibility = ClassInformationDefaults.getterVisibility;
+    Visibility isGetterVisibility = ClassInformationDefaults.isGetterVisibility;
+    Visibility setterVisibility = ClassInformationDefaults.setterVisibility;
+    Visibility creatorVisibility = ClassInformationDefaults.creatorVisibility;
+    Visibility fieldVisibility = ClassInformationDefaults.fieldVisibility;
     IdGeneratorType idGenerator = IdGeneratorType.NONE;
     String idProperty;
     ReflectMethod constructor;
