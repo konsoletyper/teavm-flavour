@@ -419,6 +419,28 @@ public class SerializerTest {
         assertEquals("two", array.get(1).asText());
     }
 
+    @Test
+    public void privateField() {
+        PrivateField privateField = new PrivateField();
+        privateField.foo = 123;
+        privateField.bar = 321;
+
+        JsonNode node = JSONRunner.serialize(privateField);
+        assertEquals(123, node.get("foo").asInt());
+        assertEquals(321, node.get("bar").asInt());
+    }
+
+    @Test
+    public void privateFieldIgnored() {
+        PrivateFieldIgnored privateFieldIgnored = new PrivateFieldIgnored();
+        privateFieldIgnored.bar = 123;
+        JsonNode node = JSONRunner.serialize(privateFieldIgnored);
+
+        assertFalse("Should not have `foo' property", node.has("foo"));
+        assertTrue("Should have `bar' property", node.has("bar"));
+        assertEquals(123, node.get("bar").asInt());
+    }
+
     public static class A {
         private String a;
         private int b;
@@ -648,5 +670,17 @@ public class SerializerTest {
 
         @JsonFormat(shape = Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss XX")
         public Date textual;
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.ANY)
+    public static class PrivateField {
+        private int foo;
+        public int bar;
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.NON_PRIVATE)
+    public static class PrivateFieldIgnored {
+        private int foo;
+        int bar;
     }
 }

@@ -32,7 +32,7 @@ class ClassInformation {
     Visibility isGetterVisibility = Visibility.PUBLIC_ONLY;
     Visibility setterVisibility = Visibility.ANY;
     Visibility creatorVisibility = Visibility.NONE;
-    Visibility fieldVisibility = Visibility.NONE;
+    Visibility fieldVisibility = Visibility.PUBLIC_ONLY;
     IdGeneratorType idGenerator = IdGeneratorType.NONE;
     String idProperty;
     ReflectMethod constructor;

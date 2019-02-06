@@ -479,7 +479,7 @@ class ClassInformationProvider {
             if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
-            if (hasExplicitPropertyDeclaration(field) || information.getterVisibility.match(field.getModifiers())) {
+            if (hasExplicitPropertyDeclaration(field) || information.fieldVisibility.match(field.getModifiers())) {
                 addField(information, field.getName(), field);
             }
         }
