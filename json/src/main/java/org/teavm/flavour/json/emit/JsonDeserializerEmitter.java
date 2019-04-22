@@ -674,15 +674,15 @@ public class JsonDeserializerEmitter {
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
                 try {
-                    return value != null ? format.parse(((StringNode) value.get()).getValue()) : null;
+                    return !value.get().isNull() ? format.parse(((StringNode) value.get()).getValue()) : null;
                 } catch (ParseException e) {
                     throw new RuntimeException(e);
                 }
             });
         } else {
             return emit(() -> {
-                NumberNode node = (NumberNode) value.get();
-                return node != null ? new Date(node.getIntValue()) : null;
+                Node node = value.get();
+                return !node.isNull() ? new Date((long) ((NumberNode) node).getValue()) : null;
             });
         }
     }

@@ -17,11 +17,13 @@ package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,9 +34,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.teavm.flavour.json.JsonPersistable;
@@ -234,6 +239,32 @@ public class DeserializerTest {
     public void readsPrivateField() {
         PrivateField obj = JSONRunner.deserialize("{ \"a\" : 123 }", PrivateField.class);
         assertEquals(123, obj.a);
+    }
+
+    @Test
+    public void readsDate() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getTimeZone("GMT"));
+        calendar.setTimeInMillis(0);
+        calendar.set(Calendar.YEAR, 2015);
+        calendar.set(Calendar.MONTH, Calendar.AUGUST);
+        calendar.set(Calendar.DATE, 2);
+        calendar.set(Calendar.HOUR_OF_DAY, 16);
+        calendar.set(Calendar.MINUTE, 25);
+        calendar.set(Calendar.SECOND, 35);
+        Date date = calendar.getTime();
+
+        DateFormats o = JSONRunner.deserialize("{ \"numeric\": " + date.getTime() + ", "
+                + "\"textual\": \"2015-08-02 16:25:35 Z\" }", DateFormats.class);
+        assertEquals(date.getTime(), o.numeric.getTime(), 5);
+        assertEquals(date.getTime(), o.textual.getTime(), 5);
+    }
+
+    @Test
+    public void readsNullDate() {
+        DateFormats o = JSONRunner.deserialize("{ \"numeric\": null, \"textual\": null }", DateFormats.class);
+        assertNull(o.numeric);
+        assertNull(o.textual);
     }
 
     @JsonPersistable
@@ -475,5 +506,12 @@ public class DeserializerTest {
     @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     public static class PrivateField {
         private int a;
+    }
+
+    public static class DateFormats {
+        public Date numeric;
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss XX")
+        public Date textual;
     }
 }

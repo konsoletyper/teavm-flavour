@@ -34,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -44,14 +45,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.teavm.flavour.json.JsonPersistable;
-import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
@@ -410,6 +409,14 @@ public class SerializerTest {
     }
 
     @Test
+    public void writesNullDate() {
+        DateFormats formats = new DateFormats();
+        JsonNode node = JSONRunner.serialize(formats);
+        assertTrue("Numeric date successfully serialized", node.get("numeric") instanceof NullNode);
+        assertTrue("Textual date successfully serialized", node.get("textual") instanceof NullNode);
+    }
+
+    @Test
     public void arrayOfStrings() {
         String[] stringArray = { "one", "two" };
 
@@ -694,7 +701,7 @@ public class SerializerTest {
     public static class DateFormats {
         public Date numeric;
 
-        @JsonFormat(shape = Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss XX")
+        @JsonFormat(shape = Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss XX")
         public Date textual;
     }
 

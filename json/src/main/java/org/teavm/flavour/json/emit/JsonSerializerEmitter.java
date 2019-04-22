@@ -473,6 +473,9 @@ public class JsonSerializerEmitter {
                     ? emit(() -> new Locale(localeName))
                     : emit(() -> Locale.getDefault());
             return emit(() -> {
+                if (value.get() == null) {
+                    return NullNode.instance();
+                }
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
                 return StringNode.create(format.format((Date) value.get()));
@@ -480,7 +483,7 @@ public class JsonSerializerEmitter {
         } else {
             return emit(() -> {
                 Date date = (Date) value.get();
-                return NumberNode.create(date.getTime());
+                return date != null ? NumberNode.create(date.getTime()) : NullNode.instance();
             });
         }
     }
