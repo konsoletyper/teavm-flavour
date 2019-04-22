@@ -297,7 +297,7 @@ class ClassInformationProvider {
     }
 
     private void scanSetters(ClassInformation information, ReflectClass<?> cls) {
-        for (ReflectMethod method : cls.getMethods()) {
+        for (ReflectMethod method : cls.getDeclaredMethods()) {
             if (Modifier.isStatic(method.getModifiers())) {
                 continue;
             }
