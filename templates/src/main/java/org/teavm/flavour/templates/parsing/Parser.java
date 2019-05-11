@@ -116,45 +116,45 @@ public class Parser {
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         source = new Source(reader);
         source.setLogger(new Logger() {
-          @Override
-          public void error(String message) {
-            System.err.println("ERROR: " + className + ": " + message);
-          }
+            @Override
+            public void error(String message) {
+                System.err.println("ERROR: " + className + ": " + message);
+            }
 
-          @Override
-          public void warn(String message) {
-            System.out.println("WARN: " + className + ": " + message);
-          }
+            @Override
+            public void warn(String message) {
+                System.out.println("WARN: " + className + ": " + message);
+            }
 
-          @Override
-          public void info(String message) {
-            System.out.println("INFO: " + className + ": " + message);
-          }
+            @Override
+            public void info(String message) {
+                System.out.println("INFO: " + className + ": " + message);
+            }
 
-          @Override
-          public void debug(String message) {
-            System.out.println("DEBUG: " + className + ": " + message);
-          }
+            @Override
+            public void debug(String message) {
+                System.out.println("DEBUG: " + className + ": " + message);
+            }
 
-          @Override
-          public boolean isErrorEnabled() {
-            return true;
-          }
+            @Override
+            public boolean isErrorEnabled() {
+                return true;
+            }
 
-          @Override
-          public boolean isWarnEnabled() {
-            return true;
-          }
+            @Override
+            public boolean isWarnEnabled() {
+                return true;
+            }
 
-          @Override
-          public boolean isInfoEnabled() {
-            return true;
-          }
+            @Override
+            public boolean isInfoEnabled() {
+                return true;
+            }
 
-          @Override
-          public boolean isDebugEnabled() {
-            return true;
-          }
+            @Override
+            public boolean isDebugEnabled() {
+                return true;
+            }
         });
         use(source, "std", "org.teavm.flavour.components.standard");
         use(source, "event", "org.teavm.flavour.components.events");

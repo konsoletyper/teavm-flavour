@@ -89,9 +89,9 @@ public class TemplatingProxyGenerator {
 
         if (!parser.getDiagnostics().isEmpty()) {
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
-                 SourceLocation diagnosticLocation = location != null ? new SourceLocation(location.getMethod(), path,
+                SourceLocation diagnosticLocation = location != null ? new SourceLocation(location.getMethod(), path,
                         mapper.getLine(diagnostic.getStart()) + 1) : null;
-                 diagnostics.error(diagnosticLocation, path + ": " + diagnostic.getMessage());
+                diagnostics.error(diagnosticLocation, path + ": " + diagnostic.getMessage());
             }
         }
 
