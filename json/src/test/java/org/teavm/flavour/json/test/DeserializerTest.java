@@ -229,6 +229,12 @@ public class DeserializerTest {
         assertEquals("two", stringArray[1]);
     }
 
+    @Test
+    public void readsPrivateField() {
+        PrivateField obj = JSONRunner.deserialize("{ \"a\" : 123 }", PrivateField.class);
+        assertEquals(123, obj.a);
+    }
+
     public static class A {
         String a;
         int b;
@@ -436,5 +442,10 @@ public class DeserializerTest {
         public List<GraphNode> getSuccessors() {
             return successors;
         }
+    }
+
+    @JsonAutoDetect(fieldVisibility = Visibility.ANY)
+    public static class PrivateField {
+        private int a;
     }
 }

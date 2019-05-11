@@ -24,6 +24,7 @@ import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
 import java.util.ArrayList;
 import java.util.List;
+import org.teavm.flavour.expr.InterpretationException;
 import org.teavm.flavour.expr.plan.ArithmeticCastPlan;
 import org.teavm.flavour.expr.plan.ArrayConstructionPlan;
 import org.teavm.flavour.expr.plan.ArrayLengthPlan;
@@ -530,7 +531,7 @@ class ExprPlanEmitter implements PlanVisitor {
 
     @Override
     public void visit(InstanceOfPlan plan) {
-        ReflectClass<?> cls = findClass(plan.getClassName());
+        ReflectClass<?> cls = new TypeDecoder(plan.getClassName()).decode();
         plan.getOperand().acceptVisitor(this);
         Value<Object> value = var;
 
@@ -733,6 +734,48 @@ class ExprPlanEmitter implements PlanVisitor {
                 }
                 default:
                     return null;
+            }
+        }
+    }
+
+    class TypeDecoder {
+        int position;
+        final String text;
+
+        TypeDecoder(String text) {
+            this.text = text;
+        }
+
+        ReflectClass<?> decode() {
+            switch (text.charAt(position++)) {
+                case 'Z':
+                    return findClass(boolean.class);
+                case 'C':
+                    return findClass(char.class);
+                case 'B':
+                    return findClass(byte.class);
+                case 'S':
+                    return findClass(short.class);
+                case 'I':
+                    return findClass(int.class);
+                case 'J':
+                    return findClass(long.class);
+                case 'F':
+                    return findClass(float.class);
+                case 'D':
+                    return findClass(double.class);
+                case 'V':
+                    return findClass(void.class);
+                case 'L': {
+                    int index = text.indexOf(';', position);
+                    ReflectClass<?> cls = findClass(text.substring(position, index).replace('/', '.'));
+                    position = index + 1;
+                    return cls;
+                }
+                case '[':
+                    return arrayClass(decode());
+                default:
+                    throw new InterpretationException("Error parsing type descriptor");
             }
         }
     }

@@ -25,11 +25,11 @@ import org.teavm.flavour.rest.JsonParseException;
 import org.teavm.flavour.rest.processor.HttpMethod;
 import org.teavm.flavour.rest.processor.Request;
 import org.teavm.interop.Async;
+import org.teavm.interop.AsyncCallback;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.JSObject;
 import org.teavm.jso.JSProperty;
 import org.teavm.jso.ajax.XMLHttpRequest;
-import org.teavm.platform.async.AsyncCallback;
 
 class RequestImpl implements Request {
     HttpMethod method;
