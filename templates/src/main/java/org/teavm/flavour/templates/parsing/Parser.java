@@ -115,45 +115,46 @@ public class Parser {
 
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         source = new Source(reader);
+        final Logger sourceLoggerOrig = source.getLogger();
         source.setLogger(new Logger() {
             @Override
             public void error(String message) {
-                System.err.println("ERROR: " + className + ": " + message);
+                sourceLoggerOrig.error(className + ": " + message);
             }
 
             @Override
             public void warn(String message) {
-                System.out.println("WARN: " + className + ": " + message);
+                sourceLoggerOrig.warn(message);
             }
 
             @Override
             public void info(String message) {
-                System.out.println("INFO: " + className + ": " + message);
+                sourceLoggerOrig.info(message);
             }
 
             @Override
             public void debug(String message) {
-                System.out.println("DEBUG: " + className + ": " + message);
+                sourceLoggerOrig.debug(message);
             }
 
             @Override
             public boolean isErrorEnabled() {
-                return true;
+                return sourceLoggerOrig.isErrorEnabled();
             }
 
             @Override
             public boolean isWarnEnabled() {
-                return true;
+                return sourceLoggerOrig.isWarnEnabled();
             }
 
             @Override
             public boolean isInfoEnabled() {
-                return true;
+                return sourceLoggerOrig.isInfoEnabled();
             }
 
             @Override
             public boolean isDebugEnabled() {
-                return true;
+                return sourceLoggerOrig.isDebugEnabled();
             }
         });
         use(source, "std", "org.teavm.flavour.components.standard");
