@@ -36,7 +36,6 @@ import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
 import org.teavm.metaprogramming.SourceLocation;
 import org.teavm.metaprogramming.Value;
-import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 public class TemplatingProxyGenerator {
     public void generate(Value<Object> model, ReflectClass<Object> modelType) {
@@ -92,7 +91,8 @@ public class TemplatingProxyGenerator {
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
                 SourceLocation diagnosticLocation = location != null ? new SourceLocation(location.getMethod(), path,
                         mapper.getLine(diagnostic.getStart()) + 1) : null;
-                diagnostics.error(diagnosticLocation, ((location == null) ? path + ": " : "") + diagnostic.getMessage());
+                diagnostics.error(diagnosticLocation,
+                        ((location == null) ? path + ": " : "") + diagnostic.getMessage());
             }
         }
 
