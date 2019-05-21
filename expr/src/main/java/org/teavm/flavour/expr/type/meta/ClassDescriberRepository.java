@@ -15,10 +15,6 @@
  */
 package org.teavm.flavour.expr.type.meta;
 
-/**
- *
- * @author Alexey Andreev
- */
 public interface ClassDescriberRepository {
     ClassDescriber describe(String className);
 }

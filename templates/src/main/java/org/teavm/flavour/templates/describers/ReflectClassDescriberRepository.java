@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2019 konsoletyper.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,18 +13,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.expr.type.meta;
+package org.teavm.flavour.templates.describers;
 
-import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 
-public interface FieldDescriber extends AnnotationsDescriber {
-    ClassDescriber getOwner();
-
-    String getName();
-
-    ValueType getType();
-
-    ValueType getRawType();
-
-    boolean isStatic();
+public class ReflectClassDescriberRepository implements ClassDescriberRepository {
+    @Override
+    public ClassDescriberImpl describe(String className) {
+        return null;
+    }
 }

@@ -29,10 +29,6 @@ import org.teavm.flavour.expr.type.GenericClass;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
 
-/**
- *
- * @author Alexey Andreev
- */
 class ClassPathClassDescriber extends ClassPathAnnotationsDescriber implements ClassDescriber {
     ClassPathClassDescriberRepository repository;
     private Class<?> cls;

@@ -22,9 +22,9 @@ import java.util.Arrays;
 import java.util.List;
 
 class OffsetToLineMapper {
-    int[] lines;
+    private int[] lines;
 
-    public void prepare(Reader reader) throws IOException {
+    void prepare(Reader reader) throws IOException {
         List<Integer> lineList = new ArrayList<>();
         boolean cr = false;
         int offset = 0;
@@ -53,7 +53,7 @@ class OffsetToLineMapper {
         }
     }
 
-    public int getLine(int offset) {
+    int getLine(int offset) {
         int line = Arrays.binarySearch(lines, offset);
         if (line < 0) {
             line = -line - 1;
