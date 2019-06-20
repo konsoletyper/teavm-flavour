@@ -20,9 +20,9 @@ import org.teavm.flavour.templates.Component;
 import org.teavm.flavour.templates.Fragment;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.interop.Async;
+import org.teavm.interop.AsyncCallback;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
-import org.teavm.platform.async.AsyncCallback;
 
 @BindTemplate("templates/flavour/widgets/popup.html")
 public final class Popup {
@@ -51,8 +51,8 @@ public final class Popup {
     @Async
     public static native void showModal(PopupContent content);
 
-    private static void showModal(PopupContent content, final AsyncCallback<Void> callback) {
-        final Popup popup = new Popup(Templates.create(content));
+    private static void showModal(PopupContent content, AsyncCallback<Void> callback) {
+        Popup popup = new Popup(Templates.create(content));
         popup.wrapper = document.createElement("div");
         document.getBody().appendChild(popup.wrapper);
         popup.component = Templates.bind(popup, popup.wrapper);

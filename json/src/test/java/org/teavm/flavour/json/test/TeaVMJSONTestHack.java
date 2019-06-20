@@ -15,11 +15,10 @@
  */
 package org.teavm.flavour.json.test;
 
-import org.teavm.diagnostics.Diagnostics;
 import org.teavm.model.BasicBlock;
 import org.teavm.model.ClassHolder;
 import org.teavm.model.ClassHolderTransformer;
-import org.teavm.model.ClassReaderSource;
+import org.teavm.model.ClassHolderTransformerContext;
 import org.teavm.model.Instruction;
 import org.teavm.model.MethodHolder;
 import org.teavm.model.MethodReference;
@@ -35,7 +34,7 @@ public class TeaVMJSONTestHack implements ClassHolderTransformer, TeaVMPlugin {
     }
 
     @Override
-    public void transformClass(ClassHolder cls, ClassReaderSource innerSource, Diagnostics diagnostics) {
+    public void transformClass(ClassHolder cls, ClassHolderTransformerContext context) {
         for (MethodHolder method : cls.getMethods()) {
             Program program = method.getProgram();
             if (program == null) {
