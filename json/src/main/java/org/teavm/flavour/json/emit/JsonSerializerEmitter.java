@@ -21,6 +21,7 @@ import static org.teavm.metaprogramming.Metaprogramming.findClass;
 import static org.teavm.metaprogramming.Metaprogramming.getClassLoader;
 import static org.teavm.metaprogramming.Metaprogramming.lazyFragment;
 import static org.teavm.metaprogramming.Metaprogramming.proxy;
+import static org.teavm.metaprogramming.Metaprogramming.unsupportedCase;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.flavour.json.serializer.ArraySerializer;
 import org.teavm.flavour.json.serializer.BooleanArraySerializer;
 import org.teavm.flavour.json.serializer.BooleanSerializer;
@@ -58,6 +60,7 @@ import org.teavm.flavour.json.serializer.JsonSerializerContext;
 import org.teavm.flavour.json.serializer.ListSerializer;
 import org.teavm.flavour.json.serializer.LongArraySerializer;
 import org.teavm.flavour.json.serializer.MapSerializer;
+import org.teavm.flavour.json.serializer.ObjectSerializer;
 import org.teavm.flavour.json.serializer.ShortArraySerializer;
 import org.teavm.flavour.json.serializer.StringSerializer;
 import org.teavm.flavour.json.tree.ArrayNode;
@@ -98,7 +101,11 @@ public class JsonSerializerEmitter {
 
     public void returnClassSerializer(ReflectClass<?> cls) {
         Value<JsonSerializer> serializer = getClassSerializer(cls);
-        exit(serializer != null ? () -> serializer.get() : () -> null);
+        if (serializer == null) {
+            unsupportedCase();
+            return;
+        }
+        exit(() -> serializer.get());
     }
 
     public Value<JsonSerializer> getClassSerializer(ReflectClass<?> cls) {
@@ -115,7 +122,10 @@ public class JsonSerializerEmitter {
             ReflectMethod ctor = findClass(serializerType).getDeclaredMethod("<init>");
             return emit(() -> (JsonSerializer) ctor.construct());
         }
-        if (findClass(Enum.class).isAssignableFrom(cls)) {
+        if (cls.isEnum()) {
+            if (cls.getAnnotation(JsonPersistable.class) == null) {
+                return null;
+            }
             return emit(() -> new EnumSerializer());
         } else if (findClass(Map.class).isAssignableFrom(cls)) {
             Value<JsonSerializer> itemSerializer = createObjectSerializer(Object.class);
@@ -129,12 +139,12 @@ public class JsonSerializerEmitter {
 
     private Value<JsonSerializer> emitClassSerializer(ReflectClass<?> cls) {
         if (cls.isArray()) {
-            return proxy(JsonSerializer.class, (instance, method, args) -> {
-                Value<JsonSerializerContext> context = emit(() -> (JsonSerializerContext) args[0]);
-                Value<Object> value = args[1];
-                ReflectClass<?> componentType = cls.getComponentType();
-                Value<JsonSerializer> componentSerializer = getPrimitiveSerializer(componentType);
-                if (componentSerializer != null) {
+            ReflectClass<?> componentType = cls.getComponentType();
+            Value<JsonSerializer> componentSerializer = getPrimitiveSerializer(componentType);
+            if (componentSerializer != null) {
+                return proxy(JsonSerializer.class, (instance, method, args) -> {
+                    Value<JsonSerializerContext> context = emit(() -> (JsonSerializerContext) args[0]);
+                    Value<Object> value = args[1];
                     exit(() -> {
                         ArrayNode target = ArrayNode.create();
                         int sz = cls.getArrayLength(value.get());
@@ -144,18 +154,19 @@ public class JsonSerializerEmitter {
                         }
                         return target;
                     });
+                });
+            } else {
+                Value<JsonSerializer> objectComponentSerializer;
+                if (componentType.getName().equals("java.lang.Object")) {
+                    objectComponentSerializer = emit(() -> ObjectSerializer.INSTANCE);
                 } else {
-                    exit(() -> {
-                        ArrayNode target = ArrayNode.create();
-                        int sz = cls.getArrayLength(value.get());
-                        for (int i = 0; i < sz; ++i) {
-                            Object component = cls.getArrayElement(value.get(), i);
-                            target.add(JSON.serialize(context.get(), component));
-                        }
-                        return target;
-                    });
+                    objectComponentSerializer = getClassSerializer(componentType);
+                    if (objectComponentSerializer == null) {
+                        return null;
+                    }
                 }
-            });
+                return emit(() -> new ArraySerializer(objectComponentSerializer.get()));
+            }
         } else {
             ClassInformation information = informationProvider.get(cls.getName());
             if (information == null) {

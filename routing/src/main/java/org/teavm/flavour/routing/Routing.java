@@ -16,6 +16,7 @@
 package org.teavm.flavour.routing;
 
 import java.util.function.Consumer;
+import org.teavm.flavour.routing.emit.PathImplementor;
 import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Window;
 
@@ -23,9 +24,17 @@ public final class Routing {
     private Routing() {
     }
 
-    @SuppressWarnings("unchecked")
     public static <T extends Route> T build(Class<T> routeType, Consumer<String> consumer) {
-        return (T) RoutingImpl.getImplementorByClass(routeType).write(consumer);
+        PathImplementor implementor = RoutingImpl.getImplementorByClass(routeType);
+        if (implementor == null) {
+            throw new IllegalArgumentException("Invalid route type: " + routeType);
+        }
+        @SuppressWarnings("unchecked")
+        T result = (T) implementor.write(consumer);
+        if (result == null) {
+            throw new IllegalArgumentException("Invalid route type: " + routeType);
+        }
+        return result;
     }
 
     public static <T extends Route> T open(Window window, Class<T> routeType) {

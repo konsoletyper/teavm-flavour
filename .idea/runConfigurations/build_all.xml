@@ -12,8 +12,11 @@
             <list>
               <option value="install" />
               <option value="-DskipTests" />
+              <option value="-e" />
+              <option value="-Dmaven.javadoc.skip=true" />
             </list>
           </option>
+          <option name="pomFileName" />
           <option name="profilesMap">
             <map />
           </option>
@@ -22,6 +25,6 @@
         </MavenRunnerParameters>
       </option>
     </MavenSettings>
-    <method />
+    <method v="2" />
   </configuration>
 </component>
