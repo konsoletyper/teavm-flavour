@@ -36,6 +36,7 @@ import org.teavm.flavour.json.deserializer.ListDeserializer;
 import org.teavm.flavour.json.deserializer.MapDeserializer;
 import org.teavm.flavour.json.deserializer.SetDeserializer;
 import org.teavm.flavour.json.tree.Node;
+import org.teavm.flavour.rest.Resource;
 import org.teavm.flavour.rest.ResourceFactory;
 import org.teavm.flavour.rest.impl.model.BeanRepository;
 import org.teavm.flavour.rest.impl.model.MethodKey;
@@ -80,6 +81,10 @@ public class FactoryEmitter {
     }
 
     public Value<? extends ResourceFactory<?>> emitFactory(ReflectClass<?> cls) {
+        if (cls.getAnnotation(Resource.class) == null) {
+            return null;
+        }
+
         return proxy(FactoryTemplate.class, (instance, methods, args) -> {
             Value<String> path = emit(() -> (String) args[0].get());
             Value<Object> result = emitFactoryWorker(instance, path, cls.asSubclass(Object.class));

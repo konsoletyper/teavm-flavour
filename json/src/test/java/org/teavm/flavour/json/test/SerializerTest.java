@@ -50,6 +50,7 @@ import java.util.TimeZone;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.junit.TeaVMTestRunner;
 
@@ -441,6 +442,7 @@ public class SerializerTest {
         assertEquals(123, node.get("bar").asInt());
     }
 
+    @JsonPersistable
     public static class A {
         private String a;
         private int b;
@@ -462,6 +464,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class B {
         private Object foo;
 
@@ -474,6 +477,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class C {
         private String a;
 
@@ -491,6 +495,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayProperty {
         int[] array;
 
@@ -503,6 +508,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayOfObjectProperty {
         A[] array;
 
@@ -515,6 +521,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class RenamedProperty {
         int foo;
 
@@ -528,6 +535,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class IgnoredProperty {
         int foo;
         String bar;
@@ -550,6 +558,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldAndGetter {
         public int foo;
@@ -559,6 +568,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class NamedFieldAndGetter {
         @JsonProperty("foo_")
         public int foo;
@@ -568,11 +578,13 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class BuiltInTypes {
         public Boolean boolField;
@@ -591,6 +603,7 @@ public class SerializerTest {
         public Visibility visibility;
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonIgnoreProperties("foo")
     public static class IgnoredProperties {
@@ -598,16 +611,19 @@ public class SerializerTest {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.MINIMAL_CLASS)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class InheritanceBase {
         public int foo;
     }
 
+    @JsonPersistable
     public static class Inheritance extends InheritanceBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonTypeName("basetype")
@@ -615,47 +631,56 @@ public class SerializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
         public int bar;
     }
 
+    @JsonPersistable
     public static class InheritanceByExplicitTypeName extends InheritanceByTypeNameBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.CLASS)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class InheritanceByFullNameBase {
         public int foo;
     }
 
+    @JsonPersistable
     public static class InheritanceByFullName extends InheritanceByFullNameBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT)
     @JsonTypeName("base")
     public static class InheritanceAsWrapperObjectBase {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperObject extends InheritanceAsWrapperObjectBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_ARRAY)
     @JsonTypeName("base")
     public static class InheritanceAsWrapperArrayBase {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
     public static class GraphNode {
         private List<GraphNode> successors = new ArrayList<>();
@@ -665,6 +690,7 @@ public class SerializerTest {
         }
     }
 
+    @JsonPersistable
     public static class DateFormats {
         public Date numeric;
 
@@ -672,12 +698,14 @@ public class SerializerTest {
         public Date textual;
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     public static class PrivateField {
         private int foo;
         public int bar;
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.NON_PRIVATE)
     public static class PrivateFieldIgnored {
         private int foo;

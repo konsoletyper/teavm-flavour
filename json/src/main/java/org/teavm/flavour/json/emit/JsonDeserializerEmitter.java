@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.function.Function;
 import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.flavour.json.deserializer.ArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanArrayDeserializer;
 import org.teavm.flavour.json.deserializer.BooleanDeserializer;
@@ -158,10 +159,16 @@ public class JsonDeserializerEmitter {
             }
         }
         Value<? extends JsonDeserializer> itemDeserializer = getClassDeserializer(cls.getComponentType());
+        if (itemDeserializer == null) {
+            return null;
+        }
         return emit(() -> new ArrayDeserializer(cls.asJavaClass(), itemDeserializer.get()));
     }
 
     private Value<? extends JsonDeserializer> emitEnumDeserializer(ReflectClass<?> cls) {
+        if (cls.getAnnotation(JsonPersistable.class) == null) {
+            return null;
+        }
         return proxy(JsonDeserializer.class, (instance, method, args) -> {
             Value<Node> node = emit(() -> (Node) args[1]);
             emitEnumDeserializer(cls, node);
@@ -169,8 +176,11 @@ public class JsonDeserializerEmitter {
     }
 
     private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
+        ClassInformation information = informationProvider.get(cls.getName());
+        if (information == null) {
+            return null;
+        }
         return proxy(JsonDeserializer.class, (instance, method, args) -> {
-            ClassInformation information = informationProvider.get(cls.getName());
             Value<JsonDeserializerContext> context = emit(() -> (JsonDeserializerContext) args[0]);
             Value<Node> node = emit(() -> (Node) args[1]);
 
@@ -619,11 +629,20 @@ public class JsonDeserializerEmitter {
             }
         }
         Value<JsonDeserializer> itemDeserializer = createDeserializer(type.getComponentType(), annotations);
+        if (itemDeserializer == null) {
+            return null;
+        }
         return emit(() -> new ArrayDeserializer(type, itemDeserializer.get()));
     }
 
     private Value<JsonDeserializer> createObjectDeserializer(Class<?> type) {
-        return emit(() -> JSON.getClassDeserializer(type));
+        return emit(() -> {
+            JsonDeserializer deserializer = JSON.getClassDeserializer(type);
+            if (deserializer == null) {
+                throw new IllegalArgumentException("Don't know how to deserialize class " + type.getName());
+            }
+            return deserializer;
+        });
     }
 
     private Value<JsonDeserializer> createMapDeserializer(Type keyType, Type valueType,

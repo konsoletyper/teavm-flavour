@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
@@ -131,7 +132,7 @@ public class DeserializerTest {
                 "\"list\" : [ { \"a\" : \"q\", \"b\" : 7 } ]," +
                 "\"set\" : [ { \"a\" : \"w\", \"b\" : 8 } ]," +
                 "\"map\" : { \"e\" : { \"a\" : \"r\", \"b\" : 8 } }," +
-                "\"visibility\" : \"ANY\" }",
+                "\"visibility\" : \"FOO\" }",
                 BuiltInTypes.class);
         assertTrue(obj.boolField);
         assertEquals('a', (char)obj.charField);
@@ -147,7 +148,7 @@ public class DeserializerTest {
         assertEquals(1, obj.map.size());
         assertTrue(obj.map.containsKey("e"));
         assertEquals("r", obj.map.get("e").a);
-        assertEquals(Visibility.ANY, obj.visibility);
+        assertEquals(SomeEnum.FOO, obj.visibility);
     }
 
     @Test
@@ -235,6 +236,7 @@ public class DeserializerTest {
         assertEquals(123, obj.a);
     }
 
+    @JsonPersistable
     public static class A {
         String a;
         int b;
@@ -252,6 +254,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class B {
         private A foo;
 
@@ -264,6 +267,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayProperty {
         int[] array;
 
@@ -272,6 +276,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayOfObjectProperty {
         A[] array;
 
@@ -284,6 +289,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class RenamedProperty {
         int foo;
 
@@ -297,6 +303,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class IgnoredProperty {
         int foo = 2;
         String bar;
@@ -315,6 +322,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldAndSetter {
         public int foo;
@@ -324,11 +332,13 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
     }
 
+    @JsonPersistable
     public static class WithConstructor {
         private int foo;
         private String bar;
@@ -347,6 +357,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class WithConstructorAsCreator {
         private int foo;
         private String bar;
@@ -371,6 +382,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class BuiltInTypes {
         public Boolean boolField;
@@ -384,9 +396,16 @@ public class DeserializerTest {
         public List<A> list;
         public Set<A> set;
         public Map<String, A> map;
-        public Visibility visibility;
+        public SomeEnum visibility;
     }
 
+    @JsonPersistable
+    public enum SomeEnum {
+        FOO,
+        BAR
+    }
+
+    @JsonPersistable
     @JsonTypeInfo(use = Id.MINIMAL_CLASS)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonSubTypes({ @Type(Inheritance.class) })
@@ -394,10 +413,12 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     public static class Inheritance extends InheritanceBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonTypeName("basetype")
@@ -406,11 +427,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT)
     @JsonTypeName("base")
     @JsonSubTypes({ @Type(InheritanceAsWrapperObject.class) })
@@ -418,11 +441,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperObject extends InheritanceAsWrapperObjectBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_ARRAY)
     @JsonTypeName("base")
     @JsonSubTypes({ @Type(InheritanceAsWrapperArray.class) })
@@ -430,11 +455,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
     public static class GraphNode {
         private List<GraphNode> successors;
@@ -444,6 +471,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     public static class PrivateField {
         private int a;

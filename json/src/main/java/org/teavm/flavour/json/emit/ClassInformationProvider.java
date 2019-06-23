@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.metaprogramming.Diagnostics;
 import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
@@ -65,6 +66,10 @@ class ClassInformationProvider {
     private ClassInformation createClassInformation(String className) {
         ReflectClass<?> cls = findClass(className);
         if (cls == null) {
+            return null;
+        }
+
+        if (cls.isInterface() || cls.isEnum() || cls.getAnnotation(JsonPersistable.class) == null) {
             return null;
         }
 

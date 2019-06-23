@@ -24,7 +24,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -44,7 +43,6 @@ import org.teavm.jso.browser.Window;
 import org.teavm.metaprogramming.Diagnostics;
 import org.teavm.metaprogramming.Metaprogramming;
 import org.teavm.metaprogramming.ReflectClass;
-import org.teavm.metaprogramming.SourceLocation;
 import org.teavm.metaprogramming.Value;
 import org.teavm.metaprogramming.reflect.ReflectMethod;
 
@@ -64,19 +62,10 @@ class RouteImplementorEmitter {
     }
 
     public Value<PathImplementor> emitParser(ReflectClass<?> routeType) {
-        SourceLocation location = null;
         Set<ReflectClass<?>> pathSets = new HashSet<>();
         getPathSets(routeType, pathSets);
-        if (pathSets.isEmpty()) {
-            diagnostics.error(location, "Given handler {{t0}} does not implement path set", routeType);
-            return emit(() -> null);
-        } else if (pathSets.size() > 1) {
-            Iterator<ReflectClass<?>> iter = pathSets.iterator();
-            ReflectClass<?> example1 = iter.next();
-            ReflectClass<?> example2 = iter.next();
-            diagnostics.error(location, "Given handler {{t0}} implements several path sets. Examples are {{t1}} "
-                    + "and {{t2}}", routeType, example1, example2);
-            return emit(() -> null);
+        if (pathSets.size() != 1) {
+            return null;
         }
         ReflectClass<?> implType = pathSets.iterator().next();
         return emit(() -> RoutingImpl.getImplementorByClassImpl(implType.asJavaClass()));
@@ -85,7 +74,7 @@ class RouteImplementorEmitter {
     public Value<PathImplementor> emitInterfaceParser(ReflectClass<?> routeType) {
         RouteSetDescriptor descriptor = describer.describeRouteSet(routeType);
         if (descriptor == null) {
-            return emit(() -> null);
+            return null;
         }
 
         Value<PathParser> pathParser = pathParserEmitter.emitWorker(createPathParser(descriptor));

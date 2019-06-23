@@ -16,7 +16,9 @@
 package org.teavm.flavour.example.api;
 
 import javax.ws.rs.QueryParam;
+import org.teavm.flavour.json.JsonPersistable;
 
+@JsonPersistable
 public class QueryPageDTO {
     @QueryParam("offset")
     public Integer offset;
