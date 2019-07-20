@@ -508,6 +508,7 @@ public class DeserializerTest {
         private int a;
     }
 
+    @JsonPersistable
     public static class DateFormats {
         public Date numeric;
 
