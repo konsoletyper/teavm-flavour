@@ -64,9 +64,11 @@ import org.teavm.flavour.expr.type.GenericReference;
 import org.teavm.flavour.expr.type.GenericType;
 import org.teavm.flavour.expr.type.GenericTypeNavigator;
 import org.teavm.flavour.expr.type.MapSubstitutions;
+import org.teavm.flavour.expr.type.TypeArgument;
 import org.teavm.flavour.expr.type.TypeInference;
 import org.teavm.flavour.expr.type.TypeVar;
 import org.teavm.flavour.expr.type.ValueType;
+import org.teavm.flavour.expr.type.Variance;
 import org.teavm.flavour.expr.type.meta.ClassDescriber;
 import org.teavm.flavour.expr.type.meta.ClassDescriberRepository;
 import org.teavm.flavour.expr.type.meta.MethodDescriber;
@@ -118,7 +120,18 @@ public class Parser {
         use(source, "event", "org.teavm.flavour.components.events");
         use(source, "attr", "org.teavm.flavour.components.attributes");
         use(source, "html", "org.teavm.flavour.components.html");
-        pushVar("this", new GenericClass(className));
+        ClassDescriber cls = classRepository.describe(className);
+        TypeArgument[] typeArguments = new TypeArgument[0];
+        if (cls != null) {
+            TypeVar[] typeVariables = cls.getTypeVariables();
+            typeArguments = new TypeArgument[typeVariables.length];
+            for (int i = 0; i < typeArguments.length; ++i) {
+                Set<? extends GenericType> upperBound = typeVariables[i].getUpperBound();
+                typeArguments[i] = new TypeArgument(Variance.COVARIANT, upperBound.isEmpty()
+                        ? GenericType.OBJECT : upperBound.iterator().next());
+            }
+        }
+        pushVar("this", new GenericClass(className, typeArguments));
         position = source.getBegin();
         List<TemplateNode> nodes = new ArrayList<>();
         parseSegment(source.getEnd(), nodes, elem -> true);
@@ -421,11 +434,10 @@ public class Parser {
                     continue;
                 }
                 MethodDescriber setter = attrParse.meta.setter;
-                GenericType type = attrParse.sam.getActualOwner().substitute(inference.getSubstitutions());
+                GenericClass type = attrParse.sam.getActualOwner().substitute(inference.getSubstitutions());
                 TypedPlan plan = attrParse.expr != null
-                        ? compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type)
-                        : compileSettingsObject(attrParse.node.getValueSegment(), attrParse.objectExpr,
-                                (GenericClass) type);
+                        ? compileExpr(attrParse.node.getValueSegment(), attrParse.expr, type)
+                        : compileSettingsObject(attrParse.node.getValueSegment(), attrParse.objectExpr, type);
                 if (plan == null) {
                     continue;
                 }
@@ -440,11 +452,13 @@ public class Parser {
                 if (attrParse.meta.type == ComponentAttributeType.BIDIRECTIONAL) {
                     setter = attrParse.meta.altSetter;
                     type = attrParse.altSam.getActualOwner().substitute(inference.getSubstitutions());
-                    plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, (GenericClass) type);
-                    computationBinding = new ComponentFunctionBinding(
-                            setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
-                            attrParse.altSam.getActualOwner().getName());
-                    parse.component.getComputations().add(computationBinding);
+                    plan = compileExpr(attrParse.node.getValueSegment(), attrParse.expr, type);
+                    if (plan != null) {
+                        computationBinding = new ComponentFunctionBinding(
+                                setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
+                                attrParse.altSam.getActualOwner().getName());
+                        parse.component.getComputations().add(computationBinding);
+                    }
                 }
             }
         }
@@ -537,7 +551,7 @@ public class Parser {
             String[] nameRules = nestedMetadata.metadata.nameRules;
             String name = nameRules.length == 1
                     ? nameRules[0]
-                    : "{" + Arrays.stream(nameRules).collect(Collectors.joining("|")) + "}";
+                    : "{" + String.join("|", nameRules) + "}";
 
             if (nestedMetadata.required) {
                 if (nestedComponent == null) {
@@ -672,8 +686,8 @@ public class Parser {
 
                 if (componentMeta.type == ComponentAttributeType.BIDIRECTIONAL && expr != null) {
                     setter = componentMeta.altSetter;
-                    ValueType type = componentMeta.altSam.getActualOwner().substitute(inference.getSubstitutions());
-                    plan = compileExpr(attr.getValueSegment(), expr, (GenericClass) type);
+                    GenericClass type = componentMeta.altSam.getActualOwner().substitute(inference.getSubstitutions());
+                    plan = compileExpr(attr.getValueSegment(), expr, type);
                     ComponentFunctionBinding computationBinding = new ComponentFunctionBinding(
                             setter.getOwner().getName(), setter.getName(), (LambdaPlan) plan.getPlan(),
                             componentMeta.altSam.getActualOwner().getName());
