@@ -54,7 +54,7 @@ public class TypeInferenceTest {
         subtypeConstraint(cls(Class.class, inv(cls(Long.class))), pattern);
         infer();
 
-        assertEquals("Class<? extends Comparable<?> & Number>", string(pattern));
+        assertEquals("Class<? extends Comparable<?> & Constable & ConstantDesc & Number>", string(pattern));
     }
 
     @Test
@@ -159,7 +159,8 @@ public class TypeInferenceTest {
         subtypeConstraint(array(cls(Long.class)), pattern);
         infer();
 
-        assertEquals("Comparable<? extends Comparable<?> & Number> & Number[]", string(pattern));
+        assertEquals("Comparable<? extends Comparable<?> & Constable & ConstantDesc & Number> "
+                + "& Constable & ConstantDesc & Number[]", string(pattern));
     }
 
     @Test
