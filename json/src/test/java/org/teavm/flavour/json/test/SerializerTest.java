@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -449,6 +450,15 @@ public class SerializerTest {
         assertEquals(123, node.get("bar").asInt());
     }
 
+    @Test
+    public void abstractNonPersistableSuperclassWithConstructor() {
+        SubClass o = new SubClass("foo");
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `superField' property", node.has("superField"));
+        assertEquals("Invalid value of `superField' property", "foo", node.get("superField").asText());
+    }
+
     @JsonPersistable
     public static class A {
         private String a;
@@ -717,5 +727,21 @@ public class SerializerTest {
     public static class PrivateFieldIgnored {
         private int foo;
         int bar;
+    }
+
+    public static abstract class SuperClass {
+        public final String superField;
+
+        public SuperClass(String superField) {
+            this.superField = superField;
+        }
+    }
+
+    @JsonPersistable
+    public static class SubClass extends SuperClass {
+        @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+        public SubClass(@JsonProperty("superField") String superField) {
+            super(superField);
+        }
     }
 }

@@ -169,7 +169,7 @@ public class JsonSerializerEmitter {
             }
         } else {
             ClassInformation information = informationProvider.get(cls.getName());
-            if (information == null) {
+            if (information == null || !information.persistable) {
                 return null;
             }
 

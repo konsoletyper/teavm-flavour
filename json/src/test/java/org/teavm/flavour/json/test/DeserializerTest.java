@@ -267,6 +267,12 @@ public class DeserializerTest {
         assertNull(o.textual);
     }
 
+    @Test
+    public void abstractNonPersistableSuperclassWithConstructor() {
+        SubClass o = JSONRunner.deserialize("{ \"superField\": \"foo\" }", SubClass.class);
+        assertEquals("foo", o.superField);
+    }
+
     @JsonPersistable
     public static class A {
         String a;
@@ -514,5 +520,21 @@ public class DeserializerTest {
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss XX")
         public Date textual;
+    }
+
+    public static abstract class SuperClass {
+        public final String superField;
+
+        public SuperClass(String superField) {
+            this.superField = superField;
+        }
+    }
+
+    @JsonPersistable
+    public static class SubClass extends SerializerTest.SuperClass {
+        @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+        public SubClass(@JsonProperty("superField") String superField) {
+            super(superField);
+        }
     }
 }

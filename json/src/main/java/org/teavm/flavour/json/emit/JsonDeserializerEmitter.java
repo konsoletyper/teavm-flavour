@@ -177,7 +177,7 @@ public class JsonDeserializerEmitter {
 
     private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
         ClassInformation information = informationProvider.get(cls.getName());
-        if (information == null) {
+        if (information == null || !information.persistable) {
             return null;
         }
         return proxy(JsonDeserializer.class, (instance, method, args) -> {

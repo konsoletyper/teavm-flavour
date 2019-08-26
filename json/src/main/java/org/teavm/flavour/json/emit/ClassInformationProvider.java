@@ -69,7 +69,7 @@ class ClassInformationProvider {
             return null;
         }
 
-        if (cls.isInterface() || cls.isEnum() || cls.getAnnotation(JsonPersistable.class) == null) {
+        if (cls.isInterface() || cls.isEnum()) {
             return null;
         }
 
@@ -92,6 +92,8 @@ class ClassInformationProvider {
             information.idGenerator = information.parent.idGenerator;
             information.idProperty = information.parent.idProperty;
         }
+
+        information.persistable = cls.getAnnotation(JsonPersistable.class) != null;
 
         getAutoDetectModes(information, cls);
         getInheritance(information, cls);
@@ -133,6 +135,9 @@ class ClassInformationProvider {
         }
         if (typeName != null) {
             information.typeName = typeName.value();
+            if (!information.persistable) {
+                diagnostics.error(null, "Class {{c0}} can't declare '@JsonTypeName' as it's not persistable");
+            }
         }
         if (information.typeName.isEmpty()) {
             information.typeName = getUnqualifiedName(cls.getName());
@@ -261,10 +266,20 @@ class ClassInformationProvider {
             return;
         }
 
+        if (!information.persistable) {
+            diagnostics.error(null, "Class {{c0}} is marked with `@JsonSubTypes` annotation, but it's not persistable",
+                    cls.getName());
+        }
+
         for (JsonSubTypes.Type subtype : annot.value()) {
             Class<?> subclass = subtype.value();
             ClassInformation subtypeInformation = get(subclass.getName());
             if (subtypeInformation == null) {
+                continue;
+            }
+            if (!subtypeInformation.persistable) {
+                diagnostics.error(null, "Class {{c0}} declares subclass {{c1}}, but {{c1}} is not persistable",
+                        cls.getName(), subclass.getName());
                 continue;
             }
             information.inheritance.subTypes.add(subtypeInformation);
@@ -387,6 +402,14 @@ class ClassInformationProvider {
             boolean isExplicitCreator = method.getAnnotation(JsonCreator.class) != null;
             boolean isCreator = (foundCreator == null || isFoundCreatorGuessed) && isGuessedCreator(method);
 
+            if (!information.persistable) {
+                if (isExplicitCreator) {
+                    diagnostics.error(new SourceLocation(method), "Non-persistable class {{c0}} can't "
+                            + "declare `@JsonCreator`", cls.getName());
+                }
+                continue;
+            }
+
             if (isExplicitCreator || isCreator) {
                 if (foundCreator != null) {
                     if (!isExplicitCreator || !isFoundCreatorGuessed) {
@@ -425,8 +448,7 @@ class ClassInformationProvider {
             return;
         }
 
-
-        if (information.constructor == null) {
+        if (information.constructor == null && information.persistable) {
             ReflectMethod defaultCtor = cls.getDeclaredMethod("<init>");
             if (defaultCtor != null) {
                 information.constructor = defaultCtor;
@@ -450,14 +472,23 @@ class ClassInformationProvider {
 
     private PropertyInformation addParameter(ClassInformation information, ReflectMethod creator, int index,
             ReflectAnnotatedElement annotations, ReflectClass<?> type) {
-        PropertyInformation property = new PropertyInformation();
-        property.className = information.className;
-        property.outputName = getPropertyName(annotations, null);
-        if (property.outputName == null) {
+        String propertyName = getPropertyName(annotations, null);
+        if (propertyName == null) {
             diagnostics.error(new SourceLocation(creator), "Parameter #" + index + " name was not specified");
             return null;
         }
-        property.name = property.outputName;
+        PropertyInformation property = information.propertiesByOutputName.get(propertyName);
+        if (property != null) {
+            if (property.setter == null && property.creatorParameterIndex == null) {
+                information.propertiesByOutputName.remove(propertyName);
+            }
+        } else {
+            property = new PropertyInformation();
+            property.className = information.className;
+            property.outputName = propertyName;
+            property.name = propertyName;
+            information.properties.put(propertyName, property);
+        }
 
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {

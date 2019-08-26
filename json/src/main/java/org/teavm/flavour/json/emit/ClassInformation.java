@@ -22,6 +22,7 @@ import java.util.Map;
 import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 class ClassInformation {
+    boolean persistable;
     String className;
     String typeName;
     ClassInformation parent;
