@@ -160,10 +160,16 @@ public class JsonSerializerEmitter {
                 if (componentType.getName().equals("java.lang.Object")) {
                     objectComponentSerializer = emit(() -> ObjectSerializer.INSTANCE);
                 } else {
-                    objectComponentSerializer = getClassSerializer(componentType);
-                    if (objectComponentSerializer == null) {
+                    if (getClassSerializer(componentType) == null) {
                         return null;
                     }
+                    objectComponentSerializer = proxy(JsonSerializer.class, (instance, method, args) -> {
+                        Value<Object> context = args[0];
+                        Value<Object> value = args[1];
+                        Value<Node> result = emit(() -> JSON.serialize((JsonSerializerContext) context.get(),
+                                componentType.cast(value.get())));
+                        exit(() -> result.get());
+                    });
                 }
                 return emit(() -> new ArraySerializer(objectComponentSerializer.get()));
             }

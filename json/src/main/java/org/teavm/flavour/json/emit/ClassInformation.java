@@ -23,6 +23,7 @@ import org.teavm.metaprogramming.reflect.ReflectMethod;
 
 class ClassInformation {
     boolean persistable;
+    boolean isAbstract;
     String className;
     String typeName;
     ClassInformation parent;

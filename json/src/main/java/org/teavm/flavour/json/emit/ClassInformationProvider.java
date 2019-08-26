@@ -59,6 +59,10 @@ class ClassInformationProvider {
         if (info != null) {
             ReflectClass<?> cls = findClass(className);
             getSubTypes(info, cls);
+            if (info.isAbstract && info.persistable && info.inheritance.subTypes.isEmpty()) {
+                diagnostics.error(null, "Class {{c0}} is persistable and abstract, but does not declare any subtypes",
+                        className);
+            }
         }
         return info;
     }
@@ -94,6 +98,7 @@ class ClassInformationProvider {
         }
 
         information.persistable = cls.getAnnotation(JsonPersistable.class) != null;
+        information.isAbstract = Modifier.isAbstract(cls.getModifiers());
 
         getAutoDetectModes(information, cls);
         getInheritance(information, cls);
@@ -136,7 +141,8 @@ class ClassInformationProvider {
         if (typeName != null) {
             information.typeName = typeName.value();
             if (!information.persistable) {
-                diagnostics.error(null, "Class {{c0}} can't declare '@JsonTypeName' as it's not persistable");
+                diagnostics.error(null, "Class {{c0}} can't declare '@JsonTypeName' as it's not persistable",
+                        cls.getName());
             }
         }
         if (information.typeName.isEmpty()) {

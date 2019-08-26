@@ -185,6 +185,9 @@ public class JsonDeserializerEmitter {
             Value<Node> node = emit(() -> (Node) args[1]);
 
             Value<Object> result = lazyFragment(() -> emitSubTypes(information, node, context, contentNode -> {
+                if (information.isAbstract) {
+                    return emit(() -> null);
+                }
                 Value<Object> target = emitConstructor(information, contentNode, context);
                 emitIdRegistration(information, target, contentNode, context);
                 emitProperties(information, target, contentNode, context);

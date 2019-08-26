@@ -273,6 +273,27 @@ public class DeserializerTest {
         assertEquals("foo", o.superField);
     }
 
+    @Test
+    public void abstractSuperclass() {
+        // Workaround for issue in TeaVM
+        System.out.println(AbstractPersistableSuperclass.class.getName());
+
+        AbstractPersistableSuperclass[] array = JSONRunner.deserialize("[ "
+                + "{ \"type\": \"A\", \"foo\": 1, \"bar\": 2 },"
+                + "{ \"type\": \"B\", \"foo\": 3, \"baz\": 4 } "
+        + "]", AbstractPersistableSuperclass[].class);
+
+        assertEquals("Unexpected array length", 2, array.length);
+        assertTrue("Unexpected type of first element", array[0] instanceof ConcreteSubtypeA);
+        ConcreteSubtypeA a = (ConcreteSubtypeA) array[0];
+        assertEquals(1, a.foo);
+        assertEquals(2, a.bar);
+        assertTrue("Unexpected type of second element", array[1] instanceof ConcreteSubtypeB);
+        ConcreteSubtypeB b = (ConcreteSubtypeB) array[1];
+        assertEquals(3, b.foo);
+        assertEquals(4, b.baz);
+    }
+
     @JsonPersistable
     public static class A {
         String a;
@@ -536,5 +557,24 @@ public class DeserializerTest {
         public SubClass(@JsonProperty("superField") String superField) {
             super(superField);
         }
+    }
+
+    @JsonPersistable
+    @JsonTypeInfo(use = Id.NAME, property = "type", include = As.PROPERTY)
+    @JsonSubTypes({ @JsonSubTypes.Type(ConcreteSubtypeA.class), @JsonSubTypes.Type(ConcreteSubtypeB.class) })
+    public static abstract class AbstractPersistableSuperclass {
+        public int foo;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("A")
+    public static class ConcreteSubtypeA extends AbstractPersistableSuperclass {
+        public int bar;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("B")
+    public static class ConcreteSubtypeB extends AbstractPersistableSuperclass {
+        public int baz;
     }
 }

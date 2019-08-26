@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -459,6 +460,30 @@ public class SerializerTest {
         assertEquals("Invalid value of `superField' property", "foo", node.get("superField").asText());
     }
 
+    @Test
+    public void abstractSuperclass() {
+        // Workaround for issue in TeaVM
+        System.out.println(AbstractPersistableSuperclass.class.getName());
+
+        ConcreteSubtypeA a = new ConcreteSubtypeA();
+        a.foo = 1;
+        a.bar = 2;
+
+        ConcreteSubtypeB b = new ConcreteSubtypeB();
+        b.foo = 3;
+        b.baz = 4;
+
+        JsonNode node = JSONRunner.serialize(new AbstractPersistableSuperclass[] { a, b });
+
+        assertEquals("Unexpected array size", 2, node.size());
+        assertEquals("Unexpected root[0].type", "A", node.get(0).get("type").asText());
+        assertEquals("Unexpected root[0].foo", 1, node.get(0).get("foo").asInt());
+        assertEquals("Unexpected root[0].bar", 2, node.get(0).get("bar").asInt());
+        assertEquals("Unexpected root[1].type", "B", node.get(1).get("type").asText());
+        assertEquals("Unexpected root[1].foo", 3, node.get(1).get("foo").asInt());
+        assertEquals("Unexpected root[1].baz", 4, node.get(1).get("baz").asInt());
+    }
+
     @JsonPersistable
     public static class A {
         private String a;
@@ -743,5 +768,24 @@ public class SerializerTest {
         public SubClass(@JsonProperty("superField") String superField) {
             super(superField);
         }
+    }
+
+    @JsonPersistable
+    @JsonTypeInfo(use = Id.NAME, property = "type", include = As.PROPERTY)
+    @JsonSubTypes({ @JsonSubTypes.Type(ConcreteSubtypeA.class), @JsonSubTypes.Type(ConcreteSubtypeB.class) })
+    public static abstract class AbstractPersistableSuperclass {
+        public int foo;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("A")
+    public static class ConcreteSubtypeA extends AbstractPersistableSuperclass {
+        public int bar;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("B")
+    public static class ConcreteSubtypeB extends AbstractPersistableSuperclass {
+        public int baz;
     }
 }
