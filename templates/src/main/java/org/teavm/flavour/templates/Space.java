@@ -73,6 +73,7 @@ public abstract class Space {
 
         next = newNext;
         previous = newPrevious;
+        parent = null;
     }
 
     void deleteDom() {
