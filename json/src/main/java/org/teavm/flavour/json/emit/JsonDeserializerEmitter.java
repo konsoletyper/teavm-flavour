@@ -397,7 +397,7 @@ public class JsonDeserializerEmitter {
             if (property != null) {
                 String propertyName = property.outputName;
                 Type type = genericTypes[i];
-                Value<Node> valueNode = emit(() -> node.get().get(propertyName));
+                Value<Node> valueNode = readProperty(property, node, propertyName);
                 paramValue = convert(valueNode, context, type, information.constructor.getParameterAnnotations(i));
             } else {
                 paramValue = defaultValue(information.constructor.getParameterType(i));
@@ -486,7 +486,7 @@ public class JsonDeserializerEmitter {
         Type type = javaMethod.getGenericParameterTypes()[0];
 
         String propertyName = property.outputName;
-        Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
+        Value<Node> jsonValue = readProperty(property, node, propertyName);
         Value<Object> value = convert(jsonValue, context, type, method);
         emit(() -> method.invoke(target.get(), value.get()));
     }
@@ -498,9 +498,25 @@ public class JsonDeserializerEmitter {
         Type type = javaField.getGenericType();
 
         String propertyName = property.outputName;
-        Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
+        Value<Node> jsonValue = readProperty(property, node, propertyName);
         Value<Object> value = convert(jsonValue, context, type, field);
         emit(() -> field.set(target.get(), value.get()));
+    }
+
+    private Value<Node> readProperty(PropertyInformation property, Value<ObjectNode> node, String propertyName) {
+        Value<Node> jsonValue;
+        if (property.required) {
+            jsonValue = emit(() -> {
+                final Node value = node.get().get(propertyName);
+                if (value.isMissing()) {
+                    throw new IllegalArgumentException("Missing required property: " + propertyName);
+                }
+                return value;
+            });
+        } else {
+            jsonValue = emit(() -> node.get().get(propertyName));
+        }
+        return jsonValue;
     }
 
     private Type getPropertyGenericType(PropertyInformation property) {

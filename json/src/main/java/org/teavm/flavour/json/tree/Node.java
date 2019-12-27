@@ -32,8 +32,11 @@ public abstract class Node implements JSObject {
     @JSBody(params = { "node" }, script = "return typeof node == 'string';")
     static native boolean isString(Node node);
 
-    @JSBody(params = { "node" }, script = "return node === null;")
+    @JSBody(params = { "node" }, script = "return node === null || node === undefined;")
     static native boolean isNull(Node node);
+
+    @JSBody(params = { "node" }, script = "return node === undefined;")
+    static native boolean isMissing(Node node);
 
     @JSBody(params = { "node" }, script = "return typeof node == 'number';")
     static native boolean isNumber(Node node);
@@ -55,6 +58,10 @@ public abstract class Node implements JSObject {
 
     public final boolean isNull() {
         return isNull(this);
+    }
+
+    public final boolean isMissing() {
+        return isMissing(this);
     }
 
     public final boolean isNumber() {
