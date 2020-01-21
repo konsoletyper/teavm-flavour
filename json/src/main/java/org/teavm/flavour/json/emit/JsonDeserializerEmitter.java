@@ -500,7 +500,11 @@ public class JsonDeserializerEmitter {
         String propertyName = property.outputName;
         Value<Node> jsonValue = readProperty(property, node, propertyName);
         Value<Object> value = convert(jsonValue, context, type, field);
-        emit(() -> field.set(target.get(), value.get()));
+        emit(() -> {
+            if (!jsonValue.get().isMissing()) {
+                field.set(target.get(), value.get());
+            }
+        });
     }
 
     private Value<Node> readProperty(PropertyInformation property, Value<ObjectNode> node, String propertyName) {
@@ -553,7 +557,7 @@ public class JsonDeserializerEmitter {
             return convertDate(node, annotations);
         }
         Value<JsonDeserializer> deserializer = createDeserializer(type, annotations);
-        return emit(() -> deserializer.get().deserialize(context.get(), node.get()));
+        return emit(() -> node.get().isMissing() ? null : deserializer.get().deserialize(context.get(), node.get()));
     }
 
     private Value<JsonDeserializer> createDeserializer(Type type, ReflectAnnotatedElement annotations) {
