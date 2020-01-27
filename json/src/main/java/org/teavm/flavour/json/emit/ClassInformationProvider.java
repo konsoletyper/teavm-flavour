@@ -355,6 +355,10 @@ class ClassInformationProvider {
             return;
         }
 
+        if (property.required || isRequired(method)) {
+            property.required = true;
+        }
+
         property.outputName = getPropertyName(method, property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
@@ -384,6 +388,10 @@ class ClassInformationProvider {
         if (property.ignored || isIgnored(method)) {
             property.ignored = true;
             return;
+        }
+
+        if (property.required || isRequired(method)) {
+            property.required = true;
         }
 
         property.outputName = getPropertyName(method, property.outputName);
@@ -511,6 +519,10 @@ class ClassInformationProvider {
             return property;
         }
 
+        if (property.required || isRequired(annotations)) {
+            property.required = true;
+        }
+
         property.creatorParameterIndex = index;
         property.type = type;
         return property;
@@ -562,6 +574,10 @@ class ClassInformationProvider {
             return;
         }
 
+        if (property.required || isRequired(field)) {
+            property.required = true;
+        }
+
         property.outputName = getPropertyName(field, property.outputName);
         PropertyInformation conflictingProperty = information.propertiesByOutputName.get(property.outputName);
         if (conflictingProperty != null) {
@@ -578,6 +594,14 @@ class ClassInformationProvider {
 
     private boolean isIgnored(ReflectAnnotatedElement annotations) {
         return annotations.getAnnotation(JsonIgnore.class) != null;
+    }
+
+    private boolean isRequired(ReflectAnnotatedElement annotations) {
+        JsonProperty annot = annotations.getAnnotation(JsonProperty.class);
+        if (annot == null) {
+            return false;
+        }
+        return annot.required();
     }
 
     private boolean isGetterName(String name) {
