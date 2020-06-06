@@ -17,11 +17,13 @@ package org.teavm.flavour.json.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,11 +34,15 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.teavm.flavour.json.JsonPersistable;
 import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
@@ -131,7 +137,7 @@ public class DeserializerTest {
                 "\"list\" : [ { \"a\" : \"q\", \"b\" : 7 } ]," +
                 "\"set\" : [ { \"a\" : \"w\", \"b\" : 8 } ]," +
                 "\"map\" : { \"e\" : { \"a\" : \"r\", \"b\" : 8 } }," +
-                "\"visibility\" : \"ANY\" }",
+                "\"visibility\" : \"FOO\" }",
                 BuiltInTypes.class);
         assertTrue(obj.boolField);
         assertEquals('a', (char)obj.charField);
@@ -147,7 +153,7 @@ public class DeserializerTest {
         assertEquals(1, obj.map.size());
         assertTrue(obj.map.containsKey("e"));
         assertEquals("r", obj.map.get("e").a);
-        assertEquals(Visibility.ANY, obj.visibility);
+        assertEquals(SomeEnum.FOO, obj.visibility);
     }
 
     @Test
@@ -235,6 +241,60 @@ public class DeserializerTest {
         assertEquals(123, obj.a);
     }
 
+    @Test
+    public void readsDate() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getTimeZone("GMT"));
+        calendar.setTimeInMillis(0);
+        calendar.set(Calendar.YEAR, 2015);
+        calendar.set(Calendar.MONTH, Calendar.AUGUST);
+        calendar.set(Calendar.DATE, 2);
+        calendar.set(Calendar.HOUR_OF_DAY, 16);
+        calendar.set(Calendar.MINUTE, 25);
+        calendar.set(Calendar.SECOND, 35);
+        Date date = calendar.getTime();
+
+        DateFormats o = JSONRunner.deserialize("{ \"numeric\": " + date.getTime() + ", "
+                + "\"textual\": \"2015-08-02 16:25:35 Z\" }", DateFormats.class);
+        assertEquals(date.getTime(), o.numeric.getTime(), 5);
+        assertEquals(date.getTime(), o.textual.getTime(), 5);
+    }
+
+    @Test
+    public void readsNullDate() {
+        DateFormats o = JSONRunner.deserialize("{ \"numeric\": null, \"textual\": null }", DateFormats.class);
+        assertNull(o.numeric);
+        assertNull(o.textual);
+    }
+
+    @Test
+    public void abstractNonPersistableSuperclassWithConstructor() {
+        SubClass o = JSONRunner.deserialize("{ \"superField\": \"foo\" }", SubClass.class);
+        assertEquals("foo", o.superField);
+    }
+
+    @Test
+    public void abstractSuperclass() {
+        // Workaround for issue in TeaVM
+        System.out.println(AbstractPersistableSuperclass.class.getName());
+
+        AbstractPersistableSuperclass[] array = JSONRunner.deserialize("[ "
+                + "{ \"type\": \"A\", \"foo\": 1, \"bar\": 2 },"
+                + "{ \"type\": \"B\", \"foo\": 3, \"baz\": 4 } "
+        + "]", AbstractPersistableSuperclass[].class);
+
+        assertEquals("Unexpected array length", 2, array.length);
+        assertTrue("Unexpected type of first element", array[0] instanceof ConcreteSubtypeA);
+        ConcreteSubtypeA a = (ConcreteSubtypeA) array[0];
+        assertEquals(1, a.foo);
+        assertEquals(2, a.bar);
+        assertTrue("Unexpected type of second element", array[1] instanceof ConcreteSubtypeB);
+        ConcreteSubtypeB b = (ConcreteSubtypeB) array[1];
+        assertEquals(3, b.foo);
+        assertEquals(4, b.baz);
+    }
+
+    @JsonPersistable
     public static class A {
         String a;
         int b;
@@ -252,6 +312,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class B {
         private A foo;
 
@@ -264,6 +325,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayProperty {
         int[] array;
 
@@ -272,6 +334,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class ArrayOfObjectProperty {
         A[] array;
 
@@ -284,6 +347,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class RenamedProperty {
         int foo;
 
@@ -297,6 +361,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class IgnoredProperty {
         int foo = 2;
         String bar;
@@ -315,6 +380,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldAndSetter {
         public int foo;
@@ -324,11 +390,13 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class FieldVisible {
         public int foo;
     }
 
+    @JsonPersistable
     public static class WithConstructor {
         private int foo;
         private String bar;
@@ -347,6 +415,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     public static class WithConstructorAsCreator {
         private int foo;
         private String bar;
@@ -371,6 +440,7 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     public static class BuiltInTypes {
         public Boolean boolField;
@@ -384,9 +454,16 @@ public class DeserializerTest {
         public List<A> list;
         public Set<A> set;
         public Map<String, A> map;
-        public Visibility visibility;
+        public SomeEnum visibility;
     }
 
+    @JsonPersistable
+    public enum SomeEnum {
+        FOO,
+        BAR
+    }
+
+    @JsonPersistable
     @JsonTypeInfo(use = Id.MINIMAL_CLASS)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonSubTypes({ @Type(Inheritance.class) })
@@ -394,10 +471,12 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     public static class Inheritance extends InheritanceBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME)
     @JsonAutoDetect(fieldVisibility = Visibility.PROTECTED_AND_PUBLIC)
     @JsonTypeName("basetype")
@@ -406,11 +485,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceByTypeName extends InheritanceByTypeNameBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT)
     @JsonTypeName("base")
     @JsonSubTypes({ @Type(InheritanceAsWrapperObject.class) })
@@ -418,11 +499,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperObject extends InheritanceAsWrapperObjectBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_ARRAY)
     @JsonTypeName("base")
     @JsonSubTypes({ @Type(InheritanceAsWrapperArray.class) })
@@ -430,11 +513,13 @@ public class DeserializerTest {
         public int foo;
     }
 
+    @JsonPersistable
     @JsonTypeName("subtype")
     public static class InheritanceAsWrapperArray extends InheritanceAsWrapperArrayBase {
         public int bar;
     }
 
+    @JsonPersistable
     @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class, property = "@id")
     public static class GraphNode {
         private List<GraphNode> successors;
@@ -444,8 +529,52 @@ public class DeserializerTest {
         }
     }
 
+    @JsonPersistable
     @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     public static class PrivateField {
         private int a;
+    }
+
+    @JsonPersistable
+    public static class DateFormats {
+        public Date numeric;
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss XX")
+        public Date textual;
+    }
+
+    public static abstract class SuperClass {
+        public final String superField;
+
+        public SuperClass(String superField) {
+            this.superField = superField;
+        }
+    }
+
+    @JsonPersistable
+    public static class SubClass extends SerializerTest.SuperClass {
+        @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+        public SubClass(@JsonProperty("superField") String superField) {
+            super(superField);
+        }
+    }
+
+    @JsonPersistable
+    @JsonTypeInfo(use = Id.NAME, property = "type", include = As.PROPERTY)
+    @JsonSubTypes({ @JsonSubTypes.Type(ConcreteSubtypeA.class), @JsonSubTypes.Type(ConcreteSubtypeB.class) })
+    public static abstract class AbstractPersistableSuperclass {
+        public int foo;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("A")
+    public static class ConcreteSubtypeA extends AbstractPersistableSuperclass {
+        public int bar;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("B")
+    public static class ConcreteSubtypeB extends AbstractPersistableSuperclass {
+        public int baz;
     }
 }

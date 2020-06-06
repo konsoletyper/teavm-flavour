@@ -20,7 +20,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.teavm.flavour.example.model.OrderStatus;
+import org.teavm.flavour.json.JsonPersistable;
 
+@JsonPersistable
 public class OrderEditDTO {
     public OrderStatus status;
     public String receiverName;

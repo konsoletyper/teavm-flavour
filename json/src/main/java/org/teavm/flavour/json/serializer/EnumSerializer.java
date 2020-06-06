@@ -18,10 +18,6 @@ package org.teavm.flavour.json.serializer;
 import org.teavm.flavour.json.tree.Node;
 import org.teavm.flavour.json.tree.StringNode;
 
-/**
- *
- * @author Alexey Andreev
- */
 public class EnumSerializer extends NullableSerializer {
     @Override
     public Node serializeNonNull(JsonSerializerContext context, Object value) {

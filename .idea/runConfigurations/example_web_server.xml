@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="example-web-server" type="#com.intellij.j2ee.web.tomcat.TomcatRunConfigurationFactory" factoryName="Local" APPLICATION_SERVER_NAME="Tomcat 8.0.21" ALTERNATIVE_JRE_ENABLED="false">
+    <option name="OPEN_IN_BROWSER" value="false" />
     <option name="UPDATE_ON_FRAME_DEACTIVATION" value="true" />
     <option name="UPDATE_CLASSES_ON_FRAME_DEACTIVATION" value="true" />
     <option name="SHOW_DIALOG_ON_UPDATE" value="false" />
@@ -13,12 +14,11 @@
     <server-settings>
       <option name="BASE_DIRECTORY_NAME" value="Unnamed_teavm-flavour" />
     </server-settings>
-    <predefined_log_file id="Tomcat" enabled="true" />
-    <predefined_log_file id="Tomcat Catalina" enabled="true" />
-    <predefined_log_file id="Tomcat Manager" enabled="false" />
-    <predefined_log_file id="Tomcat Host Manager" enabled="false" />
-    <predefined_log_file id="Tomcat Localhost Access" enabled="false" />
-    <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea" />
+    <predefined_log_file enabled="true" id="Tomcat" />
+    <predefined_log_file enabled="true" id="Tomcat Catalina" />
+    <predefined_log_file id="Tomcat Manager" />
+    <predefined_log_file id="Tomcat Host Manager" />
+    <predefined_log_file id="Tomcat Localhost Access" />
     <RunnerSettings RunnerId="Debug">
       <option name="DEBUG_PORT" value="39127" />
     </RunnerSettings>
@@ -101,7 +101,8 @@
         <option name="PROGRAM_PARAMETERS" value="" />
       </SHUTDOWN>
     </ConfigurationWrapper>
-    <method>
+    <method v="2">
+      <option name="Make" enabled="true" />
       <option name="BuildArtifacts" enabled="true">
         <artifact name="teavm-flavour-example:war exploded" />
       </option>

@@ -17,7 +17,9 @@ package org.teavm.flavour.example.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
+import org.teavm.flavour.json.JsonPersistable;
 
+@JsonPersistable
 public class OrderItemDTO {
     public ProductDTO product;
     public int amount;

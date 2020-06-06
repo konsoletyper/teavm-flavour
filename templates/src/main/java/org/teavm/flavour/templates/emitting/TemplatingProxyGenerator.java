@@ -18,6 +18,7 @@ package org.teavm.flavour.templates.emitting;
 import static org.teavm.metaprogramming.Metaprogramming.exit;
 import static org.teavm.metaprogramming.Metaprogramming.getClassLoader;
 import static org.teavm.metaprogramming.Metaprogramming.getDiagnostics;
+import static org.teavm.metaprogramming.Metaprogramming.unsupportedCase;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -45,7 +46,7 @@ public class TemplatingProxyGenerator {
             Value<Fragment> fragment = emitter.emitTemplate(model, template.sourceFileName, template.body);
             exit(() -> fragment.get());
         } else {
-            exit(() -> null);
+            unsupportedCase();
         }
     }
 
@@ -53,8 +54,6 @@ public class TemplatingProxyGenerator {
         Diagnostics diagnostics = getDiagnostics();
         BindTemplate annot = cls.getAnnotation(BindTemplate.class);
         if (annot == null) {
-            diagnostics.error(location, "Can't create template for {{c0}}: "
-                    + "no BindTemplate annotation supplied", cls.getName());
             return null;
         }
 

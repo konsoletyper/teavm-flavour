@@ -27,10 +27,22 @@ public final class RESTClient {
     private RESTClient() {
     }
 
+    public static <T> ResourceFactory<T> factory(Class<T> type) {
+        ResourceFactory<T> factory = factoryImpl(type);
+        if (factory == null) {
+            throw new IllegalArgumentException("Not a proper factory interface: " + type.getName());
+        }
+        return factory;
+    }
+
     @Meta
-    public static native <T> ResourceFactory<T> factory(Class<T> type);
-    private static void factory(ReflectClass<?> type) {
+    private static native <T> ResourceFactory<T> factoryImpl(Class<T> type);
+    private static void factoryImpl(ReflectClass<?> type) {
         Value<? extends ResourceFactory<?>> result = FactoryEmitter.getInstance().emitFactory(type);
-        Metaprogramming.exit(() -> result.get());
+        if (result == null) {
+            Metaprogramming.unsupportedCase();
+        } else {
+            Metaprogramming.exit(() -> result.get());
+        }
     }
 }

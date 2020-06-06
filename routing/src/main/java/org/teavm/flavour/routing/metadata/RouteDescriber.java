@@ -25,6 +25,7 @@ import org.teavm.flavour.regex.ast.Node;
 import org.teavm.flavour.regex.parsing.RegexParseException;
 import org.teavm.flavour.routing.Path;
 import org.teavm.flavour.routing.PathParameter;
+import org.teavm.flavour.routing.PathSet;
 import org.teavm.flavour.routing.Pattern;
 import org.teavm.metaprogramming.Diagnostics;
 import org.teavm.metaprogramming.ReflectClass;
@@ -41,6 +42,9 @@ public class RouteDescriber {
     }
 
     public RouteSetDescriptor describeRouteSet(ReflectClass<?> cls) {
+        if (cls.getAnnotation(PathSet.class) == null) {
+            return null;
+        }
         RouteSetDescriptor descriptor = new RouteSetDescriptor(cls);
 
         for (ReflectMethod method : cls.getDeclaredMethods()) {

@@ -16,6 +16,7 @@
 package org.teavm.flavour.routing.emit;
 
 import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.unsupportedCase;
 import org.teavm.flavour.routing.Route;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.core.JSArray;
@@ -40,14 +41,22 @@ public final class RoutingImpl {
     public static native PathImplementor getImplementorByClass(Class<?> routeType);
     private static void getImplementorByClass(ReflectClass<?> routeType) {
         Value<PathImplementor> result = RouteImplementorEmitter.getInstance().emitParser(routeType);
-        exit(() -> result.get());
+        if (result == null) {
+            unsupportedCase();
+        } else {
+            exit(() -> result.get());
+        }
     }
 
     @Meta
     public static native PathImplementor getImplementorByClassImpl(Class<?> routeType);
     private static void getImplementorByClassImpl(ReflectClass<?> routeType) {
         Value<PathImplementor> result = RouteImplementorEmitter.getInstance().emitInterfaceParser(routeType);
-        exit(() -> result.get());
+        if (result == null) {
+            unsupportedCase();
+        } else {
+            exit(() -> result.get());
+        }
     }
 
     public static long parseDate(String text) {

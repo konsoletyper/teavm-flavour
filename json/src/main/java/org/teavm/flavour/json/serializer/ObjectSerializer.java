@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Alexey Andreev.
+ *  Copyright 2019 konsoletyper.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,13 +13,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.teavm.flavour.example.api;
+package org.teavm.flavour.json.serializer;
 
-import javax.ws.rs.QueryParam;
-import org.teavm.flavour.json.JsonPersistable;
+import org.teavm.flavour.json.JSON;
+import org.teavm.flavour.json.tree.Node;
 
-@JsonPersistable
-public class ProductQueryDTO {
-    @QueryParam("name")
-    public String namePart;
+public class ObjectSerializer implements JsonSerializer {
+    public static final ObjectSerializer INSTANCE = new ObjectSerializer();
+
+    private ObjectSerializer() {
+    }
+
+    @Override
+    public Node serialize(JsonSerializerContext context, Object value) {
+        return JSON.serialize(context, value);
+    }
 }

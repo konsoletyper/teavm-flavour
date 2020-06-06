@@ -15,6 +15,9 @@
  */
 package org.teavm.flavour.example.api;
 
+import org.teavm.flavour.json.JsonPersistable;
+
+@JsonPersistable
 public class OrderEditItemDTO {
     public int productId;
     public int amount;

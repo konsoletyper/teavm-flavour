@@ -16,6 +16,7 @@
 package org.teavm.flavour.json;
 
 import static org.teavm.metaprogramming.Metaprogramming.exit;
+import static org.teavm.metaprogramming.Metaprogramming.unsupportedCase;
 import org.teavm.flavour.json.deserializer.JsonDeserializer;
 import org.teavm.flavour.json.deserializer.JsonDeserializerContext;
 import org.teavm.flavour.json.emit.JsonDeserializerEmitter;
@@ -77,7 +78,11 @@ public final class JSON {
     public static native JsonDeserializer getClassDeserializer(Class<?> cls);
     private static void getClassDeserializer(ReflectClass<?> cls) {
         Value<? extends JsonDeserializer> deserializerValue = new JsonDeserializerEmitter().getClassDeserializer(cls);
-        exit(() -> deserializerValue.get());
+        if (deserializerValue == null) {
+            unsupportedCase();
+        } else {
+            exit(() -> deserializerValue.get());
+        }
     }
 
     public static boolean deserializeBoolean(Node node) {
