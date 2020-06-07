@@ -171,7 +171,7 @@ public class Parser {
                 break;
             }
             sb.append(source.subSequence(start, ref.getBegin()));
-            sb.append(ref.getChar());
+            sb.append(Character.toChars(ref.getCodePoint()));
             start = ref.getEnd();
         }
         sb.append(source.subSequence(start, end));
