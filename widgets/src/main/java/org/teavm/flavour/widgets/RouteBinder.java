@@ -20,12 +20,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.teavm.flavour.routing.Route;
 import org.teavm.flavour.routing.Routing;
+import org.teavm.flavour.routing.RoutingListener;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.events.HashChangeEvent;
 
-public class RouteBinder {
+public class RouteBinder implements RoutingListener {
     Window window;
     private List<Route> routes = new ArrayList<>();
     private Runnable errorHandler;
@@ -38,6 +39,7 @@ public class RouteBinder {
 
     public RouteBinder(Window window) {
         attach(window);
+        Routing.addListener(this);
     }
 
     public Window getWindow() {
@@ -71,7 +73,7 @@ public class RouteBinder {
     }
 
     public void update() {
-        if (window.getLocation().getHash().isEmpty() || window.getLocation().getHash().equals("#")) {
+        if (Routing.isBlank(window)) {
             defaultAction.accept(defaultRoute);
             return;
         }
@@ -94,4 +96,9 @@ public class RouteBinder {
     }
 
     EventListener<HashChangeEvent> listener = evt -> update();
+
+    @Override
+    public void handleLocationChange() {
+        update();
+    }
 }

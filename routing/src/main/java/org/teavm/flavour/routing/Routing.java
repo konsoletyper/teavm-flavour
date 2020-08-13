@@ -19,8 +19,31 @@ import java.util.function.Consumer;
 import org.teavm.flavour.routing.emit.PathImplementor;
 import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.html.HTMLElement;
 
 public final class Routing {
+    private static RoutingStrategy routingStrategy = new HashRoutingStrategy();
+
+    public static void usePathStrategy() {
+        routingStrategy = new PathRoutingStrategy();
+    }
+
+    public static void addListener(RoutingListener listenerNew) {
+        routingStrategy.addListener(listenerNew);
+    }
+
+    static String parse(Window window) {
+        return routingStrategy.parse(window);
+    }
+
+    public static boolean isBlank(Window window) {
+        return routingStrategy.isBlank(window);
+    }
+
+    public static String makeUri(HTMLElement element, String path) {
+        return routingStrategy.makeUri(element, path);
+    }
+
     private Routing() {
     }
 
@@ -38,7 +61,7 @@ public final class Routing {
     }
 
     public static <T extends Route> T open(Window window, Class<T> routeType) {
-        return build(routeType, hash -> window.getLocation().setHash(hash));
+        return routingStrategy.open(window, routeType);
     }
 
     public static <T extends Route> T open(Class<T> routeType) {
@@ -46,9 +69,7 @@ public final class Routing {
     }
 
     static <T extends Route> T replace(Window window, Class<T> routeType) {
-        return build(routeType, hash -> {
-            window.getHistory().replaceState(null, null, "#" + Window.encodeURI(hash));
-        });
+        return routingStrategy.replace(window, routeType);
     }
 
     static <T extends Route> T replace(Class<T> routeType) {

@@ -16,6 +16,7 @@
 package org.teavm.flavour.components.html;
 
 import java.util.function.Consumer;
+import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ModifierTarget;
@@ -34,7 +35,7 @@ public class LinkComponent implements Renderable {
     }
 
     private Consumer<String> linkConsumer = str -> {
-        value = str;
+        value = Routing.makeUri(element, str);
         setHref(element, value);
     };
 
@@ -52,6 +53,6 @@ public class LinkComponent implements Renderable {
     public void destroy() {
     }
 
-    @JSBody(params = { "elem", "value" }, script = "elem.href = '#' + value;")
+    @JSBody(params = { "elem", "value" }, script = "elem.href = value;")
     private static native void setHref(HTMLElement elem, String value);
 }
