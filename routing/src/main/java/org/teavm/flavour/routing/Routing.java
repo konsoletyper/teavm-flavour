@@ -19,6 +19,8 @@ import java.util.function.Consumer;
 import org.teavm.flavour.routing.emit.PathImplementor;
 import org.teavm.flavour.routing.emit.RoutingImpl;
 import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 
 public final class Routing {
@@ -44,6 +46,10 @@ public final class Routing {
         return routingStrategy.makeUri(element, path);
     }
 
+    public static void addListener(Window window, EventListener<Event> listener) {
+        routingStrategy.addListener(window, listener);
+    }
+
     private Routing() {
     }
 
@@ -61,7 +67,7 @@ public final class Routing {
     }
 
     public static <T extends Route> T open(Window window, Class<T> routeType) {
-        return routingStrategy.open(window, routeType);
+        return (T) routingStrategy.open(window, routeType);
     }
 
     public static <T extends Route> T open(Class<T> routeType) {
@@ -69,7 +75,7 @@ public final class Routing {
     }
 
     static <T extends Route> T replace(Window window, Class<T> routeType) {
-        return routingStrategy.replace(window, routeType);
+        return (T) routingStrategy.replace(window, routeType);
     }
 
     static <T extends Route> T replace(Class<T> routeType) {

@@ -23,8 +23,8 @@ import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.routing.RoutingListener;
 import org.teavm.flavour.templates.Templates;
 import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
-import org.teavm.jso.dom.events.HashChangeEvent;
 
 public class RouteBinder implements RoutingListener {
     Window window;
@@ -51,7 +51,7 @@ public class RouteBinder implements RoutingListener {
             throw new IllegalStateException("This dispatcher is already attached to a window");
         }
         this.window = window;
-        window.listenHashChange(listener);
+        Routing.addListener(window, listener);
     }
 
     public void detach() {
@@ -95,7 +95,7 @@ public class RouteBinder implements RoutingListener {
         return this;
     }
 
-    EventListener<HashChangeEvent> listener = evt -> update();
+    EventListener<Event> listener = evt -> update();
 
     @Override
     public void handleLocationChange() {
