@@ -186,6 +186,9 @@ public class JsonSerializerEmitter {
                 emitIdentity(information, value, context, target);
                 emitProperties(information, value, context, target);
                 Value<? extends Node> result = emitInheritance(information, target);
+                if (information.idGenerator == IdGeneratorType.NONE) {
+                    emit(() -> context.get().release(value.get()));
+                }
                 exit(() -> result.get());
             });
         }
@@ -217,7 +220,7 @@ public class JsonSerializerEmitter {
             Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         switch (information.idGenerator) {
             case NONE:
-                emit(() -> context.get().touch(value.get()));
+                emit(() -> context.get().lock(value.get()));
                 break;
             case INTEGER:
                 emitIntegerIdentity(information, value, context, target);

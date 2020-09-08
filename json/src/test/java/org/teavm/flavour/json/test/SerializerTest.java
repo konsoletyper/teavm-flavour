@@ -37,6 +37,7 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.NumericNode;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -482,6 +483,18 @@ public class SerializerTest {
         assertEquals("Unexpected root[1].type", "B", node.get(1).get("type").asText());
         assertEquals("Unexpected root[1].foo", 3, node.get(1).get("foo").asInt());
         assertEquals("Unexpected root[1].baz", 4, node.get(1).get("baz").asInt());
+    }
+
+    @Test
+    public void sameObjectInArray() {
+        A a = new A();
+        A[] array = { a, a };
+        JsonNode node = JSONRunner.serialize(array);
+        assertEquals(2, node.size());
+        assertTrue(node.get(0).get("a") instanceof NullNode);
+        assertTrue(node.get(1).get("a") instanceof NullNode);
+        assertEquals(0, node.get(0).get("b").intValue());
+        assertEquals(0, node.get(1).get("b").intValue());
     }
 
     @JsonPersistable
