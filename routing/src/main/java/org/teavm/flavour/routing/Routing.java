@@ -30,6 +30,10 @@ public final class Routing {
         routingStrategy = new PathRoutingStrategy();
     }
 
+    public static RoutingStrategy getRoutingStrategy() {
+        return routingStrategy;
+    }
+
     public static void addListener(RoutingListener listenerNew) {
         routingStrategy.addListener(listenerNew);
     }
@@ -72,6 +76,10 @@ public final class Routing {
 
     public static <T extends Route> T open(Class<T> routeType) {
         return open(Window.current(), routeType);
+    }
+
+    public static void open(String path) {
+        routingStrategy.open(path);
     }
 
     static <T extends Route> T replace(Window window, Class<T> routeType) {

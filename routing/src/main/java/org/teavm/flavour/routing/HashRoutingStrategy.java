@@ -25,7 +25,7 @@ import org.teavm.jso.dom.html.HTMLElement;
 /**
  * Handles routing via URL hashes.
  */
-class HashRoutingStrategy implements RoutingStrategy<HashChangeEvent> {
+public class HashRoutingStrategy implements RoutingStrategy<HashChangeEvent> {
     @Override
     public void notifyListeners() {
     }
@@ -69,5 +69,10 @@ class HashRoutingStrategy implements RoutingStrategy<HashChangeEvent> {
     @Override
     public void addListener(Window window, EventListener<HashChangeEvent> listener) {
         window.listenHashChange(listener);
+    }
+
+    @Override
+    public void open(String path) {
+        // HashRoutingStrategy doesn't use this method, hrefs are used instead
     }
 }

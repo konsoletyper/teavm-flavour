@@ -16,16 +16,19 @@
 package org.teavm.flavour.components.html;
 
 import java.util.function.Consumer;
+import org.teavm.flavour.routing.HashRoutingStrategy;
 import org.teavm.flavour.routing.Routing;
 import org.teavm.flavour.templates.BindAttributeComponent;
 import org.teavm.flavour.templates.BindContent;
 import org.teavm.flavour.templates.ModifierTarget;
 import org.teavm.flavour.templates.Renderable;
 import org.teavm.jso.JSBody;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLElement;
 
 @BindAttributeComponent(name = "link", elements = "a")
-public class LinkComponent implements Renderable {
+public class LinkComponent implements Renderable, EventListener<Event> {
     private HTMLElement element;
     private String value;
     private Consumer<Consumer<String>> path;
@@ -36,7 +39,6 @@ public class LinkComponent implements Renderable {
 
     private Consumer<String> linkConsumer = str -> {
         value = Routing.makeUri(element, str);
-        setHref(element, value);
     };
 
     @BindContent
@@ -46,7 +48,13 @@ public class LinkComponent implements Renderable {
 
     @Override
     public void render() {
+      if (Routing.getRoutingStrategy() instanceof HashRoutingStrategy) {
         path.accept(linkConsumer);
+        setHref(element, value);
+      } else {
+        path.accept(linkConsumer);
+        element.addEventListener("click", this);
+      }
     }
 
     @Override
@@ -55,4 +63,9 @@ public class LinkComponent implements Renderable {
 
     @JSBody(params = { "elem", "value" }, script = "elem.href = value;")
     private static native void setHref(HTMLElement elem, String value);
+
+    @Override
+    public void handleEvent(Event e) {
+        Routing.open(value);
+    }
 }

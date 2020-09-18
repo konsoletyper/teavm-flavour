@@ -29,7 +29,7 @@ import org.teavm.jso.dom.html.HTMLElement;
 /**
  * Handles routing via URL path changes.
  */
-class PathRoutingStrategy implements RoutingStrategy<Event> {
+public class PathRoutingStrategy implements RoutingStrategy<Event> {
     private List<RoutingListener> listListeners = new ArrayList<>();
 
     @JSBody(params = {"document"}, script = "return document.baseURI;")
@@ -60,9 +60,13 @@ class PathRoutingStrategy implements RoutingStrategy<Event> {
     @Override
     public <T extends Route> T open(Window window, Class<T> routeType) {
         return build(routeType, hash -> {
-            window.getHistory().pushState(null, null, getBaseUri(window.getDocument()) + Window.encodeURI(trim(hash)));
-            notifyListeners();
+            open(window, getBaseUri(window.getDocument()) + Window.encodeURI(trim(hash)));
         });
+    }
+
+    public void open(Window window, String path) {
+        window.getHistory().pushState(null, null, path);
+        notifyListeners();
     }
 
     @Override
@@ -101,5 +105,10 @@ class PathRoutingStrategy implements RoutingStrategy<Event> {
     @Override
     public void addListener(Window window, EventListener<Event> listener) {
         listenPopState(window, (EventListener<Event>) listener);
+    }
+
+    @Override
+    public void open(String path) {
+        open(Window.current(), path);
     }
 }

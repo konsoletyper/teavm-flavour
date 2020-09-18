@@ -39,4 +39,6 @@ public interface RoutingStrategy<E extends Event> {
     String makeUri(HTMLElement element, String path);
 
     void addListener(Window window, EventListener<E> listener);
+
+    public void open(String path);
 }
