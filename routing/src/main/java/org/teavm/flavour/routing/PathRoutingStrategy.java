@@ -81,7 +81,7 @@ public class PathRoutingStrategy implements RoutingStrategy<Event> {
 
     @Override
     public <T extends Route> T open(Window window, Class<T> routeType) {
-        return build(routeType, hash -> {
+        return Routing.build(routeType, hash -> {
             open(window, getBaseUri(window.getDocument()) + Window.encodeURI(trim(hash)));
         });
     }
