@@ -30,6 +30,10 @@ public final class Routing {
         routingStrategy = new PathRoutingStrategy();
     }
 
+    public static void usePathStrategy(String rootPath) {
+        routingStrategy = new PathRoutingStrategy(rootPath);
+    }
+
     public static RoutingStrategy getRoutingStrategy() {
         return routingStrategy;
     }

@@ -17,7 +17,6 @@ package org.teavm.flavour.routing;
 
 import java.util.ArrayList;
 import java.util.List;
-import static org.teavm.flavour.routing.Routing.build;
 import org.teavm.jso.JSBody;
 import org.teavm.jso.browser.Location;
 import org.teavm.jso.browser.Window;
@@ -25,6 +24,8 @@ import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLHeadElement;
+import org.teavm.jso.dom.xml.NodeList;
 
 /**
  * Handles routing via URL path changes.
@@ -37,6 +38,27 @@ public class PathRoutingStrategy implements RoutingStrategy<Event> {
 
     @JSBody(params = {"window", "listener"}, script = "window.onpopstate = listener;")
     native public static void listenPopState(Window window, EventListener<Event> listener);
+
+    public PathRoutingStrategy() {
+        setupBaseHref("");
+    }
+
+    public PathRoutingStrategy(String rootPath) {
+        setupBaseHref(rootPath);
+    }
+
+    public void setupBaseHref(String rootPath) {
+        final HTMLDocument document = Window.current().getDocument();
+        HTMLHeadElement head = document.getHead();
+        NodeList<? extends HTMLElement> baseNodes = head.getElementsByTagName("base");
+        if (baseNodes.getLength() == 0) {
+            HTMLElement base = document.createElement("base");
+            head.appendChild(base);
+            final Location location = Window.current().getLocation();
+            base.setAttribute("href", location.getProtocol() + "//" + location.getHost() + "/"
+                    + rootPath + (rootPath.isEmpty() ? "" : "/"));
+        }
+    }
 
     private String trim(String path) {
         if (path.startsWith("/")) {
@@ -71,7 +93,7 @@ public class PathRoutingStrategy implements RoutingStrategy<Event> {
 
     @Override
     public <T extends Route> T replace(Window window, Class<T> routeType) {
-        return build(routeType, hash -> {
+        return Routing.build(routeType, hash -> {
             window.getHistory().replaceState(null, null,
                     getBaseUri(window.getDocument()) + Window.encodeURI(trim(hash)));
             notifyListeners();

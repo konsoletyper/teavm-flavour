@@ -40,5 +40,5 @@ public interface RoutingStrategy<E extends Event> {
 
     void addListener(Window window, EventListener<E> listener);
 
-    public void open(String path);
+    void open(String path);
 }
