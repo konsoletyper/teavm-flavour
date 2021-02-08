@@ -32,7 +32,7 @@ public abstract class Node implements JSObject {
     @JSBody(params = { "node" }, script = "return typeof node == 'string';")
     static native boolean isString(Node node);
 
-    @JSBody(params = { "node" }, script = "return node === null;")
+    @JSBody(params = { "node" }, script = "return node == null;")
     static native boolean isNull(Node node);
 
     @JSBody(params = { "node" }, script = "return node === void 0;")
