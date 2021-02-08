@@ -90,7 +90,8 @@ public class TemplatingProxyGenerator {
             for (Diagnostic diagnostic : parser.getDiagnostics()) {
                 SourceLocation diagnosticLocation = location != null ? new SourceLocation(location.getMethod(), path,
                         mapper.getLine(diagnostic.getStart()) + 1) : null;
-                diagnostics.error(diagnosticLocation, diagnostic.getMessage());
+                diagnostics.error(diagnosticLocation,
+                        ((location == null) ? path + ": " : "") + diagnostic.getMessage());
             }
         }
 
