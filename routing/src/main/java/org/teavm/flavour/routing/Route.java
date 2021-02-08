@@ -17,7 +17,6 @@ package org.teavm.flavour.routing;
 
 import org.teavm.flavour.routing.emit.PathImplementor;
 import org.teavm.flavour.routing.emit.RoutingImpl;
-import org.teavm.jso.browser.Location;
 import org.teavm.jso.browser.Window;
 
 public interface Route {
@@ -26,12 +25,7 @@ public interface Route {
     }
 
     default boolean parse(Window window) {
-        Location location = window.getLocation();
-        String hash = location.getHash();
-        if (hash.startsWith("#")) {
-            hash = hash.substring(1);
-        }
-        return parse(hash);
+        return parse(Routing.parse(window));
     }
 
     default boolean parse(String path) {
