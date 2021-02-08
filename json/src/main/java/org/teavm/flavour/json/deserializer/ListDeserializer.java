@@ -29,7 +29,7 @@ public class ListDeserializer extends JsonDeserializer {
 
     @Override
     public Object deserialize(JsonDeserializerContext context, Node node) {
-        if (node.isNull()) {
+        if (node.isMissing() || node.isNull()) {
             return null;
         }
         if (!node.isArray()) {

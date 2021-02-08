@@ -25,7 +25,7 @@ import org.teavm.flavour.json.tree.StringNode;
 public class ObjectDeserializer extends JsonDeserializer {
     @Override
     public Object deserialize(JsonDeserializerContext context, Node node) {
-        if (node.isNull()) {
+        if (node.isMissing() || node.isNull()) {
             return null;
         } else if (node.isArray()) {
             ArrayNode arrayNode = (ArrayNode) node;
