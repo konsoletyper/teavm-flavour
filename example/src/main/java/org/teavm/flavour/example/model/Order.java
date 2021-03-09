@@ -34,10 +34,12 @@ import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.persistence.Transient;
+import org.teavm.flavour.json.JsonPersistable;
 
 @Entity
 @SequenceGenerator(name = "OrderIdGen", sequenceName = "OrderIdGen", allocationSize = 1)
 @Table(name = "orders")
+@JsonPersistable
 public class Order {
     @Id
     @Column(nullable = false)
