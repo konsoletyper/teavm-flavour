@@ -15,6 +15,9 @@
  */
 package org.teavm.flavour.example.model;
 
+import org.teavm.flavour.json.JsonPersistable;
+
+@JsonPersistable
 public enum OrderStatus {
     PLANNED,
     DELIVERED,

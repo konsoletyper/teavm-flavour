@@ -24,9 +24,11 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.SequenceGenerator;
+import org.teavm.flavour.json.JsonPersistable;
 
 @Entity
 @SequenceGenerator(name = "OrderItemIdGen", sequenceName = "OrderItemIdGen", allocationSize = 1)
+@JsonPersistable
 public class OrderItem {
     @Id
     @Column(nullable = false)
