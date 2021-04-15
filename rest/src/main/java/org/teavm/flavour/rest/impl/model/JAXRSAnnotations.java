@@ -21,6 +21,7 @@ final class JAXRSAnnotations {
     public static final String GET = PREFIX + "GET";
     public static final String PUT = PREFIX + "PUT";
     public static final String POST = PREFIX + "POST";
+    public static final String PATCH = PREFIX + "PATCH";
     public static final String DELETE = PREFIX + "DELETE";
     public static final String HEAD = PREFIX + "HEAD";
     public static final String OPTIONS = PREFIX + "OPTIONS";

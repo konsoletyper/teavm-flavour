@@ -27,4 +27,22 @@ public class TestServiceImpl implements TestService {
         return (a + b) % mod;
     }
 
+    @Override
+    public int update(int val, int b) {
+        return val -  b;
+    }
+
+    @Override
+    public int op(OP val, int a, int b) {
+        switch (val) {
+            case PLUS:
+                return a+b;
+            case MINUS:
+                return a-b;
+            default:
+                throw new UnsupportedOperationException("Not yet supported");
+        }
+    }
+    
+    
 }

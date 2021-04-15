@@ -33,10 +33,20 @@ public class RestIT {
     public void passesQueryParams() throws Exception {
         assertEquals(5, service.sum(2, 3));
     }
+    
+    @Test
+    public void passesQueryParamsAsEnum() throws Exception {
+        assertEquals(5, service.sum(2, 3));
+    }
 
     @Test
     public void passesPathParamInsideUrl() throws Exception {
         assertEquals(0, service.sum(10, 7, 3));
+    }
+    
+    @Test
+    public void testPatchMethod() throws Exception {
+        assertEquals(0, service.update(10, 10));
     }
 
     @JSBody(script = "return $test_url;")

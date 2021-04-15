@@ -26,6 +26,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -129,6 +130,9 @@ public class ResourceModelRepository {
         } else if (method.getAnnotation(POST.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.POST;
+        } else if (method.getAnnotation(PATCH.class) != null) {
+            dropInheritance(model);
+            model.httpMethod = HttpMethod.PATCH;
         } else if (method.getAnnotation(DELETE.class) != null) {
             dropInheritance(model);
             model.httpMethod = HttpMethod.DELETE;
@@ -229,7 +233,8 @@ public class ResourceModelRepository {
             return false;
         } else {
             return Metaprogramming.findClass(String.class).isAssignableFrom(type)
-                    || Metaprogramming.findClass(Number.class).isAssignableFrom(type);
+                    || Metaprogramming.findClass(Number.class).isAssignableFrom(type)
+                    || Metaprogramming.findClass(Enum.class).isAssignableFrom(type);
         }
     }
 

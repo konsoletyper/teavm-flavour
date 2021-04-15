@@ -16,6 +16,7 @@
 package org.teavm.flavour.rest.test;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
@@ -24,6 +25,11 @@ import org.teavm.flavour.rest.Resource;
 @Resource
 @Path("test")
 public interface TestService {
+    
+    public static enum OP{
+        PLUS, MINUS
+    }
+    
     @GET
     @Path("integers/sum")
     int sum(@QueryParam("a") int a, @QueryParam("b") int b);
@@ -31,4 +37,12 @@ public interface TestService {
     @GET
     @Path("integers/mod-{mod}/sum")
     int sum(@PathParam("mod") int mod, @QueryParam("a") int a, @QueryParam("b") int b);
+    
+    @PATCH
+    @Path("integers/{val}")
+    int update(@PathParam("val") int val, @QueryParam("b") int b);
+    
+    @GET
+    @Path("integers")
+    int op(@QueryParam("op") OP val, @QueryParam("a") int a, @QueryParam("b") int b);
 }
