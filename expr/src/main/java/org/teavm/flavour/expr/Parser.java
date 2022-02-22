@@ -361,7 +361,7 @@ public class Parser {
             String text = ctx.getText();
             for (int i = 1; i < text.length() - 1; ++i) {
                 char c = text.charAt(i);
-                if (c != '\'') {
+                if (c != '\\') {
                     sb.append(c);
                 } else {
                     c = text.charAt(++i);
