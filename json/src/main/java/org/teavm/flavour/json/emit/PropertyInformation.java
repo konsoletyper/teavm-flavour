@@ -28,6 +28,7 @@ class PropertyInformation implements Cloneable {
     String className;
     ReflectClass<?> type;
     boolean ignored;
+    boolean required;
     Integer creatorParameterIndex;
 
     @Override

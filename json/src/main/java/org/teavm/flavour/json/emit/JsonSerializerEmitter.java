@@ -160,16 +160,22 @@ public class JsonSerializerEmitter {
                 if (componentType.getName().equals("java.lang.Object")) {
                     objectComponentSerializer = emit(() -> ObjectSerializer.INSTANCE);
                 } else {
-                    objectComponentSerializer = getClassSerializer(componentType);
-                    if (objectComponentSerializer == null) {
+                    if (getClassSerializer(componentType) == null) {
                         return null;
                     }
+                    objectComponentSerializer = proxy(JsonSerializer.class, (instance, method, args) -> {
+                        Value<Object> context = args[0];
+                        Value<Object> value = args[1];
+                        Value<Node> result = emit(() -> JSON.serialize((JsonSerializerContext) context.get(),
+                                componentType.cast(value.get())));
+                        exit(() -> result.get());
+                    });
                 }
                 return emit(() -> new ArraySerializer(objectComponentSerializer.get()));
             }
         } else {
             ClassInformation information = informationProvider.get(cls.getName());
-            if (information == null) {
+            if (information == null || !information.persistable) {
                 return null;
             }
 
@@ -180,6 +186,9 @@ public class JsonSerializerEmitter {
                 emitIdentity(information, value, context, target);
                 emitProperties(information, value, context, target);
                 Value<? extends Node> result = emitInheritance(information, target);
+                if (information.idGenerator == IdGeneratorType.NONE) {
+                    emit(() -> context.get().release(value.get()));
+                }
                 exit(() -> result.get());
             });
         }
@@ -211,7 +220,7 @@ public class JsonSerializerEmitter {
             Value<JsonSerializerContext> context, Value<ObjectNode> target) {
         switch (information.idGenerator) {
             case NONE:
-                emit(() -> context.get().touch(value.get()));
+                emit(() -> context.get().lock(value.get()));
                 break;
             case INTEGER:
                 emitIntegerIdentity(information, value, context, target);
@@ -473,6 +482,9 @@ public class JsonSerializerEmitter {
                     ? emit(() -> new Locale(localeName))
                     : emit(() -> Locale.getDefault());
             return emit(() -> {
+                if (value.get() == null) {
+                    return NullNode.instance();
+                }
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
                 return StringNode.create(format.format((Date) value.get()));
@@ -480,7 +492,7 @@ public class JsonSerializerEmitter {
         } else {
             return emit(() -> {
                 Date date = (Date) value.get();
-                return NumberNode.create(date.getTime());
+                return date != null ? NumberNode.create(date.getTime()) : NullNode.instance();
             });
         }
     }

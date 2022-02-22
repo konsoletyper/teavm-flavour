@@ -21,12 +21,14 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -34,6 +36,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.NumericNode;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -44,14 +48,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.teavm.flavour.json.JsonPersistable;
-import org.teavm.flavour.json.tree.StringNode;
 import org.teavm.junit.TeaVMTestRunner;
 
 @RunWith(TeaVMTestRunner.class)
@@ -410,6 +412,14 @@ public class SerializerTest {
     }
 
     @Test
+    public void writesNullDate() {
+        DateFormats formats = new DateFormats();
+        JsonNode node = JSONRunner.serialize(formats);
+        assertTrue("Numeric date successfully serialized", node.get("numeric") instanceof NullNode);
+        assertTrue("Textual date successfully serialized", node.get("textual") instanceof NullNode);
+    }
+
+    @Test
     public void arrayOfStrings() {
         String[] stringArray = { "one", "two" };
 
@@ -440,6 +450,51 @@ public class SerializerTest {
         assertFalse("Should not have `foo' property", node.has("foo"));
         assertTrue("Should have `bar' property", node.has("bar"));
         assertEquals(123, node.get("bar").asInt());
+    }
+
+    @Test
+    public void abstractNonPersistableSuperclassWithConstructor() {
+        SubClass o = new SubClass("foo");
+        JsonNode node = JSONRunner.serialize(o);
+
+        assertTrue("Should have `superField' property", node.has("superField"));
+        assertEquals("Invalid value of `superField' property", "foo", node.get("superField").asText());
+    }
+
+    @Test
+    public void abstractSuperclass() {
+        // Workaround for issue in TeaVM
+        System.out.println(AbstractPersistableSuperclass.class.getName());
+
+        ConcreteSubtypeA a = new ConcreteSubtypeA();
+        a.foo = 1;
+        a.bar = 2;
+
+        ConcreteSubtypeB b = new ConcreteSubtypeB();
+        b.foo = 3;
+        b.baz = 4;
+
+        JsonNode node = JSONRunner.serialize(new AbstractPersistableSuperclass[] { a, b });
+
+        assertEquals("Unexpected array size", 2, node.size());
+        assertEquals("Unexpected root[0].type", "A", node.get(0).get("type").asText());
+        assertEquals("Unexpected root[0].foo", 1, node.get(0).get("foo").asInt());
+        assertEquals("Unexpected root[0].bar", 2, node.get(0).get("bar").asInt());
+        assertEquals("Unexpected root[1].type", "B", node.get(1).get("type").asText());
+        assertEquals("Unexpected root[1].foo", 3, node.get(1).get("foo").asInt());
+        assertEquals("Unexpected root[1].baz", 4, node.get(1).get("baz").asInt());
+    }
+
+    @Test
+    public void sameObjectInArray() {
+        A a = new A();
+        A[] array = { a, a };
+        JsonNode node = JSONRunner.serialize(array);
+        assertEquals(2, node.size());
+        assertTrue(node.get(0).get("a") instanceof NullNode);
+        assertTrue(node.get(1).get("a") instanceof NullNode);
+        assertEquals(0, node.get(0).get("b").intValue());
+        assertEquals(0, node.get(1).get("b").intValue());
     }
 
     @JsonPersistable
@@ -694,7 +749,7 @@ public class SerializerTest {
     public static class DateFormats {
         public Date numeric;
 
-        @JsonFormat(shape = Shape.STRING, pattern = "YYYY-MM-dd HH:mm:ss XX")
+        @JsonFormat(shape = Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss XX")
         public Date textual;
     }
 
@@ -710,5 +765,40 @@ public class SerializerTest {
     public static class PrivateFieldIgnored {
         private int foo;
         int bar;
+    }
+
+    public static abstract class SuperClass {
+        public final String superField;
+
+        public SuperClass(String superField) {
+            this.superField = superField;
+        }
+    }
+
+    @JsonPersistable
+    public static class SubClass extends SuperClass {
+        @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+        public SubClass(@JsonProperty("superField") String superField) {
+            super(superField);
+        }
+    }
+
+    @JsonPersistable
+    @JsonTypeInfo(use = Id.NAME, property = "type", include = As.PROPERTY)
+    @JsonSubTypes({ @JsonSubTypes.Type(ConcreteSubtypeA.class), @JsonSubTypes.Type(ConcreteSubtypeB.class) })
+    public static abstract class AbstractPersistableSuperclass {
+        public int foo;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("A")
+    public static class ConcreteSubtypeA extends AbstractPersistableSuperclass {
+        public int bar;
+    }
+
+    @JsonPersistable
+    @JsonTypeName("B")
+    public static class ConcreteSubtypeB extends AbstractPersistableSuperclass {
+        public int baz;
     }
 }

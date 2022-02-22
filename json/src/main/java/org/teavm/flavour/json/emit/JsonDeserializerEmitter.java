@@ -177,7 +177,7 @@ public class JsonDeserializerEmitter {
 
     private Value<? extends JsonDeserializer> emitClassDeserializer(ReflectClass<?> cls) {
         ClassInformation information = informationProvider.get(cls.getName());
-        if (information == null) {
+        if (information == null || !information.persistable) {
             return null;
         }
         return proxy(JsonDeserializer.class, (instance, method, args) -> {
@@ -185,6 +185,9 @@ public class JsonDeserializerEmitter {
             Value<Node> node = emit(() -> (Node) args[1]);
 
             Value<Object> result = lazyFragment(() -> emitSubTypes(information, node, context, contentNode -> {
+                if (information.isAbstract) {
+                    return emit(() -> null);
+                }
                 Value<Object> target = emitConstructor(information, contentNode, context);
                 emitIdRegistration(information, target, contentNode, context);
                 emitProperties(information, target, contentNode, context);
@@ -394,7 +397,7 @@ public class JsonDeserializerEmitter {
             if (property != null) {
                 String propertyName = property.outputName;
                 Type type = genericTypes[i];
-                Value<Node> valueNode = emit(() -> node.get().get(propertyName));
+                Value<Node> valueNode = readProperty(property, node, propertyName);
                 paramValue = convert(valueNode, context, type, information.constructor.getParameterAnnotations(i));
             } else {
                 paramValue = defaultValue(information.constructor.getParameterType(i));
@@ -483,7 +486,7 @@ public class JsonDeserializerEmitter {
         Type type = javaMethod.getGenericParameterTypes()[0];
 
         String propertyName = property.outputName;
-        Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
+        Value<Node> jsonValue = readProperty(property, node, propertyName);
         Value<Object> value = convert(jsonValue, context, type, method);
         emit(() -> method.invoke(target.get(), value.get()));
     }
@@ -495,9 +498,29 @@ public class JsonDeserializerEmitter {
         Type type = javaField.getGenericType();
 
         String propertyName = property.outputName;
-        Value<Node> jsonValue = emit(() -> node.get().get(propertyName));
+        Value<Node> jsonValue = readProperty(property, node, propertyName);
         Value<Object> value = convert(jsonValue, context, type, field);
-        emit(() -> field.set(target.get(), value.get()));
+        emit(() -> {
+            if (!jsonValue.get().isMissing()) {
+                field.set(target.get(), value.get());
+            }
+        });
+    }
+
+    private Value<Node> readProperty(PropertyInformation property, Value<ObjectNode> node, String propertyName) {
+        Value<Node> jsonValue;
+        if (property.required) {
+            jsonValue = emit(() -> {
+                final Node value = node.get().get(propertyName);
+                if (value.isMissing()) {
+                    throw new IllegalArgumentException("Missing required property: " + propertyName);
+                }
+                return value;
+            });
+        } else {
+            jsonValue = emit(() -> node.get().get(propertyName));
+        }
+        return jsonValue;
     }
 
     private Type getPropertyGenericType(PropertyInformation property) {
@@ -534,7 +557,7 @@ public class JsonDeserializerEmitter {
             return convertDate(node, annotations);
         }
         Value<JsonDeserializer> deserializer = createDeserializer(type, annotations);
-        return emit(() -> deserializer.get().deserialize(context.get(), node.get()));
+        return emit(() -> node.get().isMissing() ? null : deserializer.get().deserialize(context.get(), node.get()));
     }
 
     private Value<JsonDeserializer> createDeserializer(Type type, ReflectAnnotatedElement annotations) {
@@ -674,15 +697,15 @@ public class JsonDeserializerEmitter {
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
                 try {
-                    return value != null ? format.parse(((StringNode) value.get()).getValue()) : null;
+                    return !value.get().isNull() ? format.parse(((StringNode) value.get()).getValue()) : null;
                 } catch (ParseException e) {
                     throw new RuntimeException(e);
                 }
             });
         } else {
             return emit(() -> {
-                NumberNode node = (NumberNode) value.get();
-                return node != null ? new Date(node.getIntValue()) : null;
+                Node node = value.get();
+                return !node.isNull() ? new Date((long) ((NumberNode) node).getValue()) : null;
             });
         }
     }
