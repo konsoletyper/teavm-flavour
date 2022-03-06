@@ -16,3 +16,4 @@ target/
 .idea/vcs.xml
 .idea/libraries/*
 .idea/artifacts/*
+.idea/jarRepositories.xml

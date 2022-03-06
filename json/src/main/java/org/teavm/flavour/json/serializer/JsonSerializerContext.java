@@ -23,7 +23,7 @@ import java.util.Set;
 public class JsonSerializerContext {
     private int lastId;
     private Map<Object, Integer> ids = new IdentityHashMap<>();
-    private Set<Object> touchedObjects = Collections.newSetFromMap(new IdentityHashMap<>());
+    private Set<Object> lockedObjects = Collections.newSetFromMap(new IdentityHashMap<>());
 
     public boolean hasId(Object object) {
         return ids.containsKey(object);
@@ -38,10 +38,14 @@ public class JsonSerializerContext {
         return id;
     }
 
-    public void touch(Object object) {
-        if (touchedObjects.contains(object)) {
+    public void lock(Object object) {
+        if (lockedObjects.contains(object)) {
             throw new IllegalArgumentException("Object has already been serialized: " + object);
         }
-        touchedObjects.add(object);
+        lockedObjects.add(object);
+    }
+
+    public void release(Object object) {
+        lockedObjects.remove(object);
     }
 }
