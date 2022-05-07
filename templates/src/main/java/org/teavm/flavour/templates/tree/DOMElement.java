@@ -22,6 +22,7 @@ import org.teavm.flavour.expr.Location;
 
 public class DOMElement extends TemplateNode {
     private String name;
+    private boolean useSvgNamespace = false;
     private List<TemplateNode> childNodes = new ArrayList<>();
     private List<DOMAttribute> attributes = new ArrayList<>();
     private List<DOMAttribute> readonlyAttributes = Collections.unmodifiableList(attributes);
@@ -29,6 +30,9 @@ public class DOMElement extends TemplateNode {
 
     public DOMElement(String name) {
         this.name = name;
+        if ("svg".equals(name)) {
+            useSvgNamespace = true;
+        }
     }
 
     public String getName() {
@@ -91,6 +95,13 @@ public class DOMElement extends TemplateNode {
         return attributeComponents;
     }
 
+    public boolean getUseSvgNamespace() {
+        return useSvgNamespace;
+    }
+
+    public void setUseSvgNamespace(boolean useSvgNamespace) {
+        this.useSvgNamespace = useSvgNamespace;
+    }
 
     @Override
     public void acceptVisitor(TemplateNodeVisitor visitor) {
