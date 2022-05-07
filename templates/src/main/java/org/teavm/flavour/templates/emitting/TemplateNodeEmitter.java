@@ -69,12 +69,13 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         boolean hasInnerComponents = node.getChildNodes().stream()
                 .anyMatch(child -> child instanceof ComponentBinding);
         String tagName = node.getName();
+        boolean useSvgNamespace = node.getUseSvgNamespace();
         {
             Value<DomBuilder> tmpBuilder = builder;
             if (hasInnerComponents) {
-                updateBuilder(emit(() -> tmpBuilder.get().openSlot(tagName)));
+                updateBuilder(emit(() -> tmpBuilder.get().openSlot(tagName, useSvgNamespace)));
             } else {
-                updateBuilder(emit(() -> tmpBuilder.get().open(tagName)));
+                updateBuilder(emit(() -> tmpBuilder.get().open(tagName, useSvgNamespace)));
             }
         }
 
@@ -93,6 +94,11 @@ class TemplateNodeEmitter implements TemplateNodeVisitor {
         }
 
         for (TemplateNode child : node.getChildNodes()) {
+            if (node.getUseSvgNamespace()) {
+                if (child instanceof DOMElement) {
+                    ((DOMElement) child).setUseSvgNamespace(true);
+                }
+            }
             child.acceptVisitor(this);
         }
 

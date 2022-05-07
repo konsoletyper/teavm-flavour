@@ -30,6 +30,7 @@ import org.teavm.jso.dom.xml.Node;
 import org.teavm.jso.dom.xml.Text;
 
 public class DomBuilder {
+    private static final String SVG_NS_URI = "http://www.w3.org/2000/svg";
     private static final Document document = Window.current().getDocument();
     private Slot slot;
     private Deque<Item> stack = new ArrayDeque<>();
@@ -39,16 +40,21 @@ public class DomBuilder {
         this.slot = slot;
     }
 
-    public DomBuilder open(String tagName) {
-        return open(tagName, false);
+    public DomBuilder open(String tagName, boolean svg) {
+        return open(tagName, false, svg);
     }
 
-    public DomBuilder openSlot(String tagName) {
-        return open(tagName, true);
+    public DomBuilder openSlot(String tagName, boolean svg) {
+        return open(tagName, true, svg);
     }
 
-    private DomBuilder open(String tagName, boolean slot) {
-        Element elem = document.createElement(tagName);
+    private DomBuilder open(String tagName, boolean slot, boolean svg) {
+        Element elem = null;
+        if (svg) {
+            elem = document.createElementNS(SVG_NS_URI, tagName);
+        } else {
+            elem = document.createElement(tagName);
+        }
         Item item = new Item();
         item.element = elem;
         if (slot) {
