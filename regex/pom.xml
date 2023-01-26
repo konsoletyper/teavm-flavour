@@ -31,7 +31,7 @@
   <dependencies>
     <dependency>
       <groupId>org.ow2.asm</groupId>
-      <artifactId>asm-debug-all</artifactId>
+      <artifactId>asm-util</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

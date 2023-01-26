@@ -14,6 +14,7 @@
               <option value="-DskipTests" />
               <option value="-e" />
               <option value="-Dmaven.javadoc.skip=true" />
+              <option value="-U" />
             </list>
           </option>
           <option name="pomFileName" />

@@ -44,6 +44,10 @@
     </dependency>
     <dependency>
       <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
       <artifactId>teavm-jso-impl</artifactId>
       <optional>true</optional>
     </dependency>
