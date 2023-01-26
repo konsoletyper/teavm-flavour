@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.example.server;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;

@@ -15,15 +15,15 @@
  */
 package org.teavm.flavour.example.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.Objects;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
 
 @Entity
 @SequenceGenerator(name = "ProductIdGen", sequenceName = "ProductIdGen", allocationSize = 1)
@@ -43,7 +43,7 @@ public class Product {
     @Column(scale = 2, precision = 10, nullable = false)
     private BigDecimal price;
 
-    Product() {
+    protected Product() {
     }
 
     public Product(String sku, String name, BigDecimal price) {

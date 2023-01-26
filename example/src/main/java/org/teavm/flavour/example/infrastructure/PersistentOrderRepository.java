@@ -15,7 +15,7 @@
  */
 package org.teavm.flavour.example.infrastructure;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.teavm.flavour.example.model.Order;

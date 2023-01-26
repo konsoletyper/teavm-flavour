@@ -16,11 +16,11 @@
 package org.teavm.flavour.example.server;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import java.beans.PropertyVetoException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.eclipse.persistence.jpa.PersistenceProvider;
 import org.hsqldb.jdbc.JDBCDriver;

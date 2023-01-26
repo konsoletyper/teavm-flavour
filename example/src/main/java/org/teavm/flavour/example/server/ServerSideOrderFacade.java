@@ -15,12 +15,12 @@
  */
 package org.teavm.flavour.example.server;
 
+import jakarta.ws.rs.BeanParam;
 import java.text.ParseException;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.ws.rs.BeanParam;
 import org.jinq.jpa.JPQL;
 import org.jinq.orm.stream.JinqStream;
 import org.springframework.beans.factory.annotation.Autowired;

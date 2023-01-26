@@ -15,10 +15,10 @@
  */
 package org.teavm.flavour.example.api;
 
+import jakarta.ws.rs.QueryParam;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
-import javax.ws.rs.QueryParam;
 import org.teavm.flavour.json.JsonPersistable;
 
 @JsonPersistable

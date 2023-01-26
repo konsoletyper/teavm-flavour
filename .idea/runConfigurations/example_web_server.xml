@@ -6,7 +6,7 @@
     <deployment>
       <artifact name="teavm-flavour-example:war exploded">
         <settings>
-          <option name="CONTEXT_PATH" value="/teavm_flavour_example_war_exploded" />
+          <option name="CONTEXT_PATH" value="/" />
         </settings>
       </artifact>
     </deployment>
