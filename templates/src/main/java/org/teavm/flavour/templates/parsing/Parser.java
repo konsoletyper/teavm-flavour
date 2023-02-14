@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import net.htmlparser.jericho.Attribute;
 import net.htmlparser.jericho.CharacterReference;
 import net.htmlparser.jericho.Element;
+import net.htmlparser.jericho.Logger;
 import net.htmlparser.jericho.Segment;
 import net.htmlparser.jericho.Source;
 import net.htmlparser.jericho.StartTag;
@@ -116,6 +117,48 @@ public class Parser {
 
     public List<TemplateNode> parse(Reader reader, String className) throws IOException {
         source = new Source(reader);
+        final Logger sourceLoggerOrig = source.getLogger();
+        source.setLogger(new Logger() {
+            @Override
+            public void error(String message) {
+                sourceLoggerOrig.error(className + ": " + message);
+            }
+
+            @Override
+            public void warn(String message) {
+                sourceLoggerOrig.warn(message);
+            }
+
+            @Override
+            public void info(String message) {
+                sourceLoggerOrig.info(message);
+            }
+
+            @Override
+            public void debug(String message) {
+                sourceLoggerOrig.debug(message);
+            }
+
+            @Override
+            public boolean isErrorEnabled() {
+                return sourceLoggerOrig.isErrorEnabled();
+            }
+
+            @Override
+            public boolean isWarnEnabled() {
+                return sourceLoggerOrig.isWarnEnabled();
+            }
+
+            @Override
+            public boolean isInfoEnabled() {
+                return sourceLoggerOrig.isInfoEnabled();
+            }
+
+            @Override
+            public boolean isDebugEnabled() {
+                return sourceLoggerOrig.isDebugEnabled();
+            }
+        });
         use(source, "std", "org.teavm.flavour.components.standard");
         use(source, "event", "org.teavm.flavour.components.events");
         use(source, "attr", "org.teavm.flavour.components.attributes");
