@@ -40,7 +40,7 @@ public final class TeaVMJSONRunner {
     }
 
     public static JsonNode convert(JsonNodeFactory nf, Node node) {
-        if (node.isNull()) {
+        if (node.isMissing() || node.isNull()) {
             return nf.nullNode();
         } else if (node.isBoolean()) {
             BooleanNode booleanNode = (BooleanNode)node;

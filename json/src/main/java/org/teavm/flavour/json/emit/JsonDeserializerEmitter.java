@@ -199,7 +199,7 @@ public class JsonDeserializerEmitter {
             result = emitNodeTypeCheck(node, result, emitIdCheck(information, node, context));
 
             Value<Object> finalResult = result;
-            exit(() -> node.get().isNull() ? null : finalResult.get());
+            exit(() -> node.get().isMissing() || node.get().isNull() ? null : finalResult.get());
         });
     }
 
@@ -222,7 +222,7 @@ public class JsonDeserializerEmitter {
 
         Value<Object> finalResult = result;
         exit(() -> {
-            if (node.get().isNull()) {
+            if (node.get().isMissing() || node.get().isNull()) {
                 return null;
             } else if (!node.get().isString()) {
                 throw new IllegalArgumentException("Can't convert to " + className + ": "
@@ -700,7 +700,7 @@ public class JsonDeserializerEmitter {
                 DateFormat format = new SimpleDateFormat(pattern, locale.get());
                 format.setTimeZone(TimeZone.getTimeZone("GMT"));
                 try {
-                    return !value.get().isNull() ? format.parse(((StringNode) value.get()).getValue()) : null;
+                    return value.get().isMissing() || value.get().isNull() ? null : format.parse(((StringNode) value.get()).getValue());
                 } catch (ParseException e) {
                     throw new RuntimeException(e);
                 }
@@ -708,7 +708,7 @@ public class JsonDeserializerEmitter {
         } else {
             return emit(() -> {
                 Node node = value.get();
-                return !node.isNull() ? new Date((long) ((NumberNode) node).getValue()) : null;
+                return node.isMissing() || node.isNull() ? null : new Date((long) ((NumberNode) node).getValue());
             });
         }
     }

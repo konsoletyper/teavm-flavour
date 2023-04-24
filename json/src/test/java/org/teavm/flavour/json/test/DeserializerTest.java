@@ -62,6 +62,17 @@ public class DeserializerTest {
     }
 
     @Test
+    public void readsEmpty() {
+        A objA = JSONRunner.deserialize("{ \"b\" : 23 }", A.class);
+        assertNull(objA.getA());
+        assertEquals(23, objA.getB());
+        B objB = JSONRunner.deserialize("{}", B.class);
+        assertNull(objB.getFoo());
+        C objC = JSONRunner.deserialize("{}", C.class);
+        assertNull(objC.getC());
+    }
+
+    @Test
     public void readsArray() {
         int[] array = JSONRunner.deserialize("[ 23, 42 ]", int[].class);
         assertEquals(2, array.length);
@@ -309,6 +320,19 @@ public class DeserializerTest {
 
         public int getB() {
             return b;
+        }
+    }
+
+    @JsonPersistable
+    public static class C {
+        Integer c;
+
+        public Integer getC() {
+            return c;
+        }
+
+        public void setC(Integer c) {
+            this.c = c;
         }
     }
 

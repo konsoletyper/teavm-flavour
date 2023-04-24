@@ -21,7 +21,7 @@ import org.teavm.flavour.json.tree.Node;
 public class BooleanDeserializer extends JsonDeserializer {
     @Override
     public Object deserialize(JsonDeserializerContext context, Node node) {
-        if (node.isNull()) {
+        if (node.isMissing() || node.isNull()) {
             return null;
         }
         return JSON.deserializeBoolean(node);
